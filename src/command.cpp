@@ -21,13 +21,13 @@ void command::remove(const std::string& key)
     _operations.erase(key);
 }
 
-void command::execute(const std::span<const char* const>& arguments)
+void command::execute(const std::span<const std::string>& arguments)
 {
     for (const auto& i : arguments) {
         if (_operations.end() != _operations.find(i)) {
             _operations[i].execute();
         } else {
-            std::cerr << *i << ": invalid argument (operation not found)" << std::endl;
+            std::cerr << i << ": invalid argument (operation not found)" << std::endl;
         }
         break;
     }

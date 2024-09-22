@@ -17,7 +17,7 @@ public:
     void add(const std::string& key, const scrap::operation& operation);
     void remove(const std::string& key);
 
-    void execute(const std::span<const char* const>& arguments);
+    void execute(const std::span<const std::string>& arguments);
 
 private:
     std::map<std::string, scrap::operation> _operations;
