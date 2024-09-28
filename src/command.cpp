@@ -33,4 +33,10 @@ void command::execute(const std::span<const std::string>& arguments)
     }
 }
 
+command::option::option() = default;
+
+command::option::option(const option&) = default;
+
+command::option::~option() = default;
+
 }
