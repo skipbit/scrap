@@ -19,8 +19,16 @@ public:
 
     void execute(const std::span<const std::string>& arguments);
 
+    class option {
+    public:
+        option();
+        option(const option&);
+        virtual ~option();
+    };
+
 private:
     std::map<std::string, scrap::operation> _operations;
+    std::map<std::string, scrap::command::option> _options;
 };
 
 }
