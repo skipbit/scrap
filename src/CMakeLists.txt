@@ -6,6 +6,8 @@ target_sources(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/application.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/operation.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/config.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/environment.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/toolchain.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/list.cpp
 )
