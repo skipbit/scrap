@@ -1,6 +1,0 @@
-[submodule "lib/dross"]
-	path = lib/dross
-	url = https://github.com/skipbit/dross.git
-[submodule "lib/git2"]
-	path = lib/git2
-	url = https://github.com/libgit2/libgit2.git
