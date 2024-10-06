@@ -30,3 +30,19 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     CXX_EXTENSIONS OFF
     OUTPUT_NAME "scrap"
 )
+
+find_library(DROSS_LIBRARY NAMES dross PATHS ${PROJECT_BINARY_DIR}/lib NO_DEFAULT_PATH)
+find_library(GIT2_LIBRARY NAMES git2 PATHS ${PROJECT_BINARY_DIR}/lib NO_DEFAULT_PATH)
+
+target_include_directories(${PROJECT_NAME}
+    SYSTEM BEFORE PRIVATE ${PROJECT_BINARY_DIR}/include
+)
+
+target_link_directories(${PROJECT_NAME}
+    PRIVATE ${PROJECT_BINARY_DIR}/lib
+)
+
+target_link_libraries(${PROJECT_NAME} PRIVATE
+    ${DROSS_LIBRARY}
+    ${GIT2_LIBRARY}
+)
