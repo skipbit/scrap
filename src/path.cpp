@@ -84,7 +84,7 @@ std::expected<path, std::filesystem::filesystem_error> path::resolve() const
     try {
         const auto expanded = expand();
         if (expanded) {
-            return path { std::filesystem::canonical(expanded.value()) };
+            return path { std::filesystem::canonical(expanded.value()._path) };
         } else {
             return expanded;
         }

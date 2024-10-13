@@ -30,3 +30,21 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     CXX_EXTENSIONS OFF
     OUTPUT_NAME "scrap"
 )
+
+find_package(dross REQUIRED)
+find_package(git2 REQUIRED)
+
+add_dependencies(scrap dross_library git2_library)
+
+target_include_directories(${PROJECT_NAME}
+    SYSTEM BEFORE PRIVATE ${DROSS_INCLUDE_DIR} ${GIT2_INCLUDE_DIR}
+)
+
+target_link_directories(${PROJECT_NAME}
+    PRIVATE ${DROSS_LIBRARY_DIR} ${GIT2_LIBRARY_DIR}
+)
+
+target_link_libraries(${PROJECT_NAME} PRIVATE
+    dross_library
+    git2_library
+)
