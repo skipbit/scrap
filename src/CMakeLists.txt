@@ -33,6 +33,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 
 find_package(dross REQUIRED)
 find_package(git2 REQUIRED)
+
 add_dependencies(scrap dross_library git2_library)
 
 target_include_directories(${PROJECT_NAME}
