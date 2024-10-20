@@ -1,8 +1,7 @@
 #include "application.h"
+#include "toolchain/toolchain.h"
 
 #include <iostream>
-#include <span>
-#include <vector>
 
 namespace scrap {
 
@@ -10,22 +9,14 @@ application::application() = default;
 
 application::~application() = default;
 
-void application::add(const std::string& key, const scrap::command& command)
+void application::setup(command& cmd)
 {
-    _commands.insert(std::make_pair(key, command));
+    cmd.add("toolchain", make_command<scrap::toolchain>());
 }
 
-void application::execute(const int argc, const char* const argv[])
+void application::execute(const std::vector<command::option>&)
 {
-    const std::vector<std::string> args(argv + 1, argv + argc);
-    for (auto i = args.begin(); i != args.end(); ++i) {
-        if (_commands.end() != _commands.find(*i)) {
-            _commands[*i].execute(std::span{args}.subspan(std::distance(args.begin(), i) + 1));
-        } else {
-            std::cerr << *i << ": invalid argument (command not found)" << std::endl;
-        }
-        break;
-    }
+    std::cerr << "application help implementation" << std::endl;
 }
 
 }

@@ -1,22 +1,18 @@
 #pragma once
 
-#include "command.h"
-#include <map>
-#include <string>
+#include "operation.h"
 
 namespace scrap {
 
-class application : public command {
+class application : public operation {
 public:
     application();
     virtual ~application();
 
-    void add(const std::string& key, const scrap::command& command);
-
-    void execute(const int argc, const char* const argv[]);
+    void setup(command&) override;
+    void execute(const std::vector<command::option>&) override;
 
 private:
-    std::map<std::string, scrap::command> _commands;
 };
 
 }

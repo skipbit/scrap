@@ -1,13 +1,16 @@
 #pragma once
 
-#include "command.h"
+#include "operation.h"
 
 namespace scrap {
 
-class toolchain : public command {
+class toolchain : public operation {
 public:
     toolchain();
     ~toolchain() override;
+
+    void setup(command&) override;
+    void execute(const std::vector<command::option>&) override;
 };
 
 }
