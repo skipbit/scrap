@@ -7,6 +7,9 @@ target_sources(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/command.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/operation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/config.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/repository/repository.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/repository/git_driver.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/repository/libgit_repository.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/toolchain.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/list.cpp
 )
