@@ -11,6 +11,9 @@ public:
     git_driver();
     ~git_driver();
 
+    void clone(const std::string&, const std::filesystem::path&) override;
+    void update(const std::filesystem::path&) override;
+
 private:
     class internal;
     std::unique_ptr<internal> _impl;

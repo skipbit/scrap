@@ -1,30 +1,28 @@
 #include "repository.h"
-#include "libgit_repository.h"
+#include "git_driver.h"
 
 namespace scrap {
 
-repository repository::clone(const repository::type type, const std::string& url, const std::filesystem::path& directory)
-{
-    if (type == repository::type::git) {
-        auto r = std::make_unique<libgit::repository>(url, directory);
-    }
-    return repository(type, directory);
-}
-
-repository::repository(const std::filesystem::path&)
+repository::repository(const std::filesystem::path& path)
+    : _driver(std::make_shared<git_driver>()), _directory(path)
 {
 }
 
-repository::repository(const repository::type, const std::filesystem::path&)
+repository::repository(const repository& r)
+    : _driver(r._driver), _directory(r._directory)
 {
 }
 
-repository::repository(const repository&)
+repository::~repository() = default;
+
+void repository::clone(const std::string& url)
 {
+    _driver->clone(url, _directory);
 }
 
 void repository::update()
 {
+    _driver->update(_directory);
 }
 
 }

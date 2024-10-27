@@ -1,6 +1,7 @@
 #include "libgit_repository.h"
 
 #include <git2.h>
+#include <git2/annotated_commit.h>
 #include <git2/merge.h>
 #include <iostream>
 
@@ -91,6 +92,27 @@ public:
     git_reference* reference_ = nullptr;
 };
 
+class annotation {
+public:
+    annotation(git_repository* repository, const git_reference* reference) {
+        if (GIT_OK != git_annotated_commit_from_ref(&annotation_, repository, reference)) {
+            throw std::runtime_error("Failed to create annotated commit");
+        }
+    }
+
+    ~annotation() {
+        if (annotation_) {
+            git_annotated_commit_free(annotation_);
+        }
+    }
+
+    operator const git_annotated_commit*() const {
+        return annotation_;
+    }
+
+    git_annotated_commit* annotation_ = nullptr;
+};
+
 /**
  * @brief The internal class for the repository class.
  */
@@ -141,9 +163,10 @@ public:
         try {
             git_merge_analysis_t analysis;
             git_merge_preference_t preference;
-            const git_annotated_commit* annotations[] = {
-                reinterpret_cast<git_annotated_commit*>(co.commit_)
-            };
+
+            annotation ac(repository, ref.reference_);
+            const git_annotated_commit* annotations[] = { ac };
+
             if (GIT_OK != git_merge_analysis(&analysis, &preference, repository, annotations, 1)) {
                 throw std::runtime_error("Failed to analyze merge");
             }
@@ -202,6 +225,11 @@ repository::repository(const std::string& url, const std::filesystem::path& p)
 }
 
 repository::~repository() = default;
+
+void repository::update(const std::string& remote, const std::string& branch)
+{
+    _impl->update(remote, branch);
+}
 
 }
 }

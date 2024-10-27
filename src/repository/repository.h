@@ -15,18 +15,20 @@ public:
     class driver {
     public:
         virtual ~driver() = default;
+        virtual void clone(const std::string&, const std::filesystem::path&) = 0;
+        virtual void update(const std::filesystem::path&) = 0;
     };
 
-    static repository clone(const repository::type, const std::string&, const std::filesystem::path&);
-
     repository(const std::filesystem::path&);
-    repository(const repository::type, const std::filesystem::path&);
     repository(const repository&);
+    ~repository();
 
+    void clone(const std::string&);
     void update();
 
 private:
-    std::unique_ptr<driver> _driver;
+    std::shared_ptr<driver> _driver;
+    std::filesystem::path _directory;
 };
 
 }

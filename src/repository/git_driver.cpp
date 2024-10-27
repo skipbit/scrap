@@ -26,4 +26,17 @@ git_driver::~git_driver()
 {
 }
 
+void git_driver::clone(const std::string& url, const std::filesystem::path& path)
+{
+    _impl->repository = std::make_unique<libgit::repository>(url, path);
+}
+
+void git_driver::update(const std::filesystem::path& path)
+{
+    if (! _impl->repository) {
+        _impl->repository = std::make_unique<libgit::repository>(path);
+    }
+    _impl->repository->update("origin", "main");
+}
+
 }

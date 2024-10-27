@@ -12,6 +12,7 @@ public:
     repository(const std::string&, const std::filesystem::path&);
     ~repository();
 
+    void update(const std::string&, const std::string&);
 
 private:
     class internal;
