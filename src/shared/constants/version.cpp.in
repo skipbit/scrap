@@ -1,0 +1,9 @@
+#include "shared/constants/version.h"
+
+namespace scrap {
+
+std::string version() {
+    return "@PROJECT_NAME@ @PROJECT_VERSION@";
+}
+
+}

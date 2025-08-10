@@ -1,4 +1,5 @@
 #include "shared/command/driver/CLI11Parser.h"
+#include "shared/constants/version.h"
 #include <CLI/CLI.hpp>
 #include <map>
 #include <iostream>
@@ -18,6 +19,7 @@ public:
         : app_(appDescription, appName)
     {
         app_.set_help_all_flag("--help-all", "Expand all help");
+        app_.set_version_flag("--version", version());
     }
     
     CommandRequest parseInternal(int argc, const char* const argv[])
