@@ -1,9 +1,11 @@
 #pragma once
 
-#include "shared/command/Command.h"
 #include <vector>
+#include <string>
 
 namespace scrap {
+
+class Command;
 
 class Operation {
 public:
@@ -12,7 +14,9 @@ public:
     virtual ~Operation();
 
     virtual void setup(Command&);
-    virtual void execute(const std::vector<Command::Option>&);
+
+    // Simple execute method with command line arguments
+    virtual void execute(const std::vector<std::string>& args);
 
 private:
 };

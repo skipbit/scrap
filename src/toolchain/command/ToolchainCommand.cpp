@@ -1,5 +1,6 @@
 #include "toolchain/command/ToolchainCommand.h"
 #include "toolchain/command/ListCommand.h"
+#include "shared/command/Command.h"
 
 #include <iostream>
 
@@ -18,9 +19,12 @@ void ToolchainCommand::setup(Command& cmd)
     cmd.add("list", makeCommand<ListCommand>());
 }
 
-void ToolchainCommand::execute(const std::vector<Command::Option>&)
+void ToolchainCommand::execute(const std::vector<std::string>& /*args*/)
 {
-    std::cerr << "toolchain help implementation" << std::endl;
+    std::cout << "Usage: scrap toolchain <subcommand>" << std::endl;
+    std::cout << "" << std::endl;
+    std::cout << "Available subcommands:" << std::endl;
+    std::cout << "  list    List installed toolchains" << std::endl;
 }
 
 }

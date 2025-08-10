@@ -10,7 +10,10 @@ public:
     virtual ~Application();
 
     void setup(Command&) override;
-    void execute(const std::vector<Command::Option>&) override;
+    void execute(const std::vector<std::string>& args) override;
+
+    // Custom run method
+    void run(int argc, const char* const argv[]);
 
 private:
 };

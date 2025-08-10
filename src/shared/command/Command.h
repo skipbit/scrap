@@ -1,5 +1,6 @@
 #pragma once
 
+#include <CLI/CLI.hpp>
 #include <span>
 #include <string>
 #include <map>
@@ -25,12 +26,15 @@ public:
     void execute(const int argc, const char* const argv[]);
     void execute(const std::span<const std::string>& arguments);
 
-    class Option {
-    public:
-        Option();
-        Option(const Option&);
-        virtual ~Option();
-    };
+    // New parser-based execution
+    void run(int argc, const char* const argv[]);
+
+    // Access to subcommands for parser configuration
+    const std::map<std::string, Command>& getSubcommands() const;
+
+    // Setup operation (needed by parser for recursive configuration)
+    void setupOperation();
+
 
     Command& operator=(const Command&);
 
@@ -39,6 +43,12 @@ private:
     std::map<std::string, Command> commands_;
 
     Command(std::shared_ptr<Operation>);
+
+    // Internal dispatch method
+    void dispatch(CLI::App* app, const std::vector<std::string>& remainingArgs);
+    
+    // Configure CLI11 app recursively
+    void configureApp(CLI::App* app);
 };
 
 template <OperationType T, class... Args>

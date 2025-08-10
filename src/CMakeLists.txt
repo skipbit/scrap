@@ -36,8 +36,9 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 
 find_package(dross REQUIRED)
 find_package(git2 REQUIRED)
+find_package(cli11 REQUIRED)
 
-add_dependencies(scrap dross_library git2_library)
+add_dependencies(scrap dross_library git2_library cli11_library)
 
 target_include_directories(${PROJECT_NAME}
     SYSTEM BEFORE PRIVATE ${DROSS_INCLUDE_DIR} ${GIT2_INCLUDE_DIR}
@@ -50,4 +51,5 @@ target_link_directories(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME} PRIVATE
     dross_library
     git2_library
+    cli11_library
 )

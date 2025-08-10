@@ -17,7 +17,7 @@ ListCommand::~ListCommand()
 {
 }
 
-void ListCommand::execute(const std::vector<Command::Option>&)
+void ListCommand::execute(const std::vector<std::string>& /*args*/)
 {
     const auto directory = dross::xdg("scrap").data_home();
     if (! directory.has_value()) {

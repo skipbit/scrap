@@ -12,7 +12,7 @@ void Operation::setup(Command&)
 {
 }
 
-void Operation::execute(const std::vector<Command::Option>&)
+void Operation::execute(const std::vector<std::string>& /*args*/)
 {
 }
 

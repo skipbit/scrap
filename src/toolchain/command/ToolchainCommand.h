@@ -10,7 +10,7 @@ public:
     ~ToolchainCommand() override;
 
     void setup(Command&) override;
-    void execute(const std::vector<Command::Option>&) override;
+    void execute(const std::vector<std::string>& args) override;
 };
 
 }
