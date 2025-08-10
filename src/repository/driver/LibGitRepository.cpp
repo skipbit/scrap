@@ -1,25 +1,24 @@
-#include "libgit_repository.h"
+#include "repository/driver/LibGitRepository.h"
 
 #include <git2.h>
 #include <git2/annotated_commit.h>
 #include <git2/merge.h>
 #include <iostream>
 
-namespace scrap {
-namespace libgit {
+namespace scrap::repository::libgit {
 
 /**
  * @brief The internal class for the repository class.
  */
-class remote {
+class Remote {
 public:
-    remote(git_repository* repository, const std::string& name) {
+    Remote(git_repository* repository, const std::string& name) {
         if (GIT_OK != git_remote_lookup(&remote_, repository, name.c_str())) {
             throw std::runtime_error("Failed to lookup remote");
         }
     }
 
-    ~remote() {
+    ~Remote() {
         if (remote_) {
             git_remote_free(remote_);
         }
@@ -37,15 +36,15 @@ public:
 /**
  * @brief The internal class for the repository class.
  */
-class commit {
+class Commit {
 public:
-    commit(git_repository* repository, const git_oid* oid) {
+    Commit(git_repository* repository, const git_oid* oid) {
         if (GIT_OK != git_commit_lookup(&commit_, repository, oid)) {
             throw std::runtime_error("Failed to lookup commit");
         }
     }
 
-    ~commit() {
+    ~Commit() {
         if (commit_) {
             git_commit_free(commit_);
         }
@@ -61,15 +60,15 @@ public:
 /**
  * @brief The internal class for the repository class.
  */
-class reference {
+class Reference {
 public:
-    reference(git_repository* repository, const std::string& name) {
+    Reference(git_repository* repository, const std::string& name) {
         if (GIT_OK != git_reference_lookup(&reference_, repository, name.c_str())) {
             throw std::runtime_error("Failed to lookup reference");
         }
     }
 
-    ~reference() {
+    ~Reference() {
         if (reference_) {
             git_reference_free(reference_);
         }
@@ -83,7 +82,7 @@ public:
         return git_reference_name(reference_);
     }
 
-    void set_target(const commit& c, const std::string& message) {
+    void setTarget(const Commit& c, const std::string& message) {
         if (GIT_OK != git_reference_set_target(&reference_, reference_, c.oid(), message.c_str())) {
             throw std::runtime_error("Failed to set reference target");
         }
@@ -92,15 +91,15 @@ public:
     git_reference* reference_ = nullptr;
 };
 
-class annotation {
+class Annotation {
 public:
-    annotation(git_repository* repository, const git_reference* reference) {
+    Annotation(git_repository* repository, const git_reference* reference) {
         if (GIT_OK != git_annotated_commit_from_ref(&annotation_, repository, reference)) {
             throw std::runtime_error("Failed to create annotated commit");
         }
     }
 
-    ~annotation() {
+    ~Annotation() {
         if (annotation_) {
             git_annotated_commit_free(annotation_);
         }
@@ -116,14 +115,14 @@ public:
 /**
  * @brief The internal class for the repository class.
  */
-class repository::internal {
+class Repository::Internal {
 public:
     // --
-    internal(const std::filesystem::path& path) {
+    Internal(const std::filesystem::path& path) {
         git_repository_open(&repository, path.c_str());
     }
     // --
-    internal(const std::string& url, const std::filesystem::path& path) {
+    Internal(const std::string& url, const std::filesystem::path& path) {
         git_clone_options options;
         if (GIT_OK != git_clone_options_init(&options, GIT_CLONE_OPTIONS_VERSION)) {
             throw std::runtime_error("Failed to initialize clone options");
@@ -131,7 +130,7 @@ public:
         git_clone(&repository, url.c_str(), path.c_str(), &options);
     }
     // --
-    ~internal() {
+    ~Internal() {
         if (repository) {
             git_repository_free(repository);
         }
@@ -141,9 +140,9 @@ public:
     void update(const std::string& r = "origin", const std::string& b = "main") {
         try {
             fetch(r);
-            commit remote_commit(repository, reference(repository, "refs/remotes/" + r + "/" + b).oid());
-            reference local_head(repository, "refs/heads/" + b);
-            merge(remote_commit, local_head);
+            Commit remoteCommit(repository, Reference(repository, "refs/remotes/" + r + "/" + b).oid());
+            Reference localHead(repository, "refs/heads/" + b);
+            merge(remoteCommit, localHead);
         } catch (const std::exception& e) {
             std::cerr << "update: " << e.what() << std::endl;
         }
@@ -152,19 +151,19 @@ public:
     // --
     void fetch(const std::string& r = "origin") {
         try {
-            remote(repository, r).fetch();
+            Remote(repository, r).fetch();
         } catch (const std::exception& e) {
             std::cerr << "fetch: " << e.what() << std::endl;
         }
     }
 
     // --
-    void merge(commit& co, reference& ref) {
+    void merge(Commit& co, Reference& ref) {
         try {
             git_merge_analysis_t analysis;
             git_merge_preference_t preference;
 
-            annotation ac(repository, ref.reference_);
+            Annotation ac(repository, ref.reference_);
             const git_annotated_commit* annotations[] = { ac };
 
             if (GIT_OK != git_merge_analysis(&analysis, &preference, repository, annotations, 1)) {
@@ -174,9 +173,9 @@ public:
                 return;
             }
             else if (analysis & GIT_MERGE_ANALYSIS_FASTFORWARD) {
-                ref.set_target(co, "Fast-forward");
-                set_head_to_ref(ref);
-                checkout_head();
+                ref.setTarget(co, "Fast-forward");
+                setHeadToRef(ref);
+                checkoutHead();
             }
             else if (analysis & GIT_MERGE_ANALYSIS_NORMAL) {
                 git_merge_options options;
@@ -193,14 +192,14 @@ public:
     }
 
     // --
-    void set_head_to_ref(const reference& l) {
+    void setHeadToRef(const Reference& l) {
         if (GIT_OK != git_repository_set_head(repository, l.name())) {
             throw std::runtime_error("Failed to set repository head");
         }
     }
 
     // --
-    void checkout_head() {
+    void checkoutHead() {
         git_checkout_options options;
         if (GIT_OK != git_checkout_options_init(&options, GIT_CHECKOUT_OPTIONS_VERSION)) {
             throw std::runtime_error("Failed to initialize checkout options");
@@ -214,22 +213,21 @@ public:
     git_repository* repository = nullptr;
 };
 
-repository::repository(const std::filesystem::path& p)
-    : _impl(std::make_unique<internal>(p))
+Repository::Repository(const std::filesystem::path& p)
+    : impl_(std::make_unique<Internal>(p))
 {
 }
 
-repository::repository(const std::string& url, const std::filesystem::path& p)
-    : _impl(std::make_unique<internal>(url, p))
+Repository::Repository(const std::string& url, const std::filesystem::path& p)
+    : impl_(std::make_unique<Internal>(url, p))
 {
 }
 
-repository::~repository() = default;
+Repository::~Repository() = default;
 
-void repository::update(const std::string& remote, const std::string& branch)
+void Repository::update(const std::string& remote, const std::string& branch)
 {
-    _impl->update(remote, branch);
+    impl_->update(remote, branch);
 }
 
-}
 }

@@ -3,15 +3,17 @@ add_executable(${PROJECT_NAME} ${SCRAP_SOURCES})
 
 target_sources(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/application.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/command.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/operation.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/config.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/repository/repository.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/repository/git_driver.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/repository/libgit_repository.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/toolchain.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/list.cpp
+    # Shared command components
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared/command/Application.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared/command/Command.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared/command/Operation.cpp
+    # Repository components
+    ${CMAKE_CURRENT_SOURCE_DIR}/repository/model/Repository.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/repository/driver/GitDriver.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/repository/driver/LibGitRepository.cpp
+    # Toolchain components
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/command/ToolchainCommand.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/command/ListCommand.cpp
 )
 
 target_compile_options(${PROJECT_NAME} PUBLIC

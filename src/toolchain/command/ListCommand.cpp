@@ -1,5 +1,5 @@
-#include "list.h"
-#include "repository/repository.h"
+#include "toolchain/command/ListCommand.h"
+#include "repository/model/Repository.h"
 
 #include <dross/platform/path.h>
 #include <dross/platform/xdg.h>
@@ -7,17 +7,17 @@
 #include <iostream>
 #include <system_error>
 
-namespace scrap {
+namespace scrap::toolchain {
 
-list::list()
+ListCommand::ListCommand()
 {
 }
 
-list::~list()
+ListCommand::~ListCommand()
 {
 }
 
-void list::execute(const std::vector<command::option>&)
+void ListCommand::execute(const std::vector<Command::Option>&)
 {
     const auto directory = dross::xdg("scrap").data_home();
     if (! directory.has_value()) {
@@ -35,10 +35,10 @@ void list::execute(const std::vector<command::option>&)
 
     const auto path = dross::path(directory.value()).append("toolchain");
     if (! path.exists()) {
-        repository(path).clone("https://github.com/skipbit/scrap-toolchain.git");
+        Repository(path).clone("https://github.com/skipbit/scrap-toolchain.git");
         std::cout << "clone toolchain" << std::endl;
     } else {
-        repository(path).update();
+        Repository(path).update();
         std::cout << "update toolchain" << std::endl;
     }
 
