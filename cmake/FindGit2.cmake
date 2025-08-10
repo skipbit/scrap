@@ -2,7 +2,7 @@ include(ExternalProject)
 
 ExternalProject_Add(libgit2
     GIT_REPOSITORY https://github.com/libgit2/libgit2.git
-    GIT_TAG v1.8.1
+    GIT_TAG v1.9.1
     PREFIX ${CMAKE_BINARY_DIR}/dependencies/libgit2
     CMAKE_ARGS
         -DCMAKE_BUILD_TYPE=$<CONFIG>

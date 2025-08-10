@@ -5,15 +5,25 @@ target_sources(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp
     # Shared command components
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/command/Application.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/shared/command/Command.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/command/Operation.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared/command/CommandDispatcher.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared/command/ApplicationCommandHandler.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared/command/HelpCommand.cpp
+    # CLI driver implementations
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared/command/driver/CLI11Parser.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared/command/driver/CLI11CommandDispatcher.cpp
+    # Presentation components
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared/presentation/driver/ConsolePresenter.cpp
     # Repository components
     ${CMAKE_CURRENT_SOURCE_DIR}/repository/model/Repository.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/repository/driver/GitDriver.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/repository/driver/LibGitRepository.cpp
     # Toolchain components
-    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/command/ToolchainCommand.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/command/ListCommand.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/ToolchainModule.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/model/Toolchain.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/service/ToolchainService.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/driver/ToolchainRepository.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/command/ListOperation.cpp
 )
 
 target_compile_options(${PROJECT_NAME} PUBLIC
