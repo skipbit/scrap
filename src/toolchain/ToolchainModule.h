@@ -28,13 +28,13 @@ public:
     static void registerCommands(CommandDispatcher& dispatcher, 
                                  std::shared_ptr<CLIParser> parser,
                                  std::shared_ptr<Presenter> presenter);
-                                 
+
     /**
      * @brief Get available toolchain commands with descriptions
      * @return Vector of command name and description pairs
      */
     static std::vector<std::pair<std::string, std::string>> getAvailableCommands();
-    
+
     /**
      * @brief Get available subcommands for toolchain
      * @return Vector of subcommand name and description pairs

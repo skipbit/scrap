@@ -15,15 +15,15 @@ class ConsolePresenter : public Presenter {
 public:
     ConsolePresenter();
     ~ConsolePresenter() override;
-    
+
     // Non-copyable due to PIMPL
     ConsolePresenter(const ConsolePresenter&) = delete;
     ConsolePresenter& operator=(const ConsolePresenter&) = delete;
-    
+
     // Movable
     ConsolePresenter(ConsolePresenter&&) noexcept;
     ConsolePresenter& operator=(ConsolePresenter&&) noexcept;
-    
+
     // Configuration methods
     void setOutputFormat(OutputFormat format) override;
     void setVerbosityLevel(VerbosityLevel level) override;

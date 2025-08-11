@@ -16,25 +16,25 @@ namespace scrap::toolchain {
 class ToolchainRepository {
 public:
     virtual ~ToolchainRepository() = default;
-    
+
     /**
      * @brief Get all available toolchains
      * @return Vector of all toolchains
      */
     virtual std::vector<Toolchain> findAll() = 0;
-    
+
     /**
      * @brief Get the default toolchain
      * @return Default toolchain if available, nullptr otherwise
      */
     virtual std::unique_ptr<Toolchain> findDefault() = 0;
-    
+
     /**
      * @brief Ensure the toolchain registry is available and updated
      * @return True if registry is successfully updated
      */
     virtual bool ensureRegistryAvailable() = 0;
-    
+
     /**
      * @brief Get the path to the toolchain registry
      * @return Path to the registry directory
@@ -53,15 +53,15 @@ class GitToolchainRepository : public ToolchainRepository {
 public:
     GitToolchainRepository();
     ~GitToolchainRepository() override;
-    
+
     // Non-copyable due to PIMPL
     GitToolchainRepository(const GitToolchainRepository&) = delete;
     GitToolchainRepository& operator=(const GitToolchainRepository&) = delete;
-    
+
     // Movable
     GitToolchainRepository(GitToolchainRepository&&) noexcept;
     GitToolchainRepository& operator=(GitToolchainRepository&&) noexcept;
-    
+
     std::vector<Toolchain> findAll() override;
     std::unique_ptr<Toolchain> findDefault() override;
     bool ensureRegistryAvailable() override;

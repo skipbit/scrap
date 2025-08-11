@@ -16,7 +16,7 @@ void HelpCommand::execute(const std::vector<std::string>& /*args*/)
     if (!presenter) {
         return; // No presenter available
     }
-    
+
     if (parser_) {
         std::string helpText = parser_->getHelpText(commandPath_);
         presenter->showHelp(helpText);

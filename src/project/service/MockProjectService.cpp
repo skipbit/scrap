@@ -43,7 +43,7 @@ Project MockProjectService::createNew(const ProjectSpecification& spec) {
 
     // Set optional configurations
     if (spec.cppStandard) {
-        auto config = project.getBuildConfig();
+        auto config = project.buildConfig();
         config.setCppStandard(*spec.cppStandard);
         project.setBuildConfig(config);
     }
@@ -107,11 +107,11 @@ std::optional<Project> MockProjectService::loadProject(
 }
 
 void MockProjectService::saveProject(const Project& project) {
-    if (!project.getPath()) {
+    if (!project.path()) {
         throw std::runtime_error("Project path not set");
     }
 
-    generateConfigFile(project, *project.getPath());
+    generateConfigFile(project, *project.path());
 }
 
 BuildResult MockProjectService::build(const Project& project, const BuildOptions& options) {
@@ -119,9 +119,9 @@ BuildResult MockProjectService::build(const Project& project, const BuildOptions
     auto startTime = std::chrono::steady_clock::now();
 
     if (options.verbose) {
-        presenter_->displayDebug("Building project: " + project.getFullName());
+        presenter_->displayDebug("Building project: " + project.fullName());
         presenter_->displayDebug("Build mode: " + buildModeToString(options.mode));
-        presenter_->displayDebug("C++ Standard: " + project.getBuildConfig().getCppStandard());
+        presenter_->displayDebug("C++ Standard: " + project.buildConfig().cppStandard());
     }
 
     // Simulate compilation time
@@ -132,9 +132,9 @@ BuildResult MockProjectService::build(const Project& project, const BuildOptions
 
     // Generate mock artifacts
     std::vector<std::filesystem::path> artifacts;
-    if (project.getPath()) {
-        auto buildDir = project.getBuildDirectory(options.mode);
-        auto artifactName = project.getName().toString();
+    if (project.path()) {
+        auto buildDir = project.buildDirectory(options.mode);
+        auto artifactName = project.name().toString();
         if (project.isApplication()) {
             artifacts.push_back(buildDir / artifactName);
         } else {
@@ -155,7 +155,7 @@ void MockProjectService::run(const Project& project, const RunOptions& options) 
     }
 
     // In mock implementation, just simulate execution
-    std::string command = "Running `" + project.getName().toString();
+    std::string command = "Running `" + project.name().toString();
     for (const auto& arg : options.arguments) {
         command += " " + arg;
     }
@@ -163,17 +163,17 @@ void MockProjectService::run(const Project& project, const RunOptions& options) 
     presenter_->displayInfo("     " + command);
 
     // Simulate some output
-    presenter_->displayInfo("Hello, World from " + project.getName().toString() + "!");
+    presenter_->displayInfo("Hello, World from " + project.name().toString() + "!");
     presenter_->displayInfo("Application finished with exit code 0");
 }
 
 void MockProjectService::clean(const Project& project) {
-    if (!project.getPath()) {
+    if (!project.path()) {
         return;
     }
 
     // Simulate cleaning
-    auto buildPath = *project.getPath() / "build";
+    auto buildPath = *project.path() / "build";
 
     // In real implementation, this would actually remove files
     // For mock, we just simulate the output
@@ -193,7 +193,7 @@ void MockProjectService::createProjectStructure(const Project& project,
     // Create directory structure
     std::filesystem::create_directories(basePath);
     std::filesystem::create_directories(basePath / "src");
-    std::filesystem::create_directories(basePath / "include" / project.getName().toString());
+    std::filesystem::create_directories(basePath / "include" / project.name().toString());
     std::filesystem::create_directories(basePath / "tests");
 
     if (!project.isApplication()) {
@@ -210,31 +210,31 @@ void MockProjectService::generateSourceFiles(const Project& project,
     if (project.isApplication()) {
         main << "#include <iostream>\n\n";
         main << "int main() {\n";
-        main << "    std::cout << \"Hello, World from " << project.getName().toString() << "!\" << std::endl;\n";
+        main << "    std::cout << \"Hello, World from " << project.name().toString() << "!\" << std::endl;\n";
         main << "    return 0;\n";
         main << "}\n";
     } else {
-        main << "#include \"" << project.getName().toString() << "/" << project.getName().toString() << ".h\"\n\n";
-        main << "namespace " << project.getName().toString() << " {\n\n";
+        main << "#include \"" << project.name().toString() << "/" << project.name().toString() << ".h\"\n\n";
+        main << "namespace " << project.name().toString() << " {\n\n";
         main << "void hello() {\n";
         main << "    // Implementation goes here\n";
         main << "}\n\n";
-        main << "} // namespace " << project.getName().toString() << "\n";
+        main << "} // namespace " << project.name().toString() << "\n";
     }
 
     // Generate header file for library
     if (project.isLibrary()) {
-        auto headerFile = projectPath / "include" / project.getName().toString() /
-                          (project.getName().toString() + ".h");
+        auto headerFile = projectPath / "include" / project.name().toString() /
+                          (project.name().toString() + ".h");
         std::ofstream header(headerFile);
 
         header << "#pragma once\n\n";
-        header << "namespace " << project.getName().toString() << " {\n\n";
+        header << "namespace " << project.name().toString() << " {\n\n";
         header << "/**\n";
         header << " * @brief Example function\n";
         header << " */\n";
         header << "void hello();\n\n";
-        header << "} // namespace " << project.getName().toString() << "\n";
+        header << "} // namespace " << project.name().toString() << "\n";
     }
 
     // Generate test file
@@ -243,7 +243,7 @@ void MockProjectService::generateSourceFiles(const Project& project,
 
     test << "#include <cassert>\n";
     if (project.isLibrary()) {
-        test << "#include \"" << project.getName().toString() << "/" << project.getName().toString() << ".h\"\n";
+        test << "#include \"" << project.name().toString() << "/" << project.name().toString() << ".h\"\n";
     }
     test << "\n";
     test << "int main() {\n";
@@ -258,24 +258,24 @@ void MockProjectService::generateConfigFile(const Project& project,
     std::ofstream config(configFile);
 
     config << "[package]\n";
-    config << "name = \"" << project.getName().toString() << "\"\n";
-    config << "version = \"" << project.getVersion().toString() << "\"\n";
-    config << "type = \"" << projectTypeToString(project.getType()) << "\"\n";
+    config << "name = \"" << project.name().toString() << "\"\n";
+    config << "version = \"" << project.version().toString() << "\"\n";
+    config << "type = \"" << projectTypeToString(project.type()) << "\"\n";
     config << "\n";
 
     config << "[build]\n";
-    config << "std = \"" << project.getBuildConfig().getCppStandard() << "\"\n";
+    config << "std = \"" << project.buildConfig().cppStandard() << "\"\n";
 
-    if (project.getToolchainRequirement()) {
-        config << "toolchain = \"" << *project.getToolchainRequirement() << "\"\n";
+    if (project.toolchainRequirement()) {
+        config << "toolchain = \"" << *project.toolchainRequirement() << "\"\n";
     }
 
     config << "\n";
 
-    if (!project.getDependencies().empty()) {
+    if (!project.dependencies().empty()) {
         config << "[dependencies]\n";
-        for (const auto& dep : project.getDependencies()) {
-            config << dep.getName() << " = \"" << dep.getVersion() << "\"\n";
+        for (const auto& dep : project.dependencies()) {
+            config << dep.name() << " = \"" << dep.version() << "\"\n";
         }
     }
 }

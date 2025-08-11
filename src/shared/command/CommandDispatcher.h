@@ -21,14 +21,14 @@ class CommandResult;
 class CommandDispatcher {
 public:
     virtual ~CommandDispatcher() = default;
-    
+
     /**
      * @brief Dispatch command based on request
      * @param request Command request containing parsed arguments and options
      * @return Command execution result
      */
     virtual CommandResult dispatch(const CommandRequest& request) = 0;
-    
+
     /**
      * @brief Register an operation for a command name
      * @param commandName Name of the command
@@ -49,11 +49,11 @@ public:
     CommandRequest(const std::string& command, 
                    const std::vector<std::string>& arguments,
                    const std::vector<std::string>& subcommands = {});
-    
+
     const std::string& getCommand() const;
     const std::vector<std::string>& getArguments() const;
     const std::vector<std::string>& getSubcommands() const;
-    
+
     bool hasSubcommand() const;
     CommandRequest createSubcommandRequest() const;
 
@@ -73,12 +73,12 @@ public:
         Failure,
         InvalidCommand
     };
-    
+
     CommandResult(Status status, const std::string& message = "");
-    
+
     Status getStatus() const;
     const std::string& getMessage() const;
-    
+
     static CommandResult success(const std::string& message = "");
     static CommandResult failure(const std::string& message);
     static CommandResult invalidCommand(const std::string& command);

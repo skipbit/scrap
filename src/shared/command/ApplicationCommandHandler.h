@@ -23,15 +23,15 @@ public:
                               std::unique_ptr<CommandDispatcher> dispatcher,
                               std::shared_ptr<Presenter> presenter);
     ~ApplicationCommandHandler();
-    
+
     // Non-copyable due to unique_ptr members
     ApplicationCommandHandler(const ApplicationCommandHandler&) = delete;
     ApplicationCommandHandler& operator=(const ApplicationCommandHandler&) = delete;
-    
+
     // Movable
     ApplicationCommandHandler(ApplicationCommandHandler&&) noexcept;
     ApplicationCommandHandler& operator=(ApplicationCommandHandler&&) noexcept;
-    
+
     /**
      * @brief Execute command from command line arguments
      * @param argc Argument count
@@ -39,7 +39,7 @@ public:
      * @return Exit code (0 for success, non-zero for failure)
      */
     int execute(int argc, const char* const argv[]);
-    
+
     /**
      * @brief Register a root-level operation
      * @param commandName Command name
@@ -47,7 +47,7 @@ public:
      */
     void registerRootOperation(const std::string& commandName,
                                std::shared_ptr<Operation> operation);
-    
+
     /**
      * @brief Configure command structure for CLI help generation
      */
@@ -57,7 +57,7 @@ private:
     std::unique_ptr<CLIParser> parser_;
     std::unique_ptr<CommandDispatcher> dispatcher_;
     std::shared_ptr<Presenter> presenter_;
-    
+
     void setupCommandStructure();
     void registerDomainModules();
 };
@@ -72,7 +72,7 @@ public:
      * @return Unique pointer to application command handler
      */
     static std::unique_ptr<ApplicationCommandHandler> create();
-    
+
     /**
      * @brief Create application command handler with specific implementations
      * @param parserFactory Parser factory

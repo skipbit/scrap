@@ -74,21 +74,21 @@ public:
              const TemplateSource& source);
 
     // Basic information
-    const std::string& getName() const { return name_; }
-    const std::string& getVersion() const { return version_; }
-    const std::string& getDescription() const { return description_; }
-    const std::string& getAuthor() const { return author_; }
-    const std::string& getLicense() const { return license_; }
-    const std::vector<std::string>& getTags() const { return tags_; }
+    const std::string& name() const { return name_; }
+    const std::string& version() const { return version_; }
+    const std::string& description() const { return description_; }
+    const std::string& author() const { return author_; }
+    const std::string& license() const { return license_; }
+    const std::vector<std::string>& tags() const { return tags_; }
 
     // Paths
-    const std::filesystem::path& getPath() const { return path_; }
-    const TemplateSource& getSource() const { return source_; }
+    const std::filesystem::path& path() const { return path_; }
+    const TemplateSource& source() const { return source_; }
 
     // Variables and requirements
-    const std::vector<TemplateVariable>& getVariables() const { return variables_; }
-    const TemplateRequirements& getRequirements() const { return requirements_; }
-    const std::map<std::string, std::string>& getDefaultDependencies() const {
+    const std::vector<TemplateVariable>& variables() const { return variables_; }
+    const TemplateRequirements& requirements() const { return requirements_; }
+    const std::map<std::string, std::string>& defaultDependencies() const {
         return defaultDependencies_;
     }
 

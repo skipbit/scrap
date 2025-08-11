@@ -45,25 +45,25 @@ void BuildOperation::execute(const std::vector<std::string>& args) {
         }
 
         // Display resolving dependencies
-        if (!project->getDependencies().empty()) {
+        if (!project->dependencies().empty()) {
             presenter->displayInfo("   Resolving dependencies...");
-            for (const auto& dep : project->getDependencies()) {
-                presenter->displaySuccess("     ✓ " + dep.getName() + " " + dep.getVersion() + " (cached)");
+            for (const auto& dep : project->dependencies()) {
+                presenter->displaySuccess("     ✓ " + dep.name() + " " + dep.version() + " (cached)");
             }
         }
 
         // Start build process
         std::stringstream ss;
-        ss << "   Compiling " << project->getName().toString()
-           << " v" << project->getVersion().toString();
-        if (project->getPath()) {
-            ss << " (" << project->getPath()->string() << ")";
+        ss << "   Compiling " << project->name().toString()
+           << " v" << project->version().toString();
+        if (project->path()) {
+            ss << " (" << project->path()->string() << ")";
         }
         presenter->displayInfo(ss.str());
 
         // Show progress for verbose mode
         if (options.verbose) {
-            presenter->displayInfo("     C++ Standard: " + project->getBuildConfig().getCppStandard());
+            presenter->displayInfo("     C++ Standard: " + project->buildConfig().cppStandard());
             presenter->displayInfo("     Build Mode: " + model::buildModeToString(options.mode));
             if (options.mode == model::BuildMode::Release) {
                 presenter->displayInfo("     Optimization: O3");

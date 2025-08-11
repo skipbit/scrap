@@ -120,11 +120,11 @@ Project::Project(const ProjectName& name, ProjectType type, const Version& versi
     : name_(name), type_(type), version_(version) {
 }
 
-std::string Project::getFullName() const {
+std::string Project::fullName() const {
     return name_.toString() + " v" + version_.toString();
 }
 
-std::filesystem::path Project::getBuildDirectory(BuildMode mode) const {
+std::filesystem::path Project::buildDirectory(BuildMode mode) const {
     if (!path_) {
         return "build";
     }

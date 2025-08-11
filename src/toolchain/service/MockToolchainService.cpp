@@ -1,7 +1,45 @@
 #include "ToolchainService.h"
 #include <algorithm>
-#include <stdexcept>
 #include <sstream>
+#include <system_error>
+
+enum class ToolchainError {
+    AlreadyInstalled = 1,
+    NotFound,
+    NotInstalled,
+    CurrentlySelected
+};
+
+namespace std {
+template<>
+struct is_error_code_enum<ToolchainError> : true_type {};
+}
+
+class ToolchainErrorCategory : public std::error_category {
+public:
+    const char* name() const noexcept override {
+        return "toolchain";
+    }
+
+    std::string message(int ev) const override {
+        switch (static_cast<ToolchainError>(ev)) {
+            case ToolchainError::AlreadyInstalled: return "Toolchain is already installed";
+            case ToolchainError::NotFound: return "Toolchain not found";
+            case ToolchainError::NotInstalled: return "Toolchain is not installed";
+            case ToolchainError::CurrentlySelected: return "Cannot remove currently selected toolchain";
+            default: return "Unknown toolchain error";
+        }
+    }
+};
+
+const ToolchainErrorCategory& toolchainErrorCategory() {
+    static ToolchainErrorCategory instance;
+    return instance;
+}
+
+std::error_code make_error_code(ToolchainError e) {
+    return {static_cast<int>(e), toolchainErrorCategory()};
+}
 
 namespace scrap::toolchain::service {
 
@@ -61,7 +99,7 @@ std::optional<Toolchain> MockToolchainService::getCurrentToolchain() {
 
 std::optional<Toolchain> MockToolchainService::findById(const ToolchainId& id) {
     auto it = std::find_if(toolchains_.begin(), toolchains_.end(),
-        [&id](const Toolchain& t) { return t.getId() == id; });
+        [&id](const Toolchain& t) { return t.id() == id; });
 
     if (it != toolchains_.end()) {
         return *it;
@@ -69,14 +107,14 @@ std::optional<Toolchain> MockToolchainService::findById(const ToolchainId& id) {
     return std::nullopt;
 }
 
-void MockToolchainService::install(const ToolchainSpecification& spec) {
+std::expected<void, std::string> MockToolchainService::install(const ToolchainSpecification& spec) {
     // Check if already installed
-    std::string id = spec.name + "-" + spec.version + "-" +
+    const std::string id = spec.name + "-" + spec.version + "-" +
                      architectureToString(spec.architecture.value_or(getCurrentArchitecture())) + "-" +
                      platformToString(spec.platform.value_or(getCurrentPlatform()));
 
     if (findById(ToolchainId(id))) {
-        throw std::runtime_error("Toolchain " + id + " is already installed");
+        return std::unexpected("Toolchain " + id + " is already installed");
     }
 
     // Simulate installation
@@ -91,43 +129,46 @@ void MockToolchainService::install(const ToolchainSpecification& spec) {
     std::stringstream pathStream;
     pathStream << "/Users/user/.scrap/toolchains/"
                << spec.name << "/" << spec.version << "/"
-               << architectureToString(toolchain.getArchitecture()) << "-"
-               << platformToString(toolchain.getPlatform());
+               << architectureToString(toolchain.architecture()) << "-"
+               << platformToString(toolchain.platform());
     toolchain.setInstallationPath(pathStream.str());
 
     toolchains_.push_back(toolchain);
+    return {};
 }
 
-void MockToolchainService::select(const ToolchainId& id) {
+std::expected<void, std::string> MockToolchainService::select(const ToolchainId& id) {
     auto toolchain = findById(id);
     if (!toolchain) {
-        throw std::runtime_error("Toolchain not found: " + id.value());
+        return std::unexpected("Toolchain not found: " + id.value());
     }
 
     if (!toolchain->isInstalled()) {
-        throw std::runtime_error("Toolchain is not installed: " + id.value());
+        return std::unexpected("Toolchain is not installed: " + id.value());
     }
 
     // Update selection status
     for (auto& t : toolchains_) {
-        t.setSelected(t.getId() == id);
+        t.setSelected(t.id() == id);
     }
     currentToolchainId_ = id;
+    return {};
 }
 
-void MockToolchainService::remove(const ToolchainId& id) {
+std::expected<void, std::string> MockToolchainService::remove(const ToolchainId& id) {
     auto it = std::find_if(toolchains_.begin(), toolchains_.end(),
-        [&id](const Toolchain& t) { return t.getId() == id; });
+        [&id](const Toolchain& t) { return t.id() == id; });
 
     if (it == toolchains_.end()) {
-        throw std::runtime_error("Toolchain not found: " + id.value());
+        return std::unexpected("Toolchain not found: " + id.value());
     }
 
     if (it->isSelected()) {
-        throw std::runtime_error("Cannot remove currently selected toolchain: " + id.value());
+        return std::unexpected("Cannot remove currently selected toolchain: " + id.value());
     }
 
     toolchains_.erase(it);
+    return {};
 }
 
 } // namespace scrap::toolchain::service

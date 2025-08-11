@@ -35,7 +35,7 @@ CommandRequest CommandRequest::createSubcommandRequest() const
     if (subcommands_.empty()) {
         return CommandRequest("", {});
     }
-    
+
     std::vector<std::string> remainingSubcommands(subcommands_.begin() + 1, subcommands_.end());
     return CommandRequest(subcommands_[0], arguments_, remainingSubcommands);
 }

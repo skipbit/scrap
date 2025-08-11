@@ -26,13 +26,13 @@ Toolchain::Toolchain(const ToolchainId& id,
     , isSelected_(false) {
 }
 
-std::string Toolchain::getFullName() const {
+std::string Toolchain::fullName() const {
     std::stringstream ss;
     ss << name_.toString() << " " << version_.toString();
     return ss.str();
 }
 
-std::string Toolchain::getTriple() const {
+std::string Toolchain::triple() const {
     std::stringstream ss;
     ss << name_.toString() << "-" << version_.toString()
        << "-" << architectureToString(architecture_)
@@ -78,7 +78,7 @@ ToolchainSpecification ToolchainSpecification::parse(const std::string& spec) {
 }
 
 // Helper functions
-std::string architectureToString(Architecture arch) {
+std::string architectureToString(const Architecture arch) {
     switch (arch) {
         case Architecture::X86_64:
             return "x86_64";
@@ -89,7 +89,7 @@ std::string architectureToString(Architecture arch) {
     }
 }
 
-std::string platformToString(Platform platform) {
+std::string platformToString(const Platform platform) {
     switch (platform) {
         case Platform::Linux:
             return "linux";

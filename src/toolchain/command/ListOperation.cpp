@@ -48,14 +48,14 @@ void ListOperation::execute(const std::vector<std::string>& args) {
     // Sort toolchains for consistent display
     std::sort(toolchains.begin(), toolchains.end(),
         [](const model::Toolchain& a, const model::Toolchain& b) {
-            return a.getTriple() < b.getTriple();
+            return a.triple() < b.triple();
         });
 
     // Display each toolchain
     for (const auto& toolchain : toolchains) {
         std::stringstream ss;
-        ss << "  " << toolchain.getTriple();
-        if (current && toolchain.getId() == current->getId()) {
+        ss << "  " << toolchain.triple();
+        if (current && toolchain.id() == current->id()) {
             ss << " (default)";
         }
         presenter->displayInfo(ss.str());
@@ -68,17 +68,17 @@ void ListOperation::execute(const std::vector<std::string>& args) {
         presenter->displayInfo("----------------");
 
         std::stringstream ss;
-        ss << current->getTriple() << " (default)";
+        ss << current->triple() << " (default)";
         presenter->displayInfo(ss.str());
 
-        if (current->getInstallationPath()) {
+        if (current->installationPath()) {
             ss.str("");
-            ss << "  installed: " << current->getInstallationPath()->string();
+            ss << "  installed: " << current->installationPath()->string();
             presenter->displayInfo(ss.str());
         }
 
         ss.str("");
-        ss << "  version: " << current->getName().toString() << " " << current->getVersion().toString();
+        ss << "  version: " << current->name().toString() << " " << current->version().toString();
         presenter->displayInfo(ss.str());
     }
 }

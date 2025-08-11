@@ -16,15 +16,15 @@ class Application {
 public:
     Application();
     ~Application();
-    
+
     // Non-copyable due to unique_ptr member
     Application(const Application&) = delete;
     Application& operator=(const Application&) = delete;
-    
+
     // Movable
     Application(Application&&) noexcept;
     Application& operator=(Application&&) noexcept;
-    
+
     /**
      * @brief Run the application
      * @param argc Argument count
@@ -35,7 +35,7 @@ public:
 
 private:
     std::unique_ptr<ApplicationCommandHandler> commandHandler_;
-    
+
     void registerOperations();
 };
 

@@ -92,12 +92,12 @@ public:
               Platform platform);
 
     // Getters
-    const ToolchainId& getId() const { return id_; }
-    const ToolchainName& getName() const { return name_; }
-    const Version& getVersion() const { return version_; }
-    Architecture getArchitecture() const { return architecture_; }
-    Platform getPlatform() const { return platform_; }
-    const std::optional<std::filesystem::path>& getInstallationPath() const { return path_; }
+    const ToolchainId& id() const { return id_; }
+    const ToolchainName& name() const { return name_; }
+    const Version& version() const { return version_; }
+    Architecture architecture() const { return architecture_; }
+    Platform platform() const { return platform_; }
+    const std::optional<std::filesystem::path>& installationPath() const { return path_; }
     bool isSelected() const { return isSelected_; }
 
     // Setters for mutable properties
@@ -105,8 +105,8 @@ public:
     void setSelected(bool selected) { isSelected_ = selected; }
 
     // Business logic
-    std::string getFullName() const;
-    std::string getTriple() const;  // e.g., "llvm-18.0.0-x86_64-darwin"
+    std::string fullName() const;
+    std::string triple() const;  // e.g., "llvm-18.0.0-x86_64-darwin"
     bool isInstalled() const { return path_.has_value(); }
 
 private:
@@ -141,8 +141,8 @@ public:
 };
 
 // Helper functions
-std::string architectureToString(Architecture arch);
-std::string platformToString(Platform platform);
+std::string architectureToString(const Architecture arch);
+std::string platformToString(const Platform platform);
 Architecture stringToArchitecture(const std::string& str);
 Platform stringToPlatform(const std::string& str);
 Architecture getCurrentArchitecture();

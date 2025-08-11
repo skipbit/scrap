@@ -2,6 +2,8 @@
 
 #include <filesystem>
 #include <memory>
+#include <expected>
+#include <system_error>
 
 namespace scrap::repository::libgit {
 
@@ -11,7 +13,7 @@ public:
     Repository(const std::string& url, const std::filesystem::path& path);
     ~Repository();
 
-    void update(const std::string& remote, const std::string& branch);
+    std::expected<void, std::error_code> update(const std::string& remote, const std::string& branch);
 
 private:
     class Internal;

@@ -11,8 +11,8 @@ public:
     GitDriver();
     ~GitDriver();
 
-    void clone(const std::string& url, const std::filesystem::path& path) override;
-    void update(const std::filesystem::path& path) override;
+    std::expected<void, std::string> clone(const std::string& url, const std::filesystem::path& path) override;
+    std::expected<void, std::string> update(const std::filesystem::path& path) override;
 
 private:
     class Internal;

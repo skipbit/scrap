@@ -14,26 +14,26 @@ class GitToolchainRepository::Impl {
 public:
     Impl() = default;
     ~Impl() = default;
-    
+
     std::vector<Toolchain> findAllInternal()
     {
         std::vector<Toolchain> toolchains;
-        
+
         // TODO: Parse the actual toolchain registry and create Toolchain objects
         // For now, return some mock data to demonstrate the structure
         toolchains.emplace_back("gcc", "13.2.0", "x86_64");
         toolchains.emplace_back("llvm", "18.0.0", "x86_64");
-        
+
         return toolchains;
     }
-    
+
     std::unique_ptr<Toolchain> findDefaultInternal()
     {
         // TODO: Read default toolchain configuration
         // For now, return nullptr to indicate no default set
         return nullptr;
     }
-    
+
     bool ensureRegistryAvailableInternal()
     {
         const auto directory = dross::xdg("scrap").data_home();
@@ -57,14 +57,14 @@ public:
             return true;
         }
     }
-    
+
     std::string getRegistryPathInternal()
     {
         const auto directory = dross::xdg("scrap").data_home();
         if (!directory.has_value()) {
             return "";
         }
-        
+
         return dross::path(directory.value()).append("toolchain").string();
     }
 };

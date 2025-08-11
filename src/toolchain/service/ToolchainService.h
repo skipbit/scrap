@@ -4,6 +4,8 @@
 #include <vector>
 #include <memory>
 #include <optional>
+#include <expected>
+#include <string>
 
 namespace scrap::toolchain::service {
 
@@ -41,23 +43,23 @@ public:
     /**
      * @brief Install a new toolchain
      * @param spec Toolchain specification
-     * @throws std::runtime_error if installation fails
+     * @return void on success, error on failure
      */
-    virtual void install(const model::ToolchainSpecification& spec) = 0;
+    virtual std::expected<void, std::string> install(const model::ToolchainSpecification& spec) = 0;
 
     /**
      * @brief Select a toolchain as current
      * @param id Toolchain identifier
-     * @throws std::runtime_error if selection fails
+     * @return void on success, error on failure
      */
-    virtual void select(const model::ToolchainId& id) = 0;
+    virtual std::expected<void, std::string> select(const model::ToolchainId& id) = 0;
 
     /**
      * @brief Remove an installed toolchain
      * @param id Toolchain identifier
-     * @throws std::runtime_error if removal fails
+     * @return void on success, error on failure
      */
-    virtual void remove(const model::ToolchainId& id) = 0;
+    virtual std::expected<void, std::string> remove(const model::ToolchainId& id) = 0;
 };
 
 /**
@@ -71,9 +73,9 @@ public:
     std::vector<model::Toolchain> listInstalled() override;
     std::optional<model::Toolchain> getCurrentToolchain() override;
     std::optional<model::Toolchain> findById(const model::ToolchainId& id) override;
-    void install(const model::ToolchainSpecification& spec) override;
-    void select(const model::ToolchainId& id) override;
-    void remove(const model::ToolchainId& id) override;
+    std::expected<void, std::string> install(const model::ToolchainSpecification& spec) override;
+    std::expected<void, std::string> select(const model::ToolchainId& id) override;
+    std::expected<void, std::string> remove(const model::ToolchainId& id) override;
 
 private:
     std::vector<model::Toolchain> toolchains_;

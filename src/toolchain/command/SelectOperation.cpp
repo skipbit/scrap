@@ -23,40 +23,39 @@ void SelectOperation::execute(const std::vector<std::string>& args) {
 
     const std::string& toolchainId = args[0];
 
-    try {
-        // Find the toolchain
-        auto toolchain = service_->findById(model::ToolchainId(toolchainId));
-        if (!toolchain) {
-            presenter->displayError("Toolchain not found: " + toolchainId);
-            presenter->displayInfo("Run 'scrap toolchain list' to see available toolchains");
-            return;
-        }
-
-        // Display selection info (cargo-style)
-        std::stringstream ss;
-        ss << "info: using existing install for '" << toolchain->getTriple() << "'";
-        presenter->displayInfo(ss.str());
-
-        // Select the toolchain
-        service_->select(toolchain->getId());
-
-        ss.str("");
-        ss << "info: default toolchain set to '" << toolchain->getTriple() << "'";
-        presenter->displayInfo(ss.str());
-
-        // Display selected toolchain info
-        presenter->displayInfo("");
-        ss.str("");
-        ss << "  " << toolchain->getTriple() << " (default)";
-        presenter->displayInfo(ss.str());
-
-        ss.str("");
-        ss << "  " << toolchain->getName().toString() << " version " << toolchain->getVersion().toString();
-        presenter->displayInfo(ss.str());
-
-    } catch (const std::exception& e) {
-        presenter->displayError(std::string("Selection failed: ") + e.what());
+    // Find the toolchain
+    auto toolchain = service_->findById(model::ToolchainId(toolchainId));
+    if (!toolchain) {
+        presenter->displayError("Toolchain not found: " + toolchainId);
+        presenter->displayInfo("Run 'scrap toolchain list' to see available toolchains");
+        return;
     }
+
+    // Display selection info (cargo-style)
+    std::stringstream ss;
+    ss << "info: using existing install for '" << toolchain->triple() << "'";
+    presenter->displayInfo(ss.str());
+
+    // Select the toolchain
+    auto result = service_->select(toolchain->id());
+    if (!result) {
+        presenter->displayError("Selection failed: " + result.error());
+        return;
+    }
+
+    ss.str("");
+    ss << "info: default toolchain set to '" << toolchain->triple() << "'";
+    presenter->displayInfo(ss.str());
+
+    // Display selected toolchain info
+    presenter->displayInfo("");
+    ss.str("");
+    ss << "  " << toolchain->triple() << " (default)";
+    presenter->displayInfo(ss.str());
+
+    ss.str("");
+    ss << "  " << toolchain->name().toString() << " version " << toolchain->version().toString();
+    presenter->displayInfo(ss.str());
 }
 
 void SelectOperation::displayHelp() const {

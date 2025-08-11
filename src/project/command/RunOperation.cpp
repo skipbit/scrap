@@ -52,10 +52,10 @@ void RunOperation::execute(const std::vector<std::string>& args) {
         buildOptions.mode = model::BuildMode::Debug;
 
         std::stringstream ss;
-        ss << "   Compiling " << project->getName().toString()
-           << " v" << project->getVersion().toString();
-        if (project->getPath()) {
-            ss << " (" << project->getPath()->string() << ")";
+        ss << "   Compiling " << project->name().toString()
+           << " v" << project->version().toString();
+        if (project->path()) {
+            ss << " (" << project->path()->string() << ")";
         }
         presenter->displayInfo(ss.str());
 
@@ -75,7 +75,7 @@ void RunOperation::execute(const std::vector<std::string>& args) {
 
         // Display run command
         ss.str("");
-        ss << "     Running `" << project->getName().toString();
+        ss << "     Running `" << project->name().toString();
         for (const auto& arg : options.arguments) {
             ss << " " << arg;
         }

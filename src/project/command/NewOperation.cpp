@@ -45,21 +45,21 @@ void NewOperation::execute(const std::vector<std::string>& args) {
 
         // Display creation result (cargo-style)
         std::stringstream ss;
-        ss << "     Created " << model::projectTypeToString(project.getType())
-           << " `" << project.getName().toString() << "` project";
+        ss << "     Created " << model::projectTypeToString(project.type())
+           << " `" << project.name().toString() << "` project";
         presenter->displaySuccess(ss.str());
 
         // Display generated files
         presenter->displayInfo("     Generated the following files:");
-        presenter->displayInfo("       " + project.getName().toString() + "/");
+        presenter->displayInfo("       " + project.name().toString() + "/");
         presenter->displayInfo("       ├── scrap.toml");
         presenter->displayInfo("       ├── src/");
         presenter->displayInfo("       │   └── main.cpp");
 
         if (project.isLibrary()) {
             presenter->displayInfo("       ├── include/");
-            presenter->displayInfo("       │   └── " + project.getName().toString() + "/");
-            presenter->displayInfo("       │       └── " + project.getName().toString() + ".h");
+            presenter->displayInfo("       │   └── " + project.name().toString() + "/");
+            presenter->displayInfo("       │       └── " + project.name().toString() + ".h");
         }
 
         presenter->displayInfo("       └── tests/");
@@ -144,7 +144,7 @@ void NewOperation::displayAvailableTemplates() const {
         // Group templates by source
         std::map<std::string, std::vector<template_system::model::Template>> templatesBySource;
         for (const auto& tmpl : templates) {
-            templatesBySource[tmpl.getSource().name].push_back(tmpl);
+            templatesBySource[tmpl.source().name].push_back(tmpl);
         }
 
         for (const auto& [sourceName, sourceTemplates] : templatesBySource) {
@@ -152,11 +152,11 @@ void NewOperation::displayAvailableTemplates() const {
 
             for (const auto& tmpl : sourceTemplates) {
                 std::stringstream ss;
-                ss << "    " << tmpl.getName();
+                ss << "    " << tmpl.name();
                 if (sourceName != "official") {
-                    ss << " (" << sourceName << "/" << tmpl.getName() << ")";
+                    ss << " (" << sourceName << "/" << tmpl.name() << ")";
                 }
-                ss << " - " << tmpl.getDescription();
+                ss << " - " << tmpl.description();
                 presenter->displayInfo(ss.str());
             }
             presenter->displayInfo("");

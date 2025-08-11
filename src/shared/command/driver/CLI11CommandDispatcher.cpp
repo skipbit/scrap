@@ -12,7 +12,7 @@ namespace scrap {
 class CLI11CommandDispatcher::Impl {
 public:
     std::map<std::string, std::shared_ptr<Operation>> operations_;
-    
+
     CommandResult executeOperation(const std::string& command, 
                                    const std::vector<std::string>& args) 
     {
@@ -21,12 +21,12 @@ public:
             // Show general help or execute default operation
             return CommandResult::success("scrap - Modern C++ development tool\n\nUsage: scrap <subcommand> [options]\n\nAvailable subcommands:\n  toolchain    Manage toolchains\n\nUse 'scrap <subcommand> --help' for more information about a subcommand.");
         }
-        
+
         auto it = operations_.find(command);
         if (it == operations_.end()) {
             return CommandResult::invalidCommand(command);
         }
-        
+
         try {
             it->second->execute(args);
             return CommandResult::success();
@@ -34,12 +34,12 @@ public:
             return CommandResult::failure(e.what());
         }
     }
-    
+
     CommandResult dispatchRecursive(const CommandRequest& request)
     {
         const auto& command = request.getCommand();
         const auto& args = request.getArguments();
-        
+
         if (request.hasSubcommand()) {
             // This is a parent command with subcommands
             // Build full command path for nested dispatch

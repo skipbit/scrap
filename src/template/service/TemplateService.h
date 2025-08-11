@@ -158,7 +158,7 @@ public:
         std::shared_ptr<repository::GitDriver> gitDriver = nullptr,
         std::shared_ptr<Presenter> presenter = nullptr);
 
-    ~DefaultTemplateService() override = default;
+    ~DefaultTemplateService() override;
 
     // Template discovery and loading
     std::optional<Template> loadTemplate(const std::string& name) override;
@@ -191,25 +191,8 @@ public:
     static std::filesystem::path getDefaultTemplatesDirectory();
 
 private:
-    std::filesystem::path templatesDir_;
-    std::filesystem::path registryFile_;
-    std::shared_ptr<repository::GitDriver> gitDriver_;
-    std::shared_ptr<Presenter> presenter_;
-
-    // Internal helper methods
-    void initializeTemplateDirectory();
-    std::expected<void, std::string> ensureOfficialTemplatesExist();
-    void loadTemplateRegistry();
-    void saveTemplateRegistry();
-
-    std::filesystem::path getSourceDirectory(const std::string& sourceName);
-    std::optional<TemplateSource> findTemplateSource(const std::string& sourceName);
-
-    std::vector<Template> scanTemplatesInDirectory(const std::filesystem::path& dir,
-                                                  const TemplateSource& source);
-
-    // Template source management
-    std::vector<TemplateSource> templateSources_;
+    class Internal;
+    std::unique_ptr<Internal> impl_;
 };
 
 } // namespace scrap::template_system::service

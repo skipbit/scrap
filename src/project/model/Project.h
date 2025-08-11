@@ -70,9 +70,9 @@ public:
     Dependency(const std::string& name, const std::string& version,
                const std::vector<std::string>& features = {});
 
-    const std::string& getName() const { return name_; }
-    const std::string& getVersion() const { return version_; }
-    const std::vector<std::string>& getFeatures() const { return features_; }
+    const std::string& name() const { return name_; }
+    const std::string& version() const { return version_; }
+    const std::vector<std::string>& features() const { return features_; }
 
     std::string toString() const;
 
@@ -90,11 +90,11 @@ public:
     BuildConfiguration();
 
     // Getters
-    BuildMode getMode() const { return mode_; }
-    const std::string& getCppStandard() const { return cppStandard_; }
-    const std::vector<std::string>& getCompilerFlags() const { return compilerFlags_; }
-    const std::vector<std::string>& getLinkerFlags() const { return linkerFlags_; }
-    const std::map<std::string, std::string>& getDefinitions() const { return definitions_; }
+    BuildMode mode() const { return mode_; }
+    const std::string& cppStandard() const { return cppStandard_; }
+    const std::vector<std::string>& compilerFlags() const { return compilerFlags_; }
+    const std::vector<std::string>& linkerFlags() const { return linkerFlags_; }
+    const std::map<std::string, std::string>& definitions() const { return definitions_; }
 
     // Setters
     void setMode(BuildMode mode) { mode_ = mode; }
@@ -150,13 +150,13 @@ public:
             const Version& version = Version());
 
     // Getters
-    const ProjectName& getName() const { return name_; }
-    ProjectType getType() const { return type_; }
-    const Version& getVersion() const { return version_; }
-    const std::optional<std::filesystem::path>& getPath() const { return path_; }
-    const BuildConfiguration& getBuildConfig() const { return buildConfig_; }
-    const std::vector<Dependency>& getDependencies() const { return dependencies_; }
-    const std::optional<std::string>& getToolchainRequirement() const { return toolchainRequirement_; }
+    const ProjectName& name() const { return name_; }
+    ProjectType type() const { return type_; }
+    const Version& version() const { return version_; }
+    const std::optional<std::filesystem::path>& path() const { return path_; }
+    const BuildConfiguration& buildConfig() const { return buildConfig_; }
+    const std::vector<Dependency>& dependencies() const { return dependencies_; }
+    const std::optional<std::string>& toolchainRequirement() const { return toolchainRequirement_; }
 
     // Setters
     void setPath(const std::filesystem::path& path) { path_ = path; }
@@ -169,8 +169,8 @@ public:
     // Business logic
     bool isApplication() const { return type_ == ProjectType::Application; }
     bool isLibrary() const { return type_ == ProjectType::Library; }
-    std::string getFullName() const;
-    std::filesystem::path getBuildDirectory(BuildMode mode) const;
+    std::string fullName() const;
+    std::filesystem::path buildDirectory(BuildMode mode) const;
 
 private:
     ProjectName name_;

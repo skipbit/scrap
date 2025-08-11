@@ -17,7 +17,7 @@ namespace scrap {
 class CLIParser {
 public:
     virtual ~CLIParser() = default;
-    
+
     /**
      * @brief Parse command line arguments into a command request
      * @param argc Argument count
@@ -25,13 +25,13 @@ public:
      * @return Parsed command request
      */
     virtual CommandRequest parse(int argc, const char* const argv[]) = 0;
-    
+
     /**
      * @brief Configure the parser with available commands
      * @param commands List of available command names and descriptions
      */
     virtual void configureCommands(const std::vector<std::pair<std::string, std::string>>& commands) = 0;
-    
+
     /**
      * @brief Add subcommand configuration
      * @param parentCommand Parent command name
@@ -39,7 +39,7 @@ public:
      */
     virtual void configureSubcommands(const std::string& parentCommand,
                                       const std::vector<std::pair<std::string, std::string>>& subcommands) = 0;
-                                      
+
     /**
      * @brief Get help text for a specific command
      * @param commandPath Command path (e.g., "toolchain" or "toolchain.list")
@@ -54,7 +54,7 @@ public:
 class CLIParserFactory {
 public:
     virtual ~CLIParserFactory() = default;
-    
+
     /**
      * @brief Create a CLI parser instance
      * @param appName Application name
