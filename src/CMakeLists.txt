@@ -38,6 +38,14 @@ target_sources(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/command/ListOperation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/command/InstallOperation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/command/SelectOperation.cpp
+    # Project components
+    ${CMAKE_CURRENT_SOURCE_DIR}/project/ProjectModule.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/project/model/Project.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/project/service/MockProjectService.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/project/command/NewOperation.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/project/command/BuildOperation.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/project/command/RunOperation.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/project/command/CleanOperation.cpp
 )
 
 target_compile_options(${PROJECT_NAME} PUBLIC
