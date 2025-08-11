@@ -5,6 +5,15 @@
 #include <vector>
 #include <optional>
 #include <filesystem>
+#include <expected>
+#include <string>
+
+namespace scrap {
+// Forward declaration
+namespace repository {
+    class GitDriver;
+}
+}
 
 namespace scrap::template_system::service {
 
@@ -53,16 +62,16 @@ public:
     /**
      * @brief Add a new template source
      * @param source Template source configuration
-     * @throws std::runtime_error if source cannot be added
+     * @return void on success, error message on failure
      */
-    virtual void addTemplateSource(const TemplateSource& source) = 0;
+    virtual std::expected<void, std::string> addTemplateSource(const TemplateSource& source) = 0;
 
     /**
      * @brief Remove a template source
      * @param sourceName Name of the source to remove
-     * @throws std::runtime_error if source cannot be removed
+     * @return void on success, error message on failure
      */
-    virtual void removeTemplateSource(const std::string& sourceName) = 0;
+    virtual std::expected<void, std::string> removeTemplateSource(const std::string& sourceName) = 0;
 
     /**
      * @brief List all configured template sources
@@ -72,16 +81,16 @@ public:
 
     /**
      * @brief Update all template sources (git pull for git sources)
-     * @throws std::runtime_error if update fails
+     * @return void on success, error message on failure
      */
-    virtual void updateTemplateSources() = 0;
+    virtual std::expected<void, std::string> updateTemplateSources() = 0;
 
     /**
      * @brief Update specific template source
      * @param sourceName Name of the source to update
-     * @throws std::runtime_error if update fails
+     * @return void on success, error message on failure
      */
-    virtual void updateTemplateSource(const std::string& sourceName) = 0;
+    virtual std::expected<void, std::string> updateTemplateSource(const std::string& sourceName) = 0;
 
     // Template processing
     /**
@@ -89,9 +98,9 @@ public:
      * @param tmpl Template to process
      * @param targetPath Target directory for project generation
      * @param variables Variable values for substitution
-     * @throws std::runtime_error if processing fails
+     * @return void on success, error message on failure
      */
-    virtual void processTemplate(const Template& tmpl,
+    virtual std::expected<void, std::string> processTemplate(const Template& tmpl,
                                const std::filesystem::path& targetPath,
                                const VariableMap& variables) = 0;
 
@@ -139,9 +148,11 @@ public:
     /**
      * @brief Constructor
      * @param templatesDir Base directory for template storage (default: ~/.scrap/templates)
+     * @param gitDriver Optional GitDriver for repository operations (will create one if not provided)
      */
     explicit DefaultTemplateService(
-        const std::filesystem::path& templatesDir = getDefaultTemplatesDirectory());
+        const std::filesystem::path& templatesDir = getDefaultTemplatesDirectory(),
+        std::shared_ptr<repository::GitDriver> gitDriver = nullptr);
 
     ~DefaultTemplateService() override = default;
 
@@ -152,14 +163,14 @@ public:
     std::vector<Template> listTemplatesFromSource(const std::string& sourceName) override;
 
     // Template source management
-    void addTemplateSource(const TemplateSource& source) override;
-    void removeTemplateSource(const std::string& sourceName) override;
+    std::expected<void, std::string> addTemplateSource(const TemplateSource& source) override;
+    std::expected<void, std::string> removeTemplateSource(const std::string& sourceName) override;
     std::vector<TemplateSource> listTemplateSources() override;
-    void updateTemplateSources() override;
-    void updateTemplateSource(const std::string& sourceName) override;
+    std::expected<void, std::string> updateTemplateSources() override;
+    std::expected<void, std::string> updateTemplateSource(const std::string& sourceName) override;
 
     // Template processing
-    void processTemplate(const Template& tmpl,
+    std::expected<void, std::string> processTemplate(const Template& tmpl,
                         const std::filesystem::path& targetPath,
                         const VariableMap& variables) override;
     VariableMap collectTemplateVariables(const Template& tmpl,
@@ -178,10 +189,11 @@ public:
 private:
     std::filesystem::path templatesDir_;
     std::filesystem::path registryFile_;
+    std::shared_ptr<repository::GitDriver> gitDriver_;
 
     // Internal helper methods
     void initializeTemplateDirectory();
-    void ensureOfficialTemplatesExist();
+    std::expected<void, std::string> ensureOfficialTemplatesExist();
     void loadTemplateRegistry();
     void saveTemplateRegistry();
 

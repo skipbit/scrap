@@ -1,16 +1,24 @@
 #include "TemplateService.h"
 #include "TemplateProcessor.h"
+#include "repository/driver/GitDriver.h"
 #include <fstream>
 #include <iostream>
 #include <algorithm>
 
 namespace scrap::template_system::service {
 
-DefaultTemplateService::DefaultTemplateService(const std::filesystem::path& templatesDir)
-    : templatesDir_(templatesDir), registryFile_(templatesDir / "registry.toml") {
+DefaultTemplateService::DefaultTemplateService(const std::filesystem::path& templatesDir,
+                                             std::shared_ptr<repository::GitDriver> gitDriver)
+    : templatesDir_(templatesDir),
+      registryFile_(templatesDir / "registry.toml"),
+      gitDriver_(gitDriver ? gitDriver : std::make_shared<repository::GitDriver>()) {
     initializeTemplateDirectory();
     loadTemplateRegistry();
-    ensureOfficialTemplatesExist();
+    // Ignore errors during initialization - templates can be cloned on demand
+    auto result = ensureOfficialTemplatesExist();
+    if (!result) {
+        std::cerr << "Warning: " << result.error() << std::endl;
+    }
 }
 
 std::optional<Template> DefaultTemplateService::loadTemplate(const std::string& name) {
@@ -86,11 +94,11 @@ std::vector<Template> DefaultTemplateService::listTemplatesFromSource(const std:
     return scanTemplatesInDirectory(sourceDir, *source);
 }
 
-void DefaultTemplateService::addTemplateSource(const TemplateSource& source) {
+std::expected<void, std::string> DefaultTemplateService::addTemplateSource(const TemplateSource& source) {
     // Check if source already exists
     auto existing = findTemplateSource(source.name);
     if (existing) {
-        throw std::runtime_error("Template source already exists: " + source.name);
+        return std::unexpected("Template source already exists: " + source.name);
     }
 
     // TODO: Validate source accessibility
@@ -100,14 +108,34 @@ void DefaultTemplateService::addTemplateSource(const TemplateSource& source) {
 
     // If it's a git source, clone it
     if (source.type == TemplateSourceType::Git && source.url) {
-        // TODO: Implement git cloning using repository::GitDriver
-        std::cout << "Would clone " << *source.url << " to " << getSourceDirectory(source.name) << std::endl;
+        auto targetDir = getSourceDirectory(source.name);
+
+        // Check if directory already exists
+        if (std::filesystem::exists(targetDir)) {
+            // Directory exists, skip cloning
+            return {};
+        }
+
+        try {
+            // Create parent directory if needed
+            std::filesystem::create_directories(targetDir.parent_path());
+
+            // Clone the repository
+            gitDriver_->clone(*source.url, targetDir);
+
+            std::cout << "Successfully cloned templates from " << *source.url << std::endl;
+        } catch (const std::exception& e) {
+            std::cerr << "Failed to clone template repository: " << e.what() << std::endl;
+            return std::unexpected("Failed to clone template repository from " + *source.url + ": " + e.what());
+        }
     }
+
+    return {};
 }
 
-void DefaultTemplateService::removeTemplateSource(const std::string& sourceName) {
+std::expected<void, std::string> DefaultTemplateService::removeTemplateSource(const std::string& sourceName) {
     if (sourceName == "official") {
-        throw std::runtime_error("Cannot remove official template source");
+        return std::unexpected("Cannot remove official template source");
     }
 
     auto it = std::find_if(templateSources_.begin(), templateSources_.end(),
@@ -116,7 +144,7 @@ void DefaultTemplateService::removeTemplateSource(const std::string& sourceName)
                           });
 
     if (it == templateSources_.end()) {
-        throw std::runtime_error("Template source not found: " + sourceName);
+        return std::unexpected("Template source not found: " + sourceName);
     }
 
     // Remove directory if it exists
@@ -127,45 +155,86 @@ void DefaultTemplateService::removeTemplateSource(const std::string& sourceName)
 
     templateSources_.erase(it);
     saveTemplateRegistry();
+
+    return {};
 }
 
 std::vector<TemplateSource> DefaultTemplateService::listTemplateSources() {
     return templateSources_;
 }
 
-void DefaultTemplateService::updateTemplateSources() {
+std::expected<void, std::string> DefaultTemplateService::updateTemplateSources() {
+    std::string errors;
+    bool hasErrors = false;
+
     for (const auto& source : templateSources_) {
         if (source.autoUpdate) {
-            try {
-                updateTemplateSource(source.name);
-            } catch (const std::exception& e) {
+            auto result = updateTemplateSource(source.name);
+            if (!result) {
+                hasErrors = true;
+                errors += "Failed to update template source '" + source.name + "': " + result.error() + "; ";
                 std::cerr << "Failed to update template source '" << source.name
-                         << "': " << e.what() << std::endl;
+                         << "': " << result.error() << std::endl;
             }
         }
     }
+
+    if (hasErrors) {
+        return std::unexpected(errors);
+    }
+
+    return {};
 }
 
-void DefaultTemplateService::updateTemplateSource(const std::string& sourceName) {
+std::expected<void, std::string> DefaultTemplateService::updateTemplateSource(const std::string& sourceName) {
     auto source = findTemplateSource(sourceName);
     if (!source) {
-        throw std::runtime_error("Template source not found: " + sourceName);
+        return std::unexpected("Template source not found: " + sourceName);
     }
 
     if (source->type == TemplateSourceType::Git) {
-        // TODO: Implement git pull using repository::GitDriver
         auto sourceDir = getSourceDirectory(sourceName);
-        std::cout << "Would update git repository at " << sourceDir << std::endl;
+
+        // Check if directory exists
+        if (!std::filesystem::exists(sourceDir)) {
+            // If not cloned yet, clone it now
+            if (source->url) {
+                try {
+                    std::filesystem::create_directories(sourceDir.parent_path());
+                    gitDriver_->clone(*source->url, sourceDir);
+                    std::cout << "Successfully cloned template source '" << sourceName << "'" << std::endl;
+                } catch (const std::exception& e) {
+                    return std::unexpected("Failed to clone template source: " + std::string(e.what()));
+                }
+            } else {
+                return std::unexpected("Git source has no URL configured");
+            }
+        } else {
+            // Directory exists, perform update
+            try {
+                gitDriver_->update(sourceDir);
+                std::cout << "Successfully updated template source '" << sourceName << "'" << std::endl;
+            } catch (const std::exception& e) {
+                return std::unexpected("Failed to update template source: " + std::string(e.what()));
+            }
+        }
     }
     // Local sources don't need updating
+
+    return {};
 }
 
-void DefaultTemplateService::processTemplate(const Template& tmpl,
+std::expected<void, std::string> DefaultTemplateService::processTemplate(const Template& tmpl,
                                             const std::filesystem::path& targetPath,
                                             const VariableMap& variables) {
-    // Use the advanced TemplateProcessor for proper processing
-    TemplateProcessor processor;
-    processor.processTemplateDirectory(tmpl.getPath(), targetPath, variables);
+    try {
+        // Use the advanced TemplateProcessor for proper processing
+        TemplateProcessor processor;
+        processor.processTemplateDirectory(tmpl.getPath(), targetPath, variables);
+        return {};
+    } catch (const std::exception& e) {
+        return std::unexpected("Failed to process template: " + std::string(e.what()));
+    }
 }
 
 VariableMap DefaultTemplateService::collectTemplateVariables(const Template& tmpl,
@@ -237,7 +306,13 @@ bool DefaultTemplateService::isTemplateSourceAccessible(const std::string& sourc
 }
 
 std::filesystem::path DefaultTemplateService::getDefaultTemplatesDirectory() {
-    // Use ~/.scrap/templates
+    // Check SCRAP_HOME environment variable first
+    const char* scrapHome = std::getenv("SCRAP_HOME");
+    if (scrapHome) {
+        return std::filesystem::path(scrapHome) / "templates";
+    }
+
+    // Fall back to ~/.scrap/templates
     const char* home = std::getenv("HOME");
     if (!home) {
         home = std::getenv("USERPROFILE"); // Windows
@@ -256,7 +331,7 @@ void DefaultTemplateService::initializeTemplateDirectory() {
     std::filesystem::create_directories(templatesDir_ / "user");
 }
 
-void DefaultTemplateService::ensureOfficialTemplatesExist() {
+std::expected<void, std::string> DefaultTemplateService::ensureOfficialTemplatesExist() {
     // Check if official templates source is configured
     auto officialSource = findTemplateSource("official");
     if (!officialSource) {
@@ -267,7 +342,30 @@ void DefaultTemplateService::ensureOfficialTemplatesExist() {
 
         templateSources_.push_back(official);
         saveTemplateRegistry();
+        officialSource = findTemplateSource("official");
     }
+
+    // Check if official templates are cloned
+    if (officialSource && officialSource->type == TemplateSourceType::Git && officialSource->url) {
+        auto targetDir = getSourceDirectory("official");
+
+        // Clone if directory doesn't exist
+        if (!std::filesystem::exists(targetDir)) {
+            try {
+                // Create parent directory if needed
+                std::filesystem::create_directories(targetDir.parent_path());
+
+                // Clone the repository
+                gitDriver_->clone(*officialSource->url, targetDir);
+
+                std::cout << "Successfully cloned official templates from " << *officialSource->url << std::endl;
+            } catch (const std::exception& e) {
+                return std::unexpected("Failed to clone official templates: " + std::string(e.what()));
+            }
+        }
+    }
+
+    return {};
 }
 
 void DefaultTemplateService::loadTemplateRegistry() {

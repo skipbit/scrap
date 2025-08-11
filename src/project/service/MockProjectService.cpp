@@ -51,7 +51,7 @@ Project MockProjectService::createNew(const ProjectSpecification& spec) {
     auto targetPath = spec.targetPath.value_or(std::filesystem::current_path() / spec.name);
     project.setPath(targetPath);
 
-    // Use template if specified, otherwise fall back to hardcoded generation
+    // Use template if specified, otherwise use recommended template
     if (spec.templateName) {
         createProjectFromTemplate(spec, targetPath);
     } else {
@@ -65,10 +65,8 @@ Project MockProjectService::createNew(const ProjectSpecification& spec) {
             modifiedSpec.templateName = *recommendedTemplate;
             createProjectFromTemplate(modifiedSpec, targetPath);
         } else {
-            // Fall back to hardcoded generation
-            createProjectStructure(project, targetPath);
-            generateSourceFiles(project, targetPath);
-            generateConfigFile(project, targetPath);
+            // No template available
+            throw std::runtime_error("No template available for project type. Please ensure templates are installed.");
         }
     }
 
@@ -306,7 +304,10 @@ void MockProjectService::createProjectFromTemplate(const ProjectSpecification& s
         }
 
         // Process template
-        templateService_->processTemplate(*tmpl, targetPath, variables);
+        auto result = templateService_->processTemplate(*tmpl, targetPath, variables);
+        if (!result) {
+            throw std::runtime_error(result.error());
+        }
 
         std::cout << "     Created project from template '" << *spec.templateName << "'" << std::endl;
 
