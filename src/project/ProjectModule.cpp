@@ -14,7 +14,7 @@ void ProjectModule::registerCommands(CommandDispatcher& dispatcher,
     // Create Mock service for now
     auto service = std::make_shared<service::MockProjectService>();
 
-    // Create individual operations
+    // Create individual operations (with default template service)
     auto newOp = std::make_shared<command::NewOperation>(service);
     newOp->setPresenter(presenter);
 

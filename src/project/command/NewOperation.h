@@ -9,6 +9,14 @@ namespace service {
     class ProjectService;
 }
 
+} // forward declarations
+
+namespace scrap::template_system::service {
+    class TemplateService;
+}
+
+namespace scrap::project {
+
 namespace command {
 
 /**
@@ -19,7 +27,8 @@ namespace command {
  */
 class NewOperation : public Operation {
 public:
-    explicit NewOperation(std::shared_ptr<service::ProjectService> service);
+    explicit NewOperation(std::shared_ptr<service::ProjectService> service,
+                         std::shared_ptr<template_system::service::TemplateService> templateService = nullptr);
     ~NewOperation() override = default;
 
     // Non-copyable
@@ -34,8 +43,10 @@ public:
 
 private:
     std::shared_ptr<service::ProjectService> service_;
+    std::shared_ptr<template_system::service::TemplateService> templateService_;
 
     void displayHelp() const;
+    void displayAvailableTemplates() const;
 };
 
 } // namespace command

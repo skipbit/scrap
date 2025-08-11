@@ -1,4 +1,6 @@
 #include "ProjectService.h"
+#include "template/TemplateModule.h"
+#include "template/service/TemplateService.h"
 #include <fstream>
 #include <sstream>
 #include <chrono>
@@ -10,6 +12,14 @@ namespace scrap::project::service {
 using namespace model;
 
 MockProjectService::MockProjectService() {
+    templateService_ = template_system::TemplateModule::createTemplateService();
+}
+
+MockProjectService::MockProjectService(std::shared_ptr<template_system::service::TemplateService> templateService)
+    : templateService_(templateService) {
+    if (!templateService_) {
+        templateService_ = template_system::TemplateModule::createTemplateService();
+    }
 }
 
 Project MockProjectService::createNew(const ProjectSpecification& spec) {
@@ -41,10 +51,26 @@ Project MockProjectService::createNew(const ProjectSpecification& spec) {
     auto targetPath = spec.targetPath.value_or(std::filesystem::current_path() / spec.name);
     project.setPath(targetPath);
 
-    // Create directory structure and files
-    createProjectStructure(project, targetPath);
-    generateSourceFiles(project, targetPath);
-    generateConfigFile(project, targetPath);
+    // Use template if specified, otherwise fall back to hardcoded generation
+    if (spec.templateName) {
+        createProjectFromTemplate(spec, targetPath);
+    } else {
+        // Try to find default template for project type
+        auto recommendedTemplate = templateService_->getRecommendedTemplate(
+            spec.type == ProjectType::Application ? "app" : "lib");
+
+        if (recommendedTemplate) {
+            // Use recommended template
+            auto modifiedSpec = spec;
+            modifiedSpec.templateName = *recommendedTemplate;
+            createProjectFromTemplate(modifiedSpec, targetPath);
+        } else {
+            // Fall back to hardcoded generation
+            createProjectStructure(project, targetPath);
+            generateSourceFiles(project, targetPath);
+            generateConfigFile(project, targetPath);
+        }
+    }
 
     return project;
 }
@@ -246,6 +272,54 @@ void MockProjectService::generateConfigFile(const Project& project,
         for (const auto& dep : project.getDependencies()) {
             config << dep.getName() << " = \"" << dep.getVersion() << "\"\n";
         }
+    }
+}
+
+void MockProjectService::createProjectFromTemplate(const ProjectSpecification& spec,
+                                                   const std::filesystem::path& targetPath) {
+    try {
+        // Load template
+        std::optional<template_system::model::Template> tmpl;
+
+        // Check if it's a local path
+        if (spec.templateName->starts_with("/") || spec.templateName->starts_with("./") || spec.templateName->starts_with("../")) {
+            tmpl = templateService_->loadTemplateFromPath(*spec.templateName);
+        } else {
+            tmpl = templateService_->loadTemplate(*spec.templateName);
+        }
+
+        if (!tmpl) {
+            throw std::runtime_error("Template not found: " + *spec.templateName);
+        }
+
+        // Collect template variables
+        auto variables = templateService_->collectTemplateVariables(*tmpl, spec.name);
+
+        // Override with specification values
+        variables.set("name", spec.name);
+        variables.set("version", "0.1.0");
+
+        if (spec.cppStandard) {
+            variables.set("std", *spec.cppStandard);
+        } else {
+            variables.set("std", "23");
+        }
+
+        // Process template
+        templateService_->processTemplate(*tmpl, targetPath, variables);
+
+        std::cout << "     Created project from template '" << *spec.templateName << "'" << std::endl;
+
+    } catch (const std::exception& e) {
+        std::cerr << "Warning: Failed to use template '" << *spec.templateName
+                 << "': " << e.what() << std::endl;
+        std::cerr << "Falling back to default project generation." << std::endl;
+
+        // Fall back to hardcoded generation
+        auto fallbackProject = Project(ProjectName(spec.name), spec.type, Version(0, 1, 0));
+        createProjectStructure(fallbackProject, targetPath);
+        generateSourceFiles(fallbackProject, targetPath);
+        generateConfigFile(fallbackProject, targetPath);
     }
 }
 

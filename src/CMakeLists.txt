@@ -50,6 +50,11 @@ target_sources(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/configuration/ConfigurationModule.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/configuration/service/DefaultConfigurationService.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/configuration/driver/TomlPlusPlusDriver.cpp
+    # Template components
+    ${CMAKE_CURRENT_SOURCE_DIR}/template/TemplateModule.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/template/model/Template.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/template/service/TemplateService.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/template/service/TemplateProcessor.cpp
 )
 
 target_compile_options(${PROJECT_NAME} PUBLIC
