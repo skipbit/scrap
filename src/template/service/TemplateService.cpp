@@ -1,6 +1,7 @@
 #include "TemplateService.h"
 #include "TemplateProcessor.h"
 #include "repository/driver/GitDriver.h"
+#include "shared/presentation/driver/ConsolePresenter.h"
 #include <fstream>
 #include <iostream>
 #include <algorithm>
@@ -8,16 +9,18 @@
 namespace scrap::template_system::service {
 
 DefaultTemplateService::DefaultTemplateService(const std::filesystem::path& templatesDir,
-                                             std::shared_ptr<repository::GitDriver> gitDriver)
+                                             std::shared_ptr<repository::GitDriver> gitDriver,
+                                             std::shared_ptr<Presenter> presenter)
     : templatesDir_(templatesDir),
       registryFile_(templatesDir / "registry.toml"),
-      gitDriver_(gitDriver ? gitDriver : std::make_shared<repository::GitDriver>()) {
+      gitDriver_(gitDriver ? gitDriver : std::make_shared<repository::GitDriver>()),
+      presenter_(presenter ? presenter : std::make_shared<ConsolePresenter>()) {
     initializeTemplateDirectory();
     loadTemplateRegistry();
     // Ignore errors during initialization - templates can be cloned on demand
     auto result = ensureOfficialTemplatesExist();
     if (!result) {
-        std::cerr << "Warning: " << result.error() << std::endl;
+        presenter_->displayWarning(result.error());
     }
 }
 
@@ -123,9 +126,9 @@ std::expected<void, std::string> DefaultTemplateService::addTemplateSource(const
             // Clone the repository
             gitDriver_->clone(*source.url, targetDir);
 
-            std::cout << "Successfully cloned templates from " << *source.url << std::endl;
+            presenter_->displaySuccess("Successfully cloned templates from " + *source.url);
         } catch (const std::exception& e) {
-            std::cerr << "Failed to clone template repository: " << e.what() << std::endl;
+            presenter_->displayError("Failed to clone template repository: " + std::string(e.what()));
             return std::unexpected("Failed to clone template repository from " + *source.url + ": " + e.what());
         }
     }
@@ -173,8 +176,7 @@ std::expected<void, std::string> DefaultTemplateService::updateTemplateSources()
             if (!result) {
                 hasErrors = true;
                 errors += "Failed to update template source '" + source.name + "': " + result.error() + "; ";
-                std::cerr << "Failed to update template source '" << source.name
-                         << "': " << result.error() << std::endl;
+                presenter_->displayError("Failed to update template source '" + source.name + "': " + result.error());
             }
         }
     }
@@ -202,7 +204,7 @@ std::expected<void, std::string> DefaultTemplateService::updateTemplateSource(co
                 try {
                     std::filesystem::create_directories(sourceDir.parent_path());
                     gitDriver_->clone(*source->url, sourceDir);
-                    std::cout << "Successfully cloned template source '" << sourceName << "'" << std::endl;
+                    presenter_->displaySuccess("Successfully cloned template source '" + sourceName + "'");
                 } catch (const std::exception& e) {
                     return std::unexpected("Failed to clone template source: " + std::string(e.what()));
                 }
@@ -213,7 +215,7 @@ std::expected<void, std::string> DefaultTemplateService::updateTemplateSource(co
             // Directory exists, perform update
             try {
                 gitDriver_->update(sourceDir);
-                std::cout << "Successfully updated template source '" << sourceName << "'" << std::endl;
+                presenter_->displaySuccess("Successfully updated template source '" + sourceName + "'");
             } catch (const std::exception& e) {
                 return std::unexpected("Failed to update template source: " + std::string(e.what()));
             }
@@ -358,7 +360,7 @@ std::expected<void, std::string> DefaultTemplateService::ensureOfficialTemplates
                 // Clone the repository
                 gitDriver_->clone(*officialSource->url, targetDir);
 
-                std::cout << "Successfully cloned official templates from " << *officialSource->url << std::endl;
+                presenter_->displaySuccess("Successfully cloned official templates from " + *officialSource->url);
             } catch (const std::exception& e) {
                 return std::unexpected("Failed to clone official templates: " + std::string(e.what()));
             }

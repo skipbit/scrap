@@ -9,10 +9,12 @@
 #include <string>
 
 namespace scrap {
-// Forward declaration
+// Forward declarations
 namespace repository {
     class GitDriver;
 }
+
+class Presenter;
 }
 
 namespace scrap::template_system::service {
@@ -149,10 +151,12 @@ public:
      * @brief Constructor
      * @param templatesDir Base directory for template storage (default: ~/.scrap/templates)
      * @param gitDriver Optional GitDriver for repository operations (will create one if not provided)
+     * @param presenter Optional Presenter for output operations (will create ConsolePresenter if not provided)
      */
     explicit DefaultTemplateService(
         const std::filesystem::path& templatesDir = getDefaultTemplatesDirectory(),
-        std::shared_ptr<repository::GitDriver> gitDriver = nullptr);
+        std::shared_ptr<repository::GitDriver> gitDriver = nullptr,
+        std::shared_ptr<Presenter> presenter = nullptr);
 
     ~DefaultTemplateService() override = default;
 
@@ -190,6 +194,7 @@ private:
     std::filesystem::path templatesDir_;
     std::filesystem::path registryFile_;
     std::shared_ptr<repository::GitDriver> gitDriver_;
+    std::shared_ptr<Presenter> presenter_;
 
     // Internal helper methods
     void initializeTemplateDirectory();

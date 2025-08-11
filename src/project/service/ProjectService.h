@@ -4,6 +4,10 @@
 #include <memory>
 #include <optional>
 
+namespace scrap {
+    class Presenter;
+}
+
 namespace scrap::template_system::service {
     class TemplateService;
 }
@@ -86,7 +90,9 @@ public:
 class MockProjectService : public ProjectService {
 public:
     MockProjectService();
-    explicit MockProjectService(std::shared_ptr<template_system::service::TemplateService> templateService);
+    explicit MockProjectService(
+        std::shared_ptr<template_system::service::TemplateService> templateService = nullptr,
+        std::shared_ptr<Presenter> presenter = nullptr);
     ~MockProjectService() override = default;
 
     model::Project createNew(const model::ProjectSpecification& spec) override;
@@ -105,6 +111,7 @@ public:
 
 private:
     std::shared_ptr<template_system::service::TemplateService> templateService_;
+    std::shared_ptr<Presenter> presenter_;
 
     void createProjectStructure(const model::Project& project,
                                 const std::filesystem::path& basePath);

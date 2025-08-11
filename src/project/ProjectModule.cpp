@@ -12,7 +12,7 @@ void ProjectModule::registerCommands(CommandDispatcher& dispatcher,
                                      std::shared_ptr<CLIParser> /* parser */,
                                      std::shared_ptr<Presenter> presenter) {
     // Create Mock service for now
-    auto service = std::make_shared<service::MockProjectService>();
+    auto service = std::make_shared<service::MockProjectService>(nullptr, presenter);
 
     // Create individual operations (with default template service)
     auto newOp = std::make_shared<command::NewOperation>(service);

@@ -1,6 +1,7 @@
 #include "ProjectService.h"
 #include "template/TemplateModule.h"
 #include "template/service/TemplateService.h"
+#include "shared/presentation/driver/ConsolePresenter.h"
 #include <fstream>
 #include <sstream>
 #include <chrono>
@@ -12,13 +13,18 @@ namespace scrap::project::service {
 using namespace model;
 
 MockProjectService::MockProjectService() {
-    templateService_ = template_system::TemplateModule::createTemplateService();
+    presenter_ = std::make_shared<ConsolePresenter>();
+    templateService_ = template_system::TemplateModule::createTemplateService(presenter_);
 }
 
-MockProjectService::MockProjectService(std::shared_ptr<template_system::service::TemplateService> templateService)
-    : templateService_(templateService) {
+MockProjectService::MockProjectService(std::shared_ptr<template_system::service::TemplateService> templateService,
+                                     std::shared_ptr<Presenter> presenter)
+    : templateService_(templateService), presenter_(presenter) {
+    if (!presenter_) {
+        presenter_ = std::make_shared<ConsolePresenter>();
+    }
     if (!templateService_) {
-        templateService_ = template_system::TemplateModule::createTemplateService();
+        templateService_ = template_system::TemplateModule::createTemplateService(presenter_);
     }
 }
 
@@ -113,9 +119,9 @@ BuildResult MockProjectService::build(const Project& project, const BuildOptions
     auto startTime = std::chrono::steady_clock::now();
 
     if (options.verbose) {
-        std::cout << "[DEBUG] Building project: " << project.getFullName() << std::endl;
-        std::cout << "[DEBUG] Build mode: " << buildModeToString(options.mode) << std::endl;
-        std::cout << "[DEBUG] C++ Standard: " << project.getBuildConfig().getCppStandard() << std::endl;
+        presenter_->displayDebug("Building project: " + project.getFullName());
+        presenter_->displayDebug("Build mode: " + buildModeToString(options.mode));
+        presenter_->displayDebug("C++ Standard: " + project.getBuildConfig().getCppStandard());
     }
 
     // Simulate compilation time
@@ -149,15 +155,16 @@ void MockProjectService::run(const Project& project, const RunOptions& options) 
     }
 
     // In mock implementation, just simulate execution
-    std::cout << "     Running `" << project.getName().toString();
+    std::string command = "Running `" + project.getName().toString();
     for (const auto& arg : options.arguments) {
-        std::cout << " " << arg;
+        command += " " + arg;
     }
-    std::cout << "`" << std::endl;
+    command += "`";
+    presenter_->displayInfo("     " + command);
 
     // Simulate some output
-    std::cout << "Hello, World from " << project.getName().toString() << "!" << std::endl;
-    std::cout << "Application finished with exit code 0" << std::endl;
+    presenter_->displayInfo("Hello, World from " + project.getName().toString() + "!");
+    presenter_->displayInfo("Application finished with exit code 0");
 }
 
 void MockProjectService::clean(const Project& project) {
@@ -170,8 +177,8 @@ void MockProjectService::clean(const Project& project) {
 
     // In real implementation, this would actually remove files
     // For mock, we just simulate the output
-    std::cout << "     Removed " << buildPath.string() << std::endl;
-    std::cout << "     Cleaned build artifacts" << std::endl;
+    presenter_->displayInfo("     Removed " + buildPath.string());
+    presenter_->displayInfo("     Cleaned build artifacts");
 }
 
 Project MockProjectService::addDependency(const Project& project,
@@ -309,12 +316,11 @@ void MockProjectService::createProjectFromTemplate(const ProjectSpecification& s
             throw std::runtime_error(result.error());
         }
 
-        std::cout << "     Created project from template '" << *spec.templateName << "'" << std::endl;
+        presenter_->displaySuccess("     Created project from template '" + *spec.templateName + "'");
 
     } catch (const std::exception& e) {
-        std::cerr << "Warning: Failed to use template '" << *spec.templateName
-                 << "': " << e.what() << std::endl;
-        std::cerr << "Falling back to default project generation." << std::endl;
+        presenter_->displayWarning("Failed to use template '" + *spec.templateName + "': " + e.what());
+        presenter_->displayWarning("Falling back to default project generation.");
 
         // Fall back to hardcoded generation
         auto fallbackProject = Project(ProjectName(spec.name), spec.type, Version(0, 1, 0));
