@@ -1,6 +1,7 @@
 #include "TomlPlusPlusDriver.h"
 #include <toml++/toml.h>
 #include <fstream>
+#include <sstream>
 #include <stdexcept>
 
 namespace scrap::configuration::driver {
@@ -103,20 +104,26 @@ private:
     model::ProjectConfiguration parseProjectConfiguration(const toml::table& config) {
         model::ProjectConfiguration result;
 
-        // Parse [project] section
-        if (auto project = config["project"].as_table()) {
-            if (auto name = project->get("name")) {
+        // Parse [package] section (matches scrap.toml schema)
+        if (auto package = config["package"].as_table()) {
+            if (auto name = package->get("name")) {
                 result.name = std::string(name->value_or(""));
             }
-            if (auto version = project->get("version")) {
+            if (auto version = package->get("version")) {
                 result.version = std::string(version->value_or("0.1.0"));
             }
-            if (auto type = project->get("type")) {
+            if (auto type = package->get("type")) {
                 auto typeStr = std::string(type->value_or("app"));
                 result.type = model::parseProjectType(typeStr);
             }
-            if (auto std = project->get("std")) {
+            if (auto std = package->get("std")) {
                 result.cppStandard = std::string(std->value_or("23"));
+            }
+            if (auto toolchain = package->get("toolchain")) {
+                auto toolchainStr = std::string(toolchain->value_or(""));
+                if (!toolchainStr.empty()) {
+                    result.toolchain = model::ToolchainReference::parse(toolchainStr);
+                }
             }
         }
 
@@ -126,10 +133,48 @@ private:
                 auto systemStr = std::string(system->value_or("native"));
                 result.buildSystem = model::parseBuildSystem(systemStr);
             }
-            if (auto toolchain = build->get("toolchain")) {
-                auto toolchainStr = std::string(toolchain->value_or(""));
-                if (!toolchainStr.empty()) {
-                    result.toolchain = model::ToolchainReference::parse(toolchainStr);
+
+            // Parse cxx_flags array
+            if (auto cxxFlags = build->get("cxx_flags")) {
+                if (auto flagsArray = cxxFlags->as_array()) {
+                    for (auto&& flag : *flagsArray) {
+                        if (auto flagStr = flag.value<std::string>()) {
+                            result.cxxFlags.push_back(*flagStr);
+                        }
+                    }
+                }
+            }
+
+            // Parse link_flags array
+            if (auto linkFlags = build->get("link_flags")) {
+                if (auto flagsArray = linkFlags->as_array()) {
+                    for (auto&& flag : *flagsArray) {
+                        if (auto flagStr = flag.value<std::string>()) {
+                            result.linkFlags.push_back(*flagStr);
+                        }
+                    }
+                }
+            }
+
+            // Parse defines array
+            if (auto defines = build->get("defines")) {
+                if (auto definesArray = defines->as_array()) {
+                    for (auto&& define : *definesArray) {
+                        if (auto defineStr = define.value<std::string>()) {
+                            result.buildOptions["defines"] += (result.buildOptions["defines"].empty() ? "" : ",") + *defineStr;
+                        }
+                    }
+                }
+            }
+
+            // Parse include_dirs array
+            if (auto includeDirs = build->get("include_dirs")) {
+                if (auto dirsArray = includeDirs->as_array()) {
+                    for (auto&& dir : *dirsArray) {
+                        if (auto dirStr = dir.value<std::string>()) {
+                            result.buildOptions["include_dirs"] += (result.buildOptions["include_dirs"].empty() ? "" : ",") + *dirStr;
+                        }
+                    }
                 }
             }
         }
@@ -166,20 +211,62 @@ private:
     toml::table serializeProjectConfiguration(const model::ProjectConfiguration& config) {
         toml::table result;
 
-        // [project] section
-        toml::table project;
-        project.insert("name", config.name);
-        project.insert("version", config.version);
-        project.insert("type", model::toString(config.type));
-        project.insert("std", config.cppStandard);
-        result.insert("project", project);
+        // [package] section (matches scrap.toml schema)
+        toml::table package;
+        package.insert("name", config.name);
+        package.insert("version", config.version);
+        package.insert("type", model::toString(config.type));
+        package.insert("std", config.cppStandard);
+        if (config.toolchain) {
+            package.insert("toolchain", config.toolchain->toString());
+        }
+        result.insert("package", package);
 
         // [build] section
         toml::table build;
         build.insert("system", model::toString(config.buildSystem));
-        if (config.toolchain) {
-            build.insert("toolchain", config.toolchain->toString());
+
+        // Serialize cxx_flags array
+        if (!config.cxxFlags.empty()) {
+            toml::array cxxFlagsArray;
+            for (const auto& flag : config.cxxFlags) {
+                cxxFlagsArray.push_back(flag);
+            }
+            build.insert("cxx_flags", cxxFlagsArray);
         }
+
+        // Serialize link_flags array
+        if (!config.linkFlags.empty()) {
+            toml::array linkFlagsArray;
+            for (const auto& flag : config.linkFlags) {
+                linkFlagsArray.push_back(flag);
+            }
+            build.insert("link_flags", linkFlagsArray);
+        }
+
+        // Serialize build options
+        if (!config.buildOptions.empty()) {
+            for (const auto& [key, value] : config.buildOptions) {
+                if (key == "defines" && !value.empty()) {
+                    toml::array definesArray;
+                    std::stringstream ss(value);
+                    std::string define;
+                    while (std::getline(ss, define, ',')) {
+                        definesArray.push_back(define);
+                    }
+                    build.insert("defines", definesArray);
+                } else if (key == "include_dirs" && !value.empty()) {
+                    toml::array dirsArray;
+                    std::stringstream ss(value);
+                    std::string dir;
+                    while (std::getline(ss, dir, ',')) {
+                        dirsArray.push_back(dir);
+                    }
+                    build.insert("include_dirs", dirsArray);
+                }
+            }
+        }
+
         result.insert("build", build);
 
         // [dependencies] section
