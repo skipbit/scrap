@@ -46,6 +46,10 @@ target_sources(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/project/command/BuildOperation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/project/command/RunOperation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/project/command/CleanOperation.cpp
+    # Configuration components
+    ${CMAKE_CURRENT_SOURCE_DIR}/configuration/ConfigurationModule.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/configuration/service/DefaultConfigurationService.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/configuration/driver/TomlPlusPlusDriver.cpp
 )
 
 target_compile_options(${PROJECT_NAME} PUBLIC
@@ -70,8 +74,9 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 find_package(dross REQUIRED)
 find_package(git2 REQUIRED)
 find_package(cli11 REQUIRED)
+find_package(tomlplusplus REQUIRED)
 
-add_dependencies(scrap dross_library git2_library cli11_library)
+add_dependencies(scrap dross_library git2_library cli11_library tomlplusplus_external)
 
 target_include_directories(${PROJECT_NAME}
     SYSTEM BEFORE PRIVATE ${DROSS_INCLUDE_DIR} ${GIT2_INCLUDE_DIR}
@@ -85,4 +90,5 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     dross_library
     git2_library
     cli11_library
+    tomlplusplus
 )
