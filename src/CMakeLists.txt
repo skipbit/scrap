@@ -15,6 +15,7 @@ target_sources(${PROJECT_NAME} PRIVATE
     # Shared command components
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/command/Application.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/command/Operation.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared/command/CompositeOperation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/command/CommandDispatcher.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/command/ApplicationCommandHandler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/command/HelpCommand.cpp
@@ -30,9 +31,13 @@ target_sources(${PROJECT_NAME} PRIVATE
     # Toolchain components
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/ToolchainModule.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/model/Toolchain.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/service/ToolchainService.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/driver/ToolchainRepository.cpp
+    # ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/service/ToolchainService.cpp  # Old implementation
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/service/MockToolchainService.cpp
+    # ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/driver/ToolchainRepository.cpp  # Old implementation
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/command/ToolchainOperation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/command/ListOperation.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/command/InstallOperation.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/command/SelectOperation.cpp
 )
 
 target_compile_options(${PROJECT_NAME} PUBLIC

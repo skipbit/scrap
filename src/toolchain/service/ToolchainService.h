@@ -3,52 +3,83 @@
 #include "toolchain/model/Toolchain.h"
 #include <vector>
 #include <memory>
-#include <string>
+#include <optional>
 
-namespace scrap::toolchain {
-
-// Forward declarations
-class ToolchainRepository;
+namespace scrap::toolchain::service {
 
 /**
- * @brief Service class for toolchain operations following DDD principles
- * 
- * This class encapsulates the use cases and business logic for toolchain management.
- * It coordinates between the domain model and the infrastructure layer.
+ * @brief Service interface for toolchain management operations
+ *
+ * This interface defines the business operations available for toolchain
+ * management, following Clean Architecture principles.
  */
 class ToolchainService {
 public:
-    explicit ToolchainService(std::shared_ptr<ToolchainRepository> repository);
-    ~ToolchainService() = default;
-    
-    // Non-copyable due to shared_ptr member
-    ToolchainService(const ToolchainService&) = delete;
-    ToolchainService& operator=(const ToolchainService&) = delete;
-    
-    // Movable
-    ToolchainService(ToolchainService&&) = default;
-    ToolchainService& operator=(ToolchainService&&) = default;
-    
-    /**
-     * @brief Get all installed toolchains
-     * @return Vector of all installed toolchains
-     */
-    std::vector<Toolchain> getAllToolchains();
-    
-    /**
-     * @brief Get the currently selected default toolchain
-     * @return Default toolchain if available, nullptr otherwise
-     */
-    std::unique_ptr<Toolchain> getDefaultToolchain();
-    
-    /**
-     * @brief Ensure toolchain registry is available and up-to-date
-     * @return True if registry is successfully updated
-     */
-    bool ensureRegistryUpToDate();
+    virtual ~ToolchainService() = default;
 
-private:
-    std::shared_ptr<ToolchainRepository> repository_;
+    // Query operations
+    /**
+     * @brief List all installed toolchains
+     * @return Vector of installed toolchains
+     */
+    virtual std::vector<model::Toolchain> listInstalled() = 0;
+
+    /**
+     * @brief Get the currently selected toolchain
+     * @return The current toolchain, or nullopt if none selected
+     */
+    virtual std::optional<model::Toolchain> getCurrentToolchain() = 0;
+
+    /**
+     * @brief Find a toolchain by ID
+     * @param id Toolchain identifier
+     * @return The toolchain if found
+     */
+    virtual std::optional<model::Toolchain> findById(const model::ToolchainId& id) = 0;
+
+    // Command operations
+    /**
+     * @brief Install a new toolchain
+     * @param spec Toolchain specification
+     * @throws std::runtime_error if installation fails
+     */
+    virtual void install(const model::ToolchainSpecification& spec) = 0;
+
+    /**
+     * @brief Select a toolchain as current
+     * @param id Toolchain identifier
+     * @throws std::runtime_error if selection fails
+     */
+    virtual void select(const model::ToolchainId& id) = 0;
+
+    /**
+     * @brief Remove an installed toolchain
+     * @param id Toolchain identifier
+     * @throws std::runtime_error if removal fails
+     */
+    virtual void remove(const model::ToolchainId& id) = 0;
 };
 
-}
+/**
+ * @brief Mock implementation of ToolchainService for testing
+ */
+class MockToolchainService : public ToolchainService {
+public:
+    MockToolchainService();
+    ~MockToolchainService() override = default;
+
+    std::vector<model::Toolchain> listInstalled() override;
+    std::optional<model::Toolchain> getCurrentToolchain() override;
+    std::optional<model::Toolchain> findById(const model::ToolchainId& id) override;
+    void install(const model::ToolchainSpecification& spec) override;
+    void select(const model::ToolchainId& id) override;
+    void remove(const model::ToolchainId& id) override;
+
+private:
+    std::vector<model::Toolchain> toolchains_;
+    std::optional<model::ToolchainId> currentToolchainId_;
+
+    void initializeMockData();
+};
+
+} // namespace scrap::toolchain::service

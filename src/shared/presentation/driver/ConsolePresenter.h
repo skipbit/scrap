@@ -24,6 +24,31 @@ public:
     ConsolePresenter(ConsolePresenter&&) noexcept;
     ConsolePresenter& operator=(ConsolePresenter&&) noexcept;
     
+    // Configuration methods
+    void setOutputFormat(OutputFormat format) override;
+    void setVerbosityLevel(VerbosityLevel level) override;
+    void setColorEnabled(bool enabled) override;
+    void setProgressStyle(ProgressStyle style) override;
+
+    // Output methods
+    void displayInfo(const std::string& message) override;
+    void displaySuccess(const std::string& message) override;
+    void displayWarning(const std::string& message) override;
+    void displayError(const std::string& message) override;
+    void displayDebug(const std::string& message) override;
+
+    // Progress methods
+    void startProgress(const std::string& task, size_t total) override;
+    void updateProgress(size_t current) override;
+    void updateProgress(size_t current, const std::string& currentItem) override;
+    void finishProgress() override;
+
+    // Structured output methods
+    void displayTable(const Table& table) override;
+    void displayTree(const Tree& tree) override;
+    void displayList(const std::string& title, const std::vector<std::string>& items) override;
+
+    // Legacy compatibility
     void showInfo(const std::string& message) override;
     void showError(const std::string& message) override;
     void showHelp(const std::string& helpText) override;

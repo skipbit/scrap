@@ -1,40 +1,153 @@
-#include "toolchain/model/Toolchain.h"
+#include "Toolchain.h"
+#include <sstream>
+#include <algorithm>
 
-namespace scrap::toolchain {
+#ifdef _WIN32
+#include <windows.h>
+#elif defined(__APPLE__)
+#include <sys/sysctl.h>
+#else
+#include <sys/utsname.h>
+#endif
 
-Toolchain::Toolchain(const std::string& name, const std::string& version, const std::string& architecture)
-    : name_(name), version_(version), architecture_(architecture), isDefault_(false)
-{
+namespace scrap::toolchain::model {
+
+// Toolchain implementation
+Toolchain::Toolchain(const ToolchainId& id,
+                     const ToolchainName& name,
+                     const Version& version,
+                     Architecture architecture,
+                     Platform platform)
+    : id_(id)
+    , name_(name)
+    , version_(version)
+    , architecture_(architecture)
+    , platform_(platform)
+    , isSelected_(false) {
 }
 
-const std::string& Toolchain::getName() const
-{
-    return name_;
+std::string Toolchain::getFullName() const {
+    std::stringstream ss;
+    ss << name_.toString() << " " << version_.toString();
+    return ss.str();
 }
 
-const std::string& Toolchain::getVersion() const
-{
-    return version_;
+std::string Toolchain::getTriple() const {
+    std::stringstream ss;
+    ss << name_.toString() << "-" << version_.toString()
+       << "-" << architectureToString(architecture_)
+       << "-" << platformToString(platform_);
+    return ss.str();
 }
 
-const std::string& Toolchain::getArchitecture() const
-{
-    return architecture_;
+// DefaultToolchainPolicy implementation
+bool DefaultToolchainPolicy::canInstall(const Toolchain& toolchain) const {
+    // Can install if not already installed
+    return !toolchain.isInstalled();
 }
 
-std::string Toolchain::getFullIdentifier() const
-{
-    return name_ + "-" + version_ + "-" + architecture_;
+bool DefaultToolchainPolicy::canSelect(const Toolchain& toolchain) const {
+    // Can select if installed and not already selected
+    return toolchain.isInstalled() && !toolchain.isSelected();
 }
 
-bool Toolchain::isDefault() const
-{
-    return isDefault_;
+bool DefaultToolchainPolicy::canRemove(const Toolchain& toolchain) const {
+    // Can remove if installed and not currently selected
+    return toolchain.isInstalled() && !toolchain.isSelected();
 }
 
-void Toolchain::setDefault(bool isDefault)
-{
-    isDefault_ = isDefault;
+// ToolchainSpecification implementation
+ToolchainSpecification ToolchainSpecification::parse(const std::string& spec) {
+    ToolchainSpecification result;
+
+    // Parse format: name@version or name
+    size_t atPos = spec.find('@');
+    if (atPos != std::string::npos) {
+        result.name = spec.substr(0, atPos);
+        result.version = spec.substr(atPos + 1);
+    } else {
+        result.name = spec;
+        result.version = "latest";
+    }
+
+    // Auto-detect current platform if not specified
+    result.architecture = getCurrentArchitecture();
+    result.platform = getCurrentPlatform();
+
+    return result;
 }
 
+// Helper functions
+std::string architectureToString(Architecture arch) {
+    switch (arch) {
+        case Architecture::X86_64:
+            return "x86_64";
+        case Architecture::ARM64:
+            return "aarch64";
+        default:
+            return "unknown";
+    }
 }
+
+std::string platformToString(Platform platform) {
+    switch (platform) {
+        case Platform::Linux:
+            return "linux";
+        case Platform::Darwin:
+            return "darwin";
+        case Platform::Windows:
+            return "windows";
+        default:
+            return "unknown";
+    }
+}
+
+Architecture stringToArchitecture(const std::string& str) {
+    std::string lower = str;
+    std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+
+    if (lower == "x86_64" || lower == "amd64") {
+        return Architecture::X86_64;
+    } else if (lower == "aarch64" || lower == "arm64") {
+        return Architecture::ARM64;
+    }
+    return Architecture::Unknown;
+}
+
+Platform stringToPlatform(const std::string& str) {
+    std::string lower = str;
+    std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+
+    if (lower == "linux") {
+        return Platform::Linux;
+    } else if (lower == "darwin" || lower == "macos" || lower == "osx") {
+        return Platform::Darwin;
+    } else if (lower == "windows" || lower == "win32" || lower == "win64") {
+        return Platform::Windows;
+    }
+    return Platform::Unknown;
+}
+
+Architecture getCurrentArchitecture() {
+#if defined(__x86_64__) || defined(_M_X64)
+    return Architecture::X86_64;
+#elif defined(__aarch64__) || defined(_M_ARM64)
+    return Architecture::ARM64;
+#else
+    return Architecture::Unknown;
+#endif
+}
+
+Platform getCurrentPlatform() {
+#ifdef _WIN32
+    return Platform::Windows;
+#elif defined(__APPLE__)
+    return Platform::Darwin;
+#elif defined(__linux__)
+    return Platform::Linux;
+#else
+    return Platform::Unknown;
+#endif
+}
+
+} // namespace scrap::toolchain::model

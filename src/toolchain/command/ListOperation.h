@@ -5,24 +5,27 @@
 
 namespace scrap::toolchain {
 
-// Forward declarations
-class ToolchainService;
+namespace service {
+    class ToolchainService;
+}
+
+namespace command {
 
 /**
  * @brief List operation for displaying installed toolchains
- * 
+ *
  * This class handles the "scrap toolchain list" command following
  * Clean Architecture principles with proper separation of concerns.
  */
-class ListOperation : public scrap::Operation {
+class ListOperation : public Operation {
 public:
-    explicit ListOperation(std::shared_ptr<ToolchainService> service);
-    ~ListOperation() override;
-    
-    // Non-copyable due to shared_ptr member
+    explicit ListOperation(std::shared_ptr<service::ToolchainService> service);
+    ~ListOperation() override = default;
+
+    // Non-copyable
     ListOperation(const ListOperation&) = delete;
     ListOperation& operator=(const ListOperation&) = delete;
-    
+
     // Movable
     ListOperation(ListOperation&&) = default;
     ListOperation& operator=(ListOperation&&) = default;
@@ -30,7 +33,8 @@ public:
     void execute(const std::vector<std::string>& args) override;
 
 private:
-    std::shared_ptr<ToolchainService> service_;
+    std::shared_ptr<service::ToolchainService> service_;
 };
 
-}
+} // namespace command
+} // namespace scrap::toolchain

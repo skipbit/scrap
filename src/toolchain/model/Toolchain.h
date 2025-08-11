@@ -1,67 +1,151 @@
 #pragma once
 
 #include <string>
-#include <vector>
+#include <filesystem>
+#include <optional>
 
-namespace scrap::toolchain {
+namespace scrap::toolchain::model {
 
 /**
- * @brief Toolchain domain entity representing a compiler toolchain
- * 
- * This class represents a toolchain in the domain model following DDD principles.
+ * @brief Value object for toolchain identifier
+ */
+class ToolchainId {
+public:
+    explicit ToolchainId(const std::string& value) : value_(value) {}
+    const std::string& value() const { return value_; }
+    bool operator==(const ToolchainId& other) const { return value_ == other.value_; }
+    bool operator<(const ToolchainId& other) const { return value_ < other.value_; }
+
+private:
+    std::string value_;
+};
+
+/**
+ * @brief Value object for toolchain name
+ */
+class ToolchainName {
+public:
+    explicit ToolchainName(const std::string& value) : value_(value) {}
+    const std::string& value() const { return value_; }
+    std::string toString() const { return value_; }
+
+private:
+    std::string value_;
+};
+
+/**
+ * @brief Value object for version
+ */
+class Version {
+public:
+    explicit Version(const std::string& value) : value_(value) {}
+    const std::string& value() const { return value_; }
+    std::string toString() const { return value_; }
+
+private:
+    std::string value_;
+};
+
+/**
+ * @brief Enumeration for CPU architecture
+ */
+enum class Architecture {
+    X86_64,
+    ARM64,
+    Unknown
+};
+
+/**
+ * @brief Enumeration for platform/OS
+ */
+enum class Platform {
+    Linux,
+    Darwin,  // macOS
+    Windows,
+    Unknown
+};
+
+/**
+ * @brief Toolchain specification for installation
+ */
+struct ToolchainSpecification {
+    std::string name;
+    std::string version;
+    std::optional<Architecture> architecture;
+    std::optional<Platform> platform;
+
+    static ToolchainSpecification parse(const std::string& spec);
+};
+
+/**
+ * @brief Domain model representing a toolchain
+ *
+ * This class encapsulates the concept of a toolchain in the scrap ecosystem,
+ * following Domain-Driven Design principles.
  */
 class Toolchain {
 public:
-    Toolchain(const std::string& name, const std::string& version, const std::string& architecture);
-    ~Toolchain() = default;
-    
-    // Copy and move operations
-    Toolchain(const Toolchain&) = default;
-    Toolchain& operator=(const Toolchain&) = default;
-    Toolchain(Toolchain&&) = default;
-    Toolchain& operator=(Toolchain&&) = default;
-    
-    /**
-     * @brief Get the toolchain name (e.g., "gcc", "llvm")
-     * @return Toolchain name
-     */
-    const std::string& getName() const;
-    
-    /**
-     * @brief Get the toolchain version (e.g., "13.2.0", "18.0.0")
-     * @return Toolchain version
-     */
-    const std::string& getVersion() const;
-    
-    /**
-     * @brief Get the target architecture (e.g., "x86_64", "aarch64")
-     * @return Target architecture
-     */
-    const std::string& getArchitecture() const;
-    
-    /**
-     * @brief Get the full toolchain identifier
-     * @return Full identifier in format "name-version-architecture"
-     */
-    std::string getFullIdentifier() const;
-    
-    /**
-     * @brief Check if this toolchain is currently selected as default
-     * @return True if this is the default toolchain
-     */
-    bool isDefault() const;
-    
-    /**
-     * @brief Mark this toolchain as default or not
-     * @param isDefault Whether this toolchain should be default
-     */
-    void setDefault(bool isDefault);
+    Toolchain(const ToolchainId& id,
+              const ToolchainName& name,
+              const Version& version,
+              Architecture architecture,
+              Platform platform);
+
+    // Getters
+    const ToolchainId& getId() const { return id_; }
+    const ToolchainName& getName() const { return name_; }
+    const Version& getVersion() const { return version_; }
+    Architecture getArchitecture() const { return architecture_; }
+    Platform getPlatform() const { return platform_; }
+    const std::optional<std::filesystem::path>& getInstallationPath() const { return path_; }
+    bool isSelected() const { return isSelected_; }
+
+    // Setters for mutable properties
+    void setInstallationPath(const std::filesystem::path& path) { path_ = path; }
+    void setSelected(bool selected) { isSelected_ = selected; }
+
+    // Business logic
+    std::string getFullName() const;
+    std::string getTriple() const;  // e.g., "llvm-18.0.0-x86_64-darwin"
+    bool isInstalled() const { return path_.has_value(); }
 
 private:
-    std::string name_;
-    std::string version_;
-    std::string architecture_;
-    bool isDefault_;
+    ToolchainId id_;
+    ToolchainName name_;
+    Version version_;
+    Architecture architecture_;
+    Platform platform_;
+    std::optional<std::filesystem::path> path_;
+    bool isSelected_ = false;
 };
 
-}
+/**
+ * @brief Policy interface for toolchain operations
+ */
+class ToolchainPolicy {
+public:
+    virtual ~ToolchainPolicy() = default;
+    virtual bool canInstall(const Toolchain& toolchain) const = 0;
+    virtual bool canSelect(const Toolchain& toolchain) const = 0;
+    virtual bool canRemove(const Toolchain& toolchain) const = 0;
+};
+
+/**
+ * @brief Default implementation of toolchain policy
+ */
+class DefaultToolchainPolicy : public ToolchainPolicy {
+public:
+    bool canInstall(const Toolchain& toolchain) const override;
+    bool canSelect(const Toolchain& toolchain) const override;
+    bool canRemove(const Toolchain& toolchain) const override;
+};
+
+// Helper functions
+std::string architectureToString(Architecture arch);
+std::string platformToString(Platform platform);
+Architecture stringToArchitecture(const std::string& str);
+Platform stringToPlatform(const std::string& str);
+Architecture getCurrentArchitecture();
+Platform getCurrentPlatform();
+
+} // namespace scrap::toolchain::model
