@@ -2,7 +2,6 @@
 #include "shared/command/Operation.h"
 #include <CLI/CLI.hpp>
 #include <map>
-#include <iostream>
 
 namespace scrap {
 
@@ -13,8 +12,8 @@ class CLI11CommandDispatcher::Impl {
 public:
     std::map<std::string, std::shared_ptr<Operation>> operations_;
 
-    CommandResult executeOperation(const std::string& command, 
-                                   const std::vector<std::string>& args) 
+    CommandResult executeOperation(const std::string& command,
+                                   const std::vector<std::string>& args)
     {
         // Handle empty command (root command)
         if (command.empty()) {

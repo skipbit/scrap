@@ -7,7 +7,7 @@ namespace scrap {
 
 /**
  * @brief CLI11-based parser implementation
- * 
+ *
  * This class provides a concrete implementation of CLIParser using CLI11.
  * Implementation details are completely hidden using PIMPL pattern.
  */

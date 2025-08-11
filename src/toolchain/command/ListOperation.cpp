@@ -8,10 +8,12 @@
 namespace scrap::toolchain::command {
 
 ListOperation::ListOperation(std::shared_ptr<service::ToolchainService> service)
-    : service_(service) {
+    : service_(service)
+{
 }
 
-void ListOperation::execute(const std::vector<std::string>& args) {
+void ListOperation::execute(const std::vector<std::string>& args)
+{
     auto presenter = getPresenter();
     if (!presenter) {
         return;

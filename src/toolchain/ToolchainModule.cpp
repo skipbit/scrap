@@ -10,7 +10,8 @@ namespace scrap::toolchain {
 
 void ToolchainModule::registerCommands(CommandDispatcher& dispatcher,
                                        std::shared_ptr<CLIParser> /* parser */,
-                                       std::shared_ptr<Presenter> presenter) {
+                                       std::shared_ptr<Presenter> presenter)
+{
     // Create Mock service for now
     auto service = std::make_shared<service::MockToolchainService>();
 
@@ -35,13 +36,15 @@ void ToolchainModule::registerCommands(CommandDispatcher& dispatcher,
     dispatcher.registerOperation("toolchain.select", selectOp);
 }
 
-std::vector<std::pair<std::string, std::string>> ToolchainModule::getAvailableCommands() {
+std::vector<std::pair<std::string, std::string>> ToolchainModule::getAvailableCommands()
+{
     return {
         {"toolchain", "Manages the toolchain for the project"}
     };
 }
 
-std::vector<std::pair<std::string, std::string>> ToolchainModule::getAvailableSubcommands() {
+std::vector<std::pair<std::string, std::string>> ToolchainModule::getAvailableSubcommands()
+{
     return {
         {"list", "Display installed toolchains and indicate which one is currently selected"},
         {"install", "Install a new toolchain from the ecosystem"},

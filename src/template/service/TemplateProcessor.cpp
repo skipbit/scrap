@@ -1,6 +1,5 @@
 #include "TemplateProcessor.h"
 #include <fstream>
-#include <sstream>
 #include <iostream>
 #include <algorithm>
 
@@ -10,7 +9,8 @@ namespace scrap::template_system::service {
 const std::regex SimpleTemplateProcessor::VARIABLE_PATTERN(R"(\{\{([^}|]+)(\|([^}]+))?\}\})");
 const std::regex SimpleTemplateProcessor::TRANSFORM_PATTERN(R"(\{\{([^}|]+)\|([^}]+)\}\})");
 
-std::string TemplateProcessor::processContent(const std::string& content, const VariableMap& variables) {
+std::string TemplateProcessor::processContent(const std::string& content, const VariableMap& variables)
+{
     std::string result = content;
 
     // Process conditionals first
@@ -22,14 +22,16 @@ std::string TemplateProcessor::processContent(const std::string& content, const 
     return result;
 }
 
-std::string TemplateProcessor::processFileName(const std::string& name, const VariableMap& variables) {
+std::string TemplateProcessor::processFileName(const std::string& name, const VariableMap& variables)
+{
     return SimpleTemplateProcessor::processFileName(name, variables);
 }
 
 void TemplateProcessor::processTemplateDirectory(const std::filesystem::path& templatePath,
                                                const std::filesystem::path& targetPath,
                                                const VariableMap& variables,
-                                               const std::vector<std::string>& ignorePatterns) {
+                                               const std::vector<std::string>& ignorePatterns)
+{
     if (!std::filesystem::exists(templatePath)) {
         throw std::runtime_error("Template path does not exist: " + templatePath.string());
     }
@@ -75,7 +77,8 @@ void TemplateProcessor::processTemplateDirectory(const std::filesystem::path& te
     }
 }
 
-std::string TemplateProcessor::substituteVariables(const std::string& content, const VariableMap& variables) {
+std::string TemplateProcessor::substituteVariables(const std::string& content, const VariableMap& variables)
+{
     std::string result = content;
     std::regex variablePattern(R"(\{\{([^}|]+)(\|([^}]+))?\}\})");
     std::smatch match;
@@ -104,7 +107,8 @@ std::string TemplateProcessor::substituteVariables(const std::string& content, c
     return result;
 }
 
-std::string TemplateProcessor::processVariableExpression(const std::string& expression, const VariableMap& variables) {
+std::string TemplateProcessor::processVariableExpression(const std::string& expression, const VariableMap& variables)
+{
     // Handle variable with optional transform
     auto pipePos = expression.find('|');
     if (pipePos != std::string::npos) {
@@ -126,7 +130,8 @@ std::string TemplateProcessor::processVariableExpression(const std::string& expr
     return "";
 }
 
-std::string TemplateProcessor::processConditionals(const std::string& content, const VariableMap& variables) {
+std::string TemplateProcessor::processConditionals(const std::string& content, const VariableMap& variables)
+{
     std::string result = content;
 
     // Simple conditional processing: {{#if variable}} ... {{/if}}
@@ -149,7 +154,8 @@ std::string TemplateProcessor::processConditionals(const std::string& content, c
     return result;
 }
 
-bool TemplateProcessor::evaluateCondition(const std::string& condition, const VariableMap& variables) {
+bool TemplateProcessor::evaluateCondition(const std::string& condition, const VariableMap& variables)
+{
     std::string trimmedCondition = trim(condition);
 
     // Handle negation
@@ -208,7 +214,8 @@ bool TemplateProcessor::evaluateCondition(const std::string& condition, const Va
 
 void TemplateProcessor::copyTemplateFile(const std::filesystem::path& sourcePath,
                                        const std::filesystem::path& targetPath,
-                                       const VariableMap& variables) {
+                                       const VariableMap& variables)
+{
     // Create target directory if needed
     auto targetDir = targetPath.parent_path();
     if (!targetDir.empty() && !std::filesystem::exists(targetDir)) {
@@ -237,7 +244,8 @@ void TemplateProcessor::copyTemplateFile(const std::filesystem::path& sourcePath
 }
 
 bool TemplateProcessor::shouldIgnoreFile(const std::filesystem::path& filePath,
-                                       const std::vector<std::string>& ignorePatterns) {
+                                       const std::vector<std::string>& ignorePatterns)
+{
     std::string filePathStr = filePath.string();
     std::string fileName = filePath.filename().string();
 
@@ -267,7 +275,8 @@ bool TemplateProcessor::shouldIgnoreFile(const std::filesystem::path& filePath,
     return false;
 }
 
-std::string TemplateProcessor::trim(const std::string& str) {
+std::string TemplateProcessor::trim(const std::string& str)
+{
     auto start = str.find_first_not_of(" \t\n\r");
     if (start == std::string::npos) {
         return "";
@@ -276,7 +285,8 @@ std::string TemplateProcessor::trim(const std::string& str) {
     return str.substr(start, end - start + 1);
 }
 
-std::vector<std::string> TemplateProcessor::loadIgnoreFile(const std::filesystem::path& templatePath) {
+std::vector<std::string> TemplateProcessor::loadIgnoreFile(const std::filesystem::path& templatePath)
+{
     std::vector<std::string> patterns;
     auto ignoreFile = templatePath / ".scrap-ignore";
 
@@ -299,7 +309,8 @@ std::vector<std::string> TemplateProcessor::loadIgnoreFile(const std::filesystem
 
 // SimpleTemplateProcessor implementation
 
-std::string SimpleTemplateProcessor::process(const std::string& content, const VariableMap& variables) {
+std::string SimpleTemplateProcessor::process(const std::string& content, const VariableMap& variables)
+{
     std::string result = content;
     std::smatch match;
 
@@ -329,8 +340,9 @@ std::string SimpleTemplateProcessor::process(const std::string& content, const V
     return result;
 }
 
-std::string SimpleTemplateProcessor::processFileName(const std::string& filename, const VariableMap& variables) {
+std::string SimpleTemplateProcessor::processFileName(const std::string& filename, const VariableMap& variables)
+{
     return process(filename, variables);
 }
 
-} // namespace scrap::template_system::service
+} // namespace

@@ -9,10 +9,12 @@
 namespace scrap::project::command {
 
 BuildOperation::BuildOperation(std::shared_ptr<service::ProjectService> service)
-    : service_(service) {
+    : service_(service)
+{
 }
 
-void BuildOperation::execute(const std::vector<std::string>& args) {
+void BuildOperation::execute(const std::vector<std::string>& args)
+{
     auto presenter = getPresenter();
     if (!presenter) {
         return;
@@ -110,7 +112,8 @@ void BuildOperation::execute(const std::vector<std::string>& args) {
     }
 }
 
-void BuildOperation::displayHelp() const {
+void BuildOperation::displayHelp() const
+{
     auto presenter = getPresenter();
     if (!presenter) {
         return;
@@ -136,4 +139,4 @@ void BuildOperation::displayHelp() const {
     presenter->displayInfo("  scrap build -j8                # Use 8 parallel jobs");
 }
 
-} // namespace scrap::project::command
+} // namespace

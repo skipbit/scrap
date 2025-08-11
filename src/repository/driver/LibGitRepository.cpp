@@ -3,7 +3,6 @@
 #include <git2.h>
 #include <git2/annotated_commit.h>
 #include <git2/merge.h>
-#include <iostream>
 #include <system_error>
 
 enum class GitError {

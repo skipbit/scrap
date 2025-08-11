@@ -8,11 +8,13 @@
 namespace scrap::project::model {
 
 // ProjectName implementation
-ProjectName::ProjectName(const std::string& value) : value_(value) {
+ProjectName::ProjectName(const std::string& value) : value_(value)
+{
     validate();
 }
 
-void ProjectName::validate() const {
+void ProjectName::validate() const
+{
     if (value_.empty()) {
         throw std::invalid_argument("Project name cannot be empty");
     }
@@ -34,27 +36,32 @@ void ProjectName::validate() const {
     }
 }
 
-const std::string& ProjectName::value() const {
+const std::string& ProjectName::value() const
+{
     return value_;
 }
 
-std::string ProjectName::toString() const {
+std::string ProjectName::toString() const
+{
     return value_;
 }
 
-bool ProjectName::operator==(const ProjectName& other) const {
+bool ProjectName::operator==(const ProjectName& other) const
+{
     return value_ == other.value_;
 }
 
 // Version implementation
 Version::Version(int major, int minor, int patch)
-    : major_(major), minor_(minor), patch_(patch) {
+    : major_(major), minor_(minor), patch_(patch)
+{
     if (major < 0 || minor < 0 || patch < 0) {
         throw std::invalid_argument("Version components cannot be negative");
     }
 }
 
-Version::Version(const std::string& versionStr) {
+Version::Version(const std::string& versionStr)
+{
     std::regex versionPattern(R"(^(\d+)\.(\d+)\.(\d+)$)");
     std::smatch match;
 
@@ -67,30 +74,36 @@ Version::Version(const std::string& versionStr) {
     patch_ = std::stoi(match[3]);
 }
 
-std::string Version::toString() const {
+std::string Version::toString() const
+{
     return std::to_string(major_) + "." + std::to_string(minor_) + "." + std::to_string(patch_);
 }
 
-bool Version::operator==(const Version& other) const {
+bool Version::operator==(const Version& other) const
+{
     return major_ == other.major_ && minor_ == other.minor_ && patch_ == other.patch_;
 }
 
-int Version::major() const {
+int Version::major() const
+{
     return major_;
 }
 
-int Version::minor() const {
+int Version::minor() const
+{
     return minor_;
 }
 
-int Version::patch() const {
+int Version::patch() const
+{
     return patch_;
 }
 
 // Dependency implementation
 Dependency::Dependency(const std::string& name, const std::string& version,
                        const std::vector<std::string>& features)
-    : name_(name), version_(version), features_(features) {
+    : name_(name), version_(version), features_(features)
+{
     if (name.empty()) {
         throw std::invalid_argument("Dependency name cannot be empty");
     }
@@ -99,19 +112,23 @@ Dependency::Dependency(const std::string& name, const std::string& version,
     }
 }
 
-const std::string& Dependency::name() const {
+const std::string& Dependency::name() const
+{
     return name_;
 }
 
-const std::string& Dependency::version() const {
+const std::string& Dependency::version() const
+{
     return version_;
 }
 
-const std::vector<std::string>& Dependency::features() const {
+const std::vector<std::string>& Dependency::features() const
+{
     return features_;
 }
 
-std::string Dependency::toString() const {
+std::string Dependency::toString() const
+{
     std::stringstream ss;
     ss << name_ << "@" << version_;
     if (!features_.empty()) {
@@ -127,54 +144,66 @@ std::string Dependency::toString() const {
 
 // BuildConfiguration implementation
 BuildConfiguration::BuildConfiguration()
-    : mode_(BuildMode::Debug), cppStandard_("23") {
+    : mode_(BuildMode::Debug), cppStandard_("23")
+{
 }
 
 // BuildConfiguration implementation
-BuildMode BuildConfiguration::mode() const {
+BuildMode BuildConfiguration::mode() const
+{
     return mode_;
 }
 
-const std::string& BuildConfiguration::cppStandard() const {
+const std::string& BuildConfiguration::cppStandard() const
+{
     return cppStandard_;
 }
 
-const std::vector<std::string>& BuildConfiguration::compilerFlags() const {
+const std::vector<std::string>& BuildConfiguration::compilerFlags() const
+{
     return compilerFlags_;
 }
 
-const std::vector<std::string>& BuildConfiguration::linkerFlags() const {
+const std::vector<std::string>& BuildConfiguration::linkerFlags() const
+{
     return linkerFlags_;
 }
 
-const std::map<std::string, std::string>& BuildConfiguration::definitions() const {
+const std::map<std::string, std::string>& BuildConfiguration::definitions() const
+{
     return definitions_;
 }
 
-void BuildConfiguration::setMode(BuildMode mode) {
+void BuildConfiguration::setMode(BuildMode mode)
+{
     mode_ = mode;
 }
 
-void BuildConfiguration::setCppStandard(const std::string& standard) {
+void BuildConfiguration::setCppStandard(const std::string& standard)
+{
     cppStandard_ = standard;
 }
 
-void BuildConfiguration::addCompilerFlag(const std::string& flag) {
+void BuildConfiguration::addCompilerFlag(const std::string& flag)
+{
     compilerFlags_.push_back(flag);
 }
 
-void BuildConfiguration::addLinkerFlag(const std::string& flag) {
+void BuildConfiguration::addLinkerFlag(const std::string& flag)
+{
     linkerFlags_.push_back(flag);
 }
 
-void BuildConfiguration::addDefinition(const std::string& key, const std::string& value) {
+void BuildConfiguration::addDefinition(const std::string& key, const std::string& value)
+{
     definitions_[key] = value;
 }
 
 // BuildResult implementation
 BuildResult BuildResult::success(const std::string& message,
                                  std::chrono::milliseconds duration,
-                                 const std::vector<std::filesystem::path>& artifacts) {
+                                 const std::vector<std::filesystem::path>& artifacts)
+{
     BuildResult result;
     result.status = Status::Success;
     result.message = message;
@@ -184,7 +213,8 @@ BuildResult BuildResult::success(const std::string& message,
 }
 
 BuildResult BuildResult::failed(const std::string& message,
-                                const std::vector<std::string>& errors) {
+                                const std::vector<std::string>& errors)
+{
     BuildResult result;
     result.status = Status::Failed;
     result.message = message;
@@ -192,72 +222,89 @@ BuildResult BuildResult::failed(const std::string& message,
     return result;
 }
 
-bool BuildResult::isSuccess() const {
+bool BuildResult::isSuccess() const
+{
     return status == Status::Success;
 }
 
 // Project implementation
 Project::Project(const ProjectName& name, ProjectType type, const Version& version)
-    : name_(name), type_(type), version_(version) {
+    : name_(name), type_(type), version_(version)
+{
 }
 
-const ProjectName& Project::name() const {
+const ProjectName& Project::name() const
+{
     return name_;
 }
 
-ProjectType Project::type() const {
+ProjectType Project::type() const
+{
     return type_;
 }
 
-const Version& Project::version() const {
+const Version& Project::version() const
+{
     return version_;
 }
 
-const std::optional<std::filesystem::path>& Project::path() const {
+const std::optional<std::filesystem::path>& Project::path() const
+{
     return path_;
 }
 
-const BuildConfiguration& Project::buildConfig() const {
+const BuildConfiguration& Project::buildConfig() const
+{
     return buildConfig_;
 }
 
-const std::vector<Dependency>& Project::dependencies() const {
+const std::vector<Dependency>& Project::dependencies() const
+{
     return dependencies_;
 }
 
-const std::optional<std::string>& Project::toolchainRequirement() const {
+const std::optional<std::string>& Project::toolchainRequirement() const
+{
     return toolchainRequirement_;
 }
 
-void Project::setPath(const std::filesystem::path& path) {
+void Project::setPath(const std::filesystem::path& path)
+{
     path_ = path;
 }
 
-void Project::setBuildConfig(const BuildConfiguration& config) {
+void Project::setBuildConfig(const BuildConfiguration& config)
+{
     buildConfig_ = config;
 }
 
-void Project::addDependency(const Dependency& dependency) {
+void Project::addDependency(const Dependency& dependency)
+{
     dependencies_.push_back(dependency);
 }
 
-void Project::setToolchainRequirement(const std::string& requirement) {
+void Project::setToolchainRequirement(const std::string& requirement)
+{
     toolchainRequirement_ = requirement;
 }
 
-bool Project::isApplication() const {
+bool Project::isApplication() const
+{
     return type_ == ProjectType::Application;
 }
 
-bool Project::isLibrary() const {
+bool Project::isLibrary() const
+{
     return type_ == ProjectType::Library;
 }
 
-std::string Project::fullName() const {
+std::string Project::fullName() const
+{
     return name_.toString() + " v" + version_.toString();
 }
 
-std::filesystem::path Project::buildDirectory(BuildMode mode) const {
+std::filesystem::path Project::buildDirectory(BuildMode mode) const
+{
     if (!path_) {
         return "build";
     }
@@ -269,7 +316,8 @@ std::filesystem::path Project::buildDirectory(BuildMode mode) const {
 }
 
 // ProjectSpecification implementation
-ProjectSpecification ProjectSpecification::parse(const std::vector<std::string>& args) {
+ProjectSpecification ProjectSpecification::parse(const std::vector<std::string>& args)
+{
     ProjectSpecification spec;
 
     if (args.empty()) {
@@ -303,7 +351,8 @@ ProjectSpecification ProjectSpecification::parse(const std::vector<std::string>&
 }
 
 // BuildOptions implementation
-BuildOptions BuildOptions::parse(const std::vector<std::string>& args) {
+BuildOptions BuildOptions::parse(const std::vector<std::string>& args)
+{
     BuildOptions options;
 
     for (const auto& arg : args) {
@@ -326,7 +375,8 @@ BuildOptions BuildOptions::parse(const std::vector<std::string>& args) {
 }
 
 // RunOptions implementation
-RunOptions RunOptions::parse(const std::vector<std::string>& args) {
+RunOptions RunOptions::parse(const std::vector<std::string>& args)
+{
     RunOptions options;
 
     bool foundSeparator = false;
@@ -347,7 +397,8 @@ RunOptions RunOptions::parse(const std::vector<std::string>& args) {
 }
 
 // Helper functions
-std::string projectTypeToString(ProjectType type) {
+std::string projectTypeToString(ProjectType type)
+{
     switch (type) {
         case ProjectType::Application:
             return "application";
@@ -358,7 +409,8 @@ std::string projectTypeToString(ProjectType type) {
     }
 }
 
-ProjectType stringToProjectType(const std::string& str) {
+ProjectType stringToProjectType(const std::string& str)
+{
     std::string lower = str;
     std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
 
@@ -370,7 +422,8 @@ ProjectType stringToProjectType(const std::string& str) {
     return ProjectType::Unknown;
 }
 
-std::string buildModeToString(BuildMode mode) {
+std::string buildModeToString(BuildMode mode)
+{
     switch (mode) {
         case BuildMode::Debug:
             return "Debug";
@@ -385,7 +438,8 @@ std::string buildModeToString(BuildMode mode) {
     }
 }
 
-BuildMode stringToBuildMode(const std::string& str) {
+BuildMode stringToBuildMode(const std::string& str)
+{
     std::string lower = str;
     std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
 

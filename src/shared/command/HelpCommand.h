@@ -8,7 +8,7 @@ namespace scrap {
 
 /**
  * @brief Generic help command that uses CLI parser's help functionality
- * 
+ *
  * This command displays help information for any command path using
  * the CLI parser's built-in help system.
  */

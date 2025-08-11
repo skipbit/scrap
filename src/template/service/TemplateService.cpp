@@ -25,7 +25,8 @@ public:
         : templatesDir_(templatesDir),
           registryFile_(templatesDir / "registry.toml"),
           gitDriver_(gitDriver ? gitDriver : std::make_shared<repository::GitDriver>()),
-          presenter_(presenter ? presenter : std::make_shared<ConsolePresenter>()) {
+          presenter_(presenter ? presenter : std::make_shared<ConsolePresenter>())
+    {
         initializeTemplateDirectory();
         loadTemplateRegistry();
         // Ignore errors during initialization - templates can be cloned on demand
@@ -36,13 +37,15 @@ public:
     }
 
     // Internal helper methods
-    void initializeTemplateDirectory() {
+    void initializeTemplateDirectory()
+    {
         std::filesystem::create_directories(templatesDir_);
         std::filesystem::create_directories(templatesDir_ / "official");
         std::filesystem::create_directories(templatesDir_ / "user");
     }
 
-    std::expected<void, std::string> ensureOfficialTemplatesExist() {
+    std::expected<void, std::string> ensureOfficialTemplatesExist()
+    {
         // Check if official templates source is configured
         auto officialSource = findTemplateSource("official");
         if (!officialSource) {
@@ -119,14 +122,16 @@ public:
         }
     }
 
-    std::filesystem::path getSourceDirectory(const std::string& sourceName) {
+    std::filesystem::path getSourceDirectory(const std::string& sourceName)
+    {
         if (sourceName == "official") {
             return templatesDir_ / "official" / "scrap-templates";
         }
         return templatesDir_ / "user" / sourceName;
     }
 
-    std::optional<TemplateSource> findTemplateSource(const std::string& sourceName) {
+    std::optional<TemplateSource> findTemplateSource(const std::string& sourceName)
+    {
         auto it = std::find_if(templateSources_.begin(), templateSources_.end(),
                               [&sourceName](const TemplateSource& source) {
                                   return source.name == sourceName;
@@ -178,12 +183,14 @@ public:
 DefaultTemplateService::DefaultTemplateService(const std::filesystem::path& templatesDir,
                                              std::shared_ptr<repository::GitDriver> gitDriver,
                                              std::shared_ptr<Presenter> presenter)
-    : impl_(std::make_unique<Internal>(templatesDir, gitDriver, presenter)) {
+    : impl_(std::make_unique<Internal>(templatesDir, gitDriver, presenter))
+{
 }
 
 DefaultTemplateService::~DefaultTemplateService() = default;
 
-std::optional<Template> DefaultTemplateService::loadTemplate(const std::string& name) {
+std::optional<Template> DefaultTemplateService::loadTemplate(const std::string& name)
+{
     // Handle source/name format (e.g., "custom/web-service")
     std::string sourceName = "official";  // default source
     std::string templateName = name;
@@ -211,7 +218,8 @@ std::optional<Template> DefaultTemplateService::loadTemplate(const std::string& 
     return loadTemplateFromPath(templatePath);
 }
 
-std::optional<Template> DefaultTemplateService::loadTemplateFromPath(const std::filesystem::path& path) {
+std::optional<Template> DefaultTemplateService::loadTemplateFromPath(const std::filesystem::path& path)
+{
     if (!std::filesystem::exists(path) || !std::filesystem::is_directory(path)) {
         return std::nullopt;
     }
@@ -229,7 +237,8 @@ std::optional<Template> DefaultTemplateService::loadTemplateFromPath(const std::
     }
 }
 
-std::vector<Template> DefaultTemplateService::listAllTemplates() {
+std::vector<Template> DefaultTemplateService::listAllTemplates()
+{
     std::vector<Template> allTemplates;
 
     for (const auto& source : impl_->templateSources_) {
@@ -240,7 +249,8 @@ std::vector<Template> DefaultTemplateService::listAllTemplates() {
     return allTemplates;
 }
 
-std::vector<Template> DefaultTemplateService::listTemplatesFromSource(const std::string& sourceName) {
+std::vector<Template> DefaultTemplateService::listTemplatesFromSource(const std::string& sourceName)
+{
     auto source = impl_->findTemplateSource(sourceName);
     if (!source) {
         return {};
@@ -256,7 +266,8 @@ std::vector<Template> DefaultTemplateService::listTemplatesFromSource(const std:
     return impl_->scanTemplatesInDirectory(sourceDir, *source);
 }
 
-std::expected<void, std::string> DefaultTemplateService::addTemplateSource(const TemplateSource& source) {
+std::expected<void, std::string> DefaultTemplateService::addTemplateSource(const TemplateSource& source)
+{
     // Check if source already exists
     auto existing = impl_->findTemplateSource(source.name);
     if (existing) {
@@ -295,7 +306,8 @@ std::expected<void, std::string> DefaultTemplateService::addTemplateSource(const
     return {};
 }
 
-std::expected<void, std::string> DefaultTemplateService::removeTemplateSource(const std::string& sourceName) {
+std::expected<void, std::string> DefaultTemplateService::removeTemplateSource(const std::string& sourceName)
+{
     if (sourceName == "official") {
         return std::unexpected("Cannot remove official template source");
     }
@@ -321,11 +333,13 @@ std::expected<void, std::string> DefaultTemplateService::removeTemplateSource(co
     return {};
 }
 
-std::vector<TemplateSource> DefaultTemplateService::listTemplateSources() {
+std::vector<TemplateSource> DefaultTemplateService::listTemplateSources()
+{
     return impl_->templateSources_;
 }
 
-std::expected<void, std::string> DefaultTemplateService::updateTemplateSources() {
+std::expected<void, std::string> DefaultTemplateService::updateTemplateSources()
+{
     std::string errors;
     bool hasErrors = false;
 
@@ -347,7 +361,8 @@ std::expected<void, std::string> DefaultTemplateService::updateTemplateSources()
     return {};
 }
 
-std::expected<void, std::string> DefaultTemplateService::updateTemplateSource(const std::string& sourceName) {
+std::expected<void, std::string> DefaultTemplateService::updateTemplateSource(const std::string& sourceName)
+{
     auto source = impl_->findTemplateSource(sourceName);
     if (!source) {
         return std::unexpected("Template source not found: " + sourceName);
@@ -387,7 +402,8 @@ std::expected<void, std::string> DefaultTemplateService::updateTemplateSource(co
 
 std::expected<void, std::string> DefaultTemplateService::processTemplate(const Template& tmpl,
                                             const std::filesystem::path& targetPath,
-                                            const VariableMap& variables) {
+                                            const VariableMap& variables)
+{
     try {
         // Use the advanced TemplateProcessor for proper processing
         TemplateProcessor processor;
@@ -399,7 +415,8 @@ std::expected<void, std::string> DefaultTemplateService::processTemplate(const T
 }
 
 VariableMap DefaultTemplateService::collectTemplateVariables(const Template& tmpl,
-                                                           const std::string& projectName) {
+                                                           const std::string& projectName)
+{
     VariableMap variables;
     variables.setStandardVariables(projectName);
 
@@ -418,7 +435,8 @@ VariableMap DefaultTemplateService::collectTemplateVariables(const Template& tmp
     return variables;
 }
 
-std::vector<std::string> DefaultTemplateService::validateTemplate(const std::filesystem::path& templatePath) {
+std::vector<std::string> DefaultTemplateService::validateTemplate(const std::filesystem::path& templatePath)
+{
     if (!std::filesystem::exists(templatePath)) {
         return {"Template path does not exist"};
     }
@@ -432,7 +450,8 @@ std::vector<std::string> DefaultTemplateService::validateTemplate(const std::fil
     return tmpl->validate();
 }
 
-std::optional<std::string> DefaultTemplateService::getRecommendedTemplate(const std::string& projectType) {
+std::optional<std::string> DefaultTemplateService::getRecommendedTemplate(const std::string& projectType)
+{
     if (projectType == "app" || projectType == "application") {
         // Check if minimal-app template exists
         auto tmpl = loadTemplate("minimal-app");
@@ -452,7 +471,8 @@ std::optional<std::string> DefaultTemplateService::getRecommendedTemplate(const 
     return std::nullopt;
 }
 
-bool DefaultTemplateService::isTemplateSourceAccessible(const std::string& sourceName) {
+bool DefaultTemplateService::isTemplateSourceAccessible(const std::string& sourceName)
+{
     auto source = impl_->findTemplateSource(sourceName);
     if (!source) {
         return false;
@@ -466,7 +486,8 @@ bool DefaultTemplateService::isTemplateSourceAccessible(const std::string& sourc
     return std::filesystem::exists(sourceDir);
 }
 
-std::filesystem::path DefaultTemplateService::getDefaultTemplatesDirectory() {
+std::filesystem::path DefaultTemplateService::getDefaultTemplatesDirectory()
+{
     // Check SCRAP_HOME environment variable first
     const char* scrapHome = std::getenv("SCRAP_HOME");
     if (scrapHome) {
@@ -485,6 +506,5 @@ std::filesystem::path DefaultTemplateService::getDefaultTemplatesDirectory() {
 
     return std::filesystem::path(home) / ".scrap" / "templates";
 }
-
 
 } // namespace scrap::template_system::service

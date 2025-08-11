@@ -10,7 +10,8 @@ CompositeOperation::CompositeOperation() = default;
 CompositeOperation::~CompositeOperation() = default;
 
 void CompositeOperation::addSubOperation(const std::string& name,
-                                         std::shared_ptr<Operation> operation) {
+                                         std::shared_ptr<Operation> operation)
+{
     if (operation) {
         subOperations_[name] = operation;
         // Propagate presenter if already set
@@ -20,15 +21,18 @@ void CompositeOperation::addSubOperation(const std::string& name,
     }
 }
 
-void CompositeOperation::removeSubOperation(const std::string& name) {
+void CompositeOperation::removeSubOperation(const std::string& name)
+{
     subOperations_.erase(name);
 }
 
-bool CompositeOperation::hasSubOperation(const std::string& name) const {
+bool CompositeOperation::hasSubOperation(const std::string& name) const
+{
     return subOperations_.find(name) != subOperations_.end();
 }
 
-std::vector<std::string> CompositeOperation::getSubOperationNames() const {
+std::vector<std::string> CompositeOperation::getSubOperationNames() const
+{
     std::vector<std::string> names;
     names.reserve(subOperations_.size());
     for (const auto& [name, _] : subOperations_) {
@@ -37,12 +41,14 @@ std::vector<std::string> CompositeOperation::getSubOperationNames() const {
     return names;
 }
 
-std::shared_ptr<Operation> CompositeOperation::getSubOperation(const std::string& name) const {
+std::shared_ptr<Operation> CompositeOperation::getSubOperation(const std::string& name) const
+{
     auto it = subOperations_.find(name);
     return (it != subOperations_.end()) ? it->second : nullptr;
 }
 
-void CompositeOperation::execute(const std::vector<std::string>& args) {
+void CompositeOperation::execute(const std::vector<std::string>& args)
+{
     if (args.empty() || args[0] == "help" || args[0] == "--help") {
         displayHelp();
         return;
@@ -67,7 +73,8 @@ void CompositeOperation::execute(const std::vector<std::string>& args) {
     operation->execute(subArgs);
 }
 
-void CompositeOperation::setPresenter(std::shared_ptr<Presenter> presenter) {
+void CompositeOperation::setPresenter(std::shared_ptr<Presenter> presenter)
+{
     Operation::setPresenter(presenter);
     // Propagate to all sub-operations
     for (auto& [_, operation] : subOperations_) {
@@ -77,7 +84,8 @@ void CompositeOperation::setPresenter(std::shared_ptr<Presenter> presenter) {
     }
 }
 
-void CompositeOperation::displayHelp() const {
+void CompositeOperation::displayHelp() const
+{
     auto presenter = getPresenter();
     if (!presenter) {
         return;

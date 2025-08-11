@@ -4,7 +4,6 @@
 #include "ToolchainReference.h"
 #include "ProjectConfiguration.h"
 #include <optional>
-#include <map>
 #include <string>
 
 namespace scrap::configuration::model {

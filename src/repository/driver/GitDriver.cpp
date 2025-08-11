@@ -57,4 +57,4 @@ std::expected<void, std::string> GitDriver::update(const std::filesystem::path& 
     }
 }
 
-}
+} // namespace scrap::repository

@@ -13,7 +13,7 @@ class CommandResult;
 
 /**
  * @brief Pure interface for command dispatching
- * 
+ *
  * This interface defines the contract for command dispatching without
  * exposing any implementation details. It follows the Dependency Inversion
  * Principle by depending only on abstractions.
@@ -34,19 +34,19 @@ public:
      * @param commandName Name of the command
      * @param operation Operation to execute for this command
      */
-    virtual void registerOperation(const std::string& commandName, 
+    virtual void registerOperation(const std::string& commandName,
                                    std::shared_ptr<Operation> operation) = 0;
 };
 
 /**
  * @brief Command request encapsulating parsed command line input
- * 
+ *
  * This class represents a parsed command request without exposing
  * the underlying CLI parsing implementation.
  */
 class CommandRequest {
 public:
-    CommandRequest(const std::string& command, 
+    CommandRequest(const std::string& command,
                    const std::vector<std::string>& arguments,
                    const std::vector<std::string>& subcommands = {});
 

@@ -3,23 +3,23 @@
 #include "template/service/TemplateService.h"
 #include "shared/presentation/driver/ConsolePresenter.h"
 #include <fstream>
-#include <sstream>
 #include <chrono>
 #include <thread>
-#include <iostream>
 
 namespace scrap::project::service {
 
 using namespace model;
 
-MockProjectService::MockProjectService() {
+MockProjectService::MockProjectService()
+{
     presenter_ = std::make_shared<ConsolePresenter>();
     templateService_ = template_system::TemplateModule::createTemplateService(presenter_);
 }
 
 MockProjectService::MockProjectService(std::shared_ptr<template_system::service::TemplateService> templateService,
                                      std::shared_ptr<Presenter> presenter)
-    : templateService_(templateService), presenter_(presenter) {
+    : templateService_(templateService), presenter_(presenter)
+{
     if (!presenter_) {
         presenter_ = std::make_shared<ConsolePresenter>();
     }
@@ -28,7 +28,8 @@ MockProjectService::MockProjectService(std::shared_ptr<template_system::service:
     }
 }
 
-Project MockProjectService::createNew(const ProjectSpecification& spec) {
+Project MockProjectService::createNew(const ProjectSpecification& spec)
+{
     // Validate specification
     if (spec.name.empty()) {
         throw std::runtime_error("Project name cannot be empty");
@@ -80,7 +81,8 @@ Project MockProjectService::createNew(const ProjectSpecification& spec) {
 }
 
 std::optional<Project> MockProjectService::loadProject(
-    const std::optional<std::filesystem::path>& path) {
+    const std::optional<std::filesystem::path>& path)
+{
 
     auto projectPath = path.value_or(std::filesystem::current_path());
     auto configPath = projectPath / "scrap.toml";
@@ -106,7 +108,8 @@ std::optional<Project> MockProjectService::loadProject(
     return project;
 }
 
-void MockProjectService::saveProject(const Project& project) {
+void MockProjectService::saveProject(const Project& project)
+{
     if (!project.path()) {
         throw std::runtime_error("Project path not set");
     }
@@ -114,7 +117,8 @@ void MockProjectService::saveProject(const Project& project) {
     generateConfigFile(project, *project.path());
 }
 
-BuildResult MockProjectService::build(const Project& project, const BuildOptions& options) {
+BuildResult MockProjectService::build(const Project& project, const BuildOptions& options)
+{
     // Simulate build process
     auto startTime = std::chrono::steady_clock::now();
 
@@ -149,7 +153,8 @@ BuildResult MockProjectService::build(const Project& project, const BuildOptions
     );
 }
 
-void MockProjectService::run(const Project& project, const RunOptions& options) {
+void MockProjectService::run(const Project& project, const RunOptions& options)
+{
     if (!project.isApplication()) {
         throw std::runtime_error("Cannot run library project");
     }
@@ -167,7 +172,8 @@ void MockProjectService::run(const Project& project, const RunOptions& options) 
     presenter_->displayInfo("Application finished with exit code 0");
 }
 
-void MockProjectService::clean(const Project& project) {
+void MockProjectService::clean(const Project& project)
+{
     if (!project.path()) {
         return;
     }
@@ -182,14 +188,16 @@ void MockProjectService::clean(const Project& project) {
 }
 
 Project MockProjectService::addDependency(const Project& project,
-                                           const Dependency& dependency) {
+                                           const Dependency& dependency)
+{
     auto modifiedProject = project;
     modifiedProject.addDependency(dependency);
     return modifiedProject;
 }
 
 void MockProjectService::createProjectStructure(const Project& project,
-                                                 const std::filesystem::path& basePath) {
+                                                 const std::filesystem::path& basePath)
+{
     // Create directory structure
     std::filesystem::create_directories(basePath);
     std::filesystem::create_directories(basePath / "src");
@@ -202,7 +210,8 @@ void MockProjectService::createProjectStructure(const Project& project,
 }
 
 void MockProjectService::generateSourceFiles(const Project& project,
-                                              const std::filesystem::path& projectPath) {
+                                              const std::filesystem::path& projectPath)
+{
     // Generate main source file
     auto mainFile = projectPath / "src" / "main.cpp";
     std::ofstream main(mainFile);
@@ -253,7 +262,8 @@ void MockProjectService::generateSourceFiles(const Project& project,
 }
 
 void MockProjectService::generateConfigFile(const Project& project,
-                                             const std::filesystem::path& projectPath) {
+                                             const std::filesystem::path& projectPath)
+{
     auto configFile = projectPath / "scrap.toml";
     std::ofstream config(configFile);
 
@@ -281,7 +291,8 @@ void MockProjectService::generateConfigFile(const Project& project,
 }
 
 void MockProjectService::createProjectFromTemplate(const ProjectSpecification& spec,
-                                                   const std::filesystem::path& targetPath) {
+                                                   const std::filesystem::path& targetPath)
+{
     try {
         // Load template
         std::optional<template_system::model::Template> tmpl;

@@ -25,4 +25,4 @@ void HelpCommand::execute(const std::vector<std::string>& /*args*/)
     }
 }
 
-}
+} // namespace scrap

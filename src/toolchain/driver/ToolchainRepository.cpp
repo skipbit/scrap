@@ -106,5 +106,3 @@ std::shared_ptr<ToolchainRepository> ToolchainRepositoryFactory::createRepositor
 {
     return std::make_shared<GitToolchainRepository>();
 }
-
-}

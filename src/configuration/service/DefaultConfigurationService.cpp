@@ -7,12 +7,14 @@ namespace scrap::configuration::service {
 
 DefaultConfigurationService::DefaultConfigurationService(
     std::shared_ptr<driver::TomlDriver> tomlDriver)
-    : tomlDriver_(std::move(tomlDriver)) {
+    : tomlDriver_(std::move(tomlDriver))
+{
 }
 
 model::Configuration DefaultConfigurationService::loadConfiguration(
     const std::filesystem::path& workingDirectory,
-    const std::optional<model::ToolchainReference>& cliToolchain) {
+    const std::optional<model::ToolchainReference>& cliToolchain)
+{
 
     model::Configuration config;
 
@@ -52,7 +54,8 @@ model::Configuration DefaultConfigurationService::loadConfiguration(
 }
 
 std::optional<model::ProjectConfiguration> DefaultConfigurationService::loadProjectConfiguration(
-    const std::filesystem::path& projectPath) {
+    const std::filesystem::path& projectPath)
+{
 
     auto configPath = projectPath / "scrap.toml";
     return tomlDriver_->loadProjectConfiguration(configPath);
@@ -60,7 +63,8 @@ std::optional<model::ProjectConfiguration> DefaultConfigurationService::loadProj
 
 void DefaultConfigurationService::saveProjectConfiguration(
     const std::filesystem::path& projectPath,
-    const model::ProjectConfiguration& config) {
+    const model::ProjectConfiguration& config)
+{
 
     auto configPath = projectPath / "scrap.toml";
 
@@ -74,7 +78,8 @@ void DefaultConfigurationService::createDefaultConfiguration(
     const std::filesystem::path& projectPath,
     const std::string& projectName,
     model::ProjectType projectType,
-    const std::optional<model::ToolchainReference>& toolchain) {
+    const std::optional<model::ToolchainReference>& toolchain)
+{
 
     auto config = model::ProjectConfiguration::createDefault(projectName, projectType);
 
@@ -87,7 +92,8 @@ void DefaultConfigurationService::createDefaultConfiguration(
 
 void DefaultConfigurationService::setProjectToolchain(
     const std::filesystem::path& projectPath,
-    const model::ToolchainReference& toolchain) {
+    const model::ToolchainReference& toolchain)
+{
 
     // Load existing configuration or create default
     auto config = loadProjectConfiguration(projectPath);
@@ -104,7 +110,8 @@ void DefaultConfigurationService::setProjectToolchain(
 
 void DefaultConfigurationService::setRepositoryToolchain(
     const std::filesystem::path& repositoryRoot,
-    const model::ToolchainReference& toolchain) {
+    const model::ToolchainReference& toolchain)
+{
 
     auto markerPath = repositoryRoot / ".scrap-toolchain";
 
@@ -122,7 +129,8 @@ void DefaultConfigurationService::setRepositoryToolchain(
 }
 
 std::vector<std::string> DefaultConfigurationService::validateConfiguration(
-    const model::Configuration& config) {
+    const model::Configuration& config)
+{
 
     std::vector<std::string> errors;
 
@@ -145,7 +153,8 @@ std::vector<std::string> DefaultConfigurationService::validateConfiguration(
 }
 
 std::optional<model::ToolchainReference> DefaultConfigurationService::loadRepositoryToolchain(
-    const std::filesystem::path& repositoryRoot) {
+    const std::filesystem::path& repositoryRoot)
+{
 
     auto markerPath = repositoryRoot / ".scrap-toolchain";
 
@@ -179,7 +188,8 @@ std::optional<model::ToolchainReference> DefaultConfigurationService::loadReposi
     return std::nullopt;
 }
 
-std::optional<model::ToolchainReference> DefaultConfigurationService::loadEnvironmentToolchain() {
+std::optional<model::ToolchainReference> DefaultConfigurationService::loadEnvironmentToolchain()
+{
     auto envValue = getEnvironmentVariable("SCRAP_TOOLCHAIN");
     if (!envValue || envValue->empty()) {
         return std::nullopt;
@@ -194,7 +204,8 @@ std::optional<model::ToolchainReference> DefaultConfigurationService::loadEnviro
 }
 
 std::optional<std::filesystem::path> DefaultConfigurationService::findRepositoryRoot(
-    const std::filesystem::path& startPath) {
+    const std::filesystem::path& startPath)
+{
 
     auto currentPath = std::filesystem::canonical(startPath);
 
@@ -209,7 +220,8 @@ std::optional<std::filesystem::path> DefaultConfigurationService::findRepository
 }
 
 std::optional<std::filesystem::path> DefaultConfigurationService::findProjectRoot(
-    const std::filesystem::path& startPath) {
+    const std::filesystem::path& startPath)
+{
 
     auto currentPath = std::filesystem::canonical(startPath);
 
@@ -223,7 +235,8 @@ std::optional<std::filesystem::path> DefaultConfigurationService::findProjectRoo
     return std::nullopt;
 }
 
-std::optional<std::string> DefaultConfigurationService::getEnvironmentVariable(const std::string& name) {
+std::optional<std::string> DefaultConfigurationService::getEnvironmentVariable(const std::string& name)
+{
     const char* value = std::getenv(name.c_str());
     if (value) {
         return std::string(value);

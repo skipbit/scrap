@@ -7,7 +7,7 @@ namespace scrap {
 
 /**
  * @brief Main application entry point following Clean Architecture
- * 
+ *
  * This class represents the main application orchestrator that
  * coordinates CLI parsing and command execution without exposing
  * implementation details.

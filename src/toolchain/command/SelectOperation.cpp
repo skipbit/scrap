@@ -7,10 +7,12 @@
 namespace scrap::toolchain::command {
 
 SelectOperation::SelectOperation(std::shared_ptr<service::ToolchainService> service)
-    : service_(service) {
+    : service_(service)
+{
 }
 
-void SelectOperation::execute(const std::vector<std::string>& args) {
+void SelectOperation::execute(const std::vector<std::string>& args)
+{
     auto presenter = getPresenter();
     if (!presenter) {
         return;
@@ -58,7 +60,8 @@ void SelectOperation::execute(const std::vector<std::string>& args) {
     presenter->displayInfo(ss.str());
 }
 
-void SelectOperation::displayHelp() const {
+void SelectOperation::displayHelp() const
+{
     auto presenter = getPresenter();
     if (!presenter) {
         return;

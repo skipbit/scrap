@@ -2,7 +2,6 @@
 
 #include "toolchain/model/Toolchain.h"
 #include <vector>
-#include <memory>
 #include <optional>
 #include <expected>
 #include <string>

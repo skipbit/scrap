@@ -24,4 +24,4 @@ void Operation::execute(const std::vector<std::string>& /*args*/)
     // Default implementation does nothing
 }
 
-}
+} // namespace scrap

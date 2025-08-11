@@ -7,10 +7,12 @@
 namespace scrap::project::command {
 
 RunOperation::RunOperation(std::shared_ptr<service::ProjectService> service)
-    : service_(service) {
+    : service_(service)
+{
 }
 
-void RunOperation::execute(const std::vector<std::string>& args) {
+void RunOperation::execute(const std::vector<std::string>& args)
+{
     auto presenter = getPresenter();
     if (!presenter) {
         return;
@@ -90,7 +92,8 @@ void RunOperation::execute(const std::vector<std::string>& args) {
     }
 }
 
-void RunOperation::displayHelp() const {
+void RunOperation::displayHelp() const
+{
     auto presenter = getPresenter();
     if (!presenter) {
         return;

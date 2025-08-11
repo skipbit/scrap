@@ -11,7 +11,8 @@ namespace scrap::project::command {
 
 NewOperation::NewOperation(std::shared_ptr<service::ProjectService> service,
                                    std::shared_ptr<template_system::service::TemplateService> templateService)
-    : service_(service), templateService_(templateService) {
+    : service_(service), templateService_(templateService)
+{
 
     // Create default template service if not provided
     if (!templateService_) {
@@ -19,7 +20,8 @@ NewOperation::NewOperation(std::shared_ptr<service::ProjectService> service,
     }
 }
 
-void NewOperation::execute(const std::vector<std::string>& args) {
+void NewOperation::execute(const std::vector<std::string>& args)
+{
     auto presenter = getPresenter();
     if (!presenter) {
         return;
@@ -86,7 +88,8 @@ void NewOperation::execute(const std::vector<std::string>& args) {
     }
 }
 
-void NewOperation::displayHelp() const {
+void NewOperation::displayHelp() const
+{
     auto presenter = getPresenter();
     if (!presenter) {
         return;
@@ -120,7 +123,8 @@ void NewOperation::displayHelp() const {
     presenter->displayInfo("  scrap new --list-templates                # Show all available templates");
 }
 
-void NewOperation::displayAvailableTemplates() const {
+void NewOperation::displayAvailableTemplates() const
+{
     auto presenter = getPresenter();
     if (!presenter) {
         return;

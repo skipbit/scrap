@@ -1,16 +1,16 @@
 #include "CleanOperation.h"
 #include "project/service/ProjectService.h"
-#include "project/model/Project.h"
 #include "shared/presentation/Presenter.h"
-#include <sstream>
 
 namespace scrap::project::command {
 
 CleanOperation::CleanOperation(std::shared_ptr<service::ProjectService> service)
-    : service_(service) {
+    : service_(service)
+{
 }
 
-void CleanOperation::execute(const std::vector<std::string>& args) {
+void CleanOperation::execute(const std::vector<std::string>& args)
+{
     auto presenter = getPresenter();
     if (!presenter) {
         return;
@@ -63,7 +63,8 @@ void CleanOperation::execute(const std::vector<std::string>& args) {
     }
 }
 
-void CleanOperation::displayHelp() const {
+void CleanOperation::displayHelp() const
+{
     auto presenter = getPresenter();
     if (!presenter) {
         return;
@@ -90,4 +91,4 @@ void CleanOperation::displayHelp() const {
     presenter->displayInfo("  - .cache/ directory");
 }
 
-} // namespace scrap::project::command
+} // namespace

@@ -12,7 +12,7 @@ namespace scrap::toolchain {
 
 /**
  * @brief Toolchain domain module interface
- * 
+ *
  * This class represents the Toolchain domain module following DDD principles.
  * It encapsulates all toolchain-related operations and provides self-registration
  * capabilities following the Open/Closed Principle.
@@ -25,7 +25,7 @@ public:
      * @param parser CLI parser for help generation
      * @param presenter Presenter for output formatting
      */
-    static void registerCommands(CommandDispatcher& dispatcher, 
+    static void registerCommands(CommandDispatcher& dispatcher,
                                  std::shared_ptr<CLIParser> parser,
                                  std::shared_ptr<Presenter> presenter);
 

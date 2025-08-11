@@ -9,7 +9,7 @@ namespace scrap::toolchain {
 
 /**
  * @brief Abstract interface for toolchain repository operations
- * 
+ *
  * This interface defines the contract for toolchain data access,
  * following the Repository pattern and Dependency Inversion Principle.
  */
@@ -44,7 +44,7 @@ public:
 
 /**
  * @brief Concrete implementation of ToolchainRepository using Git
- * 
+ *
  * This class provides a concrete implementation using Git repositories
  * for toolchain registry management, following the implementation details
  * hiding pattern.

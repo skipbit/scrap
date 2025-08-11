@@ -7,7 +7,7 @@ namespace scrap {
 
 /**
  * @brief Console-based presenter implementation
- * 
+ *
  * This class provides a concrete implementation of Presenter for console output.
  * Implementation details are hidden using PIMPL pattern.
  */

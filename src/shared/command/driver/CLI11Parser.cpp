@@ -2,7 +2,6 @@
 #include "shared/constants/version.h"
 #include <CLI/CLI.hpp>
 #include <map>
-#include <iostream>
 #include <cstdlib>
 
 namespace scrap {
@@ -167,4 +166,4 @@ std::unique_ptr<CLIParser> CLI11ParserFactory::createParser(const std::string& a
     return std::make_unique<CLI11Parser>(appName, appDescription);
 }
 
-}
+} // namespace

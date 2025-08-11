@@ -13,42 +13,52 @@
 namespace scrap::toolchain::model {
 
 // ToolchainId implementation
-ToolchainId::ToolchainId(const std::string& value) : value_(value) {
+ToolchainId::ToolchainId(const std::string& value) : value_(value)
+{
 }
 
-const std::string& ToolchainId::value() const {
+const std::string& ToolchainId::value() const
+{
     return value_;
 }
 
-bool ToolchainId::operator==(const ToolchainId& other) const {
+bool ToolchainId::operator==(const ToolchainId& other) const
+{
     return value_ == other.value_;
 }
 
-bool ToolchainId::operator<(const ToolchainId& other) const {
+bool ToolchainId::operator<(const ToolchainId& other) const
+{
     return value_ < other.value_;
 }
 
 // ToolchainName implementation
-ToolchainName::ToolchainName(const std::string& value) : value_(value) {
+ToolchainName::ToolchainName(const std::string& value) : value_(value)
+{
 }
 
-const std::string& ToolchainName::value() const {
+const std::string& ToolchainName::value() const
+{
     return value_;
 }
 
-std::string ToolchainName::toString() const {
+std::string ToolchainName::toString() const
+{
     return value_;
 }
 
 // Version implementation
-Version::Version(const std::string& value) : value_(value) {
+Version::Version(const std::string& value) : value_(value)
+{
 }
 
-const std::string& Version::value() const {
+const std::string& Version::value() const
+{
     return value_;
 }
 
-std::string Version::toString() const {
+std::string Version::toString() const
+{
     return value_;
 }
 
@@ -63,56 +73,69 @@ Toolchain::Toolchain(const ToolchainId& id,
     , version_(version)
     , architecture_(architecture)
     , platform_(platform)
-    , isSelected_(false) {
+    , isSelected_(false)
+{
 }
 
-const ToolchainId& Toolchain::id() const {
+const ToolchainId& Toolchain::id() const
+{
     return id_;
 }
 
-const ToolchainName& Toolchain::name() const {
+const ToolchainName& Toolchain::name() const
+{
     return name_;
 }
 
-const Version& Toolchain::version() const {
+const Version& Toolchain::version() const
+{
     return version_;
 }
 
-Architecture Toolchain::architecture() const {
+Architecture Toolchain::architecture() const
+{
     return architecture_;
 }
 
-Platform Toolchain::platform() const {
+Platform Toolchain::platform() const
+{
     return platform_;
 }
 
-const std::optional<std::filesystem::path>& Toolchain::installationPath() const {
+const std::optional<std::filesystem::path>& Toolchain::installationPath() const
+{
     return path_;
 }
 
-bool Toolchain::isSelected() const {
+bool Toolchain::isSelected() const
+{
     return isSelected_;
 }
 
-void Toolchain::setInstallationPath(const std::filesystem::path& path) {
+void Toolchain::setInstallationPath(const std::filesystem::path& path)
+{
     path_ = path;
 }
 
-void Toolchain::setSelected(bool selected) {
+void Toolchain::setSelected(bool selected)
+{
     isSelected_ = selected;
 }
 
-bool Toolchain::isInstalled() const {
+bool Toolchain::isInstalled() const
+{
     return path_.has_value();
 }
 
-std::string Toolchain::fullName() const {
+std::string Toolchain::fullName() const
+{
     std::stringstream ss;
     ss << name_.toString() << " " << version_.toString();
     return ss.str();
 }
 
-std::string Toolchain::triple() const {
+std::string Toolchain::triple() const
+{
     std::stringstream ss;
     ss << name_.toString() << "-" << version_.toString()
        << "-" << architectureToString(architecture_)
@@ -121,23 +144,27 @@ std::string Toolchain::triple() const {
 }
 
 // DefaultToolchainPolicy implementation
-bool DefaultToolchainPolicy::canInstall(const Toolchain& toolchain) const {
+bool DefaultToolchainPolicy::canInstall(const Toolchain& toolchain) const
+{
     // Can install if not already installed
     return !toolchain.isInstalled();
 }
 
-bool DefaultToolchainPolicy::canSelect(const Toolchain& toolchain) const {
+bool DefaultToolchainPolicy::canSelect(const Toolchain& toolchain) const
+{
     // Can select if installed and not already selected
     return toolchain.isInstalled() && !toolchain.isSelected();
 }
 
-bool DefaultToolchainPolicy::canRemove(const Toolchain& toolchain) const {
+bool DefaultToolchainPolicy::canRemove(const Toolchain& toolchain) const
+{
     // Can remove if installed and not currently selected
     return toolchain.isInstalled() && !toolchain.isSelected();
 }
 
 // ToolchainSpecification implementation
-ToolchainSpecification ToolchainSpecification::parse(const std::string& spec) {
+ToolchainSpecification ToolchainSpecification::parse(const std::string& spec)
+{
     ToolchainSpecification result;
 
     // Parse format: name@version or name
@@ -158,7 +185,8 @@ ToolchainSpecification ToolchainSpecification::parse(const std::string& spec) {
 }
 
 // Helper functions
-std::string architectureToString(const Architecture arch) {
+std::string architectureToString(const Architecture arch)
+{
     switch (arch) {
         case Architecture::X86_64:
             return "x86_64";
@@ -169,7 +197,8 @@ std::string architectureToString(const Architecture arch) {
     }
 }
 
-std::string platformToString(const Platform platform) {
+std::string platformToString(const Platform platform)
+{
     switch (platform) {
         case Platform::Linux:
             return "linux";
@@ -182,7 +211,8 @@ std::string platformToString(const Platform platform) {
     }
 }
 
-Architecture stringToArchitecture(const std::string& str) {
+Architecture stringToArchitecture(const std::string& str)
+{
     std::string lower = str;
     std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
 
@@ -194,7 +224,8 @@ Architecture stringToArchitecture(const std::string& str) {
     return Architecture::Unknown;
 }
 
-Platform stringToPlatform(const std::string& str) {
+Platform stringToPlatform(const std::string& str)
+{
     std::string lower = str;
     std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
 
@@ -208,7 +239,8 @@ Platform stringToPlatform(const std::string& str) {
     return Platform::Unknown;
 }
 
-Architecture getCurrentArchitecture() {
+Architecture getCurrentArchitecture()
+{
 #if defined(__x86_64__) || defined(_M_X64)
     return Architecture::X86_64;
 #elif defined(__aarch64__) || defined(_M_ARM64)
@@ -218,7 +250,8 @@ Architecture getCurrentArchitecture() {
 #endif
 }
 
-Platform getCurrentPlatform() {
+Platform getCurrentPlatform()
+{
 #ifdef _WIN32
     return Platform::Windows;
 #elif defined(__APPLE__)

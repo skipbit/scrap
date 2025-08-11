@@ -10,7 +10,8 @@ namespace scrap::project {
 
 void ProjectModule::registerCommands(CommandDispatcher& dispatcher,
                                      std::shared_ptr<CLIParser> /* parser */,
-                                     std::shared_ptr<Presenter> presenter) {
+                                     std::shared_ptr<Presenter> presenter)
+{
     // Create Mock service for now
     auto service = std::make_shared<service::MockProjectService>(nullptr, presenter);
 
@@ -34,7 +35,8 @@ void ProjectModule::registerCommands(CommandDispatcher& dispatcher,
     dispatcher.registerOperation("clean", cleanOp);
 }
 
-std::vector<std::pair<std::string, std::string>> ProjectModule::getAvailableCommands() {
+std::vector<std::pair<std::string, std::string>> ProjectModule::getAvailableCommands()
+{
     return {
         {"new", "Create a new C++ project"},
         {"build", "Compile the current project"},

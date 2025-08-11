@@ -8,14 +8,16 @@
 namespace scrap::toolchain::command {
 
 ToolchainOperation::ToolchainOperation(std::shared_ptr<service::ToolchainService> service)
-    : service_(service) {
+    : service_(service)
+{
     // Register subcommands
     addSubOperation("list", std::make_shared<ListOperation>(service));
     addSubOperation("install", std::make_shared<InstallOperation>(service));
     addSubOperation("select", std::make_shared<SelectOperation>(service));
 }
 
-void ToolchainOperation::displayHelp() const {
+void ToolchainOperation::displayHelp() const
+{
     auto presenter = getPresenter();
     if (!presenter) {
         return;

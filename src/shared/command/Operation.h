@@ -11,7 +11,7 @@ class Presenter;
 
 /**
  * @brief Base class for all executable operations
- * 
+ *
  * This class provides the interface for domain operations in the Clean Architecture.
  * It has been simplified to remove dependencies on infrastructure details.
  */

@@ -319,38 +319,47 @@ private:
 
 // TomlPlusPlusDriver implementation
 
-TomlPlusPlusDriver::TomlPlusPlusDriver() : impl_(std::make_unique<Impl>()) {}
+TomlPlusPlusDriver::TomlPlusPlusDriver()
+    : impl_(std::make_unique<Impl>())
+{
+}
 
 TomlPlusPlusDriver::~TomlPlusPlusDriver() = default;
 
 std::optional<model::ProjectConfiguration> TomlPlusPlusDriver::loadProjectConfiguration(
-    const std::filesystem::path& filePath) {
+    const std::filesystem::path& filePath)
+{
     return impl_->loadProjectConfiguration(filePath);
 }
 
 void TomlPlusPlusDriver::saveProjectConfiguration(
     const std::filesystem::path& filePath,
-    const model::ProjectConfiguration& config) {
+    const model::ProjectConfiguration& config)
+{
     impl_->saveProjectConfiguration(filePath, config);
 }
 
 std::optional<std::map<std::string, std::string>> TomlPlusPlusDriver::loadKeyValues(
-    const std::filesystem::path& filePath) {
+    const std::filesystem::path& filePath)
+{
     return impl_->loadKeyValues(filePath);
 }
 
 void TomlPlusPlusDriver::saveKeyValues(
     const std::filesystem::path& filePath,
-    const std::map<std::string, std::string>& keyValues) {
+    const std::map<std::string, std::string>& keyValues)
+{
     impl_->saveKeyValues(filePath, keyValues);
 }
 
-bool TomlPlusPlusDriver::exists(const std::filesystem::path& filePath) {
+bool TomlPlusPlusDriver::exists(const std::filesystem::path& filePath)
+{
     return impl_->exists(filePath);
 }
 
-std::string TomlPlusPlusDriver::validateSyntax(const std::filesystem::path& filePath) {
+std::string TomlPlusPlusDriver::validateSyntax(const std::filesystem::path& filePath)
+{
     return impl_->validateSyntax(filePath);
 }
 
-} // namespace scrap::configuration::driver
+} // namespace

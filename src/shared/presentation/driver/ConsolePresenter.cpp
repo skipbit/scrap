@@ -168,7 +168,8 @@ private:
 
 // ConsolePresenter implementation
 ConsolePresenter::ConsolePresenter()
-    : impl_(std::make_unique<Impl>()) {
+    : impl_(std::make_unique<Impl>())
+{
 }
 
 ConsolePresenter::~ConsolePresenter() = default;
@@ -178,45 +179,55 @@ ConsolePresenter::ConsolePresenter(ConsolePresenter&&) noexcept = default;
 ConsolePresenter& ConsolePresenter::operator=(ConsolePresenter&&) noexcept = default;
 
 // Configuration methods
-void ConsolePresenter::setOutputFormat(OutputFormat format) {
+void ConsolePresenter::setOutputFormat(OutputFormat format)
+{
     impl_->outputFormat_ = format;
 }
 
-void ConsolePresenter::setVerbosityLevel(VerbosityLevel level) {
+void ConsolePresenter::setVerbosityLevel(VerbosityLevel level)
+{
     impl_->verbosity_ = level;
 }
 
-void ConsolePresenter::setColorEnabled(bool enabled) {
+void ConsolePresenter::setColorEnabled(bool enabled)
+{
     impl_->useColor_ = enabled;
 }
 
-void ConsolePresenter::setProgressStyle(ProgressStyle style) {
+void ConsolePresenter::setProgressStyle(ProgressStyle style)
+{
     impl_->progressStyle_ = style;
 }
 
 // Output methods
-void ConsolePresenter::displayInfo(const std::string& message) {
+void ConsolePresenter::displayInfo(const std::string& message)
+{
     impl_->showInfoInternal(message);
 }
 
-void ConsolePresenter::displaySuccess(const std::string& message) {
+void ConsolePresenter::displaySuccess(const std::string& message)
+{
     impl_->showSuccessInternal(message);
 }
 
-void ConsolePresenter::displayWarning(const std::string& message) {
+void ConsolePresenter::displayWarning(const std::string& message)
+{
     impl_->showWarningInternal(message);
 }
 
-void ConsolePresenter::displayError(const std::string& message) {
+void ConsolePresenter::displayError(const std::string& message)
+{
     impl_->showErrorInternal(message);
 }
 
-void ConsolePresenter::displayDebug(const std::string& message) {
+void ConsolePresenter::displayDebug(const std::string& message)
+{
     impl_->showDebugInternal(message);
 }
 
 // Progress methods
-void ConsolePresenter::startProgress(const std::string& task, size_t total) {
+void ConsolePresenter::startProgress(const std::string& task, size_t total)
+{
     impl_->progressTask_ = task;
     impl_->progressTotal_ = total;
     impl_->progressCurrent_ = 0;
@@ -226,16 +237,19 @@ void ConsolePresenter::startProgress(const std::string& task, size_t total) {
     }
 }
 
-void ConsolePresenter::updateProgress(size_t current) {
+void ConsolePresenter::updateProgress(size_t current)
+{
     impl_->progressCurrent_ = current;
     impl_->showProgressInternal(current);
 }
 
-void ConsolePresenter::updateProgress(size_t current, const std::string& /*currentItem*/) {
+void ConsolePresenter::updateProgress(size_t current, const std::string& /*currentItem*/)
+{
     updateProgress(current);
 }
 
-void ConsolePresenter::finishProgress() {
+void ConsolePresenter::finishProgress()
+{
     if (impl_->progressStyle_ != ProgressStyle::None) {
         std::cout << " done" << std::endl;
     }
@@ -245,37 +259,45 @@ void ConsolePresenter::finishProgress() {
 }
 
 // Structured output methods
-void ConsolePresenter::displayTable(const Table& table) {
+void ConsolePresenter::displayTable(const Table& table)
+{
     impl_->showTableInternal(table);
 }
 
-void ConsolePresenter::displayTree(const Tree& tree) {
+void ConsolePresenter::displayTree(const Tree& tree)
+{
     impl_->showTreeInternal(tree);
 }
 
-void ConsolePresenter::displayList(const std::string& title, const std::vector<std::string>& items) {
+void ConsolePresenter::displayList(const std::string& title, const std::vector<std::string>& items)
+{
     impl_->showListInternal(title, items);
 }
 
 // Legacy compatibility methods
-void ConsolePresenter::showInfo(const std::string& message) {
+void ConsolePresenter::showInfo(const std::string& message)
+{
     displayInfo(message);
 }
 
-void ConsolePresenter::showError(const std::string& message) {
+void ConsolePresenter::showError(const std::string& message)
+{
     displayError(message);
 }
 
-void ConsolePresenter::showHelp(const std::string& helpText) {
+void ConsolePresenter::showHelp(const std::string& helpText)
+{
     displayInfo(helpText);
 }
 
-void ConsolePresenter::showList(const std::string& title, const std::vector<std::string>& items) {
+void ConsolePresenter::showList(const std::string& title, const std::vector<std::string>& items)
+{
     displayList(title, items);
 }
 
 // ConsolePresenterFactory implementation
-std::unique_ptr<Presenter> ConsolePresenterFactory::createPresenter() {
+std::unique_ptr<Presenter> ConsolePresenterFactory::createPresenter()
+{
     return std::make_unique<ConsolePresenter>();
 }
 

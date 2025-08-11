@@ -32,12 +32,14 @@ public:
     }
 };
 
-const ToolchainErrorCategory& toolchainErrorCategory() {
+const ToolchainErrorCategory& toolchainErrorCategory()
+{
     static ToolchainErrorCategory instance;
     return instance;
 }
 
-std::error_code make_error_code(ToolchainError e) {
+std::error_code make_error_code(ToolchainError e)
+{
     return {static_cast<int>(e), toolchainErrorCategory()};
 }
 
@@ -48,13 +50,15 @@ using namespace model;
 // Base interface implementation
 ToolchainService::~ToolchainService() = default;
 
-MockToolchainService::MockToolchainService() {
+MockToolchainService::MockToolchainService()
+{
     initializeMockData();
 }
 
 MockToolchainService::~MockToolchainService() = default;
 
-void MockToolchainService::initializeMockData() {
+void MockToolchainService::initializeMockData()
+{
     // Create mock toolchains
     auto llvm18 = Toolchain(
         ToolchainId("llvm-18.0.0-x86_64-darwin"),
@@ -91,18 +95,21 @@ void MockToolchainService::initializeMockData() {
     currentToolchainId_ = ToolchainId("llvm-18.0.0-x86_64-darwin");
 }
 
-std::vector<Toolchain> MockToolchainService::listInstalled() {
+std::vector<Toolchain> MockToolchainService::listInstalled()
+{
     return toolchains_;
 }
 
-std::optional<Toolchain> MockToolchainService::getCurrentToolchain() {
+std::optional<Toolchain> MockToolchainService::getCurrentToolchain()
+{
     if (!currentToolchainId_) {
         return std::nullopt;
     }
     return findById(*currentToolchainId_);
 }
 
-std::optional<Toolchain> MockToolchainService::findById(const ToolchainId& id) {
+std::optional<Toolchain> MockToolchainService::findById(const ToolchainId& id)
+{
     auto it = std::find_if(toolchains_.begin(), toolchains_.end(),
         [&id](const Toolchain& t) { return t.id() == id; });
 
@@ -112,7 +119,8 @@ std::optional<Toolchain> MockToolchainService::findById(const ToolchainId& id) {
     return std::nullopt;
 }
 
-std::expected<void, std::string> MockToolchainService::install(const ToolchainSpecification& spec) {
+std::expected<void, std::string> MockToolchainService::install(const ToolchainSpecification& spec)
+{
     // Check if already installed
     const std::string id = spec.name + "-" + spec.version + "-" +
                      architectureToString(spec.architecture.value_or(getCurrentArchitecture())) + "-" +
@@ -142,7 +150,8 @@ std::expected<void, std::string> MockToolchainService::install(const ToolchainSp
     return {};
 }
 
-std::expected<void, std::string> MockToolchainService::select(const ToolchainId& id) {
+std::expected<void, std::string> MockToolchainService::select(const ToolchainId& id)
+{
     auto toolchain = findById(id);
     if (!toolchain) {
         return std::unexpected("Toolchain not found: " + id.value());
@@ -160,7 +169,8 @@ std::expected<void, std::string> MockToolchainService::select(const ToolchainId&
     return {};
 }
 
-std::expected<void, std::string> MockToolchainService::remove(const ToolchainId& id) {
+std::expected<void, std::string> MockToolchainService::remove(const ToolchainId& id)
+{
     auto it = std::find_if(toolchains_.begin(), toolchains_.end(),
         [&id](const Toolchain& t) { return t.id() == id; });
 

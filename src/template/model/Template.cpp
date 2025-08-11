@@ -1,5 +1,4 @@
 #include "Template.h"
-#include <fstream>
 #include <regex>
 #include <chrono>
 #include <ctime>
@@ -8,15 +7,18 @@ namespace scrap::template_system::model {
 
 // TemplateVariable implementation
 TemplateVariable::TemplateVariable(const std::string& n, const std::string& p)
-    : name(n), prompt(p) {
+    : name(n), prompt(p)
+{
 }
 
 // TemplateSource implementation
 TemplateSource::TemplateSource(const std::string& n, TemplateSourceType t)
-    : name(n), type(t) {
+    : name(n), type(t)
+{
 }
 
-bool TemplateRequirements::isCompatible() const {
+bool TemplateRequirements::isCompatible() const
+{
     // For now, just return true
     // In future, implement actual compatibility checking
     return true;
@@ -25,93 +27,115 @@ bool TemplateRequirements::isCompatible() const {
 Template::Template(const std::string& name,
                    const std::filesystem::path& path,
                    const TemplateSource& source)
-    : name_(name), path_(path), source_(source) {
+    : name_(name), path_(path), source_(source)
+{
     loadMetadata();
 }
 
 // Template getters
-const std::string& Template::name() const {
+const std::string& Template::name() const
+{
     return name_;
 }
 
-const std::string& Template::version() const {
+const std::string& Template::version() const
+{
     return version_;
 }
 
-const std::string& Template::description() const {
+const std::string& Template::description() const
+{
     return description_;
 }
 
-const std::string& Template::author() const {
+const std::string& Template::author() const
+{
     return author_;
 }
 
-const std::string& Template::license() const {
+const std::string& Template::license() const
+{
     return license_;
 }
 
-const std::vector<std::string>& Template::tags() const {
+const std::vector<std::string>& Template::tags() const
+{
     return tags_;
 }
 
-const std::filesystem::path& Template::path() const {
+const std::filesystem::path& Template::path() const
+{
     return path_;
 }
 
-const TemplateSource& Template::source() const {
+const TemplateSource& Template::source() const
+{
     return source_;
 }
 
-const std::vector<TemplateVariable>& Template::variables() const {
+const std::vector<TemplateVariable>& Template::variables() const
+{
     return variables_;
 }
 
-const TemplateRequirements& Template::requirements() const {
+const TemplateRequirements& Template::requirements() const
+{
     return requirements_;
 }
 
-const std::map<std::string, std::string>& Template::defaultDependencies() const {
+const std::map<std::string, std::string>& Template::defaultDependencies() const
+{
     return defaultDependencies_;
 }
 
 // Template setters
-void Template::setVersion(const std::string& version) {
+void Template::setVersion(const std::string& version)
+{
     version_ = version;
 }
 
-void Template::setDescription(const std::string& description) {
+void Template::setDescription(const std::string& description)
+{
     description_ = description;
 }
 
-void Template::setAuthor(const std::string& author) {
+void Template::setAuthor(const std::string& author)
+{
     author_ = author;
 }
 
-void Template::setLicense(const std::string& license) {
+void Template::setLicense(const std::string& license)
+{
     license_ = license;
 }
 
-void Template::addTag(const std::string& tag) {
+void Template::addTag(const std::string& tag)
+{
     tags_.push_back(tag);
 }
 
-void Template::addVariable(const TemplateVariable& variable) {
+void Template::addVariable(const TemplateVariable& variable)
+{
     variables_.push_back(variable);
 }
 
-void Template::setRequirements(const TemplateRequirements& requirements) {
+void Template::setRequirements(const TemplateRequirements& requirements)
+{
     requirements_ = requirements;
 }
 
-void Template::addDefaultDependency(const std::string& name, const std::string& version) {
+void Template::addDefaultDependency(const std::string& name, const std::string& version)
+{
     defaultDependencies_[name] = version;
 }
 
-bool Template::isValid() const {
+bool Template::isValid() const
+{
     return validate().empty();
 }
 
-std::vector<std::string> Template::validate() const {
+std::vector<std::string> Template::validate() const
+{
     std::vector<std::string> errors;
 
     if (name_.empty()) {
@@ -145,7 +169,8 @@ std::vector<std::string> Template::validate() const {
     return errors;
 }
 
-std::vector<std::filesystem::path> Template::getTemplateFiles() const {
+std::vector<std::filesystem::path> Template::getTemplateFiles() const
+{
     std::vector<std::filesystem::path> files;
 
     if (!std::filesystem::exists(path_)) {
@@ -173,16 +198,19 @@ std::vector<std::filesystem::path> Template::getTemplateFiles() const {
     return files;
 }
 
-bool Template::hasTemplateFile(const std::string& filename) const {
+bool Template::hasTemplateFile(const std::string& filename) const
+{
     auto filePath = path_ / filename;
     return std::filesystem::exists(filePath);
 }
 
-std::string Template::getFullName() const {
+std::string Template::getFullName() const
+{
     return source_.name + "/" + name_;
 }
 
-void Template::loadMetadata() {
+void Template::loadMetadata()
+{
     auto templateToml = path_ / "template.toml";
 
     if (!std::filesystem::exists(templateToml)) {
@@ -197,11 +225,13 @@ void Template::loadMetadata() {
     license_ = "MIT";
 }
 
-void VariableMap::set(const std::string& name, const std::string& value) {
+void VariableMap::set(const std::string& name, const std::string& value)
+{
     variables_[name] = value;
 }
 
-std::optional<std::string> VariableMap::get(const std::string& name) const {
+std::optional<std::string> VariableMap::get(const std::string& name) const
+{
     auto it = variables_.find(name);
     if (it != variables_.end()) {
         return it->second;
@@ -209,16 +239,19 @@ std::optional<std::string> VariableMap::get(const std::string& name) const {
     return std::nullopt;
 }
 
-bool VariableMap::has(const std::string& name) const {
+bool VariableMap::has(const std::string& name) const
+{
     return variables_.find(name) != variables_.end();
 }
 
-const std::map<std::string, std::string>& VariableMap::getAll() const {
+const std::map<std::string, std::string>& VariableMap::getAll() const
+{
     return variables_;
 }
 
 void VariableMap::setStandardVariables(const std::string& projectName,
-                                       const std::string& projectVersion) {
+                                       const std::string& projectVersion)
+{
     set("name", projectName);
     set("version", projectVersion);
     set("year", getCurrentYear());
@@ -228,7 +261,8 @@ void VariableMap::setStandardVariables(const std::string& projectName,
 }
 
 std::string VariableMap::applyTransform(const std::string& value,
-                                        const std::string& transform) const {
+                                        const std::string& transform) const
+{
     if (transform == "lower_case") {
         std::string result = value;
         std::transform(result.begin(), result.end(), result.begin(), ::tolower);
@@ -302,14 +336,16 @@ std::string VariableMap::applyTransform(const std::string& value,
     return value;
 }
 
-std::string VariableMap::getCurrentYear() const {
+std::string VariableMap::getCurrentYear() const
+{
     auto now = std::chrono::system_clock::now();
     auto time_t = std::chrono::system_clock::to_time_t(now);
     auto tm = *std::localtime(&time_t);
     return std::to_string(1900 + tm.tm_year);
 }
 
-std::string VariableMap::getCurrentDate() const {
+std::string VariableMap::getCurrentDate() const
+{
     auto now = std::chrono::system_clock::now();
     auto time_t = std::chrono::system_clock::to_time_t(now);
     auto tm = *std::localtime(&time_t);
@@ -319,7 +355,8 @@ std::string VariableMap::getCurrentDate() const {
     return std::string(buffer);
 }
 
-std::string VariableMap::getCurrentUser() const {
+std::string VariableMap::getCurrentUser() const
+{
     const char* user = std::getenv("USER");
     if (!user) {
         user = std::getenv("USERNAME"); // Windows
@@ -327,7 +364,8 @@ std::string VariableMap::getCurrentUser() const {
     return user ? std::string(user) : "unknown";
 }
 
-std::string templateSourceTypeToString(TemplateSourceType type) {
+std::string templateSourceTypeToString(TemplateSourceType type)
+{
     switch (type) {
         case TemplateSourceType::Official: return "official";
         case TemplateSourceType::Git: return "git";
@@ -336,7 +374,8 @@ std::string templateSourceTypeToString(TemplateSourceType type) {
     return "unknown";
 }
 
-TemplateSourceType stringToTemplateSourceType(const std::string& str) {
+TemplateSourceType stringToTemplateSourceType(const std::string& str)
+{
     if (str == "official") return TemplateSourceType::Official;
     if (str == "git") return TemplateSourceType::Git;
     if (str == "local") return TemplateSourceType::Local;

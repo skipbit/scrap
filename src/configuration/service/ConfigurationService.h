@@ -5,7 +5,6 @@
 #include "configuration/model/ProjectConfiguration.h"
 #include <optional>
 #include <filesystem>
-#include <memory>
 
 namespace scrap::configuration::service {
 

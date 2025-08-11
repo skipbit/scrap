@@ -9,10 +9,12 @@
 namespace scrap::toolchain::command {
 
 InstallOperation::InstallOperation(std::shared_ptr<service::ToolchainService> service)
-    : service_(service) {
+    : service_(service)
+{
 }
 
-void InstallOperation::execute(const std::vector<std::string>& args) {
+void InstallOperation::execute(const std::vector<std::string>& args)
+{
     auto presenter = getPresenter();
     if (!presenter) {
         return;
@@ -78,7 +80,8 @@ void InstallOperation::execute(const std::vector<std::string>& args) {
     }
 }
 
-void InstallOperation::displayHelp() const {
+void InstallOperation::displayHelp() const
+{
     auto presenter = getPresenter();
     if (!presenter) {
         return;

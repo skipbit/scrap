@@ -9,7 +9,7 @@ namespace scrap {
 
 /**
  * @brief Pure interface for CLI parsing
- * 
+ *
  * This interface abstracts CLI parsing implementation details,
  * allowing different CLI libraries to be used without affecting
  * the domain layer.

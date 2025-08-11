@@ -12,7 +12,7 @@ class Operation;
 
 /**
  * @brief Application-level command handler orchestrating CLI parsing and command dispatch
- * 
+ *
  * This class represents the Application Layer in Clean Architecture,
  * orchestrating the interaction between CLI parsing and command execution
  * without depending on implementation details.
