@@ -34,6 +34,18 @@ void ProjectName::validate() const {
     }
 }
 
+const std::string& ProjectName::value() const {
+    return value_;
+}
+
+std::string ProjectName::toString() const {
+    return value_;
+}
+
+bool ProjectName::operator==(const ProjectName& other) const {
+    return value_ == other.value_;
+}
+
 // Version implementation
 Version::Version(int major, int minor, int patch)
     : major_(major), minor_(minor), patch_(patch) {
@@ -63,6 +75,18 @@ bool Version::operator==(const Version& other) const {
     return major_ == other.major_ && minor_ == other.minor_ && patch_ == other.patch_;
 }
 
+int Version::major() const {
+    return major_;
+}
+
+int Version::minor() const {
+    return minor_;
+}
+
+int Version::patch() const {
+    return patch_;
+}
+
 // Dependency implementation
 Dependency::Dependency(const std::string& name, const std::string& version,
                        const std::vector<std::string>& features)
@@ -73,6 +97,18 @@ Dependency::Dependency(const std::string& name, const std::string& version,
     if (version.empty()) {
         throw std::invalid_argument("Dependency version cannot be empty");
     }
+}
+
+const std::string& Dependency::name() const {
+    return name_;
+}
+
+const std::string& Dependency::version() const {
+    return version_;
+}
+
+const std::vector<std::string>& Dependency::features() const {
+    return features_;
 }
 
 std::string Dependency::toString() const {
@@ -92,6 +128,47 @@ std::string Dependency::toString() const {
 // BuildConfiguration implementation
 BuildConfiguration::BuildConfiguration()
     : mode_(BuildMode::Debug), cppStandard_("23") {
+}
+
+// BuildConfiguration implementation
+BuildMode BuildConfiguration::mode() const {
+    return mode_;
+}
+
+const std::string& BuildConfiguration::cppStandard() const {
+    return cppStandard_;
+}
+
+const std::vector<std::string>& BuildConfiguration::compilerFlags() const {
+    return compilerFlags_;
+}
+
+const std::vector<std::string>& BuildConfiguration::linkerFlags() const {
+    return linkerFlags_;
+}
+
+const std::map<std::string, std::string>& BuildConfiguration::definitions() const {
+    return definitions_;
+}
+
+void BuildConfiguration::setMode(BuildMode mode) {
+    mode_ = mode;
+}
+
+void BuildConfiguration::setCppStandard(const std::string& standard) {
+    cppStandard_ = standard;
+}
+
+void BuildConfiguration::addCompilerFlag(const std::string& flag) {
+    compilerFlags_.push_back(flag);
+}
+
+void BuildConfiguration::addLinkerFlag(const std::string& flag) {
+    linkerFlags_.push_back(flag);
+}
+
+void BuildConfiguration::addDefinition(const std::string& key, const std::string& value) {
+    definitions_[key] = value;
 }
 
 // BuildResult implementation
@@ -115,9 +192,65 @@ BuildResult BuildResult::failed(const std::string& message,
     return result;
 }
 
+bool BuildResult::isSuccess() const {
+    return status == Status::Success;
+}
+
 // Project implementation
 Project::Project(const ProjectName& name, ProjectType type, const Version& version)
     : name_(name), type_(type), version_(version) {
+}
+
+const ProjectName& Project::name() const {
+    return name_;
+}
+
+ProjectType Project::type() const {
+    return type_;
+}
+
+const Version& Project::version() const {
+    return version_;
+}
+
+const std::optional<std::filesystem::path>& Project::path() const {
+    return path_;
+}
+
+const BuildConfiguration& Project::buildConfig() const {
+    return buildConfig_;
+}
+
+const std::vector<Dependency>& Project::dependencies() const {
+    return dependencies_;
+}
+
+const std::optional<std::string>& Project::toolchainRequirement() const {
+    return toolchainRequirement_;
+}
+
+void Project::setPath(const std::filesystem::path& path) {
+    path_ = path;
+}
+
+void Project::setBuildConfig(const BuildConfiguration& config) {
+    buildConfig_ = config;
+}
+
+void Project::addDependency(const Dependency& dependency) {
+    dependencies_.push_back(dependency);
+}
+
+void Project::setToolchainRequirement(const std::string& requirement) {
+    toolchainRequirement_ = requirement;
+}
+
+bool Project::isApplication() const {
+    return type_ == ProjectType::Application;
+}
+
+bool Project::isLibrary() const {
+    return type_ == ProjectType::Library;
 }
 
 std::string Project::fullName() const {

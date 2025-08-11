@@ -30,7 +30,7 @@ using namespace model;
  */
 class TemplateService {
 public:
-    virtual ~TemplateService() = default;
+    virtual ~TemplateService();
 
     // Template discovery and loading
     /**

@@ -27,8 +27,7 @@ struct TemplateVariable {
     std::optional<std::string> validation;  // Regex pattern
     std::optional<std::string> transform;   // Variable transformation
 
-    TemplateVariable(const std::string& n, const std::string& p)
-        : name(n), prompt(p) {}
+    TemplateVariable(const std::string& n, const std::string& p);
 };
 
 /**
@@ -48,8 +47,7 @@ struct TemplateSource {
     std::string branch = "main";
     bool autoUpdate = true;
 
-    TemplateSource(const std::string& n, TemplateSourceType t)
-        : name(n), type(t) {}
+    TemplateSource(const std::string& n, TemplateSourceType t);
 };
 
 /**
@@ -74,35 +72,31 @@ public:
              const TemplateSource& source);
 
     // Basic information
-    const std::string& name() const { return name_; }
-    const std::string& version() const { return version_; }
-    const std::string& description() const { return description_; }
-    const std::string& author() const { return author_; }
-    const std::string& license() const { return license_; }
-    const std::vector<std::string>& tags() const { return tags_; }
+    const std::string& name() const;
+    const std::string& version() const;
+    const std::string& description() const;
+    const std::string& author() const;
+    const std::string& license() const;
+    const std::vector<std::string>& tags() const;
 
     // Paths
-    const std::filesystem::path& path() const { return path_; }
-    const TemplateSource& source() const { return source_; }
+    const std::filesystem::path& path() const;
+    const TemplateSource& source() const;
 
     // Variables and requirements
-    const std::vector<TemplateVariable>& variables() const { return variables_; }
-    const TemplateRequirements& requirements() const { return requirements_; }
-    const std::map<std::string, std::string>& defaultDependencies() const {
-        return defaultDependencies_;
-    }
+    const std::vector<TemplateVariable>& variables() const;
+    const TemplateRequirements& requirements() const;
+    const std::map<std::string, std::string>& defaultDependencies() const;
 
     // Setters (used during loading)
-    void setVersion(const std::string& version) { version_ = version; }
-    void setDescription(const std::string& description) { description_ = description; }
-    void setAuthor(const std::string& author) { author_ = author; }
-    void setLicense(const std::string& license) { license_ = license; }
-    void addTag(const std::string& tag) { tags_.push_back(tag); }
-    void addVariable(const TemplateVariable& variable) { variables_.push_back(variable); }
-    void setRequirements(const TemplateRequirements& requirements) { requirements_ = requirements; }
-    void addDefaultDependency(const std::string& name, const std::string& version) {
-        defaultDependencies_[name] = version;
-    }
+    void setVersion(const std::string& version);
+    void setDescription(const std::string& description);
+    void setAuthor(const std::string& author);
+    void setLicense(const std::string& license);
+    void addTag(const std::string& tag);
+    void addVariable(const TemplateVariable& variable);
+    void setRequirements(const TemplateRequirements& requirements);
+    void addDefaultDependency(const std::string& name, const std::string& version);
 
     // Validation
     bool isValid() const;
@@ -147,7 +141,7 @@ public:
     void setStandardVariables(const std::string& projectName,
                              const std::string& projectVersion = "0.1.0");
 
-    const std::map<std::string, std::string>& getAll() const { return variables_; }
+    const std::map<std::string, std::string>& getAll() const;
 
     // Variable transformation
     std::string applyTransform(const std::string& value,

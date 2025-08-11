@@ -8,6 +8,9 @@
 
 namespace scrap::template_system::service {
 
+// Base interface implementation
+TemplateService::~TemplateService() = default;
+
 class DefaultTemplateService::Internal {
 public:
     std::filesystem::path templatesDir_;

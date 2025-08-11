@@ -6,6 +6,16 @@
 
 namespace scrap::template_system::model {
 
+// TemplateVariable implementation
+TemplateVariable::TemplateVariable(const std::string& n, const std::string& p)
+    : name(n), prompt(p) {
+}
+
+// TemplateSource implementation
+TemplateSource::TemplateSource(const std::string& n, TemplateSourceType t)
+    : name(n), type(t) {
+}
+
 bool TemplateRequirements::isCompatible() const {
     // For now, just return true
     // In future, implement actual compatibility checking
@@ -17,6 +27,84 @@ Template::Template(const std::string& name,
                    const TemplateSource& source)
     : name_(name), path_(path), source_(source) {
     loadMetadata();
+}
+
+// Template getters
+const std::string& Template::name() const {
+    return name_;
+}
+
+const std::string& Template::version() const {
+    return version_;
+}
+
+const std::string& Template::description() const {
+    return description_;
+}
+
+const std::string& Template::author() const {
+    return author_;
+}
+
+const std::string& Template::license() const {
+    return license_;
+}
+
+const std::vector<std::string>& Template::tags() const {
+    return tags_;
+}
+
+const std::filesystem::path& Template::path() const {
+    return path_;
+}
+
+const TemplateSource& Template::source() const {
+    return source_;
+}
+
+const std::vector<TemplateVariable>& Template::variables() const {
+    return variables_;
+}
+
+const TemplateRequirements& Template::requirements() const {
+    return requirements_;
+}
+
+const std::map<std::string, std::string>& Template::defaultDependencies() const {
+    return defaultDependencies_;
+}
+
+// Template setters
+void Template::setVersion(const std::string& version) {
+    version_ = version;
+}
+
+void Template::setDescription(const std::string& description) {
+    description_ = description;
+}
+
+void Template::setAuthor(const std::string& author) {
+    author_ = author;
+}
+
+void Template::setLicense(const std::string& license) {
+    license_ = license;
+}
+
+void Template::addTag(const std::string& tag) {
+    tags_.push_back(tag);
+}
+
+void Template::addVariable(const TemplateVariable& variable) {
+    variables_.push_back(variable);
+}
+
+void Template::setRequirements(const TemplateRequirements& requirements) {
+    requirements_ = requirements;
+}
+
+void Template::addDefaultDependency(const std::string& name, const std::string& version) {
+    defaultDependencies_[name] = version;
 }
 
 bool Template::isValid() const {
@@ -123,6 +211,10 @@ std::optional<std::string> VariableMap::get(const std::string& name) const {
 
 bool VariableMap::has(const std::string& name) const {
     return variables_.find(name) != variables_.end();
+}
+
+const std::map<std::string, std::string>& VariableMap::getAll() const {
+    return variables_;
 }
 
 void VariableMap::setStandardVariables(const std::string& projectName,

@@ -12,6 +12,46 @@
 
 namespace scrap::toolchain::model {
 
+// ToolchainId implementation
+ToolchainId::ToolchainId(const std::string& value) : value_(value) {
+}
+
+const std::string& ToolchainId::value() const {
+    return value_;
+}
+
+bool ToolchainId::operator==(const ToolchainId& other) const {
+    return value_ == other.value_;
+}
+
+bool ToolchainId::operator<(const ToolchainId& other) const {
+    return value_ < other.value_;
+}
+
+// ToolchainName implementation
+ToolchainName::ToolchainName(const std::string& value) : value_(value) {
+}
+
+const std::string& ToolchainName::value() const {
+    return value_;
+}
+
+std::string ToolchainName::toString() const {
+    return value_;
+}
+
+// Version implementation
+Version::Version(const std::string& value) : value_(value) {
+}
+
+const std::string& Version::value() const {
+    return value_;
+}
+
+std::string Version::toString() const {
+    return value_;
+}
+
 // Toolchain implementation
 Toolchain::Toolchain(const ToolchainId& id,
                      const ToolchainName& name,
@@ -24,6 +64,46 @@ Toolchain::Toolchain(const ToolchainId& id,
     , architecture_(architecture)
     , platform_(platform)
     , isSelected_(false) {
+}
+
+const ToolchainId& Toolchain::id() const {
+    return id_;
+}
+
+const ToolchainName& Toolchain::name() const {
+    return name_;
+}
+
+const Version& Toolchain::version() const {
+    return version_;
+}
+
+Architecture Toolchain::architecture() const {
+    return architecture_;
+}
+
+Platform Toolchain::platform() const {
+    return platform_;
+}
+
+const std::optional<std::filesystem::path>& Toolchain::installationPath() const {
+    return path_;
+}
+
+bool Toolchain::isSelected() const {
+    return isSelected_;
+}
+
+void Toolchain::setInstallationPath(const std::filesystem::path& path) {
+    path_ = path;
+}
+
+void Toolchain::setSelected(bool selected) {
+    isSelected_ = selected;
+}
+
+bool Toolchain::isInstalled() const {
+    return path_.has_value();
 }
 
 std::string Toolchain::fullName() const {

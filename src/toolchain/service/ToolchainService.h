@@ -17,7 +17,7 @@ namespace scrap::toolchain::service {
  */
 class ToolchainService {
 public:
-    virtual ~ToolchainService() = default;
+    virtual ~ToolchainService();
 
     // Query operations
     /**
@@ -68,7 +68,7 @@ public:
 class MockToolchainService : public ToolchainService {
 public:
     MockToolchainService();
-    ~MockToolchainService() override = default;
+    ~MockToolchainService() override;
 
     std::vector<model::Toolchain> listInstalled() override;
     std::optional<model::Toolchain> getCurrentToolchain() override;

@@ -45,9 +45,14 @@ namespace scrap::toolchain::service {
 
 using namespace model;
 
+// Base interface implementation
+ToolchainService::~ToolchainService() = default;
+
 MockToolchainService::MockToolchainService() {
     initializeMockData();
 }
+
+MockToolchainService::~MockToolchainService() = default;
 
 void MockToolchainService::initializeMockData() {
     // Create mock toolchains

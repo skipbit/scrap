@@ -11,10 +11,10 @@ namespace scrap::toolchain::model {
  */
 class ToolchainId {
 public:
-    explicit ToolchainId(const std::string& value) : value_(value) {}
-    const std::string& value() const { return value_; }
-    bool operator==(const ToolchainId& other) const { return value_ == other.value_; }
-    bool operator<(const ToolchainId& other) const { return value_ < other.value_; }
+    explicit ToolchainId(const std::string& value);
+    const std::string& value() const;
+    bool operator==(const ToolchainId& other) const;
+    bool operator<(const ToolchainId& other) const;
 
 private:
     std::string value_;
@@ -25,9 +25,9 @@ private:
  */
 class ToolchainName {
 public:
-    explicit ToolchainName(const std::string& value) : value_(value) {}
-    const std::string& value() const { return value_; }
-    std::string toString() const { return value_; }
+    explicit ToolchainName(const std::string& value);
+    const std::string& value() const;
+    std::string toString() const;
 
 private:
     std::string value_;
@@ -38,9 +38,9 @@ private:
  */
 class Version {
 public:
-    explicit Version(const std::string& value) : value_(value) {}
-    const std::string& value() const { return value_; }
-    std::string toString() const { return value_; }
+    explicit Version(const std::string& value);
+    const std::string& value() const;
+    std::string toString() const;
 
 private:
     std::string value_;
@@ -92,22 +92,22 @@ public:
               Platform platform);
 
     // Getters
-    const ToolchainId& id() const { return id_; }
-    const ToolchainName& name() const { return name_; }
-    const Version& version() const { return version_; }
-    Architecture architecture() const { return architecture_; }
-    Platform platform() const { return platform_; }
-    const std::optional<std::filesystem::path>& installationPath() const { return path_; }
-    bool isSelected() const { return isSelected_; }
+    const ToolchainId& id() const;
+    const ToolchainName& name() const;
+    const Version& version() const;
+    Architecture architecture() const;
+    Platform platform() const;
+    const std::optional<std::filesystem::path>& installationPath() const;
+    bool isSelected() const;
 
     // Setters for mutable properties
-    void setInstallationPath(const std::filesystem::path& path) { path_ = path; }
-    void setSelected(bool selected) { isSelected_ = selected; }
+    void setInstallationPath(const std::filesystem::path& path);
+    void setSelected(bool selected);
 
     // Business logic
     std::string fullName() const;
     std::string triple() const;  // e.g., "llvm-18.0.0-x86_64-darwin"
-    bool isInstalled() const { return path_.has_value(); }
+    bool isInstalled() const;
 
 private:
     ToolchainId id_;
