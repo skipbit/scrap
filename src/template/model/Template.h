@@ -103,9 +103,9 @@ public:
     std::vector<std::string> validate() const;
 
     // Template file operations
-    std::vector<std::filesystem::path> getTemplateFiles() const;
+    std::vector<std::filesystem::path> templateFiles() const;
     bool hasTemplateFile(const std::string& filename) const;
-    std::string getFullName() const;
+    std::string fullName() const;
 
 private:
     // Basic metadata
@@ -141,7 +141,7 @@ public:
     void setStandardVariables(const std::string& projectName,
                              const std::string& projectVersion = "0.1.0");
 
-    const std::map<std::string, std::string>& getAll() const;
+    const std::map<std::string, std::string>& all() const;
 
     // Variable transformation
     std::string applyTransform(const std::string& value,
@@ -150,9 +150,9 @@ public:
 private:
     std::map<std::string, std::string> variables_;
 
-    std::string getCurrentYear() const;
-    std::string getCurrentDate() const;
-    std::string getCurrentUser() const;
+    std::string currentYear() const;
+    std::string currentDate() const;
+    std::string currentUser() const;
 };
 
 // Helper functions

@@ -15,8 +15,8 @@ InstallOperation::InstallOperation(std::shared_ptr<service::ToolchainService> se
 
 void InstallOperation::execute(const std::vector<std::string>& args)
 {
-    auto presenter = getPresenter();
-    if (!presenter) {
+    auto output = presenter();
+    if (!output) {
         return;
     }
 
@@ -34,70 +34,70 @@ void InstallOperation::execute(const std::vector<std::string>& args)
         // Display installation start (Homebrew-style)
         std::stringstream ss;
         ss << "==> Downloading " << spec.name << "-" << spec.version
-           << "-" << model::architectureToString(spec.architecture.value_or(model::getCurrentArchitecture()))
-           << "-" << model::platformToString(spec.platform.value_or(model::getCurrentPlatform()))
+           << "-" << model::architectureToString(spec.architecture.value_or(model::currentArchitecture()))
+           << "-" << model::platformToString(spec.platform.value_or(model::currentPlatform()))
            << " from github.com/skipbit/scrap-toolchain...";
-        presenter->displayInfo(ss.str());
+        output->displayInfo(ss.str());
 
         // Simulate download progress
-        presenter->displayInfo("==> Downloading https://github.com/skipbit/scrap-toolchain/releases/download/"
+        output->displayInfo("==> Downloading https://github.com/skipbit/scrap-toolchain/releases/download/"
                               + spec.name + "-" + spec.version + "/" + spec.name + "-" + spec.version + ".tar.gz");
 
         // Progress bar simulation
-        presenter->startProgress("Downloading", 100);
+        output->startProgress("Downloading", 100);
         for (size_t i = 0; i <= 100; i += 10) {
-            presenter->updateProgress(i);
+            output->updateProgress(i);
             std::this_thread::sleep_for(std::chrono::milliseconds(50)); // Simulate download time
         }
-        presenter->finishProgress();
+        output->finishProgress();
 
         // Install
         ss.str("");
         ss << "==> Installing " << spec.name << "-" << spec.version << "...";
-        presenter->displayInfo(ss.str());
+        output->displayInfo(ss.str());
 
         service_->install(spec);
 
         // Success message
-        presenter->displaySuccess("==> Installation successful!");
-        presenter->displayInfo("==> Summary");
+        output->displaySuccess("==> Installation successful!");
+        output->displayInfo("==> Summary");
 
         ss.str("");
         ss << "  🎯 " << spec.name << "-" << spec.version
-           << "-" << model::architectureToString(spec.architecture.value_or(model::getCurrentArchitecture()))
-           << "-" << model::platformToString(spec.platform.value_or(model::getCurrentPlatform()))
+           << "-" << model::architectureToString(spec.architecture.value_or(model::currentArchitecture()))
+           << "-" << model::platformToString(spec.platform.value_or(model::currentPlatform()))
            << " installed to:";
-        presenter->displayInfo(ss.str());
+        output->displayInfo(ss.str());
 
         ss.str("");
         ss << "     /Users/user/.scrap/toolchains/" << spec.name << "/" << spec.version
-           << "/" << model::architectureToString(spec.architecture.value_or(model::getCurrentArchitecture()))
-           << "-" << model::platformToString(spec.platform.value_or(model::getCurrentPlatform()));
-        presenter->displayInfo(ss.str());
+           << "/" << model::architectureToString(spec.architecture.value_or(model::currentArchitecture()))
+           << "-" << model::platformToString(spec.platform.value_or(model::currentPlatform()));
+        output->displayInfo(ss.str());
 
     } catch (const std::exception& e) {
-        presenter->displayError(std::string("Installation failed: ") + e.what());
+        output->displayError(std::string("Installation failed: ") + e.what());
     }
 }
 
 void InstallOperation::displayHelp() const
 {
-    auto presenter = getPresenter();
-    if (!presenter) {
+    auto output = presenter();
+    if (!output) {
         return;
     }
 
-    presenter->displayInfo("Install a new toolchain");
-    presenter->displayInfo("");
-    presenter->displayInfo("Usage: scrap toolchain install <toolchain-spec>");
-    presenter->displayInfo("");
-    presenter->displayInfo("Arguments:");
-    presenter->displayInfo("  <toolchain-spec>  Toolchain specification (name[@version])");
-    presenter->displayInfo("");
-    presenter->displayInfo("Examples:");
-    presenter->displayInfo("  scrap toolchain install llvm           # Install latest LLVM");
-    presenter->displayInfo("  scrap toolchain install llvm@19.0.0    # Install specific version");
-    presenter->displayInfo("  scrap toolchain install gcc@13.2.0     # Install GCC 13.2.0");
+    output->displayInfo("Install a new toolchain");
+    output->displayInfo("");
+    output->displayInfo("Usage: scrap toolchain install <toolchain-spec>");
+    output->displayInfo("");
+    output->displayInfo("Arguments:");
+    output->displayInfo("  <toolchain-spec>  Toolchain specification (name[@version])");
+    output->displayInfo("");
+    output->displayInfo("Examples:");
+    output->displayInfo("  scrap toolchain install llvm           # Install latest LLVM");
+    output->displayInfo("  scrap toolchain install llvm@19.0.0    # Install specific version");
+    output->displayInfo("  scrap toolchain install gcc@13.2.0     # Install GCC 13.2.0");
 }
 
 } // namespace scrap::toolchain::command

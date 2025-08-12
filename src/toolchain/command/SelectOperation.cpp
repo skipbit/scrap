@@ -13,8 +13,8 @@ SelectOperation::SelectOperation(std::shared_ptr<service::ToolchainService> serv
 
 void SelectOperation::execute(const std::vector<std::string>& args)
 {
-    auto presenter = getPresenter();
-    if (!presenter) {
+    auto output = presenter();
+    if (!output) {
         return;
     }
 
@@ -28,57 +28,57 @@ void SelectOperation::execute(const std::vector<std::string>& args)
     // Find the toolchain
     auto toolchain = service_->findById(model::ToolchainId(toolchainId));
     if (!toolchain) {
-        presenter->displayError("Toolchain not found: " + toolchainId);
-        presenter->displayInfo("Run 'scrap toolchain list' to see available toolchains");
+        output->displayError("Toolchain not found: " + toolchainId);
+        output->displayInfo("Run 'scrap toolchain list' to see available toolchains");
         return;
     }
 
     // Display selection info (cargo-style)
     std::stringstream ss;
     ss << "info: using existing install for '" << toolchain->triple() << "'";
-    presenter->displayInfo(ss.str());
+    output->displayInfo(ss.str());
 
     // Select the toolchain
     auto result = service_->select(toolchain->id());
     if (!result) {
-        presenter->displayError("Selection failed: " + result.error());
+        output->displayError("Selection failed: " + result.error());
         return;
     }
 
     ss.str("");
     ss << "info: default toolchain set to '" << toolchain->triple() << "'";
-    presenter->displayInfo(ss.str());
+    output->displayInfo(ss.str());
 
     // Display selected toolchain info
-    presenter->displayInfo("");
+    output->displayInfo("");
     ss.str("");
     ss << "  " << toolchain->triple() << " (default)";
-    presenter->displayInfo(ss.str());
+    output->displayInfo(ss.str());
 
     ss.str("");
     ss << "  " << toolchain->name().toString() << " version " << toolchain->version().toString();
-    presenter->displayInfo(ss.str());
+    output->displayInfo(ss.str());
 }
 
 void SelectOperation::displayHelp() const
 {
-    auto presenter = getPresenter();
-    if (!presenter) {
+    auto output = presenter();
+    if (!output) {
         return;
     }
 
-    presenter->displayInfo("Select a toolchain as the default");
-    presenter->displayInfo("");
-    presenter->displayInfo("Usage: scrap toolchain select <toolchain-id>");
-    presenter->displayInfo("");
-    presenter->displayInfo("Arguments:");
-    presenter->displayInfo("  <toolchain-id>  Full toolchain identifier");
-    presenter->displayInfo("");
-    presenter->displayInfo("Examples:");
-    presenter->displayInfo("  scrap toolchain select llvm-18.0.0-x86_64-darwin");
-    presenter->displayInfo("  scrap toolchain select gcc-13.2.0");
-    presenter->displayInfo("");
-    presenter->displayInfo("Note: Run 'scrap toolchain list' to see available toolchains");
+    output->displayInfo("Select a toolchain as the default");
+    output->displayInfo("");
+    output->displayInfo("Usage: scrap toolchain select <toolchain-id>");
+    output->displayInfo("");
+    output->displayInfo("Arguments:");
+    output->displayInfo("  <toolchain-id>  Full toolchain identifier");
+    output->displayInfo("");
+    output->displayInfo("Examples:");
+    output->displayInfo("  scrap toolchain select llvm-18.0.0-x86_64-darwin");
+    output->displayInfo("  scrap toolchain select gcc-13.2.0");
+    output->displayInfo("");
+    output->displayInfo("Note: Run 'scrap toolchain list' to see available toolchains");
 }
 
 } // namespace scrap::toolchain::command

@@ -13,8 +13,8 @@ RunOperation::RunOperation(std::shared_ptr<service::ProjectService> service)
 
 void RunOperation::execute(const std::vector<std::string>& args)
 {
-    auto presenter = getPresenter();
-    if (!presenter) {
+    auto output = presenter();
+    if (!output) {
         return;
     }
 
@@ -35,14 +35,14 @@ void RunOperation::execute(const std::vector<std::string>& args)
         // Load current project
         auto project = service_->loadProject();
         if (!project) {
-            presenter->displayError("No project found in current directory");
-            presenter->displayInfo("Run 'scrap new <project-name>' to create a new project");
+            output->displayError("No project found in current directory");
+            output->displayInfo("Run 'scrap new <project-name>' to create a new project");
             return;
         }
 
         if (!project->isApplication()) {
-            presenter->displayError("Cannot run library project");
-            presenter->displayInfo("Libraries cannot be executed directly");
+            output->displayError("Cannot run library project");
+            output->displayInfo("Libraries cannot be executed directly");
             return;
         }
 
@@ -59,12 +59,12 @@ void RunOperation::execute(const std::vector<std::string>& args)
         if (project->path()) {
             ss << " (" << project->path()->string() << ")";
         }
-        presenter->displayInfo(ss.str());
+        output->displayInfo(ss.str());
 
         // Build the project first
         auto buildResult = service_->build(*project, buildOptions);
         if (!buildResult.isSuccess()) {
-            presenter->displayError("Build failed, cannot run");
+            output->displayError("Build failed, cannot run");
             return;
         }
 
@@ -73,7 +73,7 @@ void RunOperation::execute(const std::vector<std::string>& args)
         ss << "    Finished dev [unoptimized + debuginfo] target(s) in "
            << std::fixed << std::setprecision(2)
            << buildResult.duration.count() / 1000.0 << "s";
-        presenter->displayInfo(ss.str());
+        output->displayInfo(ss.str());
 
         // Display run command
         ss.str("");
@@ -82,41 +82,41 @@ void RunOperation::execute(const std::vector<std::string>& args)
             ss << " " << arg;
         }
         ss << "`";
-        presenter->displayInfo(ss.str());
+        output->displayInfo(ss.str());
 
         // Execute the project
         service_->run(*project, options);
 
     } catch (const std::exception& e) {
-        presenter->displayError(std::string("Run failed: ") + e.what());
+        output->displayError(std::string("Run failed: ") + e.what());
     }
 }
 
 void RunOperation::displayHelp() const
 {
-    auto presenter = getPresenter();
-    if (!presenter) {
+    auto output = presenter();
+    if (!output) {
         return;
     }
 
-    presenter->displayInfo("Run the current project executable");
-    presenter->displayInfo("");
-    presenter->displayInfo("Usage: scrap run [options] [-- <args>...]");
-    presenter->displayInfo("");
-    presenter->displayInfo("Options:");
-    presenter->displayInfo("  --working-dir=<path>  Set working directory");
-    presenter->displayInfo("");
-    presenter->displayInfo("Arguments:");
-    presenter->displayInfo("  --                    Pass remaining arguments to the executable");
-    presenter->displayInfo("  <args>...             Arguments to pass to the executable");
-    presenter->displayInfo("");
-    presenter->displayInfo("Examples:");
-    presenter->displayInfo("  scrap run                          # Run without arguments");
-    presenter->displayInfo("  scrap run -- --help                # Pass --help to executable");
-    presenter->displayInfo("  scrap run -- input.txt output.txt  # Pass file arguments");
-    presenter->displayInfo("  scrap run --working-dir=/tmp       # Run in different directory");
-    presenter->displayInfo("");
-    presenter->displayInfo("Note: This command will build the project if needed.");
+    output->displayInfo("Run the current project executable");
+    output->displayInfo("");
+    output->displayInfo("Usage: scrap run [options] [-- <args>...]");
+    output->displayInfo("");
+    output->displayInfo("Options:");
+    output->displayInfo("  --working-dir=<path>  Set working directory");
+    output->displayInfo("");
+    output->displayInfo("Arguments:");
+    output->displayInfo("  --                    Pass remaining arguments to the executable");
+    output->displayInfo("  <args>...             Arguments to pass to the executable");
+    output->displayInfo("");
+    output->displayInfo("Examples:");
+    output->displayInfo("  scrap run                          # Run without arguments");
+    output->displayInfo("  scrap run -- --help                # Pass --help to executable");
+    output->displayInfo("  scrap run -- input.txt output.txt  # Pass file arguments");
+    output->displayInfo("  scrap run --working-dir=/tmp       # Run in different directory");
+    output->displayInfo("");
+    output->displayInfo("Note: This command will build the project if needed.");
 }
 
 } // namespace scrap::project::command

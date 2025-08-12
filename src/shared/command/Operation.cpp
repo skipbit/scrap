@@ -14,7 +14,7 @@ void Operation::setPresenter(std::shared_ptr<Presenter> presenter)
     presenter_ = presenter;
 }
 
-std::shared_ptr<Presenter> Operation::getPresenter() const
+std::shared_ptr<Presenter> Operation::presenter() const
 {
     return presenter_;
 }

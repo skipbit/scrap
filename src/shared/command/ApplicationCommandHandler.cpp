@@ -33,19 +33,19 @@ int ApplicationCommandHandler::execute(int argc, const char* const argv[])
         CommandResult result = dispatcher_->dispatch(request);
 
         // Handle result
-        switch (result.getStatus()) {
+        switch (result.status()) {
             case CommandResult::Status::Success:
-                if (!result.getMessage().empty()) {
-                    std::cout << result.getMessage() << std::endl;
+                if (!result.message().empty()) {
+                    std::cout << result.message() << std::endl;
                 }
                 return 0;
 
             case CommandResult::Status::Failure:
-                std::cerr << "Error: " << result.getMessage() << std::endl;
+                std::cerr << "Error: " << result.message() << std::endl;
                 return 1;
 
             case CommandResult::Status::InvalidCommand:
-                std::cerr << result.getMessage() << std::endl;
+                std::cerr << result.message() << std::endl;
                 return 1;
         }
 
@@ -93,8 +93,8 @@ void ApplicationCommandHandler::registerDomainModules()
 void ApplicationCommandHandler::setupCommandStructure()
 {
     // Get available commands from domain modules
-    auto toolchainCommands = toolchain::ToolchainModule::getAvailableCommands();
-    auto projectCommands = project::ProjectModule::getAvailableCommands();
+    auto toolchainCommands = toolchain::ToolchainModule::availableCommands();
+    auto projectCommands = project::ProjectModule::availableCommands();
 
     // Merge commands
     std::vector<std::pair<std::string, std::string>> allCommands;
@@ -105,7 +105,7 @@ void ApplicationCommandHandler::setupCommandStructure()
     parser_->configureCommands(allCommands);
 
     // Configure subcommands
-    auto toolchainSubcommands = toolchain::ToolchainModule::getAvailableSubcommands();
+    auto toolchainSubcommands = toolchain::ToolchainModule::availableSubcommands();
     parser_->configureSubcommands("toolchain", toolchainSubcommands);
 }
 

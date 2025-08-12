@@ -36,14 +36,14 @@ void ToolchainModule::registerCommands(CommandDispatcher& dispatcher,
     dispatcher.registerOperation("toolchain.select", selectOp);
 }
 
-std::vector<std::pair<std::string, std::string>> ToolchainModule::getAvailableCommands()
+std::vector<std::pair<std::string, std::string>> ToolchainModule::availableCommands()
 {
     return {
         {"toolchain", "Manages the toolchain for the project"}
     };
 }
 
-std::vector<std::pair<std::string, std::string>> ToolchainModule::getAvailableSubcommands()
+std::vector<std::pair<std::string, std::string>> ToolchainModule::availableSubcommands()
 {
     return {
         {"list", "Display installed toolchains and indicate which one is currently selected"},

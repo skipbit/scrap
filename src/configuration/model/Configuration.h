@@ -22,8 +22,8 @@ public:
     ConfigurationValue(T value, ConfigurationSource source)
         : value_(std::move(value)), source_(source) {}
 
-    const T& getValue() const { return value_; }
-    ConfigurationSource getSource() const { return source_; }
+    const T& value() const { return value_; }
+    ConfigurationSource source() const { return source_; }
 
     bool hasValue() const { return source_ != ConfigurationSource::SystemDefault || !value_.toString().empty(); }
 
@@ -46,14 +46,14 @@ public:
     /**
      * @brief Get resolved toolchain reference
      */
-    const ConfigurationValue<ToolchainReference>& getToolchain() const {
+    const ConfigurationValue<ToolchainReference>& toolchain() const {
         return toolchain_;
     }
 
     /**
      * @brief Get project configuration (from scrap.toml)
      */
-    const std::optional<ProjectConfiguration>& getProjectConfig() const {
+    const std::optional<ProjectConfiguration>& projectConfig() const {
         return projectConfig_;
     }
 
@@ -61,7 +61,7 @@ public:
      * @brief Set toolchain from specific source
      */
     void setToolchain(ToolchainReference toolchain, ConfigurationSource source) {
-        if (!toolchain_.hasValue() || hasHigherPrecedence(source, toolchain_.getSource())) {
+        if (!toolchain_.hasValue() || hasHigherPrecedence(source, toolchain_.source())) {
             toolchain_ = ConfigurationValue<ToolchainReference>(std::move(toolchain), source);
         }
     }
@@ -100,12 +100,12 @@ public:
     /**
      * @brief Get configuration summary for debugging
      */
-    std::string getSummary() const {
+    std::string summary() const {
         std::string summary;
 
         summary += "Configuration Summary:\n";
-        summary += "  Toolchain: " + toolchain_.getValue().toString();
-        summary += " (from " + toString(toolchain_.getSource()) + ")\n";
+        summary += "  Toolchain: " + toolchain_.value().toString();
+        summary += " (from " + toString(toolchain_.source()) + ")\n";
 
         if (projectConfig_) {
             summary += "  Project: " + projectConfig_->name + " v" + projectConfig_->version + "\n";

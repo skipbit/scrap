@@ -50,9 +50,9 @@ public:
                    const std::vector<std::string>& arguments,
                    const std::vector<std::string>& subcommands = {});
 
-    const std::string& getCommand() const;
-    const std::vector<std::string>& getArguments() const;
-    const std::vector<std::string>& getSubcommands() const;
+    const std::string& command() const;
+    const std::vector<std::string>& arguments() const;
+    const std::vector<std::string>& subcommands() const;
 
     bool hasSubcommand() const;
     CommandRequest createSubcommandRequest() const;
@@ -76,8 +76,8 @@ public:
 
     CommandResult(Status status, const std::string& message = "");
 
-    Status getStatus() const;
-    const std::string& getMessage() const;
+    Status status() const;
+    const std::string& message() const;
 
     static CommandResult success(const std::string& message = "");
     static CommandResult failure(const std::string& message);

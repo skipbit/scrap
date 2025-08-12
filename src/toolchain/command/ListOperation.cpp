@@ -14,20 +14,20 @@ ListOperation::ListOperation(std::shared_ptr<service::ToolchainService> service)
 
 void ListOperation::execute(const std::vector<std::string>& args)
 {
-    auto presenter = getPresenter();
-    if (!presenter) {
+    auto output = presenter();
+    if (!output) {
         return;
     }
 
     if (!args.empty() && (args[0] == "--help" || args[0] == "-h")) {
-        presenter->displayInfo("List all installed toolchains");
-        presenter->displayInfo("");
-        presenter->displayInfo("Usage: scrap toolchain list");
+        output->displayInfo("List all installed toolchains");
+        output->displayInfo("");
+        output->displayInfo("Usage: scrap toolchain list");
         return;
     }
 
     if (!service_) {
-        presenter->displayError("Toolchain service not available");
+        output->displayError("Toolchain service not available");
         return;
     }
 
@@ -35,17 +35,17 @@ void ListOperation::execute(const std::vector<std::string>& args)
     auto toolchains = service_->listInstalled();
 
     if (toolchains.empty()) {
-        presenter->displayInfo("No toolchains installed");
-        presenter->displayInfo("Run 'scrap toolchain install <toolchain>' to install a toolchain");
+        output->displayInfo("No toolchains installed");
+        output->displayInfo("Run 'scrap toolchain install <toolchain>' to install a toolchain");
         return;
     }
 
     // Get current toolchain
-    auto current = service_->getCurrentToolchain();
+    auto current = service_->currentToolchain();
 
     // Display header (rustup-style)
-    presenter->displayInfo("installed toolchains");
-    presenter->displayInfo("--------------------");
+    output->displayInfo("installed toolchains");
+    output->displayInfo("--------------------");
 
     // Sort toolchains for consistent display
     std::sort(toolchains.begin(), toolchains.end(),
@@ -60,28 +60,28 @@ void ListOperation::execute(const std::vector<std::string>& args)
         if (current && toolchain.id() == current->id()) {
             ss << " (default)";
         }
-        presenter->displayInfo(ss.str());
+        output->displayInfo(ss.str());
     }
 
     // Display active toolchain details
     if (current) {
-        presenter->displayInfo("");
-        presenter->displayInfo("active toolchain");
-        presenter->displayInfo("----------------");
+        output->displayInfo("");
+        output->displayInfo("active toolchain");
+        output->displayInfo("----------------");
 
         std::stringstream ss;
         ss << current->triple() << " (default)";
-        presenter->displayInfo(ss.str());
+        output->displayInfo(ss.str());
 
         if (current->installationPath()) {
             ss.str("");
             ss << "  installed: " << current->installationPath()->string();
-            presenter->displayInfo(ss.str());
+            output->displayInfo(ss.str());
         }
 
         ss.str("");
         ss << "  version: " << current->name().toString() << " " << current->version().toString();
-        presenter->displayInfo(ss.str());
+        output->displayInfo(ss.str());
     }
 }
 

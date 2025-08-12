@@ -100,7 +100,7 @@ std::vector<Toolchain> MockToolchainService::listInstalled()
     return toolchains_;
 }
 
-std::optional<Toolchain> MockToolchainService::getCurrentToolchain()
+std::optional<Toolchain> MockToolchainService::currentToolchain()
 {
     if (!currentToolchainId_) {
         return std::nullopt;
@@ -123,8 +123,8 @@ std::expected<void, std::string> MockToolchainService::install(const ToolchainSp
 {
     // Check if already installed
     const std::string id = spec.name + "-" + spec.version + "-" +
-                     architectureToString(spec.architecture.value_or(getCurrentArchitecture())) + "-" +
-                     platformToString(spec.platform.value_or(getCurrentPlatform()));
+                     architectureToString(spec.architecture.value_or(currentArchitecture())) + "-" +
+                     platformToString(spec.platform.value_or(currentPlatform()));
 
     if (findById(ToolchainId(id))) {
         return std::unexpected("Toolchain " + id + " is already installed");
@@ -135,8 +135,8 @@ std::expected<void, std::string> MockToolchainService::install(const ToolchainSp
         ToolchainId(id),
         ToolchainName(spec.name),
         Version(spec.version),
-        spec.architecture.value_or(getCurrentArchitecture()),
-        spec.platform.value_or(getCurrentPlatform())
+        spec.architecture.value_or(currentArchitecture()),
+        spec.platform.value_or(currentPlatform())
     );
 
     std::stringstream pathStream;

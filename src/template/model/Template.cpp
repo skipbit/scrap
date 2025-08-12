@@ -169,7 +169,7 @@ std::vector<std::string> Template::validate() const
     return errors;
 }
 
-std::vector<std::filesystem::path> Template::getTemplateFiles() const
+std::vector<std::filesystem::path> Template::templateFiles() const
 {
     std::vector<std::filesystem::path> files;
 
@@ -204,7 +204,7 @@ bool Template::hasTemplateFile(const std::string& filename) const
     return std::filesystem::exists(filePath);
 }
 
-std::string Template::getFullName() const
+std::string Template::fullName() const
 {
     return source_.name + "/" + name_;
 }
@@ -244,7 +244,7 @@ bool VariableMap::has(const std::string& name) const
     return variables_.find(name) != variables_.end();
 }
 
-const std::map<std::string, std::string>& VariableMap::getAll() const
+const std::map<std::string, std::string>& VariableMap::all() const
 {
     return variables_;
 }
@@ -254,9 +254,9 @@ void VariableMap::setStandardVariables(const std::string& projectName,
 {
     set("name", projectName);
     set("version", projectVersion);
-    set("year", getCurrentYear());
-    set("date", getCurrentDate());
-    set("author", getCurrentUser());
+    set("year", currentYear());
+    set("date", currentDate());
+    set("author", currentUser());
     set("scrap_version", "0.0.1"); // TODO: Get actual scrap version
 }
 
@@ -336,7 +336,7 @@ std::string VariableMap::applyTransform(const std::string& value,
     return value;
 }
 
-std::string VariableMap::getCurrentYear() const
+std::string VariableMap::currentYear() const
 {
     auto now = std::chrono::system_clock::now();
     auto time_t = std::chrono::system_clock::to_time_t(now);
@@ -344,7 +344,7 @@ std::string VariableMap::getCurrentYear() const
     return std::to_string(1900 + tm.tm_year);
 }
 
-std::string VariableMap::getCurrentDate() const
+std::string VariableMap::currentDate() const
 {
     auto now = std::chrono::system_clock::now();
     auto time_t = std::chrono::system_clock::to_time_t(now);
@@ -355,7 +355,7 @@ std::string VariableMap::getCurrentDate() const
     return std::string(buffer);
 }
 
-std::string VariableMap::getCurrentUser() const
+std::string VariableMap::currentUser() const
 {
     const char* user = std::getenv("USER");
     if (!user) {

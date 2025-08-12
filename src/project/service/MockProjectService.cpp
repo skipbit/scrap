@@ -63,7 +63,7 @@ Project MockProjectService::createNew(const ProjectSpecification& spec)
         createProjectFromTemplate(spec, targetPath);
     } else {
         // Try to find default template for project type
-        auto recommendedTemplate = templateService_->getRecommendedTemplate(
+        auto recommendedTemplate = templateService_->recommendedTemplate(
             spec.type == ProjectType::Application ? "app" : "lib");
 
         if (recommendedTemplate) {

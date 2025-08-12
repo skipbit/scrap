@@ -12,16 +12,16 @@ HelpCommand::~HelpCommand() = default;
 
 void HelpCommand::execute(const std::vector<std::string>& /*args*/)
 {
-    auto presenter = getPresenter();
-    if (!presenter) {
+    auto output = presenter();
+    if (!output) {
         return; // No presenter available
     }
 
     if (parser_) {
-        std::string helpText = parser_->getHelpText(commandPath_);
-        presenter->showHelp(helpText);
+        std::string helpText = parser_->helpText(commandPath_);
+        output->showHelp(helpText);
     } else {
-        presenter->showError("Help system not available");
+        output->showError("Help system not available");
     }
 }
 

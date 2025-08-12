@@ -82,7 +82,7 @@ public:
         return CommandRequest(mainCommand, arguments, subcommandPath);
     }
 
-    std::string getHelpTextInternal(const std::string& commandPath)
+    std::string helpTextInternal(const std::string& commandPath)
     {
         if (commandPath.empty()) {
             return app_.help();
@@ -154,9 +154,9 @@ void CLI11Parser::configureSubcommands(const std::string& parentCommand,
     }
 }
 
-std::string CLI11Parser::getHelpText(const std::string& commandPath)
+std::string CLI11Parser::helpText(const std::string& commandPath)
 {
-    return impl_->getHelpTextInternal(commandPath);
+    return impl_->helpTextInternal(commandPath);
 }
 
 // CLI11ParserFactory implementation

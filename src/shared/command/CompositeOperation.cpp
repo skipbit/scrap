@@ -15,8 +15,8 @@ void CompositeOperation::addSubOperation(const std::string& name,
     if (operation) {
         subOperations_[name] = operation;
         // Propagate presenter if already set
-        if (auto presenter = getPresenter()) {
-            operation->setPresenter(presenter);
+        if (auto output = presenter()) {
+            operation->setPresenter(output);
         }
     }
 }
@@ -31,7 +31,7 @@ bool CompositeOperation::hasSubOperation(const std::string& name) const
     return subOperations_.find(name) != subOperations_.end();
 }
 
-std::vector<std::string> CompositeOperation::getSubOperationNames() const
+std::vector<std::string> CompositeOperation::subOperationNames() const
 {
     std::vector<std::string> names;
     names.reserve(subOperations_.size());
@@ -41,7 +41,7 @@ std::vector<std::string> CompositeOperation::getSubOperationNames() const
     return names;
 }
 
-std::shared_ptr<Operation> CompositeOperation::getSubOperation(const std::string& name) const
+std::shared_ptr<Operation> CompositeOperation::subOperation(const std::string& name) const
 {
     auto it = subOperations_.find(name);
     return (it != subOperations_.end()) ? it->second : nullptr;
@@ -55,15 +55,15 @@ void CompositeOperation::execute(const std::vector<std::string>& args)
     }
 
     const std::string& subcommand = args[0];
-    auto operation = getSubOperation(subcommand);
+    auto operation = subOperation(subcommand);
 
     if (!operation) {
-        auto presenter = getPresenter();
-        if (presenter) {
+        auto output = presenter();
+        if (output) {
             std::stringstream ss;
             ss << "Unknown subcommand: '" << subcommand << "'";
-            presenter->displayError(ss.str());
-            presenter->displayInfo("Run with 'help' to see available subcommands");
+            output->displayError(ss.str());
+            output->displayInfo("Run with 'help' to see available subcommands");
         }
         return;
     }
@@ -86,19 +86,19 @@ void CompositeOperation::setPresenter(std::shared_ptr<Presenter> presenter)
 
 void CompositeOperation::displayHelp() const
 {
-    auto presenter = getPresenter();
-    if (!presenter) {
+    auto output = presenter();
+    if (!output) {
         return;
     }
 
-    presenter->displayInfo("Available subcommands:");
-    auto names = getSubOperationNames();
+    output->displayInfo("Available subcommands:");
+    auto names = subOperationNames();
     std::sort(names.begin(), names.end());
 
     for (const auto& name : names) {
         std::stringstream ss;
         ss << "  " << name;
-        presenter->displayInfo(ss.str());
+        output->displayInfo(ss.str());
     }
 }
 

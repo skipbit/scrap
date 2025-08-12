@@ -39,7 +39,7 @@ public:
      * @brief Get the path to the toolchain registry
      * @return Path to the registry directory
      */
-    virtual std::string getRegistryPath() = 0;
+    virtual std::string registryPath() = 0;
 };
 
 /**
@@ -65,7 +65,7 @@ public:
     std::vector<Toolchain> findAll() override;
     std::unique_ptr<Toolchain> findDefault() override;
     bool ensureRegistryAvailable() override;
-    std::string getRegistryPath() override;
+    std::string registryPath() override;
 
 private:
     class Impl;

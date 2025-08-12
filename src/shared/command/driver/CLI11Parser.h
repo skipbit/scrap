@@ -28,7 +28,7 @@ public:
     void configureCommands(const std::vector<std::pair<std::string, std::string>>& commands) override;
     void configureSubcommands(const std::string& parentCommand,
                               const std::vector<std::pair<std::string, std::string>>& subcommands) override;
-    std::string getHelpText(const std::string& commandPath = "") override;
+    std::string helpText(const std::string& commandPath = "") override;
 
 private:
     class Impl;

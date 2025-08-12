@@ -29,7 +29,7 @@ public:
      * @brief Get the currently selected toolchain
      * @return The current toolchain, or nullopt if none selected
      */
-    virtual std::optional<model::Toolchain> getCurrentToolchain() = 0;
+    virtual std::optional<model::Toolchain> currentToolchain() = 0;
 
     /**
      * @brief Find a toolchain by ID
@@ -70,7 +70,7 @@ public:
     ~MockToolchainService() override;
 
     std::vector<model::Toolchain> listInstalled() override;
-    std::optional<model::Toolchain> getCurrentToolchain() override;
+    std::optional<model::Toolchain> currentToolchain() override;
     std::optional<model::Toolchain> findById(const model::ToolchainId& id) override;
     std::expected<void, std::string> install(const model::ToolchainSpecification& spec) override;
     std::expected<void, std::string> select(const model::ToolchainId& id) override;

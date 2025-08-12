@@ -6,7 +6,7 @@ std::shared_ptr<service::TemplateService> TemplateModule::createTemplateService(
     std::shared_ptr<Presenter> presenter)
 {
     return std::make_shared<service::DefaultTemplateService>(
-        service::DefaultTemplateService::getDefaultTemplatesDirectory(),
+        service::DefaultTemplateService::defaultTemplatesDirectory(),
         nullptr,
         presenter);
 }

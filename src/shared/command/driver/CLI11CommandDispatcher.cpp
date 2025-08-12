@@ -36,14 +36,14 @@ public:
 
     CommandResult dispatchRecursive(const CommandRequest& request)
     {
-        const auto& command = request.getCommand();
-        const auto& args = request.getArguments();
+        const auto& command = request.command();
+        const auto& args = request.arguments();
 
         if (request.hasSubcommand()) {
             // This is a parent command with subcommands
             // Build full command path for nested dispatch
             std::string fullCommand = command;
-            for (const auto& subcommand : request.getSubcommands()) {
+            for (const auto& subcommand : request.subcommands()) {
                 fullCommand += "." + subcommand;
             }
             return executeOperation(fullCommand, args);

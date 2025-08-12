@@ -135,12 +135,12 @@ std::vector<std::string> DefaultConfigurationService::validateConfiguration(
     std::vector<std::string> errors;
 
     // Validate toolchain
-    if (!config.getToolchain().hasValue()) {
+    if (!config.toolchain().hasValue()) {
         errors.push_back("No toolchain specified");
     }
 
     // Validate project configuration
-    auto projectConfig = config.getProjectConfig();
+    auto projectConfig = config.projectConfig();
     if (projectConfig) {
         try {
             projectConfig->validate();
@@ -190,7 +190,7 @@ std::optional<model::ToolchainReference> DefaultConfigurationService::loadReposi
 
 std::optional<model::ToolchainReference> DefaultConfigurationService::loadEnvironmentToolchain()
 {
-    auto envValue = getEnvironmentVariable("SCRAP_TOOLCHAIN");
+    auto envValue = environmentVariable("SCRAP_TOOLCHAIN");
     if (!envValue || envValue->empty()) {
         return std::nullopt;
     }
@@ -235,7 +235,7 @@ std::optional<std::filesystem::path> DefaultConfigurationService::findProjectRoo
     return std::nullopt;
 }
 
-std::optional<std::string> DefaultConfigurationService::getEnvironmentVariable(const std::string& name)
+std::optional<std::string> DefaultConfigurationService::environmentVariable(const std::string& name)
 {
     const char* value = std::getenv(name.c_str());
     if (value) {

@@ -11,8 +11,8 @@ CleanOperation::CleanOperation(std::shared_ptr<service::ProjectService> service)
 
 void CleanOperation::execute(const std::vector<std::string>& args)
 {
-    auto presenter = getPresenter();
-    if (!presenter) {
+    auto output = presenter();
+    if (!output) {
         return;
     }
 
@@ -28,8 +28,8 @@ void CleanOperation::execute(const std::vector<std::string>& args)
         // Load current project
         auto project = service_->loadProject();
         if (!project) {
-            presenter->displayError("No project found in current directory");
-            presenter->displayInfo("Run 'scrap new <project-name>' to create a new project");
+            output->displayError("No project found in current directory");
+            output->displayInfo("Run 'scrap new <project-name>' to create a new project");
             return;
         }
 
@@ -46,49 +46,49 @@ void CleanOperation::execute(const std::vector<std::string>& args)
 
         if (deep) {
             // Simulate deep clean output
-            presenter->displayInfo("     Removed build/");
-            presenter->displayInfo("     Removed .scrap/");
-            presenter->displayInfo("     Removed compile_commands.json");
-            presenter->displayInfo("     Removed .cache/");
-            presenter->displayInfo("     Cleaned 312 files, 125.8 MB freed");
-            presenter->displaySuccess("     Workspace restored to pristine state");
+            output->displayInfo("     Removed build/");
+            output->displayInfo("     Removed .scrap/");
+            output->displayInfo("     Removed compile_commands.json");
+            output->displayInfo("     Removed .cache/");
+            output->displayInfo("     Cleaned 312 files, 125.8 MB freed");
+            output->displaySuccess("     Workspace restored to pristine state");
         } else {
             // Simulate regular clean output
-            presenter->displayInfo("     Removed .scrap/cache/");
-            presenter->displayInfo("     Cleaned 156 files, 45.2 MB freed");
+            output->displayInfo("     Removed .scrap/cache/");
+            output->displayInfo("     Cleaned 156 files, 45.2 MB freed");
         }
 
     } catch (const std::exception& e) {
-        presenter->displayError(std::string("Clean failed: ") + e.what());
+        output->displayError(std::string("Clean failed: ") + e.what());
     }
 }
 
 void CleanOperation::displayHelp() const
 {
-    auto presenter = getPresenter();
-    if (!presenter) {
+    auto output = presenter();
+    if (!output) {
         return;
     }
 
-    presenter->displayInfo("Remove build artifacts and cached files");
-    presenter->displayInfo("");
-    presenter->displayInfo("Usage: scrap clean [options]");
-    presenter->displayInfo("");
-    presenter->displayInfo("Options:");
-    presenter->displayInfo("  --deep     Remove all generated files including caches");
-    presenter->displayInfo("");
-    presenter->displayInfo("Examples:");
-    presenter->displayInfo("  scrap clean        # Remove build artifacts");
-    presenter->displayInfo("  scrap clean --deep # Remove everything (including caches)");
-    presenter->displayInfo("");
-    presenter->displayInfo("This command removes:");
-    presenter->displayInfo("  - build/ directory");
-    presenter->displayInfo("  - .scrap/cache/ directory");
-    presenter->displayInfo("");
-    presenter->displayInfo("With --deep option, also removes:");
-    presenter->displayInfo("  - .scrap/ directory");
-    presenter->displayInfo("  - compile_commands.json");
-    presenter->displayInfo("  - .cache/ directory");
+    output->displayInfo("Remove build artifacts and cached files");
+    output->displayInfo("");
+    output->displayInfo("Usage: scrap clean [options]");
+    output->displayInfo("");
+    output->displayInfo("Options:");
+    output->displayInfo("  --deep     Remove all generated files including caches");
+    output->displayInfo("");
+    output->displayInfo("Examples:");
+    output->displayInfo("  scrap clean        # Remove build artifacts");
+    output->displayInfo("  scrap clean --deep # Remove everything (including caches)");
+    output->displayInfo("");
+    output->displayInfo("This command removes:");
+    output->displayInfo("  - build/ directory");
+    output->displayInfo("  - .scrap/cache/ directory");
+    output->displayInfo("");
+    output->displayInfo("With --deep option, also removes:");
+    output->displayInfo("  - .scrap/ directory");
+    output->displayInfo("  - compile_commands.json");
+    output->displayInfo("  - .cache/ directory");
 }
 
 } // namespace

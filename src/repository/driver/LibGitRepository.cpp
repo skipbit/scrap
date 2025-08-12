@@ -188,7 +188,7 @@ public:
         return repository != nullptr;
     }
 
-    std::error_code getLastError() const {
+    std::error_code lastError() const {
         // For now, return a generic error. In a more sophisticated implementation,
         // we could capture the specific libgit2 error
         return make_error_code(repository ? GitError::RemoteLookupFailed : GitError::RepositoryOpenFailed);

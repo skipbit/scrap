@@ -33,13 +33,13 @@ public:
      * @brief Get available toolchain commands with descriptions
      * @return Vector of command name and description pairs
      */
-    static std::vector<std::pair<std::string, std::string>> getAvailableCommands();
+    static std::vector<std::pair<std::string, std::string>> availableCommands();
 
     /**
      * @brief Get available subcommands for toolchain
      * @return Vector of subcommand name and description pairs
      */
-    static std::vector<std::pair<std::string, std::string>> getAvailableSubcommands();
+    static std::vector<std::pair<std::string, std::string>> availableSubcommands();
 };
 
 }

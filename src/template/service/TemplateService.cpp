@@ -61,7 +61,7 @@ public:
 
         // Check if official templates are cloned
         if (officialSource && officialSource->type == TemplateSourceType::Git && officialSource->url) {
-            auto targetDir = getSourceDirectory("official");
+            auto targetDir = sourceDirectory("official");
 
             // Clone if directory doesn't exist
             if (!std::filesystem::exists(targetDir)) {
@@ -122,7 +122,7 @@ public:
         }
     }
 
-    std::filesystem::path getSourceDirectory(const std::string& sourceName)
+    std::filesystem::path sourceDirectory(const std::string& sourceName)
     {
         if (sourceName == "official") {
             return templatesDir_ / "official" / "scrap-templates";
@@ -212,7 +212,7 @@ std::optional<Template> DefaultTemplateService::loadTemplate(const std::string& 
     if (source->type == TemplateSourceType::Local && source->path) {
         templatePath = *source->path / templateName;
     } else {
-        templatePath = impl_->getSourceDirectory(sourceName) / templateName;
+        templatePath = impl_->sourceDirectory(sourceName) / templateName;
     }
 
     return loadTemplateFromPath(templatePath);
@@ -260,7 +260,7 @@ std::vector<Template> DefaultTemplateService::listTemplatesFromSource(const std:
     if (source->type == TemplateSourceType::Local && source->path) {
         sourceDir = *source->path;
     } else {
-        sourceDir = impl_->getSourceDirectory(sourceName);
+        sourceDir = impl_->sourceDirectory(sourceName);
     }
 
     return impl_->scanTemplatesInDirectory(sourceDir, *source);
@@ -281,7 +281,7 @@ std::expected<void, std::string> DefaultTemplateService::addTemplateSource(const
 
     // If it's a git source, clone it
     if (source.type == TemplateSourceType::Git && source.url) {
-        auto targetDir = impl_->getSourceDirectory(source.name);
+        auto targetDir = impl_->sourceDirectory(source.name);
 
         // Check if directory already exists
         if (std::filesystem::exists(targetDir)) {
@@ -322,7 +322,7 @@ std::expected<void, std::string> DefaultTemplateService::removeTemplateSource(co
     }
 
     // Remove directory if it exists
-    auto sourceDir = impl_->getSourceDirectory(sourceName);
+    auto sourceDir = impl_->sourceDirectory(sourceName);
     if (std::filesystem::exists(sourceDir)) {
         std::filesystem::remove_all(sourceDir);
     }
@@ -369,7 +369,7 @@ std::expected<void, std::string> DefaultTemplateService::updateTemplateSource(co
     }
 
     if (source->type == TemplateSourceType::Git) {
-        auto sourceDir = impl_->getSourceDirectory(sourceName);
+        auto sourceDir = impl_->sourceDirectory(sourceName);
 
         // Check if directory exists
         if (!std::filesystem::exists(sourceDir)) {
@@ -450,7 +450,7 @@ std::vector<std::string> DefaultTemplateService::validateTemplate(const std::fil
     return tmpl->validate();
 }
 
-std::optional<std::string> DefaultTemplateService::getRecommendedTemplate(const std::string& projectType)
+std::optional<std::string> DefaultTemplateService::recommendedTemplate(const std::string& projectType)
 {
     if (projectType == "app" || projectType == "application") {
         // Check if minimal-app template exists
@@ -482,11 +482,11 @@ bool DefaultTemplateService::isTemplateSourceAccessible(const std::string& sourc
         return std::filesystem::exists(*source->path);
     }
 
-    auto sourceDir = impl_->getSourceDirectory(sourceName);
+    auto sourceDir = impl_->sourceDirectory(sourceName);
     return std::filesystem::exists(sourceDir);
 }
 
-std::filesystem::path DefaultTemplateService::getDefaultTemplatesDirectory()
+std::filesystem::path DefaultTemplateService::defaultTemplatesDirectory()
 {
     // Check SCRAP_HOME environment variable first
     const char* scrapHome = std::getenv("SCRAP_HOME");

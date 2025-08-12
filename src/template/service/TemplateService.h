@@ -129,7 +129,7 @@ public:
      * @param projectType Type of project ("app" or "lib")
      * @return Recommended template name, or nullopt if none available
      */
-    virtual std::optional<std::string> getRecommendedTemplate(const std::string& projectType) = 0;
+    virtual std::optional<std::string> recommendedTemplate(const std::string& projectType) = 0;
 
     /**
      * @brief Check if template source exists and is accessible
@@ -154,7 +154,7 @@ public:
      * @param presenter Optional Presenter for output operations (will create ConsolePresenter if not provided)
      */
     explicit DefaultTemplateService(
-        const std::filesystem::path& templatesDir = getDefaultTemplatesDirectory(),
+        const std::filesystem::path& templatesDir = defaultTemplatesDirectory(),
         std::shared_ptr<repository::GitDriver> gitDriver = nullptr,
         std::shared_ptr<Presenter> presenter = nullptr);
 
@@ -184,11 +184,11 @@ public:
     std::vector<std::string> validateTemplate(const std::filesystem::path& templatePath) override;
 
     // Convenience methods
-    std::optional<std::string> getRecommendedTemplate(const std::string& projectType) override;
+    std::optional<std::string> recommendedTemplate(const std::string& projectType) override;
     bool isTemplateSourceAccessible(const std::string& sourceName) override;
 
     // Static utility
-    static std::filesystem::path getDefaultTemplatesDirectory();
+    static std::filesystem::path defaultTemplatesDirectory();
 
 private:
     class Internal;

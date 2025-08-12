@@ -178,8 +178,8 @@ ToolchainSpecification ToolchainSpecification::parse(const std::string& spec)
     }
 
     // Auto-detect current platform if not specified
-    result.architecture = getCurrentArchitecture();
-    result.platform = getCurrentPlatform();
+    result.architecture = currentArchitecture();
+    result.platform = currentPlatform();
 
     return result;
 }
@@ -239,7 +239,7 @@ Platform stringToPlatform(const std::string& str)
     return Platform::Unknown;
 }
 
-Architecture getCurrentArchitecture()
+Architecture currentArchitecture()
 {
 #if defined(__x86_64__) || defined(_M_X64)
     return Architecture::X86_64;
@@ -250,7 +250,7 @@ Architecture getCurrentArchitecture()
 #endif
 }
 
-Platform getCurrentPlatform()
+Platform currentPlatform()
 {
 #ifdef _WIN32
     return Platform::Windows;

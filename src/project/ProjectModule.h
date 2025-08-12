@@ -31,7 +31,7 @@ public:
      * @brief Get list of available commands
      * @return Vector of command name and description pairs
      */
-    static std::vector<std::pair<std::string, std::string>> getAvailableCommands();
+    static std::vector<std::pair<std::string, std::string>> availableCommands();
 };
 
 } // namespace scrap::project

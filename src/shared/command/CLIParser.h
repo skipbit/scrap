@@ -45,7 +45,7 @@ public:
      * @param commandPath Command path (e.g., "toolchain" or "toolchain.list")
      * @return Help text string
      */
-    virtual std::string getHelpText(const std::string& commandPath = "") = 0;
+    virtual std::string helpText(const std::string& commandPath = "") = 0;
 };
 
 /**

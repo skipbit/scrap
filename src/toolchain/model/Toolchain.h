@@ -145,7 +145,7 @@ std::string architectureToString(const Architecture arch);
 std::string platformToString(const Platform platform);
 Architecture stringToArchitecture(const std::string& str);
 Platform stringToPlatform(const std::string& str);
-Architecture getCurrentArchitecture();
-Platform getCurrentPlatform();
+Architecture currentArchitecture();
+Platform currentPlatform();
 
 } // namespace scrap::toolchain::model

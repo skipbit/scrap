@@ -98,7 +98,7 @@ private:
     /**
      * @brief Get environment variable value
      */
-    std::optional<std::string> getEnvironmentVariable(const std::string& name);
+    std::optional<std::string> environmentVariable(const std::string& name);
 };
 
 } // namespace scrap::configuration::service

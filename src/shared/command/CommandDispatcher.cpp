@@ -10,17 +10,17 @@ CommandRequest::CommandRequest(const std::string& command,
 {
 }
 
-const std::string& CommandRequest::getCommand() const
+const std::string& CommandRequest::command() const
 {
     return command_;
 }
 
-const std::vector<std::string>& CommandRequest::getArguments() const
+const std::vector<std::string>& CommandRequest::arguments() const
 {
     return arguments_;
 }
 
-const std::vector<std::string>& CommandRequest::getSubcommands() const
+const std::vector<std::string>& CommandRequest::subcommands() const
 {
     return subcommands_;
 }
@@ -46,12 +46,12 @@ CommandResult::CommandResult(Status status, const std::string& message)
 {
 }
 
-CommandResult::Status CommandResult::getStatus() const
+CommandResult::Status CommandResult::status() const
 {
     return status_;
 }
 
-const std::string& CommandResult::getMessage() const
+const std::string& CommandResult::message() const
 {
     return message_;
 }

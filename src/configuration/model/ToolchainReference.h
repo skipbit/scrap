@@ -90,7 +90,7 @@ public:
     /**
      * @brief Get toolchain name (empty for system default)
      */
-    const std::string& getName() const {
+    const std::string& name() const {
         if (isSystemDefault_) {
             throw std::logic_error("System default toolchain has no name");
         }
@@ -100,7 +100,7 @@ public:
     /**
      * @brief Get toolchain version (nullopt if no version specified or system default)
      */
-    const std::optional<std::string>& getVersion() const {
+    const std::optional<std::string>& version() const {
         return version_;
     }
 

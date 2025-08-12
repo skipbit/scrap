@@ -58,7 +58,7 @@ public:
         }
     }
 
-    std::string getRegistryPathInternal()
+    std::string registryPathInternal()
     {
         const auto directory = dross::xdg("scrap").data_home();
         if (!directory.has_value()) {
@@ -96,9 +96,9 @@ bool GitToolchainRepository::ensureRegistryAvailable()
     return impl_->ensureRegistryAvailableInternal();
 }
 
-std::string GitToolchainRepository::getRegistryPath()
+std::string GitToolchainRepository::registryPath()
 {
-    return impl_->getRegistryPathInternal();
+    return impl_->registryPathInternal();
 }
 
 // ToolchainRepositoryFactory implementation

@@ -22,8 +22,8 @@ NewOperation::NewOperation(std::shared_ptr<service::ProjectService> service,
 
 void NewOperation::execute(const std::vector<std::string>& args)
 {
-    auto presenter = getPresenter();
-    if (!presenter) {
+    auto output = presenter();
+    if (!output) {
         return;
     }
 
@@ -49,99 +49,99 @@ void NewOperation::execute(const std::vector<std::string>& args)
         std::stringstream ss;
         ss << "     Created " << model::projectTypeToString(project.type())
            << " `" << project.name().toString() << "` project";
-        presenter->displaySuccess(ss.str());
+        output->displaySuccess(ss.str());
 
         // Display generated files
-        presenter->displayInfo("     Generated the following files:");
-        presenter->displayInfo("       " + project.name().toString() + "/");
-        presenter->displayInfo("       ├── scrap.toml");
-        presenter->displayInfo("       ├── src/");
-        presenter->displayInfo("       │   └── main.cpp");
+        output->displayInfo("     Generated the following files:");
+        output->displayInfo("       " + project.name().toString() + "/");
+        output->displayInfo("       ├── scrap.toml");
+        output->displayInfo("       ├── src/");
+        output->displayInfo("       │   └── main.cpp");
 
         if (project.isLibrary()) {
-            presenter->displayInfo("       ├── include/");
-            presenter->displayInfo("       │   └── " + project.name().toString() + "/");
-            presenter->displayInfo("       │       └── " + project.name().toString() + ".h");
+            output->displayInfo("       ├── include/");
+            output->displayInfo("       │   └── " + project.name().toString() + "/");
+            output->displayInfo("       │       └── " + project.name().toString() + ".h");
         }
 
-        presenter->displayInfo("       └── tests/");
-        presenter->displayInfo("           └── main_test.cpp");
+        output->displayInfo("       └── tests/");
+        output->displayInfo("           └── main_test.cpp");
 
         // Display template information if used
         if (spec.templateName) {
-            presenter->displayInfo("");
+            output->displayInfo("");
             ss.str("");
             ss << "     Created project from template '" << *spec.templateName << "'";
-            presenter->displayInfo(ss.str());
+            output->displayInfo(ss.str());
         }
 
         // Display dependencies if any were added
         if (!spec.initialDependencies.empty()) {
-            presenter->displayInfo("     Installing template dependencies...");
+            output->displayInfo("     Installing template dependencies...");
             for (const auto& dep : spec.initialDependencies) {
-                presenter->displaySuccess("       ✓ " + dep + " (latest)");
+                output->displaySuccess("       ✓ " + dep + " (latest)");
             }
         }
 
     } catch (const std::exception& e) {
-        presenter->displayError(std::string("Project creation failed: ") + e.what());
+        output->displayError(std::string("Project creation failed: ") + e.what());
     }
 }
 
 void NewOperation::displayHelp() const
 {
-    auto presenter = getPresenter();
-    if (!presenter) {
+    auto output = presenter();
+    if (!output) {
         return;
     }
 
-    presenter->displayInfo("Create a new C++ project");
-    presenter->displayInfo("");
-    presenter->displayInfo("Usage: scrap new <project-name> [options]");
-    presenter->displayInfo("");
-    presenter->displayInfo("Arguments:");
-    presenter->displayInfo("  <project-name>  Name of the new project");
-    presenter->displayInfo("");
-    presenter->displayInfo("Options:");
-    presenter->displayInfo("  --type=<type>         Project type (app, lib) [default: app]");
-    presenter->displayInfo("  --template=<name>     Use project template");
-    presenter->displayInfo("  --path=<path>         Target directory");
-    presenter->displayInfo("  --std=<version>       C++ standard (17, 20, 23) [default: 23]");
-    presenter->displayInfo("  --list-templates      List available templates");
-    presenter->displayInfo("");
-    presenter->displayInfo("Templates:");
-    presenter->displayInfo("  minimal-app           Basic C++ application (default for --type=app)");
-    presenter->displayInfo("  minimal-lib           Basic C++ library (default for --type=lib)");
-    presenter->displayInfo("  custom/template       Use template from custom source");
-    presenter->displayInfo("  /path/to/template     Use local template directory");
-    presenter->displayInfo("");
-    presenter->displayInfo("Examples:");
-    presenter->displayInfo("  scrap new myapp                           # Create application project");
-    presenter->displayInfo("  scrap new mylib --type=lib                # Create library project");
-    presenter->displayInfo("  scrap new myservice --template=minimal-app # Create from specific template");
-    presenter->displayInfo("  scrap new myapp --std=20                  # Use C++20 standard");
-    presenter->displayInfo("  scrap new --list-templates                # Show all available templates");
+    output->displayInfo("Create a new C++ project");
+    output->displayInfo("");
+    output->displayInfo("Usage: scrap new <project-name> [options]");
+    output->displayInfo("");
+    output->displayInfo("Arguments:");
+    output->displayInfo("  <project-name>  Name of the new project");
+    output->displayInfo("");
+    output->displayInfo("Options:");
+    output->displayInfo("  --type=<type>         Project type (app, lib) [default: app]");
+    output->displayInfo("  --template=<name>     Use project template");
+    output->displayInfo("  --path=<path>         Target directory");
+    output->displayInfo("  --std=<version>       C++ standard (17, 20, 23) [default: 23]");
+    output->displayInfo("  --list-templates      List available templates");
+    output->displayInfo("");
+    output->displayInfo("Templates:");
+    output->displayInfo("  minimal-app           Basic C++ application (default for --type=app)");
+    output->displayInfo("  minimal-lib           Basic C++ library (default for --type=lib)");
+    output->displayInfo("  custom/template       Use template from custom source");
+    output->displayInfo("  /path/to/template     Use local template directory");
+    output->displayInfo("");
+    output->displayInfo("Examples:");
+    output->displayInfo("  scrap new myapp                           # Create application project");
+    output->displayInfo("  scrap new mylib --type=lib                # Create library project");
+    output->displayInfo("  scrap new myservice --template=minimal-app # Create from specific template");
+    output->displayInfo("  scrap new myapp --std=20                  # Use C++20 standard");
+    output->displayInfo("  scrap new --list-templates                # Show all available templates");
 }
 
 void NewOperation::displayAvailableTemplates() const
 {
-    auto presenter = getPresenter();
-    if (!presenter) {
+    auto output = presenter();
+    if (!output) {
         return;
     }
 
-    presenter->displayInfo("Available Templates:");
-    presenter->displayInfo("");
+    output->displayInfo("Available Templates:");
+    output->displayInfo("");
 
     try {
         auto templates = templateService_->listAllTemplates();
 
         if (templates.empty()) {
-            presenter->displayInfo("  No templates found. Templates will be downloaded on first use.");
-            presenter->displayInfo("");
-            presenter->displayInfo("  Default templates:");
-            presenter->displayInfo("    minimal-app    Basic C++ application");
-            presenter->displayInfo("    minimal-lib    Basic C++ library");
+            output->displayInfo("  No templates found. Templates will be downloaded on first use.");
+            output->displayInfo("");
+            output->displayInfo("  Default templates:");
+            output->displayInfo("    minimal-app    Basic C++ application");
+            output->displayInfo("    minimal-lib    Basic C++ library");
             return;
         }
 
@@ -152,7 +152,7 @@ void NewOperation::displayAvailableTemplates() const
         }
 
         for (const auto& [sourceName, sourceTemplates] : templatesBySource) {
-            presenter->displayInfo("  From " + sourceName + ":");
+            output->displayInfo("  From " + sourceName + ":");
 
             for (const auto& tmpl : sourceTemplates) {
                 std::stringstream ss;
@@ -161,17 +161,17 @@ void NewOperation::displayAvailableTemplates() const
                     ss << " (" << sourceName << "/" << tmpl.name() << ")";
                 }
                 ss << " - " << tmpl.description();
-                presenter->displayInfo(ss.str());
+                output->displayInfo(ss.str());
             }
-            presenter->displayInfo("");
+            output->displayInfo("");
         }
 
-        presenter->displayInfo("Usage:");
-        presenter->displayInfo("  scrap new myproject --template=<template-name>");
-        presenter->displayInfo("  scrap new myproject --template=<source>/<template-name>");
-        presenter->displayInfo("");
+        output->displayInfo("Usage:");
+        output->displayInfo("  scrap new myproject --template=<template-name>");
+        output->displayInfo("  scrap new myproject --template=<source>/<template-name>");
+        output->displayInfo("");
     } catch (const std::exception& e) {
-        presenter->displayError("Failed to list templates: " + std::string(e.what()));
+        output->displayError("Failed to list templates: " + std::string(e.what()));
     }
 }
 

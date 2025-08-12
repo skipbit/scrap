@@ -35,7 +35,7 @@ void ProjectModule::registerCommands(CommandDispatcher& dispatcher,
     dispatcher.registerOperation("clean", cleanOp);
 }
 
-std::vector<std::pair<std::string, std::string>> ProjectModule::getAvailableCommands()
+std::vector<std::pair<std::string, std::string>> ProjectModule::availableCommands()
 {
     return {
         {"new", "Create a new C++ project"},

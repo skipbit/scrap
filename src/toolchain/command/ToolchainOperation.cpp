@@ -18,24 +18,24 @@ ToolchainOperation::ToolchainOperation(std::shared_ptr<service::ToolchainService
 
 void ToolchainOperation::displayHelp() const
 {
-    auto presenter = getPresenter();
-    if (!presenter) {
+    auto output = presenter();
+    if (!output) {
         return;
     }
 
-    presenter->displayInfo("Manage toolchains for building C++ projects");
-    presenter->displayInfo("");
-    presenter->displayInfo("Usage: scrap toolchain <subcommand> [options]");
-    presenter->displayInfo("");
-    presenter->displayInfo("Available subcommands:");
-    presenter->displayInfo("  list      List all installed toolchains");
-    presenter->displayInfo("  install   Install a new toolchain");
-    presenter->displayInfo("  select    Select a toolchain as the default");
-    presenter->displayInfo("");
-    presenter->displayInfo("Examples:");
-    presenter->displayInfo("  scrap toolchain list");
-    presenter->displayInfo("  scrap toolchain install llvm@19.0.0");
-    presenter->displayInfo("  scrap toolchain select gcc-13.2.0");
+    output->displayInfo("Manage toolchains for building C++ projects");
+    output->displayInfo("");
+    output->displayInfo("Usage: scrap toolchain <subcommand> [options]");
+    output->displayInfo("");
+    output->displayInfo("Available subcommands:");
+    output->displayInfo("  list      List all installed toolchains");
+    output->displayInfo("  install   Install a new toolchain");
+    output->displayInfo("  select    Select a toolchain as the default");
+    output->displayInfo("");
+    output->displayInfo("Examples:");
+    output->displayInfo("  scrap toolchain list");
+    output->displayInfo("  scrap toolchain install llvm@19.0.0");
+    output->displayInfo("  scrap toolchain select gcc-13.2.0");
 }
 
 } // namespace scrap::toolchain::command

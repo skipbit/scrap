@@ -38,7 +38,7 @@ protected:
      * @brief Get the current presenter instance
      * @return Shared pointer to presenter
      */
-    std::shared_ptr<Presenter> getPresenter() const;
+    std::shared_ptr<Presenter> presenter() const;
 
 private:
     std::shared_ptr<Presenter> presenter_;

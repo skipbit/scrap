@@ -44,7 +44,7 @@ public:
      * @brief Get all subcommand names
      * @return Vector of subcommand names
      */
-    std::vector<std::string> getSubOperationNames() const;
+    std::vector<std::string> subOperationNames() const;
 
     /**
      * @brief Execute the appropriate sub-operation based on arguments
@@ -64,7 +64,7 @@ protected:
      * @param name Name of the subcommand
      * @return Shared pointer to the operation, or nullptr if not found
      */
-    std::shared_ptr<Operation> getSubOperation(const std::string& name) const;
+    std::shared_ptr<Operation> subOperation(const std::string& name) const;
 
     /**
      * @brief Display help for available subcommands
