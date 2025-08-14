@@ -4,6 +4,7 @@
 #include "project/command/RunOperation.h"
 #include "project/command/CleanOperation.h"
 #include "project/service/ProjectService.h"
+#include "shared/command/CommandOptions.h"
 #include <memory>
 
 namespace scrap::project {
@@ -33,6 +34,9 @@ void ProjectModule::registerCommands(CommandDispatcher& dispatcher,
     dispatcher.registerOperation("build", buildOp);
     dispatcher.registerOperation("run", runOp);
     dispatcher.registerOperation("clean", cleanOp);
+
+    // Note: Command options will be configured later in ApplicationCommandHandler
+    // after the command structure is set up
 }
 
 std::vector<std::pair<std::string, std::string>> ProjectModule::availableCommands()

@@ -5,6 +5,9 @@
 
 namespace scrap {
 
+// Forward declaration
+class Presenter;
+
 /**
  * @brief CLI11-based parser implementation
  *
@@ -29,6 +32,14 @@ public:
     void configureSubcommands(const std::string& parentCommand,
                               const std::vector<std::pair<std::string, std::string>>& subcommands) override;
     std::string helpText(const std::string& commandPath = "") override;
+    void configureCommandOptions(const std::string& command,
+                                const CommandOptions& options) override;
+
+    /**
+     * @brief Set the presenter for custom help formatting
+     * @param presenter The presenter to use for help output
+     */
+    void setPresenter(std::shared_ptr<Presenter> presenter);
 
 private:
     class Impl;

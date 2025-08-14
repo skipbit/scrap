@@ -7,6 +7,9 @@
 
 namespace scrap {
 
+// Forward declaration
+class CommandOptions;
+
 /**
  * @brief Pure interface for CLI parsing
  *
@@ -46,6 +49,14 @@ public:
      * @return Help text string
      */
     virtual std::string helpText(const std::string& commandPath = "") = 0;
+
+    /**
+     * @brief Configure command options from metadata
+     * @param command Command name
+     * @param options Command options metadata
+     */
+    virtual void configureCommandOptions(const std::string& command,
+                                        const CommandOptions& options) = 0;
 };
 
 /**

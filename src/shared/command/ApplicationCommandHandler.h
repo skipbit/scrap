@@ -60,6 +60,7 @@ private:
 
     void setupCommandStructure();
     void registerDomainModules();
+    void configureCommandOptions();
 };
 
 /**

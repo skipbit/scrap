@@ -19,9 +19,12 @@ target_sources(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/command/CommandDispatcher.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/command/ApplicationCommandHandler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/command/HelpCommand.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared/command/CommandOptions.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared/command/ParsedOptions.cpp
     # CLI driver implementations
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/command/driver/CLI11Parser.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/command/driver/CLI11CommandDispatcher.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared/command/driver/PresenterFormatter.cpp
     # Presentation components
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/presentation/driver/ConsolePresenter.cpp
     # Repository components

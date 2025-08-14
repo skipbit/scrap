@@ -1,5 +1,6 @@
 #include "shared/command/driver/CLI11CommandDispatcher.h"
 #include "shared/command/Operation.h"
+#include "shared/command/ParsedOptions.h"
 #include <CLI/CLI.hpp>
 #include <map>
 
@@ -13,7 +14,8 @@ public:
     std::map<std::string, std::shared_ptr<Operation>> operations_;
 
     CommandResult executeOperation(const std::string& command,
-                                   const std::vector<std::string>& args)
+                                   const std::vector<std::string>& args,
+                                   const ParsedOptions* options = nullptr)
     {
         // Handle empty command (root command)
         if (command.empty()) {
@@ -27,7 +29,12 @@ public:
         }
 
         try {
-            it->second->execute(args);
+            // Use parsed options if available, otherwise fall back to string args
+            if (options) {
+                it->second->execute(*options);
+            } else {
+                it->second->execute(args);
+            }
             return CommandResult::success();
         } catch (const std::exception& e) {
             return CommandResult::failure(e.what());
@@ -37,7 +44,6 @@ public:
     CommandResult dispatchRecursive(const CommandRequest& request)
     {
         const auto& command = request.command();
-        const auto& args = request.arguments();
 
         if (request.hasSubcommand()) {
             // This is a parent command with subcommands
@@ -46,10 +52,20 @@ public:
             for (const auto& subcommand : request.subcommands()) {
                 fullCommand += "." + subcommand;
             }
-            return executeOperation(fullCommand, args);
+            if (request.hasOptions()) {
+                const ParsedOptions& options = request.options();
+                return executeOperation(fullCommand, {}, &options);
+            } else {
+                return executeOperation(fullCommand, request.arguments());
+            }
         } else {
             // Leaf command, execute directly
-            return executeOperation(command, args);
+            if (request.hasOptions()) {
+                const ParsedOptions& options = request.options();
+                return executeOperation(command, {}, &options);
+            } else {
+                return executeOperation(command, request.arguments());
+            }
         }
     }
 };

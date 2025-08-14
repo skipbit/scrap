@@ -2,6 +2,8 @@
 #include "project/service/ProjectService.h"
 #include "project/model/Project.h"
 #include "shared/presentation/Presenter.h"
+#include "shared/command/CommandOptions.h"
+#include "shared/command/ParsedOptions.h"
 #include "template/TemplateModule.h"
 #include "template/service/TemplateService.h"
 #include <sstream>
@@ -27,15 +29,10 @@ void NewOperation::execute(const std::vector<std::string>& args)
         return;
     }
 
-    if (args.empty() || args[0] == "--help") {
-        displayHelp();
-        return;
-    }
-
-    // Handle --list-templates flag
-    if (std::find(args.begin(), args.end(), "--list-templates") != args.end()) {
-        displayAvailableTemplates();
-        return;
+    if (args.empty()) {
+        // No arguments provided - this should be handled by CLI11 which will
+        // show help when required arguments are missing
+        // Let the normal parsing flow handle this
     }
 
     try {
@@ -88,90 +85,101 @@ void NewOperation::execute(const std::vector<std::string>& args)
     }
 }
 
-void NewOperation::displayHelp() const
-{
-    auto output = presenter();
-    if (!output) {
-        return;
-    }
 
-    output->displayInfo("Create a new C++ project");
-    output->displayInfo("");
-    output->displayInfo("Usage: scrap new <project-name> [options]");
-    output->displayInfo("");
-    output->displayInfo("Arguments:");
-    output->displayInfo("  <project-name>  Name of the new project");
-    output->displayInfo("");
-    output->displayInfo("Options:");
-    output->displayInfo("  --type=<type>         Project type (app, lib) [default: app]");
-    output->displayInfo("  --template=<name>     Use project template");
-    output->displayInfo("  --path=<path>         Target directory");
-    output->displayInfo("  --std=<version>       C++ standard (17, 20, 23) [default: 23]");
-    output->displayInfo("  --list-templates      List available templates");
-    output->displayInfo("");
-    output->displayInfo("Templates:");
-    output->displayInfo("  minimal-app           Basic C++ application (default for --type=app)");
-    output->displayInfo("  minimal-lib           Basic C++ library (default for --type=lib)");
-    output->displayInfo("  custom/template       Use template from custom source");
-    output->displayInfo("  /path/to/template     Use local template directory");
-    output->displayInfo("");
-    output->displayInfo("Examples:");
-    output->displayInfo("  scrap new myapp                           # Create application project");
-    output->displayInfo("  scrap new mylib --type=lib                # Create library project");
-    output->displayInfo("  scrap new myservice --template=minimal-app # Create from specific template");
-    output->displayInfo("  scrap new myapp --std=20                  # Use C++20 standard");
-    output->displayInfo("  scrap new --list-templates                # Show all available templates");
+CommandOptions NewOperation::describeOptions() const
+{
+    return CommandOptions()
+        .addPositional("project-name", "Name of the new project")
+        .addOption(CommandOption("type", "Project type (app, lib)", OptionType::String)
+            .withDefault("app")
+            .withChoices({"app", "lib"}))
+        .addOption(CommandOption("template", "Use project template", OptionType::String))
+        .addOption(CommandOption("path", "Target directory", OptionType::String))
+        .addOption(CommandOption("std", "C++ standard version (17, 20, 23)", OptionType::String)
+            .withDefault("23")
+            .withChoices({"17", "20", "23"}));
 }
 
-void NewOperation::displayAvailableTemplates() const
+void NewOperation::execute(const ParsedOptions& options)
 {
     auto output = presenter();
     if (!output) {
         return;
     }
 
-    output->displayInfo("Available Templates:");
-    output->displayInfo("");
+    // Get project name from positional argument
+    auto projectName = options.string("project-name");
+    if (!projectName || projectName->empty()) {
+        // No project name provided - CLI11 should handle this
+        output->displayError("Error: Missing required argument: <project-name>");
+        output->displayInfo("Run 'scrap new --help' for usage information.");
+        return;
+    }
 
     try {
-        auto templates = templateService_->listAllTemplates();
+        // Build project specification from parsed options
+        model::ProjectSpecification spec;
+        spec.name = *projectName;
 
-        if (templates.empty()) {
-            output->displayInfo("  No templates found. Templates will be downloaded on first use.");
+        // Parse project type
+        auto typeStr = options.string("type").value_or("app");
+        if (typeStr == "lib" || typeStr == "library") {
+            spec.type = model::ProjectType::Library;
+        } else {
+            spec.type = model::ProjectType::Application;
+        }
+
+        // Set optional parameters
+        spec.templateName = options.string("template");
+        spec.cppStandard = options.string("std").value_or("23");
+
+        if (auto path = options.string("path")) {
+            spec.targetPath = std::filesystem::path(*path);
+        }
+
+        // Create the project
+        auto project = service_->createNew(spec);
+
+        // Display creation result (cargo-style)
+        std::stringstream ss;
+        ss << "     Created " << model::projectTypeToString(project.type())
+           << " `" << project.name().toString() << "` project";
+        output->displaySuccess(ss.str());
+
+        // Display generated files
+        output->displayInfo("     Generated the following files:");
+        output->displayInfo("       " + project.name().toString() + "/");
+        output->displayInfo("       ├── scrap.toml");
+        output->displayInfo("       ├── src/");
+        output->displayInfo("       │   └── main.cpp");
+
+        if (project.isLibrary()) {
+            output->displayInfo("       ├── include/");
+            output->displayInfo("       │   └── " + project.name().toString() + "/");
+            output->displayInfo("       │       └── " + project.name().toString() + ".h");
+        }
+
+        output->displayInfo("       └── tests/");
+        output->displayInfo("           └── main_test.cpp");
+
+        // Display template information if used
+        if (spec.templateName) {
             output->displayInfo("");
-            output->displayInfo("  Default templates:");
-            output->displayInfo("    minimal-app    Basic C++ application");
-            output->displayInfo("    minimal-lib    Basic C++ library");
-            return;
+            ss.str("");
+            ss << "     Created project from template '" << *spec.templateName << "'";
+            output->displayInfo(ss.str());
         }
 
-        // Group templates by source
-        std::map<std::string, std::vector<template_system::model::Template>> templatesBySource;
-        for (const auto& tmpl : templates) {
-            templatesBySource[tmpl.source().name].push_back(tmpl);
-        }
-
-        for (const auto& [sourceName, sourceTemplates] : templatesBySource) {
-            output->displayInfo("  From " + sourceName + ":");
-
-            for (const auto& tmpl : sourceTemplates) {
-                std::stringstream ss;
-                ss << "    " << tmpl.name();
-                if (sourceName != "official") {
-                    ss << " (" << sourceName << "/" << tmpl.name() << ")";
-                }
-                ss << " - " << tmpl.description();
-                output->displayInfo(ss.str());
+        // Display dependencies if any were added
+        if (!spec.initialDependencies.empty()) {
+            output->displayInfo("     Installing template dependencies...");
+            for (const auto& dep : spec.initialDependencies) {
+                output->displaySuccess("       ✓ " + dep + " (latest)");
             }
-            output->displayInfo("");
         }
 
-        output->displayInfo("Usage:");
-        output->displayInfo("  scrap new myproject --template=<template-name>");
-        output->displayInfo("  scrap new myproject --template=<source>/<template-name>");
-        output->displayInfo("");
     } catch (const std::exception& e) {
-        output->displayError("Failed to list templates: " + std::string(e.what()));
+        output->displayError(std::string("Project creation failed: ") + e.what());
     }
 }
 

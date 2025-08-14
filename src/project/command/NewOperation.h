@@ -40,13 +40,12 @@ public:
     NewOperation& operator=(NewOperation&&) = default;
 
     void execute(const std::vector<std::string>& args) override;
+    CommandOptions describeOptions() const override;
+    void execute(const ParsedOptions& options) override;
 
 private:
     std::shared_ptr<service::ProjectService> service_;
     std::shared_ptr<template_system::service::TemplateService> templateService_;
-
-    void displayHelp() const;
-    void displayAvailableTemplates() const;
 };
 
 } // namespace command

@@ -6,8 +6,10 @@
 
 namespace scrap {
 
-// Forward declaration
+// Forward declarations
 class Presenter;
+class CommandOptions;
+class ParsedOptions;
 
 /**
  * @brief Base class for all executable operations
@@ -32,6 +34,21 @@ public:
      * @param args Command line arguments
      */
     virtual void execute(const std::vector<std::string>& args);
+
+    /**
+     * @brief Describe command options for CLI configuration
+     * @return CommandOptions describing this operation's CLI options
+     */
+    virtual CommandOptions describeOptions() const;
+
+    /**
+     * @brief Execute the operation with parsed options
+     * @param options Parsed command-line options
+     *
+     * This method provides a type-safe alternative to string-based argument parsing.
+     * The default implementation calls the legacy execute() method for backward compatibility.
+     */
+    virtual void execute(const ParsedOptions& options);
 
 protected:
     /**

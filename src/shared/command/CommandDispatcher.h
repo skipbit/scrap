@@ -1,5 +1,6 @@
 #pragma once
 
+#include "shared/command/ParsedOptions.h"
 #include <string>
 #include <vector>
 #include <memory>
@@ -50,9 +51,15 @@ public:
                    const std::vector<std::string>& arguments,
                    const std::vector<std::string>& subcommands = {});
 
+    CommandRequest(const std::string& command,
+                   const ParsedOptions& options,
+                   const std::vector<std::string>& subcommands = {});
+
     const std::string& command() const;
     const std::vector<std::string>& arguments() const;
     const std::vector<std::string>& subcommands() const;
+    const ParsedOptions& options() const;
+    bool hasOptions() const;
 
     bool hasSubcommand() const;
     CommandRequest createSubcommandRequest() const;
@@ -61,6 +68,7 @@ private:
     std::string command_;
     std::vector<std::string> arguments_;
     std::vector<std::string> subcommands_;
+    std::unique_ptr<ParsedOptions> options_;
 };
 
 /**

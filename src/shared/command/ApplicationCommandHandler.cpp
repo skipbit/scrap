@@ -1,10 +1,13 @@
 #include "shared/command/ApplicationCommandHandler.h"
 #include "shared/command/Operation.h"
+#include "shared/command/CommandOptions.h"
 #include "shared/command/driver/CLI11Parser.h"
 #include "shared/command/driver/CLI11CommandDispatcher.h"
 #include "shared/presentation/driver/ConsolePresenter.h"
 #include "toolchain/ToolchainModule.h"
 #include "project/ProjectModule.h"
+#include "project/command/NewOperation.h"
+#include "project/service/ProjectService.h"
 #include <CLI/CLI.hpp>
 #include <iostream>
 
@@ -15,6 +18,10 @@ ApplicationCommandHandler::ApplicationCommandHandler(std::unique_ptr<CLIParser> 
                                                      std::shared_ptr<Presenter> presenter)
     : parser_(std::move(parser)), dispatcher_(std::move(dispatcher)), presenter_(presenter)
 {
+    // Set presenter on parser if it's a CLI11Parser
+    if (auto* cli11Parser = dynamic_cast<CLI11Parser*>(parser_.get())) {
+        cli11Parser->setPresenter(presenter_);
+    }
 }
 
 ApplicationCommandHandler::~ApplicationCommandHandler() = default;
@@ -107,6 +114,22 @@ void ApplicationCommandHandler::setupCommandStructure()
     // Configure subcommands
     auto toolchainSubcommands = toolchain::ToolchainModule::availableSubcommands();
     parser_->configureSubcommands("toolchain", toolchainSubcommands);
+
+    // Now configure command options after commands are set up
+    configureCommandOptions();
+}
+
+void ApplicationCommandHandler::configureCommandOptions()
+{
+    // Configure options for project commands
+    // We need to get the operation instances to call describeOptions()
+    // For now, let's configure the "new" command manually since we know its structure
+
+    // Create a temporary NewOperation to get options
+    auto service = std::make_shared<project::service::MockProjectService>(nullptr, presenter_);
+    auto newOp = std::make_shared<project::command::NewOperation>(service);
+
+    parser_->configureCommandOptions("new", newOp->describeOptions());
 }
 
 // ApplicationCommandHandlerFactory implementation
