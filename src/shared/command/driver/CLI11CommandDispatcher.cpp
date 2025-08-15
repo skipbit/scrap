@@ -17,10 +17,10 @@ public:
                                    const std::vector<std::string>& args,
                                    const ParsedOptions* options = nullptr)
     {
-        // Handle empty command (root command)
+        // Empty command should not reach here anymore since CLI11 requires a subcommand
+        // If it does, it's an error condition
         if (command.empty()) {
-            // Show general help or execute default operation
-            return CommandResult::success("scrap - Modern C++ development tool\n\nUsage: scrap <subcommand> [options]\n\nAvailable subcommands:\n  toolchain    Manage toolchains\n\nUse 'scrap <subcommand> --help' for more information about a subcommand.");
+            return CommandResult::invalidCommand("No command specified");
         }
 
         auto it = operations_.find(command);

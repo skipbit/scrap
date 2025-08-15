@@ -33,6 +33,10 @@ public:
     {
         app_.set_help_all_flag("--help-all", "Expand all help");
         app_.set_version_flag("--version", version());
+
+        // Require at least one subcommand and show help when missing
+        app_.require_subcommand(1);
+        app_.failure_message(CLI::FailureMessage::help);
     }
 
     void setPresenterInternal(std::shared_ptr<Presenter> presenter)
@@ -63,6 +67,13 @@ public:
         try {
             app_.parse(argc, argv);
         } catch (const CLI::ParseError& e) {
+            // Special handling for missing subcommand - show help without error message
+            if (dynamic_cast<const CLI::RequiredError*>(&e) && argc == 1) {
+                // No arguments provided, just show help
+                std::cout << app_.help() << std::endl;
+                std::exit(0);
+            }
+
             // Handle help requests and other CLI11 errors
             // For help requests, CLI11 sets the exit code to 0
             // For errors, it sets non-zero exit codes
