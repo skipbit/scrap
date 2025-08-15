@@ -2,6 +2,7 @@
 #include "toolchain/service/ToolchainService.h"
 #include "toolchain/model/Toolchain.h"
 #include "shared/presentation/Presenter.h"
+#include "shared/command/CommandOptions.h"
 #include <sstream>
 
 namespace scrap::toolchain::command {
@@ -18,8 +19,9 @@ void SelectOperation::execute(const std::vector<std::string>& args)
         return;
     }
 
-    if (args.empty() || args[0] == "--help") {
-        displayHelp();
+    if (args.empty()) {
+        output->displayError("Missing required argument: <toolchain-id>");
+        output->displayInfo("Usage: scrap toolchain select <toolchain-id>");
         return;
     }
 
@@ -60,25 +62,16 @@ void SelectOperation::execute(const std::vector<std::string>& args)
     output->displayInfo(ss.str());
 }
 
+CommandOptions SelectOperation::describeOptions() const
+{
+    return CommandOptions()
+        .addPositional("toolchain-id", "Full toolchain identifier");
+}
+
 void SelectOperation::displayHelp() const
 {
-    auto output = presenter();
-    if (!output) {
-        return;
-    }
-
-    output->displayInfo("Select a toolchain as the default");
-    output->displayInfo("");
-    output->displayInfo("Usage: scrap toolchain select <toolchain-id>");
-    output->displayInfo("");
-    output->displayInfo("Arguments:");
-    output->displayInfo("  <toolchain-id>  Full toolchain identifier");
-    output->displayInfo("");
-    output->displayInfo("Examples:");
-    output->displayInfo("  scrap toolchain select llvm-18.0.0-x86_64-darwin");
-    output->displayInfo("  scrap toolchain select gcc-13.2.0");
-    output->displayInfo("");
-    output->displayInfo("Note: Run 'scrap toolchain list' to see available toolchains");
+    // This method is deprecated and will be removed
+    // Help is now generated automatically from describeOptions()
 }
 
 } // namespace scrap::toolchain::command

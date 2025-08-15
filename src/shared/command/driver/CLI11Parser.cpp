@@ -31,7 +31,6 @@ public:
     Impl(const std::string& appName, const std::string& appDescription)
         : app_(appDescription, appName)
     {
-        app_.set_help_all_flag("--help-all", "Expand all help");
         app_.set_version_flag("--version", version());
 
         // Require at least one subcommand and show help when missing

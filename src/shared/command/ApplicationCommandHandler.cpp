@@ -7,7 +7,14 @@
 #include "toolchain/ToolchainModule.h"
 #include "project/ProjectModule.h"
 #include "project/command/NewOperation.h"
+#include "project/command/BuildOperation.h"
+#include "project/command/RunOperation.h"
+#include "project/command/CleanOperation.h"
 #include "project/service/ProjectService.h"
+#include "toolchain/command/ListOperation.h"
+#include "toolchain/command/InstallOperation.h"
+#include "toolchain/command/SelectOperation.h"
+#include "toolchain/service/ToolchainService.h"
 #include <CLI/CLI.hpp>
 #include <iostream>
 
@@ -121,15 +128,33 @@ void ApplicationCommandHandler::setupCommandStructure()
 
 void ApplicationCommandHandler::configureCommandOptions()
 {
-    // Configure options for project commands
-    // We need to get the operation instances to call describeOptions()
-    // For now, let's configure the "new" command manually since we know its structure
+    // Configure options for all project commands
+    auto projectService = std::make_shared<project::service::MockProjectService>(nullptr, presenter_);
 
-    // Create a temporary NewOperation to get options
-    auto service = std::make_shared<project::service::MockProjectService>(nullptr, presenter_);
-    auto newOp = std::make_shared<project::command::NewOperation>(service);
-
+    // Project commands
+    auto newOp = std::make_shared<project::command::NewOperation>(projectService);
     parser_->configureCommandOptions("new", newOp->describeOptions());
+
+    auto buildOp = std::make_shared<project::command::BuildOperation>(projectService);
+    parser_->configureCommandOptions("build", buildOp->describeOptions());
+
+    auto runOp = std::make_shared<project::command::RunOperation>(projectService);
+    parser_->configureCommandOptions("run", runOp->describeOptions());
+
+    auto cleanOp = std::make_shared<project::command::CleanOperation>(projectService);
+    parser_->configureCommandOptions("clean", cleanOp->describeOptions());
+
+    // Configure options for toolchain subcommands
+    auto toolchainService = std::make_shared<toolchain::service::MockToolchainService>();
+
+    auto listOp = std::make_shared<toolchain::command::ListOperation>(toolchainService);
+    parser_->configureCommandOptions("toolchain.list", listOp->describeOptions());
+
+    auto installOp = std::make_shared<toolchain::command::InstallOperation>(toolchainService);
+    parser_->configureCommandOptions("toolchain.install", installOp->describeOptions());
+
+    auto selectOp = std::make_shared<toolchain::command::SelectOperation>(toolchainService);
+    parser_->configureCommandOptions("toolchain.select", selectOp->describeOptions());
 }
 
 // ApplicationCommandHandlerFactory implementation

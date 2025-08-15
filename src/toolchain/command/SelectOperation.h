@@ -31,6 +31,7 @@ public:
     SelectOperation& operator=(SelectOperation&&) = default;
 
     void execute(const std::vector<std::string>& args) override;
+    CommandOptions describeOptions() const override;
 
 private:
     std::shared_ptr<service::ToolchainService> service_;

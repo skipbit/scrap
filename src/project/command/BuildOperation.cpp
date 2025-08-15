@@ -2,6 +2,7 @@
 #include "project/service/ProjectService.h"
 #include "project/model/Project.h"
 #include "shared/presentation/Presenter.h"
+#include "shared/command/CommandOptions.h"
 #include <sstream>
 #include <chrono>
 #include <thread>
@@ -18,14 +19,6 @@ void BuildOperation::execute(const std::vector<std::string>& args)
     auto output = presenter();
     if (!output) {
         return;
-    }
-
-    // Check for help
-    for (const auto& arg : args) {
-        if (arg == "--help" || arg == "-h") {
-            displayHelp();
-            return;
-        }
     }
 
     try {
@@ -112,31 +105,21 @@ void BuildOperation::execute(const std::vector<std::string>& args)
     }
 }
 
+CommandOptions BuildOperation::describeOptions() const
+{
+    return CommandOptions()
+        .addFlag("release", "Build in release mode (optimized)")
+        .addFlag("debug", "Build in debug mode [default]")
+        .addFlag("verbose", "v", "Use verbose output")
+        .addFlag("clean", "Clean before building")
+        .addOption(CommandOption("target", "Build only the specified target", OptionType::String))
+        .addOption(CommandOption("j", "Number of parallel jobs", OptionType::Integer));
+}
+
 void BuildOperation::displayHelp() const
 {
-    auto output = presenter();
-    if (!output) {
-        return;
-    }
-
-    output->displayInfo("Compile the current project");
-    output->displayInfo("");
-    output->displayInfo("Usage: scrap build [options]");
-    output->displayInfo("");
-    output->displayInfo("Options:");
-    output->displayInfo("  --release          Build in release mode (optimized)");
-    output->displayInfo("  --debug            Build in debug mode [default]");
-    output->displayInfo("  --verbose, -v      Use verbose output");
-    output->displayInfo("  --clean            Clean before building");
-    output->displayInfo("  --target=<name>    Build only the specified target");
-    output->displayInfo("  -j<N>              Number of parallel jobs");
-    output->displayInfo("");
-    output->displayInfo("Examples:");
-    output->displayInfo("  scrap build                    # Debug build");
-    output->displayInfo("  scrap build --release          # Release build");
-    output->displayInfo("  scrap build --verbose          # Verbose output");
-    output->displayInfo("  scrap build --clean --release  # Clean release build");
-    output->displayInfo("  scrap build -j8                # Use 8 parallel jobs");
+    // This method is deprecated and will be removed
+    // Help is now generated automatically from describeOptions()
 }
 
 } // namespace

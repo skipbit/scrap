@@ -2,6 +2,7 @@
 #include "toolchain/service/ToolchainService.h"
 #include "toolchain/model/Toolchain.h"
 #include "shared/presentation/Presenter.h"
+#include "shared/command/CommandOptions.h"
 #include <sstream>
 #include <chrono>
 #include <thread>
@@ -20,8 +21,9 @@ void InstallOperation::execute(const std::vector<std::string>& args)
         return;
     }
 
-    if (args.empty() || args[0] == "--help") {
-        displayHelp();
+    if (args.empty()) {
+        output->displayError("Missing required argument: <toolchain-spec>");
+        output->displayInfo("Usage: scrap toolchain install <toolchain-spec>");
         return;
     }
 
@@ -80,24 +82,16 @@ void InstallOperation::execute(const std::vector<std::string>& args)
     }
 }
 
+CommandOptions InstallOperation::describeOptions() const
+{
+    return CommandOptions()
+        .addPositional("toolchain-spec", "Toolchain specification (name[@version])");
+}
+
 void InstallOperation::displayHelp() const
 {
-    auto output = presenter();
-    if (!output) {
-        return;
-    }
-
-    output->displayInfo("Install a new toolchain");
-    output->displayInfo("");
-    output->displayInfo("Usage: scrap toolchain install <toolchain-spec>");
-    output->displayInfo("");
-    output->displayInfo("Arguments:");
-    output->displayInfo("  <toolchain-spec>  Toolchain specification (name[@version])");
-    output->displayInfo("");
-    output->displayInfo("Examples:");
-    output->displayInfo("  scrap toolchain install llvm           # Install latest LLVM");
-    output->displayInfo("  scrap toolchain install llvm@19.0.0    # Install specific version");
-    output->displayInfo("  scrap toolchain install gcc@13.2.0     # Install GCC 13.2.0");
+    // This method is deprecated and will be removed
+    // Help is now generated automatically from describeOptions()
 }
 
 } // namespace scrap::toolchain::command

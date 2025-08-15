@@ -2,6 +2,7 @@
 #include "toolchain/service/ToolchainService.h"
 #include "toolchain/model/Toolchain.h"
 #include "shared/presentation/Presenter.h"
+#include "shared/command/CommandOptions.h"
 #include <sstream>
 #include <algorithm>
 
@@ -12,19 +13,14 @@ ListOperation::ListOperation(std::shared_ptr<service::ToolchainService> service)
 {
 }
 
-void ListOperation::execute(const std::vector<std::string>& args)
+void ListOperation::execute(const std::vector<std::string>& /* args */)
 {
     auto output = presenter();
     if (!output) {
         return;
     }
 
-    if (!args.empty() && (args[0] == "--help" || args[0] == "-h")) {
-        output->displayInfo("List all installed toolchains");
-        output->displayInfo("");
-        output->displayInfo("Usage: scrap toolchain list");
-        return;
-    }
+    // Note: Help is now handled by CLI11, no need to check for --help here
 
     if (!service_) {
         output->displayError("Toolchain service not available");
@@ -83,6 +79,12 @@ void ListOperation::execute(const std::vector<std::string>& args)
         ss << "  version: " << current->name().toString() << " " << current->version().toString();
         output->displayInfo(ss.str());
     }
+}
+
+CommandOptions ListOperation::describeOptions() const
+{
+    // No options for list command
+    return CommandOptions();
 }
 
 } // namespace scrap::toolchain::command

@@ -1,6 +1,7 @@
 #include "CleanOperation.h"
 #include "project/service/ProjectService.h"
 #include "shared/presentation/Presenter.h"
+#include "shared/command/CommandOptions.h"
 
 namespace scrap::project::command {
 
@@ -16,13 +17,7 @@ void CleanOperation::execute(const std::vector<std::string>& args)
         return;
     }
 
-    // Check for help
-    for (const auto& arg : args) {
-        if (arg == "--help" || arg == "-h") {
-            displayHelp();
-            return;
-        }
-    }
+    // Note: Help is now handled by CLI11, no need to check for --help here
 
     try {
         // Load current project
@@ -63,32 +58,16 @@ void CleanOperation::execute(const std::vector<std::string>& args)
     }
 }
 
+CommandOptions CleanOperation::describeOptions() const
+{
+    return CommandOptions()
+        .addFlag("deep", "Remove all generated files including caches");
+}
+
 void CleanOperation::displayHelp() const
 {
-    auto output = presenter();
-    if (!output) {
-        return;
-    }
-
-    output->displayInfo("Remove build artifacts and cached files");
-    output->displayInfo("");
-    output->displayInfo("Usage: scrap clean [options]");
-    output->displayInfo("");
-    output->displayInfo("Options:");
-    output->displayInfo("  --deep     Remove all generated files including caches");
-    output->displayInfo("");
-    output->displayInfo("Examples:");
-    output->displayInfo("  scrap clean        # Remove build artifacts");
-    output->displayInfo("  scrap clean --deep # Remove everything (including caches)");
-    output->displayInfo("");
-    output->displayInfo("This command removes:");
-    output->displayInfo("  - build/ directory");
-    output->displayInfo("  - .scrap/cache/ directory");
-    output->displayInfo("");
-    output->displayInfo("With --deep option, also removes:");
-    output->displayInfo("  - .scrap/ directory");
-    output->displayInfo("  - compile_commands.json");
-    output->displayInfo("  - .cache/ directory");
+    // This method is deprecated and will be removed
+    // Help is now generated automatically from describeOptions()
 }
 
 } // namespace

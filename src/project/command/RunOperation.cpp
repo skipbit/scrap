@@ -2,6 +2,7 @@
 #include "project/service/ProjectService.h"
 #include "project/model/Project.h"
 #include "shared/presentation/Presenter.h"
+#include "shared/command/CommandOptions.h"
 #include <sstream>
 
 namespace scrap::project::command {
@@ -18,18 +19,7 @@ void RunOperation::execute(const std::vector<std::string>& args)
         return;
     }
 
-    // Check for help (but not after -- separator)
-    bool foundSeparator = false;
-    for (const auto& arg : args) {
-        if (arg == "--") {
-            foundSeparator = true;
-            break;
-        }
-        if ((arg == "--help" || arg == "-h") && !foundSeparator) {
-            displayHelp();
-            return;
-        }
-    }
+    // Note: Help is now handled by CLI11, no need to check for --help here
 
     try {
         // Load current project
@@ -92,31 +82,17 @@ void RunOperation::execute(const std::vector<std::string>& args)
     }
 }
 
+CommandOptions RunOperation::describeOptions() const
+{
+    return CommandOptions()
+        .addOption(CommandOption("working-dir", "Set working directory", OptionType::String));
+    // Note: Arguments after -- are handled specially by CLI11's allow_extras()
+}
+
 void RunOperation::displayHelp() const
 {
-    auto output = presenter();
-    if (!output) {
-        return;
-    }
-
-    output->displayInfo("Run the current project executable");
-    output->displayInfo("");
-    output->displayInfo("Usage: scrap run [options] [-- <args>...]");
-    output->displayInfo("");
-    output->displayInfo("Options:");
-    output->displayInfo("  --working-dir=<path>  Set working directory");
-    output->displayInfo("");
-    output->displayInfo("Arguments:");
-    output->displayInfo("  --                    Pass remaining arguments to the executable");
-    output->displayInfo("  <args>...             Arguments to pass to the executable");
-    output->displayInfo("");
-    output->displayInfo("Examples:");
-    output->displayInfo("  scrap run                          # Run without arguments");
-    output->displayInfo("  scrap run -- --help                # Pass --help to executable");
-    output->displayInfo("  scrap run -- input.txt output.txt  # Pass file arguments");
-    output->displayInfo("  scrap run --working-dir=/tmp       # Run in different directory");
-    output->displayInfo("");
-    output->displayInfo("Note: This command will build the project if needed.");
+    // This method is deprecated and will be removed
+    // Help is now generated automatically from describeOptions()
 }
 
 } // namespace scrap::project::command

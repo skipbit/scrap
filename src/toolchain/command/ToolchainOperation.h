@@ -30,6 +30,8 @@ public:
     ToolchainOperation(ToolchainOperation&&) = default;
     ToolchainOperation& operator=(ToolchainOperation&&) = default;
 
+    CommandOptions describeOptions() const override;
+
 protected:
     void displayHelp() const override;
 
