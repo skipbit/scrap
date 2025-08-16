@@ -6,6 +6,9 @@
 #include "shared/presentation/driver/ConsolePresenter.h"
 #include "toolchain/ToolchainModule.h"
 #include "project/ProjectModule.h"
+#include "template/TemplateModule.h"
+#include "template/command/ListOperation.h"
+#include "template/command/UpdateOperation.h"
 #include "project/command/NewOperation.h"
 #include "project/command/BuildOperation.h"
 #include "project/command/RunOperation.h"
@@ -100,6 +103,11 @@ void ApplicationCommandHandler::registerDomainModules()
                                               std::shared_ptr<CLIParser>(parser_.get(), [](CLIParser*){}),
                                               presenter_);
 
+    // Register template domain module
+    template_system::TemplateModule::registerCommands(*dispatcher_,
+                                                       std::shared_ptr<CLIParser>(parser_.get(), [](CLIParser*){}),
+                                                       presenter_);
+
     // TODO: Register other domain modules as they are implemented
     // package::PackageModule::registerCommands(*dispatcher_, parser_, presenter_);
 }
@@ -109,11 +117,13 @@ void ApplicationCommandHandler::setupCommandStructure()
     // Get available commands from domain modules
     auto toolchainCommands = toolchain::ToolchainModule::availableCommands();
     auto projectCommands = project::ProjectModule::availableCommands();
+    auto templateCommands = template_system::TemplateModule::availableCommands();
 
     // Merge commands
     std::vector<std::pair<std::string, std::string>> allCommands;
     allCommands.insert(allCommands.end(), toolchainCommands.begin(), toolchainCommands.end());
     allCommands.insert(allCommands.end(), projectCommands.begin(), projectCommands.end());
+    allCommands.insert(allCommands.end(), templateCommands.begin(), templateCommands.end());
 
     // Configure root commands
     parser_->configureCommands(allCommands);
@@ -121,6 +131,9 @@ void ApplicationCommandHandler::setupCommandStructure()
     // Configure subcommands
     auto toolchainSubcommands = toolchain::ToolchainModule::availableSubcommands();
     parser_->configureSubcommands("toolchain", toolchainSubcommands);
+
+    auto templateSubcommands = template_system::TemplateModule::availableSubcommands();
+    parser_->configureSubcommands("template", templateSubcommands);
 
     // Now configure command options after commands are set up
     configureCommandOptions();
@@ -155,6 +168,15 @@ void ApplicationCommandHandler::configureCommandOptions()
 
     auto selectOp = std::make_shared<toolchain::command::SelectOperation>(toolchainService);
     parser_->configureCommandOptions("toolchain.select", selectOp->describeOptions());
+
+    // Configure options for template subcommands
+    auto templateService = template_system::TemplateModule::createTemplateService(presenter_);
+
+    auto templateListOp = std::make_shared<template_system::command::ListOperation>(templateService);
+    parser_->configureCommandOptions("template.list", templateListOp->describeOptions());
+
+    auto templateUpdateOp = std::make_shared<template_system::command::UpdateOperation>(templateService);
+    parser_->configureCommandOptions("template.update", templateUpdateOp->describeOptions());
 }
 
 // ApplicationCommandHandlerFactory implementation

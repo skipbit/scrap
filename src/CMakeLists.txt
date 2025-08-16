@@ -58,6 +58,9 @@ target_sources(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/template/model/Template.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/template/service/TemplateService.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/template/service/TemplateProcessor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/template/command/TemplateOperation.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/template/command/ListOperation.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/template/command/UpdateOperation.cpp
 )
 
 target_compile_options(${PROJECT_NAME} PUBLIC
