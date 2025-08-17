@@ -1,0 +1,46 @@
+[template]
+name = "test-template"
+display_name = "Test Template"
+description = "A template for testing purposes"
+version = "1.0.0"
+author = "SCRAP Test Suite"
+type = "app"
+
+[[template.variables]]
+name = "project_name"
+display_name = "Project Name"
+description = "Name of the project"
+default_value = "my-project"
+required = true
+
+[[template.variables]]
+name = "author"
+display_name = "Author"
+description = "Project author"
+required = false
+
+[[template.variables]]
+name = "license"
+display_name = "License"
+description = "Project license"
+default_value = "MIT"
+required = false
+
+[[template.files]]
+source_path = "scrap.toml.mustache"
+target_path = "scrap.toml"
+is_template = true
+
+[[template.files]]
+source_path = "README.md.mustache"
+target_path = "README.md"
+is_template = true
+
+[[template.files]]
+source_path = "src/main.cpp.mustache"
+target_path = "src/main.cpp"
+is_template = true
+
+[template.metadata]
+category = "application"
+tags = ["cpp", "test", "minimal"]

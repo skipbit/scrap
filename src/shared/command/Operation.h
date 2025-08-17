@@ -1,8 +1,8 @@
 #pragma once
 
-#include <vector>
-#include <string>
 #include <memory>
+#include <string>
+#include <vector>
 
 namespace scrap {
 
@@ -21,6 +21,9 @@ class Operation {
 public:
     Operation();
     Operation(const Operation&);
+    Operation& operator=(const Operation&);
+    Operation(Operation&&) noexcept;
+    Operation& operator=(Operation&&) noexcept;
     virtual ~Operation();
 
     /**
@@ -39,7 +42,7 @@ public:
      * @brief Describe command options for CLI configuration
      * @return CommandOptions describing this operation's CLI options
      */
-    virtual CommandOptions describeOptions() const;
+    [[nodiscard]] virtual CommandOptions describeOptions() const;
 
     /**
      * @brief Execute the operation with parsed options
@@ -55,10 +58,10 @@ protected:
      * @brief Get the current presenter instance
      * @return Shared pointer to presenter
      */
-    std::shared_ptr<Presenter> presenter() const;
+    [[nodiscard]] std::shared_ptr<Presenter> presenter() const;
 
 private:
     std::shared_ptr<Presenter> presenter_;
 };
 
-}
+}  // namespace scrap

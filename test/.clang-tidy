@@ -1,0 +1,15 @@
+---
+# Test-specific clang-tidy configuration
+# Inherits from parent but disables Catch2-specific warnings
+
+InheritParentConfig: true
+
+Checks: >
+  -cert-err58-cpp,
+  -readability-function-size,
+  -cppcoreguidelines-avoid-do-while,
+  -clang-analyzer-optin.core.EnumCastOutOfRange,
+  -misc-include-cleaner
+
+# Keep warnings as errors for our actual test code
+WarningsAsErrors: '*'

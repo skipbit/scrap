@@ -1,0 +1,20 @@
+[project]
+name = "{{project_name}}"
+version = "1.0.0"
+type = "app"
+std = "23"
+{{#author}}
+author = "{{author}}"
+{{/author}}
+{{#license}}
+license = "{{license}}"
+{{/license}}
+
+[toolchain]
+name = "llvm"
+version = "18.0.0"
+
+[[dependencies]]
+name = "dross"
+repository = "https://github.com/skipbit/dross"
+version = "1.0.0"

@@ -224,14 +224,39 @@ We welcome contributions! scrap is built with:
 git clone --recursive https://github.com/skipbit/scrap.git
 
 # Build in debug mode
-mkdir -p build/debug
-cd build/debug
-cmake ../.. -DCMAKE_BUILD_TYPE=Debug
-cmake --build . --parallel
+cmake -S . -B build/debug -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON
+cmake --build build/debug --parallel
 
-# Run tests (when available)
-ctest
+# Run tests
+cmake --build build/debug --target test
+
+# Or run tests directly
+./build/debug/test/scrap_test
 ```
+
+### Testing
+
+The project uses Catch2 v3.7.1 for unit testing. Tests are automatically built when `BUILD_TESTS=ON`.
+
+```bash
+# Build and run all tests
+cmake --build build/debug --target test
+
+# Run tests with verbose output
+ctest --test-dir build/debug --output-on-failure --verbose
+
+# Run specific test executable
+./build/debug/test/scrap_test
+
+# Release build testing
+cmake -S . -B build/release -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON
+cmake --build build/release --target test
+```
+
+**Test Structure:**
+- `test/unit/` - Unit tests for individual components
+- `test/helpers/` - Test utilities (TestPresenter, FileSystemHelper)
+- `test/fixtures/` - Test data and mock templates
 
 ## 📊 Roadmap
 
