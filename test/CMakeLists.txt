@@ -12,6 +12,7 @@ set(TEST_SOURCES
 
     # Configuration model tests - minimal dependencies
     unit/configuration/model/ConfigurationSourceTest.cpp
+    unit/configuration/model/ProjectConfigurationTest.cpp
 
     # Template and Configuration tests are created but need implementations
     # to be linked properly. They will be enabled once the template and
@@ -38,6 +39,7 @@ target_include_directories(scrap_test PRIVATE
 # Add compiled object files for tested classes
 add_library(test_dependencies OBJECT
     ${CMAKE_SOURCE_DIR}/src/configuration/model/ConfigurationSource.cpp
+    ${CMAKE_SOURCE_DIR}/src/configuration/model/ProjectConfiguration.cpp
 )
 
 target_include_directories(test_dependencies PRIVATE

@@ -1,9 +1,10 @@
 #pragma once
 
 #include "ToolchainReference.h"
-#include <string>
-#include <optional>
+#include <cstdint>
 #include <map>
+#include <optional>
+#include <string>
 #include <vector>
 
 namespace scrap::Configuration::Model {
@@ -11,64 +12,26 @@ namespace scrap::Configuration::Model {
 /**
  * @brief Project type enumeration
  */
-enum class ProjectType {
+enum class ProjectType : std::uint8_t {
     Application,
     Library
 };
 
-inline std::string toString(ProjectType type) {
-    switch (type) {
-        case ProjectType::Application: return "app";
-        case ProjectType::Library: return "lib";
-    }
-    return "unknown";
-}
-
-inline ProjectType parseProjectType(const std::string& str) {
-    if (str == "app" || str == "application") {
-        return ProjectType::Application;
-    }
-    if (str == "lib" || str == "library") {
-        return ProjectType::Library;
-    }
-    throw std::invalid_argument("Invalid project type: " + str);
-}
+[[nodiscard]] std::string toString(ProjectType type);
+[[nodiscard]] ProjectType parseProjectType(const std::string& str);
 
 /**
  * @brief Build system enumeration
  */
-enum class BuildSystem {
+enum class BuildSystem : std::uint8_t {
     Native,  // scrap's native build system
     CMake,   // Wrapper mode for CMake
     Meson,   // Wrapper mode for Meson
     Bazel    // Wrapper mode for Bazel
 };
 
-inline std::string toString(BuildSystem system) {
-    switch (system) {
-        case BuildSystem::Native: return "native";
-        case BuildSystem::CMake: return "cmake";
-        case BuildSystem::Meson: return "meson";
-        case BuildSystem::Bazel: return "bazel";
-    }
-    return "unknown";
-}
-
-inline BuildSystem parseBuildSystem(const std::string& str) {
-    if (str == "native" || str == "scrap") {
-        return BuildSystem::Native;
-    }
-    if (str == "cmake") {
-        return BuildSystem::CMake;
-    }
-    if (str == "meson") {
-        return BuildSystem::Meson;
-    }
-    if (str == "bazel") {
-        return BuildSystem::Bazel;
-    }
-    throw std::invalid_argument("Invalid build system: " + str);
-}
+[[nodiscard]] std::string toString(BuildSystem system);
+[[nodiscard]] BuildSystem parseBuildSystem(const std::string& str);
 
 /**
  * @brief Configuration loaded from scrap.toml
@@ -78,14 +41,16 @@ inline BuildSystem parseBuildSystem(const std::string& str) {
  */
 class ProjectConfiguration {
 public:
+    ProjectConfiguration();
+
     // Project metadata
     std::string name;
-    std::string version = "0.1.0";
-    ProjectType type = ProjectType::Application;
-    std::string cppStandard = "23";
+    std::string version{"0.1.0"};
+    ProjectType type{ProjectType::Application};
+    std::string cppStandard{"23"};
 
     // Build configuration
-    BuildSystem buildSystem = BuildSystem::Native;
+    BuildSystem buildSystem{BuildSystem::Native};
     std::optional<ToolchainReference> toolchain;
 
     // Build options
@@ -98,8 +63,8 @@ public:
     std::map<std::string, std::string> devDependencies;
 
     // Test configuration
-    std::string testFramework = "scrap";  // Default to built-in framework
-    std::vector<std::string> testPatterns = {"*_test.cpp", "test_*.cpp"};
+    std::string testFramework{"scrap"};  // Default to built-in framework
+    std::vector<std::string> testPatterns{"*_test.cpp", "test_*.cpp"};
 
     // Tool configurations
     std::map<std::string, std::string> toolOptions;
@@ -107,55 +72,32 @@ public:
     /**
      * @brief Create default configuration
      */
-    static ProjectConfiguration createDefault(const std::string& projectName, ProjectType projectType) {
-        ProjectConfiguration config;
-        config.name = projectName;
-        config.type = projectType;
-        return config;
-    }
+    [[nodiscard]] static ProjectConfiguration createDefault(const std::string& projectName, ProjectType projectType);
 
     /**
      * @brief Validate configuration
      */
-    void validate() const {
-        if (name.empty()) {
-            throw std::invalid_argument("Project name cannot be empty");
-        }
-        if (version.empty()) {
-            throw std::invalid_argument("Project version cannot be empty");
-        }
-        if (cppStandard != "17" && cppStandard != "20" && cppStandard != "23") {
-            throw std::invalid_argument("Unsupported C++ standard: " + cppStandard);
-        }
-    }
+    void validate() const;
 
     /**
      * @brief Check if this is an application project
      */
-    bool isApplication() const {
-        return type == ProjectType::Application;
-    }
+    [[nodiscard]] bool isApplication() const noexcept;
 
     /**
      * @brief Check if this is a library project
      */
-    bool isLibrary() const {
-        return type == ProjectType::Library;
-    }
+    [[nodiscard]] bool isLibrary() const noexcept;
 
     /**
      * @brief Check if using native build system
      */
-    bool isNativeBuild() const {
-        return buildSystem == BuildSystem::Native;
-    }
+    [[nodiscard]] bool isNativeBuild() const noexcept;
 
     /**
      * @brief Check if using wrapper mode
      */
-    bool isWrapperMode() const {
-        return buildSystem != BuildSystem::Native;
-    }
+    [[nodiscard]] bool isWrapperMode() const noexcept;
 };
 
 }  // namespace scrap::Configuration::Model
