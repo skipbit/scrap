@@ -26,11 +26,11 @@ TEST_CASE("TemplateProcessor variable substitution", "[template][processor]")
         const std::string input = "{{greeting}} {{name}}!";
         VariableMap vars;
         vars.set("greeting", "Hello");
-        vars.set("name", "SCRAP");
+        vars.set("name", "scrap");
 
         auto result = processor.processContent(input, vars);
 
-        REQUIRE(result == "Hello SCRAP!");
+        REQUIRE(result == "Hello scrap!");
     }
 
     SECTION("preserves text without variables")

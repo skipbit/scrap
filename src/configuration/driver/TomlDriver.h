@@ -24,7 +24,7 @@ public:
      * @return Parsed configuration or nullopt if file doesn't exist
      * @throws std::runtime_error if file exists but parsing fails
      */
-    virtual std::optional<model::ProjectConfiguration> loadProjectConfiguration(
+    virtual std::optional<Configuration::Model::ProjectConfiguration> loadProjectConfiguration(
         const std::filesystem::path& filePath
     ) = 0;
 
@@ -36,7 +36,7 @@ public:
      */
     virtual void saveProjectConfiguration(
         const std::filesystem::path& filePath,
-        const model::ProjectConfiguration& config
+        const Configuration::Model::ProjectConfiguration& config
     ) = 0;
 
     /**

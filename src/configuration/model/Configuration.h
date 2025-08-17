@@ -6,7 +6,7 @@
 #include <optional>
 #include <string>
 
-namespace scrap::configuration::model {
+namespace scrap::Configuration::Model {
 
 /**
  * @brief Configuration value with its source
@@ -123,4 +123,4 @@ private:
     std::optional<ProjectConfiguration> projectConfig_;
 };
 
-} // namespace scrap::configuration::model
+}  // namespace scrap::Configuration::Model

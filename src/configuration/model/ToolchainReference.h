@@ -4,7 +4,7 @@
 #include <optional>
 #include <stdexcept>
 
-namespace scrap::configuration::model {
+namespace scrap::Configuration::Model {
 
 /**
  * @brief Value Object representing a toolchain reference
@@ -129,4 +129,4 @@ private:
     std::optional<std::string> version_;
 };
 
-} // namespace scrap::configuration::model
+}  // namespace scrap::Configuration::Model

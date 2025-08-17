@@ -51,6 +51,7 @@ target_sources(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/project/command/CleanOperation.cpp
     # Configuration components
     ${CMAKE_CURRENT_SOURCE_DIR}/configuration/ConfigurationModule.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/configuration/model/ConfigurationSource.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/configuration/service/DefaultConfigurationService.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/configuration/driver/TomlPlusPlusDriver.cpp
     # Template components

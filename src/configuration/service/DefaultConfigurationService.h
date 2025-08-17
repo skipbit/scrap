@@ -31,39 +31,39 @@ public:
     DefaultConfigurationService(DefaultConfigurationService&&) = default;
     DefaultConfigurationService& operator=(DefaultConfigurationService&&) = default;
 
-    model::Configuration loadConfiguration(
+    Configuration::Model::Configuration loadConfiguration(
         const std::filesystem::path& workingDirectory,
-        const std::optional<model::ToolchainReference>& cliToolchain = std::nullopt
+        const std::optional<Configuration::Model::ToolchainReference>& cliToolchain = std::nullopt
     ) override;
 
-    std::optional<model::ProjectConfiguration> loadProjectConfiguration(
+    std::optional<Configuration::Model::ProjectConfiguration> loadProjectConfiguration(
         const std::filesystem::path& projectPath
     ) override;
 
     void saveProjectConfiguration(
         const std::filesystem::path& projectPath,
-        const model::ProjectConfiguration& config
+        const Configuration::Model::ProjectConfiguration& config
     ) override;
 
     void createDefaultConfiguration(
         const std::filesystem::path& projectPath,
         const std::string& projectName,
-        model::ProjectType projectType,
-        const std::optional<model::ToolchainReference>& toolchain = std::nullopt
+        Configuration::Model::ProjectType projectType,
+        const std::optional<Configuration::Model::ToolchainReference>& toolchain = std::nullopt
     ) override;
 
     void setProjectToolchain(
         const std::filesystem::path& projectPath,
-        const model::ToolchainReference& toolchain
+        const Configuration::Model::ToolchainReference& toolchain
     ) override;
 
     void setRepositoryToolchain(
         const std::filesystem::path& repositoryRoot,
-        const model::ToolchainReference& toolchain
+        const Configuration::Model::ToolchainReference& toolchain
     ) override;
 
     std::vector<std::string> validateConfiguration(
-        const model::Configuration& config
+        const Configuration::Model::Configuration& config
     ) override;
 
 private:
@@ -72,14 +72,14 @@ private:
     /**
      * @brief Load toolchain from repository marker file
      */
-    std::optional<model::ToolchainReference> loadRepositoryToolchain(
+    std::optional<Configuration::Model::ToolchainReference> loadRepositoryToolchain(
         const std::filesystem::path& repositoryRoot
     );
 
     /**
      * @brief Load toolchain from environment variable
      */
-    std::optional<model::ToolchainReference> loadEnvironmentToolchain();
+    std::optional<Configuration::Model::ToolchainReference> loadEnvironmentToolchain();
 
     /**
      * @brief Find repository root from given directory

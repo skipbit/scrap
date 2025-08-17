@@ -3,7 +3,7 @@ name = "test-template"
 display_name = "Test Template"
 description = "A template for testing purposes"
 version = "1.0.0"
-author = "SCRAP Test Suite"
+author = "The scrap Test Suite"
 type = "app"
 
 [[template.variables]]

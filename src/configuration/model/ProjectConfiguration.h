@@ -6,7 +6,7 @@
 #include <map>
 #include <vector>
 
-namespace scrap::configuration::model {
+namespace scrap::Configuration::Model {
 
 /**
  * @brief Project type enumeration
@@ -158,4 +158,4 @@ public:
     }
 };
 
-} // namespace scrap::configuration::model
+}  // namespace scrap::Configuration::Model

@@ -8,7 +8,7 @@ namespace scrap::configuration::driver {
 
 class TomlPlusPlusDriver::Impl {
 public:
-    std::optional<model::ProjectConfiguration> loadProjectConfiguration(
+    std::optional<Configuration::Model::ProjectConfiguration> loadProjectConfiguration(
         const std::filesystem::path& filePath) {
 
         if (!std::filesystem::exists(filePath)) {
@@ -25,7 +25,7 @@ public:
 
     void saveProjectConfiguration(
         const std::filesystem::path& filePath,
-        const model::ProjectConfiguration& config) {
+        const Configuration::Model::ProjectConfiguration& config) {
 
         auto tomlTable = serializeProjectConfiguration(config);
 
@@ -101,8 +101,8 @@ public:
     }
 
 private:
-    model::ProjectConfiguration parseProjectConfiguration(const toml::table& config) {
-        model::ProjectConfiguration result;
+    Configuration::Model::ProjectConfiguration parseProjectConfiguration(const toml::table& config) {
+        Configuration::Model::ProjectConfiguration result;
 
         // Parse [package] section (matches scrap.toml schema)
         if (auto package = config["package"].as_table()) {
@@ -114,7 +114,7 @@ private:
             }
             if (auto type = package->get("type")) {
                 auto typeStr = std::string(type->value_or("app"));
-                result.type = model::parseProjectType(typeStr);
+                result.type = Configuration::Model::parseProjectType(typeStr);
             }
             if (auto std = package->get("std")) {
                 result.cppStandard = std::string(std->value_or("23"));
@@ -122,7 +122,7 @@ private:
             if (auto toolchain = package->get("toolchain")) {
                 auto toolchainStr = std::string(toolchain->value_or(""));
                 if (!toolchainStr.empty()) {
-                    result.toolchain = model::ToolchainReference::parse(toolchainStr);
+                    result.toolchain = Configuration::Model::ToolchainReference::parse(toolchainStr);
                 }
             }
         }
@@ -131,7 +131,7 @@ private:
         if (auto build = config["build"].as_table()) {
             if (auto system = build->get("system")) {
                 auto systemStr = std::string(system->value_or("native"));
-                result.buildSystem = model::parseBuildSystem(systemStr);
+                result.buildSystem = Configuration::Model::parseBuildSystem(systemStr);
             }
 
             // Parse cxx_flags array
@@ -208,14 +208,14 @@ private:
         return result;
     }
 
-    toml::table serializeProjectConfiguration(const model::ProjectConfiguration& config) {
+    toml::table serializeProjectConfiguration(const Configuration::Model::ProjectConfiguration& config) {
         toml::table result;
 
         // [package] section (matches scrap.toml schema)
         toml::table package;
         package.insert("name", config.name);
         package.insert("version", config.version);
-        package.insert("type", model::toString(config.type));
+        package.insert("type", Configuration::Model::toString(config.type));
         package.insert("std", config.cppStandard);
         if (config.toolchain) {
             package.insert("toolchain", config.toolchain->toString());
@@ -224,7 +224,7 @@ private:
 
         // [build] section
         toml::table build;
-        build.insert("system", model::toString(config.buildSystem));
+        build.insert("system", Configuration::Model::toString(config.buildSystem));
 
         // Serialize cxx_flags array
         if (!config.cxxFlags.empty()) {
@@ -326,7 +326,7 @@ TomlPlusPlusDriver::TomlPlusPlusDriver()
 
 TomlPlusPlusDriver::~TomlPlusPlusDriver() = default;
 
-std::optional<model::ProjectConfiguration> TomlPlusPlusDriver::loadProjectConfiguration(
+std::optional<Configuration::Model::ProjectConfiguration> TomlPlusPlusDriver::loadProjectConfiguration(
     const std::filesystem::path& filePath)
 {
     return impl_->loadProjectConfiguration(filePath);
@@ -334,7 +334,7 @@ std::optional<model::ProjectConfiguration> TomlPlusPlusDriver::loadProjectConfig
 
 void TomlPlusPlusDriver::saveProjectConfiguration(
     const std::filesystem::path& filePath,
-    const model::ProjectConfiguration& config)
+    const Configuration::Model::ProjectConfiguration& config)
 {
     impl_->saveProjectConfiguration(filePath, config);
 }

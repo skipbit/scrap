@@ -1,13 +1,13 @@
-# SCRAP Coding Style Guide
+# The scrap Coding Style Guide
 
-This document establishes unified coding style standards for the SCRAP project.
+This document establishes unified coding style standards for the scrap project.
 Consistent code style improves code readability, maintainability, and team development efficiency.
 
 ## Core Principles
 
 ### Architectural Principles
 
-The SCRAP project is designed based on the following principles:
+The scrap project is designed based on the following principles:
 
 - **Domain-Driven Design (DDD)**: Aggregate business logic in domain layers
 - **Clean Architecture**: Control dependency directions and remain independent from external details
@@ -133,6 +133,144 @@ class Template {
 - **Standard**: Always use `#pragma once` for include guards
 - **Prohibition**: Do not use traditional `#ifndef`/`#define`/`#endif` guards
 - **Placement**: Place `#pragma once` as the first line in header files
+
+## Header/Implementation Separation
+
+### Headers Contain Declarations Only
+
+**CRITICAL RULE**: Header files (`.h`) must contain **declarations only**. All implementations, including `= default`, `= delete`, and any function body, must be placed in implementation files (`.cpp`).
+
+#### Correct Usage
+
+```cpp
+// Template.h - DECLARATIONS ONLY
+#pragma once
+
+#include <string>
+#include <memory>
+
+namespace scrap::Template::Model {
+
+class Template {
+public:
+    Template();                                    // Declaration only
+    ~Template();                                   // Declaration only
+    Template(const Template& other);               // Declaration only
+    Template& operator=(const Template& other);    // Declaration only
+    Template(Template&& other) noexcept;           // Declaration only
+    Template& operator=(Template&& other) noexcept;// Declaration only
+
+    std::string name() const noexcept;             // Declaration only
+    void setName(const std::string& name);         // Declaration only
+    bool isValid() const noexcept;                 // Declaration only
+
+private:
+    std::string name_;
+    bool isValid_;
+};
+
+} // namespace scrap::Template::Model
+```
+
+```cpp
+// Template.cpp - IMPLEMENTATIONS
+#include "Template.h"
+
+namespace scrap::Template::Model {
+
+Template::Template() = default;                   // Implementation in .cpp
+
+Template::~Template() = default;                  // Implementation in .cpp
+
+Template::Template(const Template& other) = default;  // Implementation in .cpp
+
+Template& Template::operator=(const Template& other) = default;
+
+Template::Template(Template&& other) noexcept = default;
+
+Template& Template::operator=(Template&& other) noexcept = default;
+
+std::string Template::name() const noexcept       // Implementation in .cpp
+{
+    return name_;
+}
+
+void Template::setName(const std::string& name)   // Implementation in .cpp
+{
+    name_ = name;
+    isValid_ = !name.empty();
+}
+
+bool Template::isValid() const noexcept           // Implementation in .cpp
+{
+    return isValid_;
+}
+
+} // namespace scrap::Template::Model
+```
+
+#### Prohibited in Headers
+
+```cpp
+// Template.h - WRONG: Contains implementations
+#pragma once
+
+class Template {
+public:
+    Template() = default;                          // ❌ WRONG: Implementation in header
+    ~Template() = default;                         // ❌ WRONG: Implementation in header
+
+    std::string name() const { return name_; }     // ❌ WRONG: Implementation in header
+
+    void setName(const std::string& name) {        // ❌ WRONG: Implementation in header
+        name_ = name;
+    }
+
+private:
+    std::string name_;
+};
+```
+
+#### Exceptions
+
+The following are the **ONLY** permitted implementations in headers:
+
+1. **Pure virtual functions** (by definition, declarations only):
+```cpp
+virtual void process() = 0;                       // ✅ OK: Pure virtual
+```
+
+2. **constexpr functions** (required by C++ standard):
+```cpp
+constexpr int getValue() const noexcept           // ✅ OK: constexpr requirement
+{
+    return value_;
+}
+```
+
+3. **Template functions** (required by C++ standard):
+```cpp
+template<typename T>
+void processTemplate(T&& value)                   // ✅ OK: Template requirement
+{
+    // implementation
+}
+```
+
+#### Benefits of This Approach
+
+- **Faster compilation**: Headers contain minimal code
+- **Better ABI stability**: Implementation changes don't require recompilation
+- **Cleaner interfaces**: Headers focus on contracts, not implementation
+- **Easier testing**: Implementation can be easily mocked or replaced
+- **Reduced dependencies**: Headers include only what they declare
+
+#### Enforcement
+
+This rule is enforced through:
+- **Code reviews**: All PRs must follow this pattern
+- **clang-tidy**: Configured to detect violations where possible
+- **Team discipline**: Consistent application across the codebase
 
 ## Formatting Rules
 
@@ -588,7 +726,7 @@ void processLargeData(std::vector<LargeObject> data) {  // unnecessary copy
 
 ## Summary
 
-This coding style guide was established to improve the quality and maintainability of the SCRAP project.
+This coding style guide was established to improve the quality and maintainability of the scrap project.
 By having all team members follow these rules, we can maintain a consistent and readable codebase.
 
 If you have any questions or suggestions regarding the style, please contact the project maintainers.

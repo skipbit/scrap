@@ -6,17 +6,20 @@ set(TEST_SOURCES
     # Helpers
     helpers/TestPresenter.cpp
     helpers/FileSystemHelper.cpp
-    
+
     # Unit tests - shared components (basic tests that work)
     unit/shared/command/OperationTest.cpp
-    
+
+    # Configuration model tests - minimal dependencies
+    unit/configuration/model/ConfigurationSourceTest.cpp
+
     # Template and Configuration tests are created but need implementations
     # to be linked properly. They will be enabled once the template and
     # configuration modules have their .cpp files implemented.
-    # 
+    #
     # These tests are compatible with the actual APIs now but missing symbols:
     # unit/template/model/TemplateTest.cpp
-    # unit/template/service/TemplateServiceTest.cpp  
+    # unit/template/service/TemplateServiceTest.cpp
     # unit/template/service/TemplateProcessorTest.cpp
     # unit/configuration/model/ConfigurationTest.cpp
     # unit/configuration/service/ConfigurationServiceTest.cpp
@@ -32,13 +35,25 @@ target_include_directories(scrap_test PRIVATE
     ${CMAKE_BINARY_DIR}/src  # For generated version.cpp
 )
 
+# Add compiled object files for tested classes
+add_library(test_dependencies OBJECT
+    ${CMAKE_SOURCE_DIR}/src/configuration/model/ConfigurationSource.cpp
+)
+
+target_include_directories(test_dependencies PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_compile_features(test_dependencies PUBLIC cxx_std_23)
+
 # Link libraries (minimal dependencies for now)
 target_link_libraries(scrap_test PRIVATE
     catch2_library
+    test_dependencies
 )
 
 # Add dependencies
-add_dependencies(scrap_test 
+add_dependencies(scrap_test
     catch2_external
 )
 
@@ -60,7 +75,7 @@ set_target_properties(scrap_test PROPERTIES
 
 # Register with CTest
 add_test(
-    NAME scrap_unit_tests 
+    NAME scrap_unit_tests
     COMMAND scrap_test
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
@@ -70,7 +85,7 @@ add_custom_target(run_tests
     COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -C $<CONFIG>
     DEPENDS scrap_test
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    COMMENT "Running SCRAP unit tests..."
+    COMMENT "Running scrap unit tests..."
 )
 
 # Set test properties

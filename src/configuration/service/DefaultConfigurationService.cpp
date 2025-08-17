@@ -11,16 +11,16 @@ DefaultConfigurationService::DefaultConfigurationService(
 {
 }
 
-model::Configuration DefaultConfigurationService::loadConfiguration(
+Configuration::Model::Configuration DefaultConfigurationService::loadConfiguration(
     const std::filesystem::path& workingDirectory,
-    const std::optional<model::ToolchainReference>& cliToolchain)
+    const std::optional<Configuration::Model::ToolchainReference>& cliToolchain)
 {
 
-    model::Configuration config;
+    Configuration::Model::Configuration config;
 
     // 1. Command-line toolchain (highest priority)
     if (cliToolchain) {
-        config.setToolchain(*cliToolchain, model::ConfigurationSource::CommandLine);
+        config.setToolchain(*cliToolchain, Configuration::Model::ConfigurationSource::CommandLine);
     }
 
     // 2. Project configuration (scrap.toml)
@@ -37,14 +37,14 @@ model::Configuration DefaultConfigurationService::loadConfiguration(
     if (repoRoot) {
         auto repoToolchain = loadRepositoryToolchain(*repoRoot);
         if (repoToolchain) {
-            config.setToolchain(*repoToolchain, model::ConfigurationSource::RepositoryMarker);
+            config.setToolchain(*repoToolchain, Configuration::Model::ConfigurationSource::RepositoryMarker);
         }
     }
 
     // 4. Environment variable (SCRAP_TOOLCHAIN)
     auto envToolchain = loadEnvironmentToolchain();
     if (envToolchain) {
-        config.setToolchain(*envToolchain, model::ConfigurationSource::Environment);
+        config.setToolchain(*envToolchain, Configuration::Model::ConfigurationSource::Environment);
     }
 
     // 5. Apply system default if no toolchain specified
@@ -53,7 +53,7 @@ model::Configuration DefaultConfigurationService::loadConfiguration(
     return config;
 }
 
-std::optional<model::ProjectConfiguration> DefaultConfigurationService::loadProjectConfiguration(
+std::optional<Configuration::Model::ProjectConfiguration> DefaultConfigurationService::loadProjectConfiguration(
     const std::filesystem::path& projectPath)
 {
 
@@ -63,7 +63,7 @@ std::optional<model::ProjectConfiguration> DefaultConfigurationService::loadProj
 
 void DefaultConfigurationService::saveProjectConfiguration(
     const std::filesystem::path& projectPath,
-    const model::ProjectConfiguration& config)
+    const Configuration::Model::ProjectConfiguration& config)
 {
 
     auto configPath = projectPath / "scrap.toml";
@@ -77,11 +77,11 @@ void DefaultConfigurationService::saveProjectConfiguration(
 void DefaultConfigurationService::createDefaultConfiguration(
     const std::filesystem::path& projectPath,
     const std::string& projectName,
-    model::ProjectType projectType,
-    const std::optional<model::ToolchainReference>& toolchain)
+    Configuration::Model::ProjectType projectType,
+    const std::optional<Configuration::Model::ToolchainReference>& toolchain)
 {
 
-    auto config = model::ProjectConfiguration::createDefault(projectName, projectType);
+    auto config = Configuration::Model::ProjectConfiguration::createDefault(projectName, projectType);
 
     if (toolchain) {
         config.toolchain = *toolchain;
@@ -92,7 +92,7 @@ void DefaultConfigurationService::createDefaultConfiguration(
 
 void DefaultConfigurationService::setProjectToolchain(
     const std::filesystem::path& projectPath,
-    const model::ToolchainReference& toolchain)
+    const Configuration::Model::ToolchainReference& toolchain)
 {
 
     // Load existing configuration or create default
@@ -110,7 +110,7 @@ void DefaultConfigurationService::setProjectToolchain(
 
 void DefaultConfigurationService::setRepositoryToolchain(
     const std::filesystem::path& repositoryRoot,
-    const model::ToolchainReference& toolchain)
+    const Configuration::Model::ToolchainReference& toolchain)
 {
 
     auto markerPath = repositoryRoot / ".scrap-toolchain";
@@ -129,7 +129,7 @@ void DefaultConfigurationService::setRepositoryToolchain(
 }
 
 std::vector<std::string> DefaultConfigurationService::validateConfiguration(
-    const model::Configuration& config)
+    const Configuration::Model::Configuration& config)
 {
 
     std::vector<std::string> errors;
@@ -152,7 +152,7 @@ std::vector<std::string> DefaultConfigurationService::validateConfiguration(
     return errors;
 }
 
-std::optional<model::ToolchainReference> DefaultConfigurationService::loadRepositoryToolchain(
+std::optional<Configuration::Model::ToolchainReference> DefaultConfigurationService::loadRepositoryToolchain(
     const std::filesystem::path& repositoryRoot)
 {
 
@@ -177,7 +177,7 @@ std::optional<model::ToolchainReference> DefaultConfigurationService::loadReposi
 
         if (!line.empty()) {
             try {
-                return model::ToolchainReference::parse(line);
+                return Configuration::Model::ToolchainReference::parse(line);
             } catch (const std::exception&) {
                 // Invalid format, ignore
                 return std::nullopt;
@@ -188,7 +188,7 @@ std::optional<model::ToolchainReference> DefaultConfigurationService::loadReposi
     return std::nullopt;
 }
 
-std::optional<model::ToolchainReference> DefaultConfigurationService::loadEnvironmentToolchain()
+std::optional<Configuration::Model::ToolchainReference> DefaultConfigurationService::loadEnvironmentToolchain()
 {
     auto envValue = environmentVariable("SCRAP_TOOLCHAIN");
     if (!envValue || envValue->empty()) {
@@ -196,7 +196,7 @@ std::optional<model::ToolchainReference> DefaultConfigurationService::loadEnviro
     }
 
     try {
-        return model::ToolchainReference::parse(*envValue);
+        return Configuration::Model::ToolchainReference::parse(*envValue);
     } catch (const std::exception&) {
         // Invalid format, ignore
         return std::nullopt;

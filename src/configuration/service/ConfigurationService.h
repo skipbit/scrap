@@ -24,9 +24,9 @@ public:
      * @param cliToolchain Optional toolchain override from command line
      * @return Resolved configuration combining all sources
      */
-    virtual model::Configuration loadConfiguration(
+    virtual Configuration::Model::Configuration loadConfiguration(
         const std::filesystem::path& workingDirectory,
-        const std::optional<model::ToolchainReference>& cliToolchain = std::nullopt
+        const std::optional<Configuration::Model::ToolchainReference>& cliToolchain = std::nullopt
     ) = 0;
 
     /**
@@ -34,7 +34,7 @@ public:
      * @param projectPath Path to project directory
      * @return Project configuration if scrap.toml exists
      */
-    virtual std::optional<model::ProjectConfiguration> loadProjectConfiguration(
+    virtual std::optional<Configuration::Model::ProjectConfiguration> loadProjectConfiguration(
         const std::filesystem::path& projectPath
     ) = 0;
 
@@ -45,7 +45,7 @@ public:
      */
     virtual void saveProjectConfiguration(
         const std::filesystem::path& projectPath,
-        const model::ProjectConfiguration& config
+        const Configuration::Model::ProjectConfiguration& config
     ) = 0;
 
     /**
@@ -58,8 +58,8 @@ public:
     virtual void createDefaultConfiguration(
         const std::filesystem::path& projectPath,
         const std::string& projectName,
-        model::ProjectType projectType,
-        const std::optional<model::ToolchainReference>& toolchain = std::nullopt
+        Configuration::Model::ProjectType projectType,
+        const std::optional<Configuration::Model::ToolchainReference>& toolchain = std::nullopt
     ) = 0;
 
     /**
@@ -69,7 +69,7 @@ public:
      */
     virtual void setProjectToolchain(
         const std::filesystem::path& projectPath,
-        const model::ToolchainReference& toolchain
+        const Configuration::Model::ToolchainReference& toolchain
     ) = 0;
 
     /**
@@ -79,7 +79,7 @@ public:
      */
     virtual void setRepositoryToolchain(
         const std::filesystem::path& repositoryRoot,
-        const model::ToolchainReference& toolchain
+        const Configuration::Model::ToolchainReference& toolchain
     ) = 0;
 
     /**
@@ -88,7 +88,7 @@ public:
      * @return Vector of validation error messages (empty if valid)
      */
     virtual std::vector<std::string> validateConfiguration(
-        const model::Configuration& config
+        const Configuration::Model::Configuration& config
     ) = 0;
 };
 

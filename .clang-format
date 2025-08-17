@@ -1,5 +1,5 @@
 ---
-# SCRAP C++ Formatting Configuration
+# The scrap C++ Formatting Configuration
 # Based on WebKit style with project-specific adjustments
 
 BasedOnStyle: WebKit
@@ -42,7 +42,7 @@ AlignConsecutiveAssignments: false
 AlignConsecutiveDeclarations: false
 AlignEscapedNewlines: Right
 AlignOperands: false
-AlignTrailingComments: false
+AlignTrailingComments: true
 
 # Breaking
 AllowAllParametersOfDeclarationOnNextLine: false

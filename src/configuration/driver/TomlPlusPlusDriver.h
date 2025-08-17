@@ -22,13 +22,13 @@ public:
     TomlPlusPlusDriver(TomlPlusPlusDriver&&) = default;
     TomlPlusPlusDriver& operator=(TomlPlusPlusDriver&&) = default;
 
-    std::optional<model::ProjectConfiguration> loadProjectConfiguration(
+    std::optional<Configuration::Model::ProjectConfiguration> loadProjectConfiguration(
         const std::filesystem::path& filePath
     ) override;
 
     void saveProjectConfiguration(
         const std::filesystem::path& filePath,
-        const model::ProjectConfiguration& config
+        const Configuration::Model::ProjectConfiguration& config
     ) override;
 
     std::optional<std::map<std::string, std::string>> loadKeyValues(

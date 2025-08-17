@@ -1,5 +1,5 @@
 ---
-# SCRAP C++ Static Analysis Configuration
+# The scrap C++ Static Analysis Configuration
 # Comprehensive checks for modern C++23 development
 
 # Check configuration
@@ -11,10 +11,12 @@ Checks: >
   cppcoreguidelines-*,
   hicpp-*,
   misc-*,
+  misc-definitions-in-headers,
   modernize-*,
   performance-*,
   portability-*,
   readability-*,
+  readability-redundant-declaration,
   -bugprone-easily-swappable-parameters,
   -bugprone-exception-escape,
   -cert-dcl21-cpp,
@@ -62,7 +64,10 @@ WarningsAsErrors: '*'
 CheckOptions:
   # Naming conventions
   - key: readability-identifier-naming.NamespaceCase
-    value: lower_case
+    value: CamelCase
+  # Root namespace 'scrap' is an exception (lowercase per style guide)
+  - key: readability-identifier-naming.NamespaceIgnoredRegexp
+    value: '^scrap$'
   - key: readability-identifier-naming.ClassCase
     value: CamelCase
   - key: readability-identifier-naming.StructCase
@@ -149,6 +154,13 @@ CheckOptions:
   # Misc options
   - key: misc-throw-by-value-catch-by-reference.CheckThrowTemporaries
     value: 'true'
+  # Headers should contain declarations only - enforce strict separation
+  - key: misc-definitions-in-headers.UseHeaderFileExtension
+    value: 'true'
+  - key: misc-definitions-in-headers.HeaderFileExtensions
+    value: 'h,hpp,hxx'
+  - key: misc-definitions-in-headers.ImplementationFileExtensions
+    value: 'c,cc,cpp,cxx'
 
 # Header filter - check all project headers
 HeaderFilterRegex: '^.*/src/.*\.(h|hpp)$'
