@@ -7,7 +7,7 @@
 #include <memory>
 
 using namespace scrap::configuration::service;
-using namespace scrap::configuration::model;
+using namespace scrap::Configuration::Model;
 using namespace scrap::test;
 
 // Mock implementation for testing
@@ -51,7 +51,7 @@ public:
 
         // Simulate TOML generation
         const std::string tomlContent = "[package]\n"
-                                  "name = \"" +
+                                        "name = \"" +
             config.name +
             "\"\n"
             "version = \"" +
@@ -79,7 +79,8 @@ public:
         saveProjectConfiguration(projectPath, config);
     }
 
-    void setProjectToolchain([[maybe_unused]] const std::filesystem::path& projectPath, [[maybe_unused]] const ToolchainReference& toolchain) override
+    void setProjectToolchain([[maybe_unused]] const std::filesystem::path& projectPath,
+                             [[maybe_unused]] const ToolchainReference& toolchain) override
     {
         // Mock implementation - would modify scrap.toml
     }

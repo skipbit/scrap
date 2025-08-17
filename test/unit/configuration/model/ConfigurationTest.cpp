@@ -4,7 +4,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <string>
 
-using namespace scrap::configuration::model;
+using namespace scrap::Configuration::Model;
 
 TEST_CASE("Configuration loading and validation", "[configuration][model]")
 {

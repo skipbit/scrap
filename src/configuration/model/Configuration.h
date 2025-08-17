@@ -14,26 +14,51 @@ namespace scrap::Configuration::Model {
  * Template class that holds a configuration value along with
  * information about where it came from.
  */
-template<typename T>
-class ConfigurationValue {
+template <typename T> class ConfigurationValue {
 public:
     ConfigurationValue() = default;
 
-    ConfigurationValue(T value, ConfigurationSource source)
-        : value_(std::move(value)), source_(source) {}
+    ConfigurationValue(T value, ConfigurationSource source);
 
-    const T& value() const { return value_; }
-    ConfigurationSource source() const { return source_; }
+    [[nodiscard]] const T& value() const noexcept;
+    [[nodiscard]] ConfigurationSource source() const noexcept;
 
-    bool hasValue() const { return source_ != ConfigurationSource::SystemDefault || !value_.toString().empty(); }
+    [[nodiscard]] bool hasValue() const noexcept;
 
     // Allow implicit conversion to T for convenience
-    operator const T&() const { return value_; }
+    explicit operator const T&() const noexcept;
 
 private:
     T value_{};
     ConfigurationSource source_ = ConfigurationSource::SystemDefault;
 };
+
+// Template implementation (must be in header for templates)
+template <typename T>
+ConfigurationValue<T>::ConfigurationValue(T value, ConfigurationSource source)
+    : value_(std::move(value)), source_(source)
+{
+}
+
+template <typename T> const T& ConfigurationValue<T>::value() const noexcept
+{
+    return value_;
+}
+
+template <typename T> ConfigurationSource ConfigurationValue<T>::source() const noexcept
+{
+    return source_;
+}
+
+template <typename T> bool ConfigurationValue<T>::hasValue() const noexcept
+{
+    return source_ != ConfigurationSource::SystemDefault || !value_.toString().empty();
+}
+
+template <typename T> ConfigurationValue<T>::operator const T&() const noexcept
+{
+    return value_;
+}
 
 /**
  * @brief Resolved configuration combining all sources
@@ -43,80 +68,42 @@ private:
  */
 class Configuration {
 public:
+    Configuration() = default;
+
     /**
      * @brief Get resolved toolchain reference
      */
-    const ConfigurationValue<ToolchainReference>& toolchain() const {
-        return toolchain_;
-    }
+    [[nodiscard]] const ConfigurationValue<ToolchainReference>& toolchain() const noexcept;
 
     /**
      * @brief Get project configuration (from scrap.toml)
      */
-    const std::optional<ProjectConfiguration>& projectConfig() const {
-        return projectConfig_;
-    }
+    [[nodiscard]] const std::optional<ProjectConfiguration>& projectConfig() const noexcept;
 
     /**
      * @brief Set toolchain from specific source
      */
-    void setToolchain(ToolchainReference toolchain, ConfigurationSource source) {
-        if (!toolchain_.hasValue() || hasHigherPrecedence(source, toolchain_.source())) {
-            toolchain_ = ConfigurationValue<ToolchainReference>(std::move(toolchain), source);
-        }
-    }
+    void setToolchain(ToolchainReference toolchain, ConfigurationSource source);
 
     /**
      * @brief Set project configuration
      */
-    void setProjectConfig(ProjectConfiguration config) {
-        projectConfig_ = std::move(config);
-
-        // If project config specifies a toolchain, apply it
-        if (config.toolchain) {
-            setToolchain(*config.toolchain, ConfigurationSource::ProjectConfig);
-        }
-    }
+    void setProjectConfig(ProjectConfiguration config);
 
     /**
      * @brief Check if configuration is complete
      */
-    bool isComplete() const {
-        return toolchain_.hasValue();
-    }
+    [[nodiscard]] bool isComplete() const noexcept;
 
     /**
      * @brief Apply system default if no toolchain specified
      */
-    void applyDefaults() {
-        if (!toolchain_.hasValue()) {
-            toolchain_ = ConfigurationValue<ToolchainReference>(
-                ToolchainReference::createSystemDefault(),
-                ConfigurationSource::SystemDefault
-            );
-        }
-    }
+    void applyDefaults();
 
     /**
      * @brief Get configuration summary for debugging
      */
-    std::string summary() const {
-        std::string summary;
-
-        summary += "Configuration Summary:\n";
-        summary += "  Toolchain: " + toolchain_.value().toString();
-        summary += " (from " + toString(toolchain_.source()) + ")\n";
-
-        if (projectConfig_) {
-            summary += "  Project: " + projectConfig_->name + " v" + projectConfig_->version + "\n";
-            summary += "  Type: " + toString(projectConfig_->type) + "\n";
-            summary += "  Build System: " + toString(projectConfig_->buildSystem) + "\n";
-        } else {
-            summary += "  Project: No scrap.toml found\n";
-        }
-
-        return summary;
-    }
+    [[nodiscard]] std::string summary() const;
 
 private:
     ConfigurationValue<ToolchainReference> toolchain_;
