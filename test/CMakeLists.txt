@@ -13,6 +13,7 @@ set(TEST_SOURCES
     # Configuration model tests - minimal dependencies
     unit/configuration/model/ConfigurationSourceTest.cpp
     unit/configuration/model/ProjectConfigurationTest.cpp
+    unit/configuration/model/ToolchainReferenceTest.cpp
 
     # Template and Configuration tests are created but need implementations
     # to be linked properly. They will be enabled once the template and
@@ -40,18 +41,25 @@ target_include_directories(scrap_test PRIVATE
 add_library(test_dependencies OBJECT
     ${CMAKE_SOURCE_DIR}/src/configuration/model/ConfigurationSource.cpp
     ${CMAKE_SOURCE_DIR}/src/configuration/model/ProjectConfiguration.cpp
+    ${CMAKE_SOURCE_DIR}/src/configuration/model/ToolchainReference.cpp
 )
 
 target_include_directories(test_dependencies PRIVATE
     ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_BINARY_DIR}/include  # For dross headers
 )
 
 target_compile_features(test_dependencies PUBLIC cxx_std_23)
+
+# Add dross dependency for test_dependencies (headers only, actual linking via scrap_test)
+add_dependencies(test_dependencies dross)
+target_include_directories(test_dependencies SYSTEM BEFORE PRIVATE ${DROSS_INCLUDE_DIR})
 
 # Link libraries (minimal dependencies for now)
 target_link_libraries(scrap_test PRIVATE
     catch2_library
     test_dependencies
+    ${CMAKE_BINARY_DIR}/lib/libdross.dylib
 )
 
 # Add dependencies

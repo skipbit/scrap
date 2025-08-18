@@ -176,12 +176,12 @@ std::optional<Configuration::Model::ToolchainReference> DefaultConfigurationServ
             [](unsigned char ch) { return !std::isspace(ch); }).base(), line.end());
 
         if (!line.empty()) {
-            try {
-                return Configuration::Model::ToolchainReference::parse(line);
-            } catch (const std::exception&) {
-                // Invalid format, ignore
-                return std::nullopt;
+            auto result = Configuration::Model::ToolchainReference::parse(line);
+            if (result.has_value()) {
+                return result.value();
             }
+            // Invalid format, ignore
+            return std::nullopt;
         }
     }
 
@@ -195,12 +195,12 @@ std::optional<Configuration::Model::ToolchainReference> DefaultConfigurationServ
         return std::nullopt;
     }
 
-    try {
-        return Configuration::Model::ToolchainReference::parse(*envValue);
-    } catch (const std::exception&) {
-        // Invalid format, ignore
-        return std::nullopt;
+    auto result = Configuration::Model::ToolchainReference::parse(*envValue);
+    if (result.has_value()) {
+        return result.value();
     }
+    // Invalid format, ignore
+    return std::nullopt;
 }
 
 std::optional<std::filesystem::path> DefaultConfigurationService::findRepositoryRoot(

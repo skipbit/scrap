@@ -1,8 +1,35 @@
 #pragma once
 
-#include <string>
+#include <dross/type/error.h>
+#include <cstdint>
+#include <expected>
+#include <memory>
 #include <optional>
-#include <stdexcept>
+#include <string>
+#include <system_error>
+
+namespace scrap::Configuration::Model {
+
+/**
+ * @brief Error codes for ToolchainReference operations
+ */
+enum class ToolchainReferenceError : std::uint8_t {
+    EmptyName,              ///< Toolchain name cannot be empty
+    EmptySpecification,     ///< Toolchain specification cannot be empty
+    EmptyVersion,           ///< Version cannot be empty after '@'
+    SystemDefaultHasNoName  ///< System default toolchain has no name
+};
+
+}  // namespace scrap::Configuration::Model
+
+// Error code creation function declaration (must be in global scope for ADL)
+// NOLINTNEXTLINE(readability-identifier-naming) - C++ standard requires this exact name for ADL
+std::error_code make_error_code(scrap::Configuration::Model::ToolchainReferenceError e) noexcept;
+
+// C++ standard requires specializing std::is_error_code_enum for custom error enums
+namespace std {
+template <> struct is_error_code_enum<scrap::Configuration::Model::ToolchainReferenceError> : true_type { };
+}  // namespace std
 
 namespace scrap::Configuration::Model {
 
@@ -18,115 +45,81 @@ public:
     /**
      * @brief Default constructor creates system default toolchain reference
      */
-    ToolchainReference() : isSystemDefault_(true) {}
+    ToolchainReference();
+
+    /**
+     * @brief Copy constructor
+     */
+    ToolchainReference(const ToolchainReference& other);
+
+    /**
+     * @brief Copy assignment operator
+     */
+    ToolchainReference& operator=(const ToolchainReference& other);
+
+    /**
+     * @brief Move constructor
+     */
+    ToolchainReference(ToolchainReference&& other) noexcept;
+
+    /**
+     * @brief Move assignment operator
+     */
+    ToolchainReference& operator=(ToolchainReference&& other) noexcept;
+
+    /**
+     * @brief Destructor
+     */
+    ~ToolchainReference();
 
     /**
      * @brief Create system default toolchain reference
      */
-    static ToolchainReference createSystemDefault() {
-        return ToolchainReference();
-    }
+    [[nodiscard]] static ToolchainReference createSystemDefault();
 
     /**
      * @brief Create managed toolchain reference
      * @param name Toolchain name (e.g., "llvm", "gcc")
      * @param version Optional version (e.g., "18.0.0")
      */
-    static ToolchainReference createManaged(const std::string& name,
-                                          const std::optional<std::string>& version = std::nullopt) {
-        if (name.empty()) {
-            throw std::invalid_argument("Toolchain name cannot be empty");
-        }
-        return ToolchainReference(name, version);
-    }
+    [[nodiscard]] static std::expected<ToolchainReference, dross::error>
+    createManaged(const std::string& name, const std::optional<std::string>& version = std::nullopt) noexcept;
 
     /**
      * @brief Parse toolchain reference from string
      * @param spec Specification string (e.g., "llvm@18.0.0", "gcc", "system")
      */
-    static ToolchainReference parse(const std::string& spec) {
-        if (spec.empty()) {
-            throw std::invalid_argument("Toolchain specification cannot be empty");
-        }
-
-        if (spec == "system" || spec == "system-default") {
-            return createSystemDefault();
-        }
-
-        auto atPos = spec.find('@');
-        if (atPos == std::string::npos) {
-            // No version specified
-            return createManaged(spec);
-        }
-
-        std::string name = spec.substr(0, atPos);
-        std::string version = spec.substr(atPos + 1);
-
-        if (version.empty()) {
-            throw std::invalid_argument("Version cannot be empty after '@'");
-        }
-
-        return createManaged(name, version);
-    }
+    [[nodiscard]] static std::expected<ToolchainReference, dross::error> parse(const std::string& spec) noexcept;
 
     // Value Object - equality comparison
-    bool operator==(const ToolchainReference& other) const {
-        return isSystemDefault_ == other.isSystemDefault_ &&
-               name_ == other.name_ &&
-               version_ == other.version_;
-    }
-
-    bool operator!=(const ToolchainReference& other) const {
-        return !(*this == other);
-    }
+    [[nodiscard]] bool operator==(const ToolchainReference& other) const;
+    [[nodiscard]] bool operator!=(const ToolchainReference& other) const;
 
     /**
      * @brief Check if this represents system default toolchain
      */
-    bool isSystemDefault() const {
-        return isSystemDefault_;
-    }
+    [[nodiscard]] bool isSystemDefault() const noexcept;
 
     /**
-     * @brief Get toolchain name (empty for system default)
+     * @brief Get toolchain name
+     * @return Toolchain name or error if system default
      */
-    const std::string& name() const {
-        if (isSystemDefault_) {
-            throw std::logic_error("System default toolchain has no name");
-        }
-        return name_;
-    }
+    [[nodiscard]] std::expected<std::string, dross::error> name() const noexcept;
 
     /**
      * @brief Get toolchain version (nullopt if no version specified or system default)
      */
-    const std::optional<std::string>& version() const {
-        return version_;
-    }
+    [[nodiscard]] const std::optional<std::string>& version() const noexcept;
 
     /**
      * @brief Convert to string representation
      */
-    std::string toString() const {
-        if (isSystemDefault_) {
-            return "system";
-        }
-
-        std::string result = name_;
-        if (version_) {
-            result += "@" + *version_;
-        }
-        return result;
-    }
+    [[nodiscard]] std::string toString() const;
 
 private:
-    // Private constructor for managed toolchain
-    ToolchainReference(const std::string& name, const std::optional<std::string>& version)
-        : isSystemDefault_(false), name_(name), version_(version) {}
-
-    bool isSystemDefault_ = false;
-    std::string name_;
-    std::optional<std::string> version_;
+    // PIMPL forward declaration
+    class Internal;
+    std::unique_ptr<Internal> impl_;
 };
 
 }  // namespace scrap::Configuration::Model

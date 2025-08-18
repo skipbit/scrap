@@ -122,7 +122,10 @@ private:
             if (auto toolchain = package->get("toolchain")) {
                 auto toolchainStr = std::string(toolchain->value_or(""));
                 if (!toolchainStr.empty()) {
-                    result.toolchain = Configuration::Model::ToolchainReference::parse(toolchainStr);
+                    auto parseResult = Configuration::Model::ToolchainReference::parse(toolchainStr);
+                    if (parseResult.has_value()) {
+                        result.toolchain = parseResult.value();
+                    }
                 }
             }
         }
