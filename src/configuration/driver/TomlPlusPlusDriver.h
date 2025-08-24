@@ -1,9 +1,8 @@
 #pragma once
 
 #include "TomlDriver.h"
-#include <memory>
 
-namespace scrap::configuration::driver {
+namespace scrap::Configuration::Driver {
 
 /**
  * @brief TOML driver implementation using toml++ library
@@ -16,29 +15,22 @@ public:
     TomlPlusPlusDriver();
     ~TomlPlusPlusDriver() override;
 
-    // Non-copyable, movable
+    // Non-copyable, non-movable (base class disallows it)
     TomlPlusPlusDriver(const TomlPlusPlusDriver&) = delete;
     TomlPlusPlusDriver& operator=(const TomlPlusPlusDriver&) = delete;
-    TomlPlusPlusDriver(TomlPlusPlusDriver&&) = default;
-    TomlPlusPlusDriver& operator=(TomlPlusPlusDriver&&) = default;
+    TomlPlusPlusDriver(TomlPlusPlusDriver&&) = delete;
+    TomlPlusPlusDriver& operator=(TomlPlusPlusDriver&&) = delete;
 
-    std::optional<Configuration::Model::ProjectConfiguration> loadProjectConfiguration(
-        const std::filesystem::path& filePath
-    ) override;
+    std::optional<Configuration::Model::ProjectConfiguration>
+    loadProjectConfiguration(const std::filesystem::path& filePath) override;
 
-    void saveProjectConfiguration(
-        const std::filesystem::path& filePath,
-        const Configuration::Model::ProjectConfiguration& config
-    ) override;
+    void saveProjectConfiguration(const std::filesystem::path& filePath,
+                                  const Configuration::Model::ProjectConfiguration& config) override;
 
-    std::optional<std::map<std::string, std::string>> loadKeyValues(
-        const std::filesystem::path& filePath
-    ) override;
+    std::optional<std::map<std::string, std::string>> loadKeyValues(const std::filesystem::path& filePath) override;
 
-    void saveKeyValues(
-        const std::filesystem::path& filePath,
-        const std::map<std::string, std::string>& keyValues
-    ) override;
+    void saveKeyValues(const std::filesystem::path& filePath,
+                       const std::map<std::string, std::string>& keyValues) override;
 
     bool exists(const std::filesystem::path& filePath) override;
 
@@ -46,7 +38,6 @@ public:
 
 private:
     class Impl;
-    std::unique_ptr<Impl> impl_;
 };
 
-} // namespace scrap::configuration::driver
+}  // namespace scrap::Configuration::Driver

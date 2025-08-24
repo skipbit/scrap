@@ -4,7 +4,7 @@
 #include "configuration/driver/TomlDriver.h"
 #include <memory>
 
-namespace scrap::configuration::service {
+namespace scrap::Configuration::Service {
 
 /**
  * @brief Default implementation of ConfigurationService
@@ -22,83 +22,67 @@ public:
      * @brief Constructor with TOML driver dependency injection
      * @param tomlDriver Driver for TOML file operations
      */
-    explicit DefaultConfigurationService(std::shared_ptr<driver::TomlDriver> tomlDriver);
-    ~DefaultConfigurationService() override = default;
+    explicit DefaultConfigurationService(std::shared_ptr<Configuration::Driver::TomlDriver> tomlDriver);
+    ~DefaultConfigurationService() override;
 
-    // Non-copyable, movable
+    // Non-copyable, non-movable (follows base class)
     DefaultConfigurationService(const DefaultConfigurationService&) = delete;
     DefaultConfigurationService& operator=(const DefaultConfigurationService&) = delete;
-    DefaultConfigurationService(DefaultConfigurationService&&) = default;
-    DefaultConfigurationService& operator=(DefaultConfigurationService&&) = default;
+    DefaultConfigurationService(DefaultConfigurationService&&) = delete;
+    DefaultConfigurationService& operator=(DefaultConfigurationService&&) = delete;
 
     Configuration::Model::Configuration loadConfiguration(
         const std::filesystem::path& workingDirectory,
-        const std::optional<Configuration::Model::ToolchainReference>& cliToolchain = std::nullopt
-    ) override;
+        const std::optional<Configuration::Model::ToolchainReference>& cliToolchain = std::nullopt) override;
 
-    std::optional<Configuration::Model::ProjectConfiguration> loadProjectConfiguration(
-        const std::filesystem::path& projectPath
-    ) override;
+    std::optional<Configuration::Model::ProjectConfiguration>
+    loadProjectConfiguration(const std::filesystem::path& projectPath) override;
 
-    void saveProjectConfiguration(
-        const std::filesystem::path& projectPath,
-        const Configuration::Model::ProjectConfiguration& config
-    ) override;
+    void saveProjectConfiguration(const std::filesystem::path& projectPath,
+                                  const Configuration::Model::ProjectConfiguration& config) override;
 
     void createDefaultConfiguration(
         const std::filesystem::path& projectPath,
         const std::string& projectName,
         Configuration::Model::ProjectType projectType,
-        const std::optional<Configuration::Model::ToolchainReference>& toolchain = std::nullopt
-    ) override;
+        const std::optional<Configuration::Model::ToolchainReference>& toolchain = std::nullopt) override;
 
-    void setProjectToolchain(
-        const std::filesystem::path& projectPath,
-        const Configuration::Model::ToolchainReference& toolchain
-    ) override;
+    void setProjectToolchain(const std::filesystem::path& projectPath,
+                             const Configuration::Model::ToolchainReference& toolchain) override;
 
-    void setRepositoryToolchain(
-        const std::filesystem::path& repositoryRoot,
-        const Configuration::Model::ToolchainReference& toolchain
-    ) override;
+    void setRepositoryToolchain(const std::filesystem::path& repositoryRoot,
+                                const Configuration::Model::ToolchainReference& toolchain) override;
 
-    std::vector<std::string> validateConfiguration(
-        const Configuration::Model::Configuration& config
-    ) override;
+    std::vector<std::string> validateConfiguration(const Configuration::Model::Configuration& config) override;
 
 private:
-    std::shared_ptr<driver::TomlDriver> tomlDriver_;
+    std::shared_ptr<Configuration::Driver::TomlDriver> tomlDriver_;
 
     /**
      * @brief Load toolchain from repository marker file
      */
-    std::optional<Configuration::Model::ToolchainReference> loadRepositoryToolchain(
-        const std::filesystem::path& repositoryRoot
-    );
+    static std::optional<Configuration::Model::ToolchainReference>
+    loadRepositoryToolchain(const std::filesystem::path& repositoryRoot);
 
     /**
      * @brief Load toolchain from environment variable
      */
-    std::optional<Configuration::Model::ToolchainReference> loadEnvironmentToolchain();
+    static std::optional<Configuration::Model::ToolchainReference> loadEnvironmentToolchain();
 
     /**
      * @brief Find repository root from given directory
      */
-    std::optional<std::filesystem::path> findRepositoryRoot(
-        const std::filesystem::path& startPath
-    );
+    static std::optional<std::filesystem::path> findRepositoryRoot(const std::filesystem::path& startPath);
 
     /**
      * @brief Find project root (directory containing scrap.toml)
      */
-    std::optional<std::filesystem::path> findProjectRoot(
-        const std::filesystem::path& startPath
-    );
+    static std::optional<std::filesystem::path> findProjectRoot(const std::filesystem::path& startPath);
 
     /**
      * @brief Get environment variable value
      */
-    std::optional<std::string> environmentVariable(const std::string& name);
+    static std::optional<std::string> environmentVariable(const std::string& name);
 };
 
-} // namespace scrap::configuration::service
+}  // namespace scrap::Configuration::Service

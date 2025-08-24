@@ -1,12 +1,12 @@
 #pragma once
 
 #include "configuration/model/Configuration.h"
-#include "configuration/model/ToolchainReference.h"
 #include "configuration/model/ProjectConfiguration.h"
-#include <optional>
+#include "configuration/model/ToolchainReference.h"
 #include <filesystem>
+#include <optional>
 
-namespace scrap::configuration::service {
+namespace scrap::Configuration::Service {
 
 /**
  * @brief Service interface for configuration management
@@ -16,7 +16,14 @@ namespace scrap::configuration::service {
  */
 class ConfigurationService {
 public:
-    virtual ~ConfigurationService() = default;
+    ConfigurationService();
+    virtual ~ConfigurationService();
+
+    // Non-copyable, non-movable (abstract base class)
+    ConfigurationService(const ConfigurationService&) = delete;
+    ConfigurationService& operator=(const ConfigurationService&) = delete;
+    ConfigurationService(ConfigurationService&&) = delete;
+    ConfigurationService& operator=(ConfigurationService&&) = delete;
 
     /**
      * @brief Load complete configuration for current context
@@ -24,29 +31,25 @@ public:
      * @param cliToolchain Optional toolchain override from command line
      * @return Resolved configuration combining all sources
      */
-    virtual Configuration::Model::Configuration loadConfiguration(
-        const std::filesystem::path& workingDirectory,
-        const std::optional<Configuration::Model::ToolchainReference>& cliToolchain = std::nullopt
-    ) = 0;
+    virtual Configuration::Model::Configuration
+    loadConfiguration(const std::filesystem::path& workingDirectory,
+                      const std::optional<Configuration::Model::ToolchainReference>& cliToolchain = std::nullopt) = 0;
 
     /**
      * @brief Load project configuration from scrap.toml
      * @param projectPath Path to project directory
      * @return Project configuration if scrap.toml exists
      */
-    virtual std::optional<Configuration::Model::ProjectConfiguration> loadProjectConfiguration(
-        const std::filesystem::path& projectPath
-    ) = 0;
+    virtual std::optional<Configuration::Model::ProjectConfiguration>
+    loadProjectConfiguration(const std::filesystem::path& projectPath) = 0;
 
     /**
      * @brief Save project configuration to scrap.toml
      * @param projectPath Path to project directory
      * @param config Configuration to save
      */
-    virtual void saveProjectConfiguration(
-        const std::filesystem::path& projectPath,
-        const Configuration::Model::ProjectConfiguration& config
-    ) = 0;
+    virtual void saveProjectConfiguration(const std::filesystem::path& projectPath,
+                                          const Configuration::Model::ProjectConfiguration& config) = 0;
 
     /**
      * @brief Create default scrap.toml for new project
@@ -59,37 +62,30 @@ public:
         const std::filesystem::path& projectPath,
         const std::string& projectName,
         Configuration::Model::ProjectType projectType,
-        const std::optional<Configuration::Model::ToolchainReference>& toolchain = std::nullopt
-    ) = 0;
+        const std::optional<Configuration::Model::ToolchainReference>& toolchain = std::nullopt) = 0;
 
     /**
      * @brief Set toolchain for project
      * @param projectPath Path to project directory
      * @param toolchain Toolchain to set
      */
-    virtual void setProjectToolchain(
-        const std::filesystem::path& projectPath,
-        const Configuration::Model::ToolchainReference& toolchain
-    ) = 0;
+    virtual void setProjectToolchain(const std::filesystem::path& projectPath,
+                                     const Configuration::Model::ToolchainReference& toolchain) = 0;
 
     /**
      * @brief Set repository-wide toolchain marker
      * @param repositoryRoot Root of the repository
      * @param toolchain Toolchain to set
      */
-    virtual void setRepositoryToolchain(
-        const std::filesystem::path& repositoryRoot,
-        const Configuration::Model::ToolchainReference& toolchain
-    ) = 0;
+    virtual void setRepositoryToolchain(const std::filesystem::path& repositoryRoot,
+                                        const Configuration::Model::ToolchainReference& toolchain) = 0;
 
     /**
      * @brief Validate configuration
      * @param config Configuration to validate
      * @return Vector of validation error messages (empty if valid)
      */
-    virtual std::vector<std::string> validateConfiguration(
-        const Configuration::Model::Configuration& config
-    ) = 0;
+    virtual std::vector<std::string> validateConfiguration(const Configuration::Model::Configuration& config) = 0;
 };
 
-} // namespace scrap::configuration::service
+}  // namespace scrap::Configuration::Service

@@ -2,11 +2,11 @@
 
 #include "configuration/model/ProjectConfiguration.h"
 #include <filesystem>
+#include <map>
 #include <optional>
 #include <string>
-#include <map>
 
-namespace scrap::configuration::driver {
+namespace scrap::Configuration::Driver {
 
 /**
  * @brief Abstract interface for TOML file operations
@@ -16,7 +16,15 @@ namespace scrap::configuration::driver {
  */
 class TomlDriver {
 public:
-    virtual ~TomlDriver() = default;
+    // Constructor and destructor
+    TomlDriver();
+    virtual ~TomlDriver();
+
+    // Deleted copy/move operations (interface should not be copied/moved)
+    TomlDriver(const TomlDriver&) = delete;
+    TomlDriver& operator=(const TomlDriver&) = delete;
+    TomlDriver(TomlDriver&&) = delete;
+    TomlDriver& operator=(TomlDriver&&) = delete;
 
     /**
      * @brief Load project configuration from TOML file
@@ -24,9 +32,8 @@ public:
      * @return Parsed configuration or nullopt if file doesn't exist
      * @throws std::runtime_error if file exists but parsing fails
      */
-    virtual std::optional<Configuration::Model::ProjectConfiguration> loadProjectConfiguration(
-        const std::filesystem::path& filePath
-    ) = 0;
+    virtual std::optional<Configuration::Model::ProjectConfiguration>
+    loadProjectConfiguration(const std::filesystem::path& filePath) = 0;
 
     /**
      * @brief Save project configuration to TOML file
@@ -34,10 +41,8 @@ public:
      * @param config Configuration to save
      * @throws std::runtime_error if saving fails
      */
-    virtual void saveProjectConfiguration(
-        const std::filesystem::path& filePath,
-        const Configuration::Model::ProjectConfiguration& config
-    ) = 0;
+    virtual void saveProjectConfiguration(const std::filesystem::path& filePath,
+                                          const Configuration::Model::ProjectConfiguration& config) = 0;
 
     /**
      * @brief Load simple key-value pairs from TOML file
@@ -45,9 +50,7 @@ public:
      * @return Map of key-value pairs or nullopt if file doesn't exist
      * @throws std::runtime_error if file exists but parsing fails
      */
-    virtual std::optional<std::map<std::string, std::string>> loadKeyValues(
-        const std::filesystem::path& filePath
-    ) = 0;
+    virtual std::optional<std::map<std::string, std::string>> loadKeyValues(const std::filesystem::path& filePath) = 0;
 
     /**
      * @brief Save key-value pairs to TOML file
@@ -55,10 +58,8 @@ public:
      * @param keyValues Map of key-value pairs to save
      * @throws std::runtime_error if saving fails
      */
-    virtual void saveKeyValues(
-        const std::filesystem::path& filePath,
-        const std::map<std::string, std::string>& keyValues
-    ) = 0;
+    virtual void saveKeyValues(const std::filesystem::path& filePath,
+                               const std::map<std::string, std::string>& keyValues) = 0;
 
     /**
      * @brief Check if TOML file exists and is readable
@@ -75,4 +76,4 @@ public:
     virtual std::string validateSyntax(const std::filesystem::path& filePath) = 0;
 };
 
-} // namespace scrap::configuration::driver
+}  // namespace scrap::Configuration::Driver

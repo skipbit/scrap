@@ -55,7 +55,9 @@ target_sources(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/configuration/model/Configuration.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/configuration/model/ProjectConfiguration.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/configuration/model/ToolchainReference.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/configuration/service/ConfigurationService.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/configuration/service/DefaultConfigurationService.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/configuration/driver/TomlDriver.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/configuration/driver/TomlPlusPlusDriver.cpp
     # Template components
     ${CMAKE_CURRENT_SOURCE_DIR}/template/TemplateModule.cpp

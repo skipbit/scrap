@@ -1,49 +1,50 @@
 #include "DefaultConfigurationService.h"
-#include <fstream>
-#include <cstdlib>
 #include <algorithm>
+#include <cstdlib>
+#include <fstream>
+#include <ranges>
 
-namespace scrap::configuration::service {
+namespace scrap::Configuration::Service {
 
-DefaultConfigurationService::DefaultConfigurationService(
-    std::shared_ptr<driver::TomlDriver> tomlDriver)
+DefaultConfigurationService::DefaultConfigurationService(std::shared_ptr<Configuration::Driver::TomlDriver> tomlDriver)
     : tomlDriver_(std::move(tomlDriver))
 {
 }
+
+DefaultConfigurationService::~DefaultConfigurationService() = default;
 
 Configuration::Model::Configuration DefaultConfigurationService::loadConfiguration(
     const std::filesystem::path& workingDirectory,
     const std::optional<Configuration::Model::ToolchainReference>& cliToolchain)
 {
-
     Configuration::Model::Configuration config;
 
     // 1. Command-line toolchain (highest priority)
-    if (cliToolchain) {
+    if (cliToolchain.has_value()) {
         config.setToolchain(*cliToolchain, Configuration::Model::ConfigurationSource::CommandLine);
     }
 
     // 2. Project configuration (scrap.toml)
-    auto projectRoot = findProjectRoot(workingDirectory);
-    if (projectRoot) {
-        auto projectConfig = loadProjectConfiguration(*projectRoot);
-        if (projectConfig) {
+    const auto projectRoot = findProjectRoot(workingDirectory);
+    if (projectRoot.has_value()) {
+        const auto projectConfig = loadProjectConfiguration(*projectRoot);
+        if (projectConfig.has_value()) {
             config.setProjectConfig(*projectConfig);
         }
     }
 
     // 3. Repository marker (.scrap-toolchain)
-    auto repoRoot = findRepositoryRoot(workingDirectory);
-    if (repoRoot) {
-        auto repoToolchain = loadRepositoryToolchain(*repoRoot);
-        if (repoToolchain) {
+    const auto repoRoot = findRepositoryRoot(workingDirectory);
+    if (repoRoot.has_value()) {
+        const auto repoToolchain = loadRepositoryToolchain(*repoRoot);
+        if (repoToolchain.has_value()) {
             config.setToolchain(*repoToolchain, Configuration::Model::ConfigurationSource::RepositoryMarker);
         }
     }
 
     // 4. Environment variable (SCRAP_TOOLCHAIN)
-    auto envToolchain = loadEnvironmentToolchain();
-    if (envToolchain) {
+    const auto envToolchain = loadEnvironmentToolchain();
+    if (envToolchain.has_value()) {
         config.setToolchain(*envToolchain, Configuration::Model::ConfigurationSource::Environment);
     }
 
@@ -53,20 +54,17 @@ Configuration::Model::Configuration DefaultConfigurationService::loadConfigurati
     return config;
 }
 
-std::optional<Configuration::Model::ProjectConfiguration> DefaultConfigurationService::loadProjectConfiguration(
-    const std::filesystem::path& projectPath)
+std::optional<Configuration::Model::ProjectConfiguration>
+DefaultConfigurationService::loadProjectConfiguration(const std::filesystem::path& projectPath)
 {
-
-    auto configPath = projectPath / "scrap.toml";
+    const auto configPath = projectPath / "scrap.toml";
     return tomlDriver_->loadProjectConfiguration(configPath);
 }
 
-void DefaultConfigurationService::saveProjectConfiguration(
-    const std::filesystem::path& projectPath,
-    const Configuration::Model::ProjectConfiguration& config)
+void DefaultConfigurationService::saveProjectConfiguration(const std::filesystem::path& projectPath,
+                                                           const Configuration::Model::ProjectConfiguration& config)
 {
-
-    auto configPath = projectPath / "scrap.toml";
+    const auto configPath = projectPath / "scrap.toml";
 
     // Ensure directory exists
     std::filesystem::create_directories(projectPath);
@@ -80,24 +78,21 @@ void DefaultConfigurationService::createDefaultConfiguration(
     Configuration::Model::ProjectType projectType,
     const std::optional<Configuration::Model::ToolchainReference>& toolchain)
 {
-
     auto config = Configuration::Model::ProjectConfiguration::createDefault(projectName, projectType);
 
-    if (toolchain) {
+    if (toolchain.has_value()) {
         config.toolchain = *toolchain;
     }
 
     saveProjectConfiguration(projectPath, config);
 }
 
-void DefaultConfigurationService::setProjectToolchain(
-    const std::filesystem::path& projectPath,
-    const Configuration::Model::ToolchainReference& toolchain)
+void DefaultConfigurationService::setProjectToolchain(const std::filesystem::path& projectPath,
+                                                      const Configuration::Model::ToolchainReference& toolchain)
 {
-
     // Load existing configuration or create default
     auto config = loadProjectConfiguration(projectPath);
-    if (!config) {
+    if (!config.has_value()) {
         throw std::runtime_error("No scrap.toml found in project directory");
     }
 
@@ -108,12 +103,10 @@ void DefaultConfigurationService::setProjectToolchain(
     saveProjectConfiguration(projectPath, *config);
 }
 
-void DefaultConfigurationService::setRepositoryToolchain(
-    const std::filesystem::path& repositoryRoot,
-    const Configuration::Model::ToolchainReference& toolchain)
+void DefaultConfigurationService::setRepositoryToolchain(const std::filesystem::path& repositoryRoot,
+                                                         const Configuration::Model::ToolchainReference& toolchain)
 {
-
-    auto markerPath = repositoryRoot / ".scrap-toolchain";
+    const auto markerPath = repositoryRoot / ".scrap-toolchain";
 
     // Write toolchain specification to marker file
     std::ofstream file(markerPath);
@@ -128,35 +121,33 @@ void DefaultConfigurationService::setRepositoryToolchain(
     }
 }
 
-std::vector<std::string> DefaultConfigurationService::validateConfiguration(
-    const Configuration::Model::Configuration& config)
+std::vector<std::string>
+DefaultConfigurationService::validateConfiguration(const Configuration::Model::Configuration& config)
 {
-
     std::vector<std::string> errors;
 
     // Validate toolchain
     if (!config.toolchain().hasValue()) {
-        errors.push_back("No toolchain specified");
+        errors.emplace_back("No toolchain specified");
     }
 
     // Validate project configuration
-    auto projectConfig = config.projectConfig();
-    if (projectConfig) {
+    const auto& projectConfig = config.projectConfig();
+    if (projectConfig.has_value()) {
         try {
             projectConfig->validate();
         } catch (const std::exception& e) {
-            errors.push_back("Project configuration error: " + std::string(e.what()));
+            errors.emplace_back("Project configuration error: " + std::string(e.what()));
         }
     }
 
     return errors;
 }
 
-std::optional<Configuration::Model::ToolchainReference> DefaultConfigurationService::loadRepositoryToolchain(
-    const std::filesystem::path& repositoryRoot)
+std::optional<Configuration::Model::ToolchainReference>
+DefaultConfigurationService::loadRepositoryToolchain(const std::filesystem::path& repositoryRoot)
 {
-
-    auto markerPath = repositoryRoot / ".scrap-toolchain";
+    const auto markerPath = repositoryRoot / ".scrap-toolchain";
 
     if (!std::filesystem::exists(markerPath)) {
         return std::nullopt;
@@ -170,10 +161,10 @@ std::optional<Configuration::Model::ToolchainReference> DefaultConfigurationServ
     std::string line;
     if (std::getline(file, line)) {
         // Trim whitespace
-        line.erase(line.begin(), std::find_if(line.begin(), line.end(),
-            [](unsigned char ch) { return !std::isspace(ch); }));
-        line.erase(std::find_if(line.rbegin(), line.rend(),
-            [](unsigned char ch) { return !std::isspace(ch); }).base(), line.end());
+        line.erase(line.begin(), std::ranges::find_if(line, [](unsigned char ch) { return !std::isspace(ch); }));
+        line.erase(
+            std::ranges::find_if(line | std::views::reverse, [](unsigned char ch) { return !std::isspace(ch); }).base(),
+            line.end());
 
         if (!line.empty()) {
             auto result = Configuration::Model::ToolchainReference::parse(line);
@@ -190,12 +181,12 @@ std::optional<Configuration::Model::ToolchainReference> DefaultConfigurationServ
 
 std::optional<Configuration::Model::ToolchainReference> DefaultConfigurationService::loadEnvironmentToolchain()
 {
-    auto envValue = environmentVariable("SCRAP_TOOLCHAIN");
-    if (!envValue || envValue->empty()) {
+    const auto envValue = environmentVariable("SCRAP_TOOLCHAIN");
+    if (!envValue.has_value() || envValue->empty()) {
         return std::nullopt;
     }
 
-    auto result = Configuration::Model::ToolchainReference::parse(*envValue);
+    const auto result = Configuration::Model::ToolchainReference::parse(*envValue);
     if (result.has_value()) {
         return result.value();
     }
@@ -203,10 +194,9 @@ std::optional<Configuration::Model::ToolchainReference> DefaultConfigurationServ
     return std::nullopt;
 }
 
-std::optional<std::filesystem::path> DefaultConfigurationService::findRepositoryRoot(
-    const std::filesystem::path& startPath)
+std::optional<std::filesystem::path>
+DefaultConfigurationService::findRepositoryRoot(const std::filesystem::path& startPath)
 {
-
     auto currentPath = std::filesystem::canonical(startPath);
 
     while (currentPath != currentPath.root_path()) {
@@ -219,10 +209,9 @@ std::optional<std::filesystem::path> DefaultConfigurationService::findRepository
     return std::nullopt;
 }
 
-std::optional<std::filesystem::path> DefaultConfigurationService::findProjectRoot(
-    const std::filesystem::path& startPath)
+std::optional<std::filesystem::path>
+DefaultConfigurationService::findProjectRoot(const std::filesystem::path& startPath)
 {
-
     auto currentPath = std::filesystem::canonical(startPath);
 
     while (currentPath != currentPath.root_path()) {
@@ -238,10 +227,10 @@ std::optional<std::filesystem::path> DefaultConfigurationService::findProjectRoo
 std::optional<std::string> DefaultConfigurationService::environmentVariable(const std::string& name)
 {
     const char* value = std::getenv(name.c_str());
-    if (value) {
+    if (value != nullptr) {
         return std::string(value);
     }
     return std::nullopt;
 }
 
-} // namespace scrap::configuration::service
+}  // namespace scrap::Configuration::Service

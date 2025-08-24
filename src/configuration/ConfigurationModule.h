@@ -3,10 +3,10 @@
 #include "service/ConfigurationService.h"
 #include <memory>
 
-namespace scrap::configuration {
+namespace scrap::Configuration {
 
-namespace driver {
-    class TomlDriver;
+namespace Driver {
+class TomlDriver;
 }
 
 /**
@@ -21,16 +21,15 @@ public:
      * @brief Create default configuration service
      * @return Configured ConfigurationService instance
      */
-    static std::shared_ptr<service::ConfigurationService> createConfigurationService();
+    static std::shared_ptr<Service::ConfigurationService> createConfigurationService();
 
     /**
      * @brief Create configuration service with custom TOML driver
      * @param tomlDriver Custom TOML driver implementation
      * @return Configured ConfigurationService instance
      */
-    static std::shared_ptr<service::ConfigurationService> createConfigurationService(
-        std::shared_ptr<driver::TomlDriver> tomlDriver
-    );
+    static std::shared_ptr<Service::ConfigurationService>
+    createConfigurationService(std::shared_ptr<Driver::TomlDriver> tomlDriver);
 };
 
-} // namespace scrap::configuration
+}  // namespace scrap::Configuration

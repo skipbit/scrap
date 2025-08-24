@@ -47,6 +47,7 @@ Checks: >
   -misc-non-private-member-variables-in-classes,
   -misc-use-anonymous-namespace,
   -modernize-use-trailing-return-type,
+  -performance-avoid-endl,
   -readability-braces-around-statements,
   -readability-function-cognitive-complexity,
   -readability-identifier-length,
