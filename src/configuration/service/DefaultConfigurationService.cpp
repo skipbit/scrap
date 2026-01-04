@@ -1,8 +1,10 @@
 #include "DefaultConfigurationService.h"
+#include "ConfigurationServiceError.h"
 #include <algorithm>
 #include <cstdlib>
 #include <fstream>
 #include <ranges>
+#include <dross/type/error.h>
 
 namespace scrap::Configuration::Service {
 
@@ -87,13 +89,15 @@ void DefaultConfigurationService::createDefaultConfiguration(
     saveProjectConfiguration(projectPath, config);
 }
 
-void DefaultConfigurationService::setProjectToolchain(const std::filesystem::path& projectPath,
-                                                      const Configuration::Model::ToolchainReference& toolchain)
+std::expected<void, dross::error>
+DefaultConfigurationService::setProjectToolchain(const std::filesystem::path& projectPath,
+                                                 const Configuration::Model::ToolchainReference& toolchain) noexcept
 {
     // Load existing configuration or create default
     auto config = loadProjectConfiguration(projectPath);
     if (!config.has_value()) {
-        throw std::runtime_error("No scrap.toml found in project directory");
+        auto errorCode = make_error_code(ConfigurationServiceError::ProjectConfigNotFound);
+        return std::unexpected(dross::error{errorCode.value(), errorCode.category()});
     }
 
     // Update toolchain
@@ -101,24 +105,31 @@ void DefaultConfigurationService::setProjectToolchain(const std::filesystem::pat
 
     // Save updated configuration
     saveProjectConfiguration(projectPath, *config);
+
+    return {};
 }
 
-void DefaultConfigurationService::setRepositoryToolchain(const std::filesystem::path& repositoryRoot,
-                                                         const Configuration::Model::ToolchainReference& toolchain)
+std::expected<void, dross::error>
+DefaultConfigurationService::setRepositoryToolchain(const std::filesystem::path& repositoryRoot,
+                                                    const Configuration::Model::ToolchainReference& toolchain) noexcept
 {
     const auto markerPath = repositoryRoot / ".scrap-toolchain";
 
     // Write toolchain specification to marker file
     std::ofstream file(markerPath);
     if (!file.is_open()) {
-        throw std::runtime_error("Cannot create repository toolchain marker: " + markerPath.string());
+        auto errorCode = make_error_code(ConfigurationServiceError::RepositoryMarkerCreateFailed);
+        return std::unexpected(dross::error{errorCode.value(), errorCode.category()});
     }
 
     file << toolchain.toString() << std::endl;
 
     if (!file.good()) {
-        throw std::runtime_error("Error writing repository toolchain marker: " + markerPath.string());
+        auto errorCode = make_error_code(ConfigurationServiceError::RepositoryMarkerWriteFailed);
+        return std::unexpected(dross::error{errorCode.value(), errorCode.category()});
     }
+
+    return {};
 }
 
 std::vector<std::string>

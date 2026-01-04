@@ -60,6 +60,7 @@ target_sources(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/configuration/model/ToolchainReference.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/configuration/service/ConfigurationService.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/configuration/service/DefaultConfigurationService.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/configuration/service/ConfigurationServiceError.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/configuration/driver/TomlDriver.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/configuration/driver/TomlPlusPlusDriver.cpp
     # Template components
@@ -67,6 +68,7 @@ target_sources(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/template/model/Template.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/template/model/TemplateError.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/template/service/TemplateService.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/template/service/TemplateServiceError.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/template/service/TemplateProcessor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/template/command/TemplateOperation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/template/command/ListOperation.cpp

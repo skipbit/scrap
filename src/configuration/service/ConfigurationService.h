@@ -5,6 +5,8 @@
 #include "configuration/model/ToolchainReference.h"
 #include <filesystem>
 #include <optional>
+#include <expected>
+#include <dross/type/error.h>
 
 namespace scrap::Configuration::Service {
 
@@ -68,17 +70,21 @@ public:
      * @brief Set toolchain for project
      * @param projectPath Path to project directory
      * @param toolchain Toolchain to set
+     * @return void on success, error on failure
      */
-    virtual void setProjectToolchain(const std::filesystem::path& projectPath,
-                                     const Configuration::Model::ToolchainReference& toolchain) = 0;
+    [[nodiscard]] virtual std::expected<void, dross::error>
+    setProjectToolchain(const std::filesystem::path& projectPath,
+                        const Configuration::Model::ToolchainReference& toolchain) noexcept = 0;
 
     /**
      * @brief Set repository-wide toolchain marker
      * @param repositoryRoot Root of the repository
      * @param toolchain Toolchain to set
+     * @return void on success, error on failure
      */
-    virtual void setRepositoryToolchain(const std::filesystem::path& repositoryRoot,
-                                        const Configuration::Model::ToolchainReference& toolchain) = 0;
+    [[nodiscard]] virtual std::expected<void, dross::error>
+    setRepositoryToolchain(const std::filesystem::path& repositoryRoot,
+                           const Configuration::Model::ToolchainReference& toolchain) noexcept = 0;
 
     /**
      * @brief Validate configuration

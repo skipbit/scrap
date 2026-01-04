@@ -1,10 +1,12 @@
 #include "TemplateService.h"
+#include "TemplateServiceError.h"
 #include "TemplateProcessor.h"
 #include "repository/driver/GitDriver.h"
 #include "shared/presentation/driver/ConsolePresenter.h"
 #include <fstream>
 #include <iostream>
 #include <algorithm>
+#include <dross/type/error.h>
 
 namespace scrap::template_system::service {
 
@@ -55,7 +57,8 @@ public:
             official.autoUpdate = true;
 
             templateSources_.push_back(official);
-            saveTemplateRegistry();
+            [[maybe_unused]] auto saveResult = saveTemplateRegistry();
+            // Ignore registry save errors during initialization
             officialSource = findTemplateSource("official");
         }
 
@@ -92,10 +95,12 @@ public:
         templateSources_.clear();
     }
 
-    void saveTemplateRegistry() {
+    [[nodiscard]] std::expected<void, dross::error> saveTemplateRegistry() noexcept
+    {
         std::ofstream registry(registryFile_);
         if (!registry) {
-            throw std::runtime_error("Cannot write template registry");
+            auto errorCode = make_error_code(TemplateServiceError::RegistryWriteFailed);
+            return std::unexpected(dross::error{errorCode.value(), errorCode.category()});
         }
 
         // TODO: Implement TOML serialization when dross support is ready
@@ -120,6 +125,8 @@ public:
             registry << "auto_update = " << (source.autoUpdate ? "true" : "false") << "\n";
             registry << "\n";
         }
+
+        return {};
     }
 
     std::filesystem::path sourceDirectory(const std::string& sourceName)
@@ -277,7 +284,12 @@ std::expected<void, std::string> DefaultTemplateService::addTemplateSource(const
     // TODO: Validate source accessibility
 
     impl_->templateSources_.push_back(source);
-    impl_->saveTemplateRegistry();
+    auto saveResult = impl_->saveTemplateRegistry();
+    if (!saveResult) {
+        // Rollback: remove the source we just added
+        impl_->templateSources_.pop_back();
+        return std::unexpected(std::string(saveResult.error().message()));
+    }
 
     // If it's a git source, clone it
     if (source.type == TemplateSourceType::Git && source.url) {
@@ -328,7 +340,10 @@ std::expected<void, std::string> DefaultTemplateService::removeTemplateSource(co
     }
 
     impl_->templateSources_.erase(it);
-    impl_->saveTemplateRegistry();
+    auto saveResult = impl_->saveTemplateRegistry();
+    if (!saveResult) {
+        return std::unexpected(std::string(saveResult.error().message()));
+    }
 
     return {};
 }
@@ -486,7 +501,8 @@ bool DefaultTemplateService::isTemplateSourceAccessible(const std::string& sourc
     return std::filesystem::exists(sourceDir);
 }
 
-std::filesystem::path DefaultTemplateService::defaultTemplatesDirectory()
+std::expected<std::filesystem::path, dross::error>
+DefaultTemplateService::defaultTemplatesDirectory() noexcept
 {
     // Check SCRAP_HOME environment variable first
     const char* scrapHome = std::getenv("SCRAP_HOME");
@@ -501,7 +517,8 @@ std::filesystem::path DefaultTemplateService::defaultTemplatesDirectory()
     }
 
     if (!home) {
-        throw std::runtime_error("Cannot determine home directory");
+        auto errorCode = make_error_code(TemplateServiceError::HomeDirectoryNotFound);
+        return std::unexpected(dross::error{errorCode.value(), errorCode.category()});
     }
 
     return std::filesystem::path(home) / ".scrap" / "templates";

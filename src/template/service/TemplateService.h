@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <expected>
 #include <string>
+#include <dross/type/error.h>
 
 namespace scrap {
 // Forward declarations
@@ -149,12 +150,12 @@ class DefaultTemplateService : public TemplateService {
 public:
     /**
      * @brief Constructor
-     * @param templatesDir Base directory for template storage (default: ~/.scrap/templates)
+     * @param templatesDir Base directory for template storage
      * @param gitDriver Optional GitDriver for repository operations (will create one if not provided)
      * @param presenter Optional Presenter for output operations (will create ConsolePresenter if not provided)
      */
     explicit DefaultTemplateService(
-        const std::filesystem::path& templatesDir = defaultTemplatesDirectory(),
+        const std::filesystem::path& templatesDir,
         std::shared_ptr<repository::GitDriver> gitDriver = nullptr,
         std::shared_ptr<Presenter> presenter = nullptr);
 
@@ -188,7 +189,8 @@ public:
     bool isTemplateSourceAccessible(const std::string& sourceName) override;
 
     // Static utility
-    static std::filesystem::path defaultTemplatesDirectory();
+    [[nodiscard]] static std::expected<std::filesystem::path, dross::error>
+    defaultTemplatesDirectory() noexcept;
 
 private:
     class Internal;
