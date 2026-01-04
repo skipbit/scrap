@@ -29,6 +29,7 @@ target_sources(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/presentation/driver/ConsolePresenter.cpp
     # Repository components
     ${CMAKE_CURRENT_SOURCE_DIR}/repository/model/Repository.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/repository/RepositoryFactory.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/repository/driver/GitDriver.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/repository/driver/LibGitRepository.cpp
     # Toolchain components

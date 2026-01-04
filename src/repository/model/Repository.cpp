@@ -1,10 +1,11 @@
 #include "repository/model/Repository.h"
-#include "repository/driver/GitDriver.h"
+#include "repository/driver/Driver.h"
 
 namespace scrap {
 
-Repository::Repository(const std::filesystem::path& path)
-    : driver_(std::make_shared<repository::GitDriver>()), directory_(path)
+Repository::Repository(std::shared_ptr<repository::Driver> driver,
+                       const std::filesystem::path& path)
+    : driver_(std::move(driver)), directory_(path)
 {
 }
 

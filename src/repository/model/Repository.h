@@ -14,7 +14,8 @@ public:
         Git,
     };
 
-    Repository(const std::filesystem::path& directory);
+    Repository(std::shared_ptr<repository::Driver> driver,
+               const std::filesystem::path& directory);
     Repository(const Repository&);
     ~Repository();
 

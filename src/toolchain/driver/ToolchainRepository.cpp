@@ -1,5 +1,5 @@
 #include "toolchain/driver/ToolchainRepository.h"
-#include "repository/model/Repository.h"
+#include "repository/RepositoryFactory.h"
 #include <dross/platform/path.h>
 #include <dross/platform/xdg.h>
 #include <filesystem>
@@ -50,10 +50,11 @@ public:
 
         const auto path = dross::path(directory.value()).append("toolchain");
         if (!path.exists()) {
-            Repository(path).clone("https://github.com/skipbit/scrap-toolchain.git");
+            repository::RepositoryFactory::createGitRepository(path)->clone(
+                "https://github.com/skipbit/scrap-toolchain.git");
             return true;
         } else {
-            Repository(path).update();
+            repository::RepositoryFactory::createGitRepository(path)->update();
             return true;
         }
     }
