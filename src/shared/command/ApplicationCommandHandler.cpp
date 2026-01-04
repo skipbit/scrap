@@ -40,11 +40,11 @@ ApplicationCommandHandler::ApplicationCommandHandler(ApplicationCommandHandler&&
 
 ApplicationCommandHandler& ApplicationCommandHandler::operator=(ApplicationCommandHandler&&) noexcept = default;
 
-int ApplicationCommandHandler::execute(int argc, const char* const argv[])
+int ApplicationCommandHandler::execute(std::span<const char* const> args)
 {
     try {
         // Parse command line arguments
-        CommandRequest request = parser_->parse(argc, argv);
+        CommandRequest request = parser_->parse(args);
 
         // Dispatch to appropriate command
         CommandResult result = dispatcher_->dispatch(request);

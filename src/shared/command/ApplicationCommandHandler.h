@@ -4,6 +4,7 @@
 #include "shared/command/CLIParser.h"
 #include "shared/presentation/Presenter.h"
 #include <memory>
+#include <span>
 #include <string>
 
 namespace scrap {
@@ -34,11 +35,10 @@ public:
 
     /**
      * @brief Execute command from command line arguments
-     * @param argc Argument count
-     * @param argv Argument vector
+     * @param args Command line arguments as a span
      * @return Exit code (0 for success, non-zero for failure)
      */
-    int execute(int argc, const char* const argv[]);
+    int execute(std::span<const char* const> args);
 
     /**
      * @brief Register a root-level operation

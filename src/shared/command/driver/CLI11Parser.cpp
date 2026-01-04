@@ -51,8 +51,11 @@ public:
         }
     }
 
-    CommandRequest parseInternal(int argc, const char* const argv[])
+    CommandRequest parseInternal(std::span<const char* const> args)
     {
+        const int argc = static_cast<int>(args.size());
+        const char* const* argv = args.data();
+
         // Check for help requests before parsing to ensure our configured options are shown
         if (argc >= 3 && std::string(argv[2]) == "--help") {
             std::string commandName = argv[1];
@@ -295,9 +298,9 @@ CLI11Parser::CLI11Parser(CLI11Parser&&) noexcept = default;
 
 CLI11Parser& CLI11Parser::operator=(CLI11Parser&&) noexcept = default;
 
-CommandRequest CLI11Parser::parse(int argc, const char* const argv[])
+CommandRequest CLI11Parser::parse(std::span<const char* const> args)
 {
-    return impl_->parseInternal(argc, argv);
+    return impl_->parseInternal(args);
 }
 
 void CLI11Parser::configureCommands(const std::vector<std::pair<std::string, std::string>>& commands)

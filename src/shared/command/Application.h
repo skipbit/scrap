@@ -2,6 +2,7 @@
 
 #include "shared/command/ApplicationCommandHandler.h"
 #include <memory>
+#include <span>
 
 namespace scrap {
 
@@ -27,11 +28,10 @@ public:
 
     /**
      * @brief Run the application
-     * @param argc Argument count
-     * @param argv Argument vector
+     * @param args Command line arguments as a span
      * @return Exit code
      */
-    int run(int argc, const char* const argv[]);
+    int run(std::span<const char* const> args);
 
 private:
     std::unique_ptr<ApplicationCommandHandler> commandHandler_;

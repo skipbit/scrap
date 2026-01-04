@@ -2,6 +2,7 @@
 
 #include "shared/command/CommandDispatcher.h"
 #include <memory>
+#include <span>
 #include <vector>
 #include <string>
 
@@ -23,11 +24,10 @@ public:
 
     /**
      * @brief Parse command line arguments into a command request
-     * @param argc Argument count
-     * @param argv Argument vector
+     * @param args Command line arguments as a span
      * @return Parsed command request
      */
-    virtual CommandRequest parse(int argc, const char* const argv[]) = 0;
+    virtual CommandRequest parse(std::span<const char* const> args) = 0;
 
     /**
      * @brief Configure the parser with available commands

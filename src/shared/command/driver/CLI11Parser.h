@@ -27,7 +27,7 @@ public:
     CLI11Parser(CLI11Parser&&) noexcept;
     CLI11Parser& operator=(CLI11Parser&&) noexcept;
 
-    CommandRequest parse(int argc, const char* const argv[]) override;
+    CommandRequest parse(std::span<const char* const> args) override;
     void configureCommands(const std::vector<std::pair<std::string, std::string>>& commands) override;
     void configureSubcommands(const std::string& parentCommand,
                               const std::vector<std::pair<std::string, std::string>>& subcommands) override;
