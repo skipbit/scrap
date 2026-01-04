@@ -1,21 +1,21 @@
 #include "Project.h"
 #include "ProjectError.h"
-#include <dross/type/error.h>
-#include <sstream>
-#include <regex>
 #include <algorithm>
 #include <chrono>
+#include <dross/type/error.h>
 #include <expected>
+#include <regex>
+#include <sstream>
 
 namespace scrap::Project::Model {
 
 // ProjectName implementation
-ProjectName::ProjectName(std::string value) : value_(std::move(value))
+ProjectName::ProjectName(std::string value)
+    : value_(std::move(value))
 {
 }
 
-std::expected<ProjectName, dross::error>
-ProjectName::create(const std::string& value) noexcept
+std::expected<ProjectName, dross::error> ProjectName::create(const std::string& value) noexcept
 {
     if (value.empty()) {
         auto errorCode = make_error_code(ProjectNameError::Empty);
@@ -30,10 +30,22 @@ ProjectName::create(const std::string& value) noexcept
     }
 
     // Check for reserved keywords
-    static const std::vector<std::string> reservedKeywords = {
-        "class", "struct", "namespace", "template", "typename", "const", "static",
-        "int", "char", "bool", "void", "return", "if", "else", "for", "while"
-    };
+    static const std::vector<std::string> reservedKeywords = {"class",
+                                                              "struct",
+                                                              "namespace",
+                                                              "template",
+                                                              "typename",
+                                                              "const",
+                                                              "static",
+                                                              "int",
+                                                              "char",
+                                                              "bool",
+                                                              "void",
+                                                              "return",
+                                                              "if",
+                                                              "else",
+                                                              "for",
+                                                              "while"};
 
     if (std::find(reservedKeywords.begin(), reservedKeywords.end(), value) != reservedKeywords.end()) {
         auto errorCode = make_error_code(ProjectNameError::ReservedKeyword);
@@ -69,8 +81,7 @@ Version Version::createDefault() noexcept
     return Version{0, 1, 0};
 }
 
-std::expected<Version, dross::error>
-Version::create(int major, int minor, int patch) noexcept
+std::expected<Version, dross::error> Version::create(int major, int minor, int patch) noexcept
 {
     if (major < 0 || minor < 0 || patch < 0) {
         auto errorCode = make_error_code(VersionError::NegativeComponent);
@@ -80,8 +91,7 @@ Version::create(int major, int minor, int patch) noexcept
     return Version{major, minor, patch};
 }
 
-std::expected<Version, dross::error>
-Version::parse(const std::string& versionStr) noexcept
+std::expected<Version, dross::error> Version::parse(const std::string& versionStr) noexcept
 {
     static const std::regex versionPattern(R"(^(\d+)\.(\d+)\.(\d+)$)");
     std::smatch match;
@@ -132,15 +142,14 @@ int Version::patch() const
 }
 
 // Dependency implementation
-Dependency::Dependency(std::string name, std::string version,
-                       std::vector<std::string> features)
+Dependency::Dependency(std::string name, std::string version, std::vector<std::string> features)
     : name_(std::move(name)), version_(std::move(version)), features_(std::move(features))
 {
 }
 
-std::expected<Dependency, dross::error>
-Dependency::create(const std::string& name, const std::string& version,
-                   const std::vector<std::string>& features) noexcept
+std::expected<Dependency, dross::error> Dependency::create(const std::string& name,
+                                                           const std::string& version,
+                                                           const std::vector<std::string>& features) noexcept
 {
     if (name.empty()) {
         auto errorCode = make_error_code(DependencyError::EmptyName);
@@ -176,7 +185,8 @@ std::string Dependency::toString() const
     if (!features_.empty()) {
         ss << " [";
         for (size_t i = 0; i < features_.size(); ++i) {
-            if (i > 0) ss << ", ";
+            if (i > 0)
+                ss << ", ";
             ss << features_[i];
         }
         ss << "]";
@@ -254,8 +264,7 @@ BuildResult BuildResult::success(const std::string& message,
     return result;
 }
 
-BuildResult BuildResult::failed(const std::string& message,
-                                const std::vector<std::string>& errors)
+BuildResult BuildResult::failed(const std::string& message, const std::vector<std::string>& errors)
 {
     BuildResult result;
     result.status = Status::Failed;
@@ -369,7 +378,7 @@ ProjectSpecification::parse(const std::vector<std::string>& args) noexcept
     }
 
     spec.name = args[0];
-    spec.type = ProjectType::Application; // default
+    spec.type = ProjectType::Application;  // default
 
     // Parse additional arguments
     for (size_t i = 1; i < args.size(); ++i) {
@@ -395,7 +404,7 @@ ProjectSpecification::parse(const std::vector<std::string>& args) noexcept
 }
 
 // BuildOptions implementation
-BuildOptions BuildOptions::parse(const std::vector<std::string>& args)
+std::expected<BuildOptions, dross::error> BuildOptions::parse(const std::vector<std::string>& args) noexcept
 {
     BuildOptions options;
 
@@ -411,7 +420,12 @@ BuildOptions BuildOptions::parse(const std::vector<std::string>& args)
         } else if (arg.starts_with("--target=")) {
             options.target = arg.substr(9);
         } else if (arg.starts_with("-j") && arg.length() > 2) {
-            options.parallelJobs = std::stoi(arg.substr(2));
+            try {
+                options.parallelJobs = std::stoi(arg.substr(2));
+            } catch (const std::exception&) {
+                auto errorCode = make_error_code(BuildOptionsError::InvalidParallelJobs);
+                return std::unexpected(dross::error{errorCode.value(), errorCode.category()});
+            }
         }
     }
 
@@ -419,7 +433,7 @@ BuildOptions BuildOptions::parse(const std::vector<std::string>& args)
 }
 
 // RunOptions implementation
-RunOptions RunOptions::parse(const std::vector<std::string>& args)
+std::expected<RunOptions, dross::error> RunOptions::parse(const std::vector<std::string>& args) noexcept
 {
     RunOptions options;
 

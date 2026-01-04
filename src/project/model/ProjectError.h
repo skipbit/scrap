@@ -1,7 +1,7 @@
 #pragma once
 
-#include <dross/type/error.h>
 #include <cstdint>
+#include <dross/type/error.h>
 #include <system_error>
 
 namespace scrap::Project::Model {
@@ -27,8 +27,8 @@ enum class VersionError : std::uint8_t {
  * @brief Error codes for Dependency validation
  */
 enum class DependencyError : std::uint8_t {
-    EmptyName,     ///< Dependency name cannot be empty
-    EmptyVersion   ///< Dependency version cannot be empty
+    EmptyName,    ///< Dependency name cannot be empty
+    EmptyVersion  ///< Dependency version cannot be empty
 };
 
 /**
@@ -36,6 +36,13 @@ enum class DependencyError : std::uint8_t {
  */
 enum class ProjectSpecificationError : std::uint8_t {
     MissingProjectName  ///< Project name is required
+};
+
+/**
+ * @brief Error codes for BuildOptions parsing
+ */
+enum class BuildOptionsError : std::uint8_t {
+    InvalidParallelJobs  ///< Parallel jobs value must be a valid integer
 };
 
 }  // namespace scrap::Project::Model
@@ -53,19 +60,20 @@ std::error_code make_error_code(scrap::Project::Model::DependencyError e) noexce
 // NOLINTNEXTLINE(readability-identifier-naming) - C++ standard requires this exact name for ADL
 std::error_code make_error_code(scrap::Project::Model::ProjectSpecificationError e) noexcept;
 
+// NOLINTNEXTLINE(readability-identifier-naming) - C++ standard requires this exact name for ADL
+std::error_code make_error_code(scrap::Project::Model::BuildOptionsError e) noexcept;
+
 // C++ standard requires specializing std::is_error_code_enum for custom error enums
 namespace std {
 
-template <>
-struct is_error_code_enum<scrap::Project::Model::ProjectNameError> : true_type { };
+template <> struct is_error_code_enum<scrap::Project::Model::ProjectNameError> : true_type { };
 
-template <>
-struct is_error_code_enum<scrap::Project::Model::VersionError> : true_type { };
+template <> struct is_error_code_enum<scrap::Project::Model::VersionError> : true_type { };
 
-template <>
-struct is_error_code_enum<scrap::Project::Model::DependencyError> : true_type { };
+template <> struct is_error_code_enum<scrap::Project::Model::DependencyError> : true_type { };
 
-template <>
-struct is_error_code_enum<scrap::Project::Model::ProjectSpecificationError> : true_type { };
+template <> struct is_error_code_enum<scrap::Project::Model::ProjectSpecificationError> : true_type { };
+
+template <> struct is_error_code_enum<scrap::Project::Model::BuildOptionsError> : true_type { };
 
 }  // namespace std

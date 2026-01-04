@@ -1,13 +1,13 @@
 #pragma once
 
+#include "ProjectError.h"
+#include <dross/type/error.h>
+#include <expected>
+#include <filesystem>
+#include <map>
+#include <optional>
 #include <string>
 #include <vector>
-#include <filesystem>
-#include <optional>
-#include <map>
-#include <expected>
-#include <dross/type/error.h>
-#include "ProjectError.h"
 
 namespace scrap::Project::Model {
 
@@ -21,8 +21,7 @@ public:
      * @param value Project name to validate
      * @return ProjectName if valid, error otherwise
      */
-    [[nodiscard]] static std::expected<ProjectName, dross::error>
-    create(const std::string& value) noexcept;
+    [[nodiscard]] static std::expected<ProjectName, dross::error> create(const std::string& value) noexcept;
 
     const std::string& value() const;
     std::string toString() const;
@@ -72,16 +71,14 @@ public:
      * @param patch Patch version number
      * @return Version if valid, error otherwise
      */
-    [[nodiscard]] static std::expected<Version, dross::error>
-    create(int major, int minor, int patch) noexcept;
+    [[nodiscard]] static std::expected<Version, dross::error> create(int major, int minor, int patch) noexcept;
 
     /**
      * @brief Parse Version from string (X.Y.Z format)
      * @param versionStr Version string to parse
      * @return Version if valid, error otherwise
      */
-    [[nodiscard]] static std::expected<Version, dross::error>
-    parse(const std::string& versionStr) noexcept;
+    [[nodiscard]] static std::expected<Version, dross::error> parse(const std::string& versionStr) noexcept;
 
     int major() const;
     int minor() const;
@@ -110,8 +107,7 @@ public:
      * @return Dependency if valid, error otherwise
      */
     [[nodiscard]] static std::expected<Dependency, dross::error>
-    create(const std::string& name, const std::string& version,
-           const std::vector<std::string>& features = {}) noexcept;
+    create(const std::string& name, const std::string& version, const std::vector<std::string>& features = {}) noexcept;
 
     const std::string& name() const;
     const std::string& version() const;
@@ -125,8 +121,7 @@ private:
     std::vector<std::string> features_;
 
     // Private constructor - use create() factory method
-    Dependency(std::string name, std::string version,
-               std::vector<std::string> features);
+    Dependency(std::string name, std::string version, std::vector<std::string> features);
 };
 
 /**
@@ -179,8 +174,7 @@ struct BuildResult {
                                std::chrono::milliseconds duration = {},
                                const std::vector<std::filesystem::path>& artifacts = {});
 
-    static BuildResult failed(const std::string& message,
-                              const std::vector<std::string>& errors = {});
+    static BuildResult failed(const std::string& message, const std::vector<std::string>& errors = {});
 
     bool isSuccess() const;
 };
@@ -190,9 +184,7 @@ struct BuildResult {
  */
 class Project {
 public:
-    Project(const ProjectName& name,
-            ProjectType type,
-            const Version& version = Version::createDefault());
+    Project(const ProjectName& name, ProjectType type, const Version& version = Version::createDefault());
 
     // Getters
     const ProjectName& name() const;
@@ -250,7 +242,7 @@ struct BuildOptions {
     std::optional<std::string> target;
     int parallelJobs = 0;  // 0 = auto-detect
 
-    static BuildOptions parse(const std::vector<std::string>& args);
+    [[nodiscard]] static std::expected<BuildOptions, dross::error> parse(const std::vector<std::string>& args) noexcept;
 };
 
 /**
@@ -260,7 +252,7 @@ struct RunOptions {
     std::vector<std::string> arguments;
     std::optional<std::filesystem::path> workingDirectory;
 
-    static RunOptions parse(const std::vector<std::string>& args);
+    [[nodiscard]] static std::expected<RunOptions, dross::error> parse(const std::vector<std::string>& args) noexcept;
 };
 
 // Helper functions

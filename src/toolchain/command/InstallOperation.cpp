@@ -1,10 +1,10 @@
 #include "InstallOperation.h"
-#include "toolchain/service/ToolchainService.h"
-#include "toolchain/model/Toolchain.h"
-#include "shared/presentation/Presenter.h"
 #include "shared/command/CommandOptions.h"
-#include <sstream>
+#include "shared/presentation/Presenter.h"
+#include "toolchain/model/Toolchain.h"
+#include "toolchain/service/ToolchainService.h"
 #include <chrono>
+#include <sstream>
 #include <thread>
 
 namespace scrap::toolchain::command {
@@ -29,63 +29,56 @@ void InstallOperation::execute(const std::vector<std::string>& args)
 
     const std::string& specStr = args[0];
 
-    try {
-        // Parse specification
-        auto spec = model::ToolchainSpecification::parse(specStr);
+    // Parse specification
+    auto spec = model::ToolchainSpecification::parse(specStr);
 
-        // Display installation start (Homebrew-style)
-        std::stringstream ss;
-        ss << "==> Downloading " << spec.name << "-" << spec.version
-           << "-" << model::architectureToString(spec.architecture.value_or(model::currentArchitecture()))
-           << "-" << model::platformToString(spec.platform.value_or(model::currentPlatform()))
-           << " from github.com/skipbit/scrap-toolchain...";
-        output->displayInfo(ss.str());
+    // Display installation start (Homebrew-style)
+    std::stringstream ss;
+    ss << "==> Downloading " << spec.name << "-" << spec.version << "-"
+       << model::architectureToString(spec.architecture.value_or(model::currentArchitecture())) << "-"
+       << model::platformToString(spec.platform.value_or(model::currentPlatform()))
+       << " from github.com/skipbit/scrap-toolchain...";
+    output->displayInfo(ss.str());
 
-        // Simulate download progress
-        output->displayInfo("==> Downloading https://github.com/skipbit/scrap-toolchain/releases/download/"
-                              + spec.name + "-" + spec.version + "/" + spec.name + "-" + spec.version + ".tar.gz");
+    // Simulate download progress
+    output->displayInfo("==> Downloading https://github.com/skipbit/scrap-toolchain/releases/download/" + spec.name +
+                        "-" + spec.version + "/" + spec.name + "-" + spec.version + ".tar.gz");
 
-        // Progress bar simulation
-        output->startProgress("Downloading", 100);
-        for (size_t i = 0; i <= 100; i += 10) {
-            output->updateProgress(i);
-            std::this_thread::sleep_for(std::chrono::milliseconds(50)); // Simulate download time
-        }
-        output->finishProgress();
-
-        // Install
-        ss.str("");
-        ss << "==> Installing " << spec.name << "-" << spec.version << "...";
-        output->displayInfo(ss.str());
-
-        service_->install(spec);
-
-        // Success message
-        output->displaySuccess("==> Installation successful!");
-        output->displayInfo("==> Summary");
-
-        ss.str("");
-        ss << "  🎯 " << spec.name << "-" << spec.version
-           << "-" << model::architectureToString(spec.architecture.value_or(model::currentArchitecture()))
-           << "-" << model::platformToString(spec.platform.value_or(model::currentPlatform()))
-           << " installed to:";
-        output->displayInfo(ss.str());
-
-        ss.str("");
-        ss << "     /Users/user/.scrap/toolchains/" << spec.name << "/" << spec.version
-           << "/" << model::architectureToString(spec.architecture.value_or(model::currentArchitecture()))
-           << "-" << model::platformToString(spec.platform.value_or(model::currentPlatform()));
-        output->displayInfo(ss.str());
-
-    } catch (const std::exception& e) {
-        output->displayError(std::string("Installation failed: ") + e.what());
+    // Progress bar simulation
+    output->startProgress("Downloading", 100);
+    for (size_t i = 0; i <= 100; i += 10) {
+        output->updateProgress(i);
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));  // Simulate download time
     }
+    output->finishProgress();
+
+    // Install
+    ss.str("");
+    ss << "==> Installing " << spec.name << "-" << spec.version << "...";
+    output->displayInfo(ss.str());
+
+    service_->install(spec);
+
+    // Success message
+    output->displaySuccess("==> Installation successful!");
+    output->displayInfo("==> Summary");
+
+    ss.str("");
+    ss << "  🎯 " << spec.name << "-" << spec.version << "-"
+       << model::architectureToString(spec.architecture.value_or(model::currentArchitecture())) << "-"
+       << model::platformToString(spec.platform.value_or(model::currentPlatform())) << " installed to:";
+    output->displayInfo(ss.str());
+
+    ss.str("");
+    ss << "     /Users/user/.scrap/toolchains/" << spec.name << "/" << spec.version << "/"
+       << model::architectureToString(spec.architecture.value_or(model::currentArchitecture())) << "-"
+       << model::platformToString(spec.platform.value_or(model::currentPlatform()));
+    output->displayInfo(ss.str());
 }
 
 CommandOptions InstallOperation::describeOptions() const
 {
-    return CommandOptions()
-        .addPositional("toolchain-spec", "Toolchain specification (name[@version])");
+    return CommandOptions().addPositional("toolchain-spec", "Toolchain specification (name[@version])");
 }
 
 void InstallOperation::displayHelp() const
@@ -94,4 +87,4 @@ void InstallOperation::displayHelp() const
     // Help is now generated automatically from describeOptions()
 }
 
-} // namespace scrap::toolchain::command
+}  // namespace scrap::toolchain::command

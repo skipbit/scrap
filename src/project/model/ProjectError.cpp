@@ -102,3 +102,26 @@ std::error_code make_error_code(scrap::Project::Model::ProjectSpecificationError
     static const ProjectSpecificationErrorCategory ErrorCategory{};
     return {static_cast<int>(e), ErrorCategory};
 }
+
+std::error_code make_error_code(scrap::Project::Model::BuildOptionsError e) noexcept
+{
+    struct BuildOptionsErrorCategory : std::error_category {
+        [[nodiscard]] const char* name() const noexcept override
+        {
+            return "BuildOptions";
+        }
+
+        [[nodiscard]] std::string message(int ev) const override
+        {
+            switch (static_cast<scrap::Project::Model::BuildOptionsError>(ev)) {
+                case scrap::Project::Model::BuildOptionsError::InvalidParallelJobs:
+                    return "Invalid parallel jobs value, expected a positive integer";
+                default:
+                    return "Unknown BuildOptions error";
+            }
+        }
+    };
+
+    static const BuildOptionsErrorCategory ErrorCategory{};
+    return {static_cast<int>(e), ErrorCategory};
+}
