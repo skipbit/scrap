@@ -157,13 +157,9 @@ scrap is in early alpha development (v0.0.1). Currently implemented:
 git clone https://github.com/skipbit/scrap.git
 cd scrap
 
-# Create build directory
-mkdir -p build/release
-cd build/release
-
 # Configure and build
-cmake ../.. -DCMAKE_BUILD_TYPE=Release
-cmake --build . --parallel
+cmake -S . -B build/release -DCMAKE_BUILD_TYPE=Release
+cmake --build build/release --parallel
 
 # The executable will be at build/release/bin/scrap
 ```
