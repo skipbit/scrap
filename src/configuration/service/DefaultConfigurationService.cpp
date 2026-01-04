@@ -2,9 +2,9 @@
 #include "ConfigurationServiceError.h"
 #include <algorithm>
 #include <cstdlib>
+#include <dross/type/error.h>
 #include <fstream>
 #include <ranges>
-#include <dross/type/error.h>
 
 namespace scrap::Configuration::Service {
 
@@ -60,7 +60,17 @@ std::optional<Configuration::Model::ProjectConfiguration>
 DefaultConfigurationService::loadProjectConfiguration(const std::filesystem::path& projectPath)
 {
     const auto configPath = projectPath / "scrap.toml";
-    return tomlDriver_->loadProjectConfiguration(configPath);
+    auto result = tomlDriver_->loadProjectConfiguration(configPath);
+
+    // TODO(Phase 5): Propagate error to caller via std::expected
+    // Currently silently converts all errors (parse errors, file access errors) to nullopt
+    // This loses error information but maintains API compatibility with current interface
+    // Callers cannot distinguish between "file not found" and "malformed TOML"
+    if (!result.has_value()) {
+        return std::nullopt;
+    }
+
+    return *result;
 }
 
 void DefaultConfigurationService::saveProjectConfiguration(const std::filesystem::path& projectPath,
@@ -71,7 +81,11 @@ void DefaultConfigurationService::saveProjectConfiguration(const std::filesystem
     // Ensure directory exists
     std::filesystem::create_directories(projectPath);
 
-    tomlDriver_->saveProjectConfiguration(configPath, config);
+    auto result = tomlDriver_->saveProjectConfiguration(configPath, config);
+    // TODO(Phase 5): Change this method to return std::expected<void, dross::error>
+    // Currently silently ignores errors (file open failures, write failures)
+    // This maintains API compatibility but loses error information
+    [[maybe_unused]] auto _ = result;
 }
 
 void DefaultConfigurationService::createDefaultConfiguration(

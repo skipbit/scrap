@@ -21,18 +21,21 @@ public:
     TomlPlusPlusDriver(TomlPlusPlusDriver&&) = delete;
     TomlPlusPlusDriver& operator=(TomlPlusPlusDriver&&) = delete;
 
-    std::optional<Configuration::Model::ProjectConfiguration>
-    loadProjectConfiguration(const std::filesystem::path& filePath) override;
+    [[nodiscard]] std::expected<std::optional<Configuration::Model::ProjectConfiguration>, dross::error>
+    loadProjectConfiguration(const std::filesystem::path& filePath) noexcept override;
 
-    void saveProjectConfiguration(const std::filesystem::path& filePath,
-                                  const Configuration::Model::ProjectConfiguration& config) override;
+    [[nodiscard]] std::expected<void, dross::error>
+    saveProjectConfiguration(const std::filesystem::path& filePath,
+                             const Configuration::Model::ProjectConfiguration& config) noexcept override;
 
-    std::optional<std::map<std::string, std::string>> loadKeyValues(const std::filesystem::path& filePath) override;
+    [[nodiscard]] std::expected<std::optional<std::map<std::string, std::string>>, dross::error>
+    loadKeyValues(const std::filesystem::path& filePath) noexcept override;
 
-    void saveKeyValues(const std::filesystem::path& filePath,
-                       const std::map<std::string, std::string>& keyValues) override;
+    [[nodiscard]] std::expected<void, dross::error>
+    saveKeyValues(const std::filesystem::path& filePath,
+                  const std::map<std::string, std::string>& keyValues) noexcept override;
 
-    bool exists(const std::filesystem::path& filePath) override;
+    [[nodiscard]] bool exists(const std::filesystem::path& filePath) override;
 
     std::string validateSyntax(const std::filesystem::path& filePath) override;
 
