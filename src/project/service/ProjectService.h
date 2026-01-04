@@ -14,6 +14,9 @@ namespace scrap::template_system::service {
 
 namespace scrap::project::service {
 
+// Namespace alias for cleaner code
+namespace Model = scrap::Project::Model;
+
 /**
  * @brief Service interface for project management operations
  *
@@ -31,14 +34,14 @@ public:
      * @return Created project
      * @throws std::runtime_error if creation fails
      */
-    virtual model::Project createNew(const model::ProjectSpecification& spec) = 0;
+    virtual Model::Project createNew(const Model::ProjectSpecification& spec) = 0;
 
     /**
      * @brief Load project from current directory or specified path
      * @param path Optional path to project directory
      * @return Project if found, nullopt otherwise
      */
-    virtual std::optional<model::Project> loadProject(
+    virtual std::optional<Model::Project> loadProject(
         const std::optional<std::filesystem::path>& path = std::nullopt) = 0;
 
     /**
@@ -46,7 +49,7 @@ public:
      * @param project Project to save
      * @throws std::runtime_error if save fails
      */
-    virtual void saveProject(const model::Project& project) = 0;
+    virtual void saveProject(const Model::Project& project) = 0;
 
     // Build operations
     /**
@@ -55,8 +58,8 @@ public:
      * @param options Build options
      * @return Build result
      */
-    virtual model::BuildResult build(const model::Project& project,
-                                     const model::BuildOptions& options) = 0;
+    virtual Model::BuildResult build(const Model::Project& project,
+                                     const Model::BuildOptions& options) = 0;
 
     /**
      * @brief Run the built executable
@@ -64,14 +67,14 @@ public:
      * @param options Run options
      * @throws std::runtime_error if run fails
      */
-    virtual void run(const model::Project& project,
-                     const model::RunOptions& options) = 0;
+    virtual void run(const Model::Project& project,
+                     const Model::RunOptions& options) = 0;
 
     /**
      * @brief Clean build artifacts
      * @param project Project to clean
      */
-    virtual void clean(const model::Project& project) = 0;
+    virtual void clean(const Model::Project& project) = 0;
 
     // Dependency management
     /**
@@ -80,8 +83,8 @@ public:
      * @param dependency Dependency to add
      * @return Modified project
      */
-    virtual model::Project addDependency(const model::Project& project,
-                                         const model::Dependency& dependency) = 0;
+    virtual Model::Project addDependency(const Model::Project& project,
+                                         const Model::Dependency& dependency) = 0;
 };
 
 /**
@@ -95,31 +98,31 @@ public:
         std::shared_ptr<Presenter> presenter = nullptr);
     ~MockProjectService() override = default;
 
-    model::Project createNew(const model::ProjectSpecification& spec) override;
-    std::optional<model::Project> loadProject(
+    Model::Project createNew(const Model::ProjectSpecification& spec) override;
+    std::optional<Model::Project> loadProject(
         const std::optional<std::filesystem::path>& path = std::nullopt) override;
-    void saveProject(const model::Project& project) override;
+    void saveProject(const Model::Project& project) override;
 
-    model::BuildResult build(const model::Project& project,
-                             const model::BuildOptions& options) override;
-    void run(const model::Project& project,
-             const model::RunOptions& options) override;
-    void clean(const model::Project& project) override;
+    Model::BuildResult build(const Model::Project& project,
+                             const Model::BuildOptions& options) override;
+    void run(const Model::Project& project,
+             const Model::RunOptions& options) override;
+    void clean(const Model::Project& project) override;
 
-    model::Project addDependency(const model::Project& project,
-                                 const model::Dependency& dependency) override;
+    Model::Project addDependency(const Model::Project& project,
+                                 const Model::Dependency& dependency) override;
 
 private:
     std::shared_ptr<template_system::service::TemplateService> templateService_;
     std::shared_ptr<Presenter> presenter_;
 
-    void createProjectStructure(const model::Project& project,
+    void createProjectStructure(const Model::Project& project,
                                 const std::filesystem::path& basePath);
-    void generateSourceFiles(const model::Project& project,
+    void generateSourceFiles(const Model::Project& project,
                              const std::filesystem::path& projectPath);
-    void generateConfigFile(const model::Project& project,
+    void generateConfigFile(const Model::Project& project,
                             const std::filesystem::path& projectPath);
-    void createProjectFromTemplate(const model::ProjectSpecification& spec,
+    void createProjectFromTemplate(const Model::ProjectSpecification& spec,
                                   const std::filesystem::path& targetPath);
 };
 

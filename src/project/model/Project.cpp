@@ -1,28 +1,32 @@
 #include "Project.h"
-#include <stdexcept>
+#include "ProjectError.h"
+#include <dross/type/error.h>
 #include <sstream>
 #include <regex>
 #include <algorithm>
 #include <chrono>
+#include <expected>
 
-namespace scrap::project::model {
+namespace scrap::Project::Model {
 
 // ProjectName implementation
-ProjectName::ProjectName(const std::string& value) : value_(value)
+ProjectName::ProjectName(std::string value) : value_(std::move(value))
 {
-    validate();
 }
 
-void ProjectName::validate() const
+std::expected<ProjectName, dross::error>
+ProjectName::create(const std::string& value) noexcept
 {
-    if (value_.empty()) {
-        throw std::invalid_argument("Project name cannot be empty");
+    if (value.empty()) {
+        auto errorCode = make_error_code(ProjectNameError::Empty);
+        return std::unexpected(dross::error{errorCode.value(), errorCode.category()});
     }
 
     // Check for valid C++ identifier pattern
-    std::regex validName("^[a-zA-Z_][a-zA-Z0-9_]*$");
-    if (!std::regex_match(value_, validName)) {
-        throw std::invalid_argument("Project name must be a valid C++ identifier: " + value_);
+    static const std::regex validName("^[a-zA-Z_][a-zA-Z0-9_]*$");
+    if (!std::regex_match(value, validName)) {
+        auto errorCode = make_error_code(ProjectNameError::InvalidIdentifier);
+        return std::unexpected(dross::error{errorCode.value(), errorCode.category()});
     }
 
     // Check for reserved keywords
@@ -31,9 +35,12 @@ void ProjectName::validate() const
         "int", "char", "bool", "void", "return", "if", "else", "for", "while"
     };
 
-    if (std::find(reservedKeywords.begin(), reservedKeywords.end(), value_) != reservedKeywords.end()) {
-        throw std::invalid_argument("Project name cannot be a C++ reserved keyword: " + value_);
+    if (std::find(reservedKeywords.begin(), reservedKeywords.end(), value) != reservedKeywords.end()) {
+        auto errorCode = make_error_code(ProjectNameError::ReservedKeyword);
+        return std::unexpected(dross::error{errorCode.value(), errorCode.category()});
     }
+
+    return ProjectName{value};
 }
 
 const std::string& ProjectName::value() const
@@ -55,23 +62,48 @@ bool ProjectName::operator==(const ProjectName& other) const
 Version::Version(int major, int minor, int patch)
     : major_(major), minor_(minor), patch_(patch)
 {
-    if (major < 0 || minor < 0 || patch < 0) {
-        throw std::invalid_argument("Version components cannot be negative");
-    }
 }
 
-Version::Version(const std::string& versionStr)
+Version Version::createDefault() noexcept
 {
-    std::regex versionPattern(R"(^(\d+)\.(\d+)\.(\d+)$)");
+    return Version{0, 1, 0};
+}
+
+std::expected<Version, dross::error>
+Version::create(int major, int minor, int patch) noexcept
+{
+    if (major < 0 || minor < 0 || patch < 0) {
+        auto errorCode = make_error_code(VersionError::NegativeComponent);
+        return std::unexpected(dross::error{errorCode.value(), errorCode.category()});
+    }
+
+    return Version{major, minor, patch};
+}
+
+std::expected<Version, dross::error>
+Version::parse(const std::string& versionStr) noexcept
+{
+    static const std::regex versionPattern(R"(^(\d+)\.(\d+)\.(\d+)$)");
     std::smatch match;
 
     if (!std::regex_match(versionStr, match, versionPattern)) {
-        throw std::invalid_argument("Invalid version format, expected X.Y.Z: " + versionStr);
+        auto errorCode = make_error_code(VersionError::InvalidFormat);
+        return std::unexpected(dross::error{errorCode.value(), errorCode.category()});
     }
 
-    major_ = std::stoi(match[1]);
-    minor_ = std::stoi(match[2]);
-    patch_ = std::stoi(match[3]);
+    // Parse version components
+    // Note: std::stoi could theoretically throw, but the regex has validated
+    // that we have valid digits, so we wrap in try-catch for noexcept guarantee
+    try {
+        const int major = std::stoi(match[1]);
+        const int minor = std::stoi(match[2]);
+        const int patch = std::stoi(match[3]);
+        return Version{major, minor, patch};
+    } catch (...) {
+        // This should never happen due to regex validation, but handle for noexcept safety
+        auto errorCode = make_error_code(VersionError::InvalidFormat);
+        return std::unexpected(dross::error{errorCode.value(), errorCode.category()});
+    }
 }
 
 std::string Version::toString() const
@@ -100,16 +132,26 @@ int Version::patch() const
 }
 
 // Dependency implementation
-Dependency::Dependency(const std::string& name, const std::string& version,
-                       const std::vector<std::string>& features)
-    : name_(name), version_(version), features_(features)
+Dependency::Dependency(std::string name, std::string version,
+                       std::vector<std::string> features)
+    : name_(std::move(name)), version_(std::move(version)), features_(std::move(features))
+{
+}
+
+std::expected<Dependency, dross::error>
+Dependency::create(const std::string& name, const std::string& version,
+                   const std::vector<std::string>& features) noexcept
 {
     if (name.empty()) {
-        throw std::invalid_argument("Dependency name cannot be empty");
+        auto errorCode = make_error_code(DependencyError::EmptyName);
+        return std::unexpected(dross::error{errorCode.value(), errorCode.category()});
     }
     if (version.empty()) {
-        throw std::invalid_argument("Dependency version cannot be empty");
+        auto errorCode = make_error_code(DependencyError::EmptyVersion);
+        return std::unexpected(dross::error{errorCode.value(), errorCode.category()});
     }
+
+    return Dependency{name, version, features};
 }
 
 const std::string& Dependency::name() const
@@ -316,12 +358,14 @@ std::filesystem::path Project::buildDirectory(BuildMode mode) const
 }
 
 // ProjectSpecification implementation
-ProjectSpecification ProjectSpecification::parse(const std::vector<std::string>& args)
+std::expected<ProjectSpecification, dross::error>
+ProjectSpecification::parse(const std::vector<std::string>& args) noexcept
 {
     ProjectSpecification spec;
 
     if (args.empty()) {
-        throw std::invalid_argument("Project name is required");
+        auto errorCode = make_error_code(ProjectSpecificationError::MissingProjectName);
+        return std::unexpected(dross::error{errorCode.value(), errorCode.category()});
     }
 
     spec.name = args[0];
@@ -455,4 +499,4 @@ BuildMode stringToBuildMode(const std::string& str)
     return BuildMode::Debug;
 }
 
-} // namespace scrap::project::model
+}  // namespace scrap::Project::Model

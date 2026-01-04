@@ -45,6 +45,7 @@ target_sources(${PROJECT_NAME} PRIVATE
     # Project components
     ${CMAKE_CURRENT_SOURCE_DIR}/project/ProjectModule.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/project/model/Project.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/project/model/ProjectError.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/project/service/MockProjectService.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/project/command/NewOperation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/project/command/BuildOperation.cpp

@@ -7,6 +7,9 @@
 
 namespace scrap::project::command {
 
+// Namespace alias for cleaner code
+namespace Model = scrap::Project::Model;
+
 RunOperation::RunOperation(std::shared_ptr<service::ProjectService> service)
     : service_(service)
 {
@@ -37,11 +40,11 @@ void RunOperation::execute(const std::vector<std::string>& args)
         }
 
         // Parse run options
-        auto options = model::RunOptions::parse(args);
+        auto options = Model::RunOptions::parse(args);
 
         // Check if build is needed (always build in mock implementation)
-        auto buildOptions = model::BuildOptions();
-        buildOptions.mode = model::BuildMode::Debug;
+        auto buildOptions = Model::BuildOptions();
+        buildOptions.mode = Model::BuildMode::Debug;
 
         std::stringstream ss;
         ss << "   Compiling " << project->name().toString()

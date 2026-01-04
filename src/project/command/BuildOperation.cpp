@@ -9,6 +9,9 @@
 
 namespace scrap::project::command {
 
+// Namespace alias for cleaner code
+namespace Model = scrap::Project::Model;
+
 BuildOperation::BuildOperation(std::shared_ptr<service::ProjectService> service)
     : service_(service)
 {
@@ -31,7 +34,7 @@ void BuildOperation::execute(const std::vector<std::string>& args)
         }
 
         // Parse build options
-        auto options = model::BuildOptions::parse(args);
+        auto options = Model::BuildOptions::parse(args);
 
         // Display build start (cargo-style)
         if (options.clean) {
@@ -59,8 +62,8 @@ void BuildOperation::execute(const std::vector<std::string>& args)
         // Show progress for verbose mode
         if (options.verbose) {
             output->displayInfo("     C++ Standard: " + project->buildConfig().cppStandard());
-            output->displayInfo("     Build Mode: " + model::buildModeToString(options.mode));
-            if (options.mode == model::BuildMode::Release) {
+            output->displayInfo("     Build Mode: " + Model::buildModeToString(options.mode));
+            if (options.mode == Model::BuildMode::Release) {
                 output->displayInfo("     Optimization: O3");
             }
         }
@@ -79,10 +82,10 @@ void BuildOperation::execute(const std::vector<std::string>& args)
         if (result.isSuccess()) {
             // Display success message
             ss.str("");
-            ss << "    Finished " << model::buildModeToString(options.mode);
-            if (options.mode == model::BuildMode::Debug) {
+            ss << "    Finished " << Model::buildModeToString(options.mode);
+            if (options.mode == Model::BuildMode::Debug) {
                 ss << " [unoptimized + debuginfo]";
-            } else if (options.mode == model::BuildMode::Release) {
+            } else if (options.mode == Model::BuildMode::Release) {
                 ss << " [optimized]";
             }
             ss << " target(s) in " << std::fixed << std::setprecision(2)
