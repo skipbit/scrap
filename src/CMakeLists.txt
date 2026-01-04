@@ -45,6 +45,7 @@ target_sources(${PROJECT_NAME} PRIVATE
     # Project components
     ${CMAKE_CURRENT_SOURCE_DIR}/project/ProjectModule.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/project/model/Project.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/project/model/ProjectError.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/project/service/MockProjectService.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/project/command/NewOperation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/project/command/BuildOperation.cpp
@@ -55,15 +56,20 @@ target_sources(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/configuration/model/ConfigurationSource.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/configuration/model/Configuration.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/configuration/model/ProjectConfiguration.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/configuration/model/ConfigurationError.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/configuration/model/ToolchainReference.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/configuration/service/ConfigurationService.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/configuration/service/DefaultConfigurationService.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/configuration/service/ConfigurationServiceError.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/configuration/driver/TomlDriver.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/configuration/driver/TomlPlusPlusDriver.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/configuration/driver/TomlDriverError.cpp
     # Template components
     ${CMAKE_CURRENT_SOURCE_DIR}/template/TemplateModule.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/template/model/Template.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/template/model/TemplateError.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/template/service/TemplateService.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/template/service/TemplateServiceError.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/template/service/TemplateProcessor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/template/command/TemplateOperation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/template/command/ListOperation.cpp

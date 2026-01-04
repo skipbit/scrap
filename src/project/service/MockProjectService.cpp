@@ -8,7 +8,7 @@
 
 namespace scrap::project::service {
 
-using namespace model;
+using namespace Model;
 
 MockProjectService::MockProjectService()
 {
@@ -28,7 +28,7 @@ MockProjectService::MockProjectService(std::shared_ptr<template_system::service:
     }
 }
 
-Project MockProjectService::createNew(const ProjectSpecification& spec)
+Model::Project MockProjectService::createNew(const Model::ProjectSpecification& spec)
 {
     // Validate specification
     if (spec.name.empty()) {
@@ -36,10 +36,10 @@ Project MockProjectService::createNew(const ProjectSpecification& spec)
     }
 
     // Create project entity
-    auto project = Project(
-        ProjectName(spec.name),
+    auto project = Model::Project(
+        Model::ProjectName::create(spec.name).value(),
         spec.type,
-        Version(0, 1, 0)
+        Model::Version::createDefault()
     );
 
     // Set optional configurations
@@ -51,7 +51,7 @@ Project MockProjectService::createNew(const ProjectSpecification& spec)
 
     // Add initial dependencies
     for (const auto& depName : spec.initialDependencies) {
-        project.addDependency(Dependency(depName, "latest"));
+        project.addDependency(Model::Dependency::create(depName, "latest").value());
     }
 
     // Set project path
@@ -80,7 +80,7 @@ Project MockProjectService::createNew(const ProjectSpecification& spec)
     return project;
 }
 
-std::optional<Project> MockProjectService::loadProject(
+std::optional<Model::Project> MockProjectService::loadProject(
     const std::optional<std::filesystem::path>& path)
 {
 
@@ -94,21 +94,21 @@ std::optional<Project> MockProjectService::loadProject(
 
     // For mock implementation, create a simple project
     // In real implementation, this would parse scrap.toml
-    auto project = Project(
-        ProjectName("example"),
-        ProjectType::Application,
-        Version(0, 1, 0)
+    auto project = Model::Project(
+        Model::ProjectName::create("example").value(),
+        Model::ProjectType::Application,
+        Model::Version::createDefault()
     );
     project.setPath(projectPath);
 
     // Add some mock dependencies
-    project.addDependency(Dependency("fmt", "10.2.1"));
-    project.addDependency(Dependency("spdlog", "1.13.0"));
+    project.addDependency(Model::Dependency::create("fmt", "10.2.1").value());
+    project.addDependency(Model::Dependency::create("spdlog", "1.13.0").value());
 
     return project;
 }
 
-void MockProjectService::saveProject(const Project& project)
+void MockProjectService::saveProject(const Model::Project& project)
 {
     if (!project.path()) {
         throw std::runtime_error("Project path not set");
@@ -117,7 +117,7 @@ void MockProjectService::saveProject(const Project& project)
     generateConfigFile(project, *project.path());
 }
 
-BuildResult MockProjectService::build(const Project& project, const BuildOptions& options)
+Model::BuildResult MockProjectService::build(const Model::Project& project, const Model::BuildOptions& options)
 {
     // Simulate build process
     auto startTime = std::chrono::steady_clock::now();
@@ -146,14 +146,14 @@ BuildResult MockProjectService::build(const Project& project, const BuildOptions
         }
     }
 
-    return BuildResult::success(
+    return Model::BuildResult::success(
         "Build completed successfully",
         duration,
         artifacts
     );
 }
 
-void MockProjectService::run(const Project& project, const RunOptions& options)
+void MockProjectService::run(const Model::Project& project, const Model::RunOptions& options)
 {
     if (!project.isApplication()) {
         throw std::runtime_error("Cannot run library project");
@@ -172,7 +172,7 @@ void MockProjectService::run(const Project& project, const RunOptions& options)
     presenter_->displayInfo("Application finished with exit code 0");
 }
 
-void MockProjectService::clean(const Project& project)
+void MockProjectService::clean(const Model::Project& project)
 {
     if (!project.path()) {
         return;
@@ -187,15 +187,15 @@ void MockProjectService::clean(const Project& project)
     presenter_->displayInfo("     Cleaned build artifacts");
 }
 
-Project MockProjectService::addDependency(const Project& project,
-                                           const Dependency& dependency)
+Model::Project MockProjectService::addDependency(const Model::Project& project,
+                                           const Model::Dependency& dependency)
 {
     auto modifiedProject = project;
     modifiedProject.addDependency(dependency);
     return modifiedProject;
 }
 
-void MockProjectService::createProjectStructure(const Project& project,
+void MockProjectService::createProjectStructure(const Model::Project& project,
                                                  const std::filesystem::path& basePath)
 {
     // Create directory structure
@@ -209,7 +209,7 @@ void MockProjectService::createProjectStructure(const Project& project,
     }
 }
 
-void MockProjectService::generateSourceFiles(const Project& project,
+void MockProjectService::generateSourceFiles(const Model::Project& project,
                                               const std::filesystem::path& projectPath)
 {
     // Generate main source file
@@ -261,7 +261,7 @@ void MockProjectService::generateSourceFiles(const Project& project,
     test << "}\n";
 }
 
-void MockProjectService::generateConfigFile(const Project& project,
+void MockProjectService::generateConfigFile(const Model::Project& project,
                                              const std::filesystem::path& projectPath)
 {
     auto configFile = projectPath / "scrap.toml";
@@ -290,7 +290,7 @@ void MockProjectService::generateConfigFile(const Project& project,
     }
 }
 
-void MockProjectService::createProjectFromTemplate(const ProjectSpecification& spec,
+void MockProjectService::createProjectFromTemplate(const Model::ProjectSpecification& spec,
                                                    const std::filesystem::path& targetPath)
 {
     try {
@@ -334,7 +334,7 @@ void MockProjectService::createProjectFromTemplate(const ProjectSpecification& s
         presenter_->displayWarning("Falling back to default project generation.");
 
         // Fall back to hardcoded generation
-        auto fallbackProject = Project(ProjectName(spec.name), spec.type, Version(0, 1, 0));
+        auto fallbackProject = Model::Project(Model::ProjectName::create(spec.name).value(), spec.type, Model::Version::createDefault());
         createProjectStructure(fallbackProject, targetPath);
         generateSourceFiles(fallbackProject, targetPath);
         generateConfigFile(fallbackProject, targetPath);

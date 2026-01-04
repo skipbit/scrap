@@ -47,11 +47,13 @@ public:
         Configuration::Model::ProjectType projectType,
         const std::optional<Configuration::Model::ToolchainReference>& toolchain = std::nullopt) override;
 
-    void setProjectToolchain(const std::filesystem::path& projectPath,
-                             const Configuration::Model::ToolchainReference& toolchain) override;
+    [[nodiscard]] std::expected<void, dross::error>
+    setProjectToolchain(const std::filesystem::path& projectPath,
+                        const Configuration::Model::ToolchainReference& toolchain) noexcept override;
 
-    void setRepositoryToolchain(const std::filesystem::path& repositoryRoot,
-                                const Configuration::Model::ToolchainReference& toolchain) override;
+    [[nodiscard]] std::expected<void, dross::error>
+    setRepositoryToolchain(const std::filesystem::path& repositoryRoot,
+                           const Configuration::Model::ToolchainReference& toolchain) noexcept override;
 
     std::vector<std::string> validateConfiguration(const Configuration::Model::Configuration& config) override;
 

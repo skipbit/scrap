@@ -1,11 +1,14 @@
 #pragma once
 
 #include "ToolchainReference.h"
+#include "ConfigurationError.h"
 #include <cstdint>
 #include <map>
 #include <optional>
 #include <string>
 #include <vector>
+#include <expected>
+#include <dross/type/error.h>
 
 namespace scrap::Configuration::Model {
 
@@ -18,7 +21,8 @@ enum class ProjectType : std::uint8_t {
 };
 
 [[nodiscard]] std::string toString(ProjectType type);
-[[nodiscard]] ProjectType parseProjectType(const std::string& str);
+[[nodiscard]] std::expected<ProjectType, dross::error>
+parseProjectType(const std::string& str) noexcept;
 
 /**
  * @brief Build system enumeration
@@ -31,7 +35,8 @@ enum class BuildSystem : std::uint8_t {
 };
 
 [[nodiscard]] std::string toString(BuildSystem system);
-[[nodiscard]] BuildSystem parseBuildSystem(const std::string& str);
+[[nodiscard]] std::expected<BuildSystem, dross::error>
+parseBuildSystem(const std::string& str) noexcept;
 
 /**
  * @brief Configuration loaded from scrap.toml
@@ -77,7 +82,7 @@ public:
     /**
      * @brief Validate configuration
      */
-    void validate() const;
+    [[nodiscard]] std::expected<void, dross::error> validate() const noexcept;
 
     /**
      * @brief Check if this is an application project

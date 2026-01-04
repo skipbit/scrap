@@ -9,8 +9,14 @@ namespace scrap::template_system {
 std::shared_ptr<service::TemplateService> TemplateModule::createTemplateService(
     std::shared_ptr<Presenter> presenter)
 {
+    // Get default templates directory, fallback to ./scrap/templates if it fails
+    auto templatesDir = service::DefaultTemplateService::defaultTemplatesDirectory();
+    std::filesystem::path path = templatesDir.has_value()
+        ? *templatesDir
+        : std::filesystem::path("./scrap/templates");
+
     return std::make_shared<service::DefaultTemplateService>(
-        service::DefaultTemplateService::defaultTemplatesDirectory(),
+        path,
         nullptr,
         presenter);
 }

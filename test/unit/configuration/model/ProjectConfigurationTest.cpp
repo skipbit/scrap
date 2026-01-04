@@ -1,7 +1,5 @@
 #include "configuration/model/ProjectConfiguration.h"
 #include <catch2/catch_test_macros.hpp>
-#include <catch2/matchers/catch_matchers_exception.hpp>
-#include <stdexcept>
 
 using namespace scrap::Configuration::Model;
 
@@ -113,7 +111,8 @@ TEST_CASE("ProjectConfiguration validation", "[configuration][model]")
         config.version = "1.0.0";
         config.cppStandard = "20";
 
-        REQUIRE_NOTHROW(config.validate());
+        auto result = config.validate();
+        REQUIRE(result.has_value());
     }
 
     SECTION("empty name fails validation")
@@ -122,7 +121,8 @@ TEST_CASE("ProjectConfiguration validation", "[configuration][model]")
         config.name = "";
         config.version = "1.0.0";
 
-        REQUIRE_THROWS_AS(config.validate(), std::invalid_argument);
+        auto result = config.validate();
+        REQUIRE_FALSE(result.has_value());
     }
 
     SECTION("empty version fails validation")
@@ -131,7 +131,8 @@ TEST_CASE("ProjectConfiguration validation", "[configuration][model]")
         config.name = "test-project";
         config.version = "";
 
-        REQUIRE_THROWS_AS(config.validate(), std::invalid_argument);
+        auto result = config.validate();
+        REQUIRE_FALSE(result.has_value());
     }
 
     SECTION("invalid C++ standard fails validation")
@@ -141,7 +142,8 @@ TEST_CASE("ProjectConfiguration validation", "[configuration][model]")
         config.version = "1.0.0";
         config.cppStandard = "14";
 
-        REQUIRE_THROWS_AS(config.validate(), std::invalid_argument);
+        auto result = config.validate();
+        REQUIRE_FALSE(result.has_value());
     }
 
     SECTION("valid C++ standards pass validation")
@@ -151,13 +153,16 @@ TEST_CASE("ProjectConfiguration validation", "[configuration][model]")
         config.version = "1.0.0";
 
         config.cppStandard = "17";
-        REQUIRE_NOTHROW(config.validate());
+        auto result17 = config.validate();
+        REQUIRE(result17.has_value());
 
         config.cppStandard = "20";
-        REQUIRE_NOTHROW(config.validate());
+        auto result20 = config.validate();
+        REQUIRE(result20.has_value());
 
         config.cppStandard = "23";
-        REQUIRE_NOTHROW(config.validate());
+        auto result23 = config.validate();
+        REQUIRE(result23.has_value());
     }
 }
 
@@ -171,15 +176,27 @@ TEST_CASE("ProjectType enum utilities", "[configuration][model]")
 
     SECTION("parseProjectType converts string to ProjectType")
     {
-        REQUIRE(parseProjectType("app") == ProjectType::Application);
-        REQUIRE(parseProjectType("application") == ProjectType::Application);
-        REQUIRE(parseProjectType("lib") == ProjectType::Library);
-        REQUIRE(parseProjectType("library") == ProjectType::Library);
+        auto appResult = parseProjectType("app");
+        REQUIRE(appResult.has_value());
+        REQUIRE(*appResult == ProjectType::Application);
+
+        auto applicationResult = parseProjectType("application");
+        REQUIRE(applicationResult.has_value());
+        REQUIRE(*applicationResult == ProjectType::Application);
+
+        auto libResult = parseProjectType("lib");
+        REQUIRE(libResult.has_value());
+        REQUIRE(*libResult == ProjectType::Library);
+
+        auto libraryResult = parseProjectType("library");
+        REQUIRE(libraryResult.has_value());
+        REQUIRE(*libraryResult == ProjectType::Library);
     }
 
-    SECTION("parseProjectType throws on invalid input")
+    SECTION("parseProjectType returns error on invalid input")
     {
-        REQUIRE_THROWS_AS(parseProjectType("invalid"), std::invalid_argument);
+        auto result = parseProjectType("invalid");
+        REQUIRE_FALSE(result.has_value());
     }
 }
 
@@ -195,16 +212,31 @@ TEST_CASE("BuildSystem enum utilities", "[configuration][model]")
 
     SECTION("parseBuildSystem converts string to BuildSystem")
     {
-        REQUIRE(parseBuildSystem("native") == BuildSystem::Native);
-        REQUIRE(parseBuildSystem("scrap") == BuildSystem::Native);
-        REQUIRE(parseBuildSystem("cmake") == BuildSystem::CMake);
-        REQUIRE(parseBuildSystem("meson") == BuildSystem::Meson);
-        REQUIRE(parseBuildSystem("bazel") == BuildSystem::Bazel);
+        auto nativeResult = parseBuildSystem("native");
+        REQUIRE(nativeResult.has_value());
+        REQUIRE(*nativeResult == BuildSystem::Native);
+
+        auto scrapResult = parseBuildSystem("scrap");
+        REQUIRE(scrapResult.has_value());
+        REQUIRE(*scrapResult == BuildSystem::Native);
+
+        auto cmakeResult = parseBuildSystem("cmake");
+        REQUIRE(cmakeResult.has_value());
+        REQUIRE(*cmakeResult == BuildSystem::CMake);
+
+        auto mesonResult = parseBuildSystem("meson");
+        REQUIRE(mesonResult.has_value());
+        REQUIRE(*mesonResult == BuildSystem::Meson);
+
+        auto bazelResult = parseBuildSystem("bazel");
+        REQUIRE(bazelResult.has_value());
+        REQUIRE(*bazelResult == BuildSystem::Bazel);
     }
 
-    SECTION("parseBuildSystem throws on invalid input")
+    SECTION("parseBuildSystem returns error on invalid input")
     {
-        REQUIRE_THROWS_AS(parseBuildSystem("invalid"), std::invalid_argument);
+        auto result = parseBuildSystem("invalid");
+        REQUIRE_FALSE(result.has_value());
     }
 }
 

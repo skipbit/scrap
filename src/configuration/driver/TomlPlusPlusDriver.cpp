@@ -1,4 +1,6 @@
 #include "TomlPlusPlusDriver.h"
+#include "TomlDriverError.h"
+#include <dross/type/error.h>
 #include <filesystem>
 #include <fstream>
 #include <functional>
@@ -6,7 +8,6 @@
 #include <optional>
 #include <sstream>
 #include <stack>
-#include <stdexcept>
 #include <string>
 #include <toml++/toml.h>
 
@@ -30,7 +31,11 @@ void parsePackageSection(const toml::table& config, Configuration::Model::Projec
     }
     if (const auto* type = package->get("type")) {
         const auto typeStr = std::string(type->value_or("app"));
-        result.type = Configuration::Model::parseProjectType(typeStr);
+        auto typeResult = Configuration::Model::parseProjectType(typeStr);
+        if (typeResult) {
+            result.type = *typeResult;
+        }
+        // If parsing fails, keep the default value
     }
     if (const auto* std = package->get("std")) {
         result.cppStandard = std::string(std->value_or("23"));
@@ -107,7 +112,11 @@ void parseBuildSection(const toml::table& config, Configuration::Model::ProjectC
 
     if (const auto* system = build->get("system")) {
         const auto systemStr = std::string(system->value_or("native"));
-        result.buildSystem = Configuration::Model::parseBuildSystem(systemStr);
+        auto systemResult = Configuration::Model::parseBuildSystem(systemStr);
+        if (systemResult) {
+            result.buildSystem = *systemResult;
+        }
+        // If parsing fails, keep the default value
     }
 
     if (const auto* cxxFlags = build->get("cxx_flags")) {
@@ -271,45 +280,49 @@ void flattenToml(const toml::node& node, const std::string& prefix, std::map<std
 
 class TomlPlusPlusDriver::Impl {
 public:
-    static std::optional<Configuration::Model::ProjectConfiguration>
-    loadProjectConfiguration(const std::filesystem::path& filePath)
+    static std::expected<std::optional<Configuration::Model::ProjectConfiguration>, dross::error>
+    loadProjectConfiguration(const std::filesystem::path& filePath) noexcept
     {
-
         if (!std::filesystem::exists(filePath)) {
-            return {};
+            return std::optional<Configuration::Model::ProjectConfiguration>{};
         }
 
         try {
             const auto config = toml::parse_file(filePath.string());
             return parseProjectConfiguration(config);
-        } catch (const toml::parse_error& e) {
-            throw std::runtime_error("TOML parse error: " + std::string(e.what()));
+        } catch (const toml::parse_error&) {
+            auto errorCode = make_error_code(TomlDriverError::ParseError);
+            return std::unexpected(dross::error{errorCode.value(), errorCode.category()});
         }
     }
 
-    static void saveProjectConfiguration(const std::filesystem::path& filePath,
-                                         const Configuration::Model::ProjectConfiguration& config)
+    static std::expected<void, dross::error>
+    saveProjectConfiguration(const std::filesystem::path& filePath,
+                             const Configuration::Model::ProjectConfiguration& config) noexcept
     {
-
         const auto tomlTable = serializeProjectConfiguration(config);
 
         std::ofstream file(filePath);
         if (!file.is_open()) {
-            throw std::runtime_error("Cannot open file for writing: " + filePath.string());
+            auto errorCode = make_error_code(TomlDriverError::FileOpenError);
+            return std::unexpected(dross::error{errorCode.value(), errorCode.category()});
         }
 
         file << tomlTable;
 
         if (!file.good()) {
-            throw std::runtime_error("Error writing to file: " + filePath.string());
+            auto errorCode = make_error_code(TomlDriverError::FileWriteError);
+            return std::unexpected(dross::error{errorCode.value(), errorCode.category()});
         }
+
+        return {};
     }
 
-    static std::optional<std::map<std::string, std::string>> loadKeyValues(const std::filesystem::path& filePath)
+    static std::expected<std::optional<std::map<std::string, std::string>>, dross::error>
+    loadKeyValues(const std::filesystem::path& filePath) noexcept
     {
-
         if (!std::filesystem::exists(filePath)) {
-            return {};
+            return std::optional<std::map<std::string, std::string>>{};
         }
 
         try {
@@ -320,15 +333,15 @@ public:
             flattenToml(config, "", result);
 
             return result;
-        } catch (const toml::parse_error& e) {
-            throw std::runtime_error("TOML parse error: " + std::string(e.what()));
+        } catch (const toml::parse_error&) {
+            auto errorCode = make_error_code(TomlDriverError::ParseError);
+            return std::unexpected(dross::error{errorCode.value(), errorCode.category()});
         }
     }
 
-    static void saveKeyValues(const std::filesystem::path& filePath,
-                              const std::map<std::string, std::string>& keyValues)
+    static std::expected<void, dross::error> saveKeyValues(const std::filesystem::path& filePath,
+                                                           const std::map<std::string, std::string>& keyValues) noexcept
     {
-
         toml::table tomlTable;
 
         for (const auto& [key, value] : keyValues) {
@@ -337,14 +350,18 @@ public:
 
         std::ofstream file(filePath);
         if (!file.is_open()) {
-            throw std::runtime_error("Cannot open file for writing: " + filePath.string());
+            auto errorCode = make_error_code(TomlDriverError::FileOpenError);
+            return std::unexpected(dross::error{errorCode.value(), errorCode.category()});
         }
 
         file << tomlTable;
 
         if (!file.good()) {
-            throw std::runtime_error("Error writing to file: " + filePath.string());
+            auto errorCode = make_error_code(TomlDriverError::FileWriteError);
+            return std::unexpected(dross::error{errorCode.value(), errorCode.category()});
         }
+
+        return {};
     }
 
     static bool exists(const std::filesystem::path& filePath)
@@ -404,28 +421,30 @@ TomlPlusPlusDriver::TomlPlusPlusDriver() = default;
 
 TomlPlusPlusDriver::~TomlPlusPlusDriver() = default;
 
-std::optional<Configuration::Model::ProjectConfiguration>
-TomlPlusPlusDriver::loadProjectConfiguration(const std::filesystem::path& filePath)
+std::expected<std::optional<Configuration::Model::ProjectConfiguration>, dross::error>
+TomlPlusPlusDriver::loadProjectConfiguration(const std::filesystem::path& filePath) noexcept
 {
     return Impl::loadProjectConfiguration(filePath);
 }
 
-void TomlPlusPlusDriver::saveProjectConfiguration(const std::filesystem::path& filePath,
-                                                  const Configuration::Model::ProjectConfiguration& config)
+std::expected<void, dross::error>
+TomlPlusPlusDriver::saveProjectConfiguration(const std::filesystem::path& filePath,
+                                             const Configuration::Model::ProjectConfiguration& config) noexcept
 {
-    Impl::saveProjectConfiguration(filePath, config);
+    return Impl::saveProjectConfiguration(filePath, config);
 }
 
-std::optional<std::map<std::string, std::string>>
-TomlPlusPlusDriver::loadKeyValues(const std::filesystem::path& filePath)
+std::expected<std::optional<std::map<std::string, std::string>>, dross::error>
+TomlPlusPlusDriver::loadKeyValues(const std::filesystem::path& filePath) noexcept
 {
     return Impl::loadKeyValues(filePath);
 }
 
-void TomlPlusPlusDriver::saveKeyValues(const std::filesystem::path& filePath,
-                                       const std::map<std::string, std::string>& keyValues)
+std::expected<void, dross::error>
+TomlPlusPlusDriver::saveKeyValues(const std::filesystem::path& filePath,
+                                  const std::map<std::string, std::string>& keyValues) noexcept
 {
-    Impl::saveKeyValues(filePath, keyValues);
+    return Impl::saveKeyValues(filePath, keyValues);
 }
 
 bool TomlPlusPlusDriver::exists(const std::filesystem::path& filePath)

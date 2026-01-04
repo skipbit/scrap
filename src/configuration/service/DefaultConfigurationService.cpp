@@ -1,6 +1,8 @@
 #include "DefaultConfigurationService.h"
+#include "ConfigurationServiceError.h"
 #include <algorithm>
 #include <cstdlib>
+#include <dross/type/error.h>
 #include <fstream>
 #include <ranges>
 
@@ -58,7 +60,17 @@ std::optional<Configuration::Model::ProjectConfiguration>
 DefaultConfigurationService::loadProjectConfiguration(const std::filesystem::path& projectPath)
 {
     const auto configPath = projectPath / "scrap.toml";
-    return tomlDriver_->loadProjectConfiguration(configPath);
+    auto result = tomlDriver_->loadProjectConfiguration(configPath);
+
+    // TODO(Phase 5): Propagate error to caller via std::expected
+    // Currently silently converts all errors (parse errors, file access errors) to nullopt
+    // This loses error information but maintains API compatibility with current interface
+    // Callers cannot distinguish between "file not found" and "malformed TOML"
+    if (!result.has_value()) {
+        return std::nullopt;
+    }
+
+    return *result;
 }
 
 void DefaultConfigurationService::saveProjectConfiguration(const std::filesystem::path& projectPath,
@@ -69,7 +81,11 @@ void DefaultConfigurationService::saveProjectConfiguration(const std::filesystem
     // Ensure directory exists
     std::filesystem::create_directories(projectPath);
 
-    tomlDriver_->saveProjectConfiguration(configPath, config);
+    auto result = tomlDriver_->saveProjectConfiguration(configPath, config);
+    // TODO(Phase 5): Change this method to return std::expected<void, dross::error>
+    // Currently silently ignores errors (file open failures, write failures)
+    // This maintains API compatibility but loses error information
+    [[maybe_unused]] auto _ = result;
 }
 
 void DefaultConfigurationService::createDefaultConfiguration(
@@ -87,13 +103,15 @@ void DefaultConfigurationService::createDefaultConfiguration(
     saveProjectConfiguration(projectPath, config);
 }
 
-void DefaultConfigurationService::setProjectToolchain(const std::filesystem::path& projectPath,
-                                                      const Configuration::Model::ToolchainReference& toolchain)
+std::expected<void, dross::error>
+DefaultConfigurationService::setProjectToolchain(const std::filesystem::path& projectPath,
+                                                 const Configuration::Model::ToolchainReference& toolchain) noexcept
 {
     // Load existing configuration or create default
     auto config = loadProjectConfiguration(projectPath);
     if (!config.has_value()) {
-        throw std::runtime_error("No scrap.toml found in project directory");
+        auto errorCode = make_error_code(ConfigurationServiceError::ProjectConfigNotFound);
+        return std::unexpected(dross::error{errorCode.value(), errorCode.category()});
     }
 
     // Update toolchain
@@ -101,24 +119,31 @@ void DefaultConfigurationService::setProjectToolchain(const std::filesystem::pat
 
     // Save updated configuration
     saveProjectConfiguration(projectPath, *config);
+
+    return {};
 }
 
-void DefaultConfigurationService::setRepositoryToolchain(const std::filesystem::path& repositoryRoot,
-                                                         const Configuration::Model::ToolchainReference& toolchain)
+std::expected<void, dross::error>
+DefaultConfigurationService::setRepositoryToolchain(const std::filesystem::path& repositoryRoot,
+                                                    const Configuration::Model::ToolchainReference& toolchain) noexcept
 {
     const auto markerPath = repositoryRoot / ".scrap-toolchain";
 
     // Write toolchain specification to marker file
     std::ofstream file(markerPath);
     if (!file.is_open()) {
-        throw std::runtime_error("Cannot create repository toolchain marker: " + markerPath.string());
+        auto errorCode = make_error_code(ConfigurationServiceError::RepositoryMarkerCreateFailed);
+        return std::unexpected(dross::error{errorCode.value(), errorCode.category()});
     }
 
     file << toolchain.toString() << std::endl;
 
     if (!file.good()) {
-        throw std::runtime_error("Error writing repository toolchain marker: " + markerPath.string());
+        auto errorCode = make_error_code(ConfigurationServiceError::RepositoryMarkerWriteFailed);
+        return std::unexpected(dross::error{errorCode.value(), errorCode.category()});
     }
+
+    return {};
 }
 
 std::vector<std::string>
@@ -134,10 +159,9 @@ DefaultConfigurationService::validateConfiguration(const Configuration::Model::C
     // Validate project configuration
     const auto& projectConfig = config.projectConfig();
     if (projectConfig.has_value()) {
-        try {
-            projectConfig->validate();
-        } catch (const std::exception& e) {
-            errors.emplace_back("Project configuration error: " + std::string(e.what()));
+        auto validationResult = projectConfig->validate();
+        if (!validationResult) {
+            errors.emplace_back("Project configuration error: " + std::string(validationResult.error().message()));
         }
     }
 
