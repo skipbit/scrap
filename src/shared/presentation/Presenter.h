@@ -1,8 +1,8 @@
 #pragma once
 
+#include <memory>
 #include <string>
 #include <vector>
-#include <memory>
 
 namespace scrap {
 
@@ -73,14 +73,6 @@ public:
     virtual void displayTable(const Table& table) = 0;
     virtual void displayTree(const Tree& tree) = 0;
     virtual void displayList(const std::string& title, const std::vector<std::string>& items) = 0;
-
-    // Legacy compatibility
-    virtual void showInfo(const std::string& message) { displayInfo(message); }
-    virtual void showError(const std::string& message) { displayError(message); }
-    virtual void showHelp(const std::string& helpText) { displayInfo(helpText); }
-    virtual void showList(const std::string& title, const std::vector<std::string>& items) {
-        displayList(title, items);
-    }
 };
 
 /**
@@ -116,4 +108,4 @@ public:
     virtual std::unique_ptr<Presenter> createPresenter() = 0;
 };
 
-}
+}  // namespace scrap

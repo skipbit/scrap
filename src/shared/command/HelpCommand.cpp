@@ -14,15 +14,15 @@ void HelpCommand::execute(const std::vector<std::string>& /*args*/)
 {
     auto output = presenter();
     if (!output) {
-        return; // No presenter available
+        return;  // No presenter available
     }
 
     if (parser_) {
         std::string helpText = parser_->helpText(commandPath_);
-        output->showHelp(helpText);
+        output->displayInfo(helpText);
     } else {
-        output->showError("Help system not available");
+        output->displayError("Help system not available");
     }
 }
 
-} // namespace scrap
+}  // namespace scrap

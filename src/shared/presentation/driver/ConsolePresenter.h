@@ -48,12 +48,6 @@ public:
     void displayTree(const Tree& tree) override;
     void displayList(const std::string& title, const std::vector<std::string>& items) override;
 
-    // Legacy compatibility
-    void showInfo(const std::string& message) override;
-    void showError(const std::string& message) override;
-    void showHelp(const std::string& helpText) override;
-    void showList(const std::string& title, const std::vector<std::string>& items) override;
-
 private:
     class Impl;
     std::unique_ptr<Impl> impl_;
@@ -67,4 +61,4 @@ public:
     std::unique_ptr<Presenter> createPresenter() override;
 };
 
-}
+}  // namespace scrap

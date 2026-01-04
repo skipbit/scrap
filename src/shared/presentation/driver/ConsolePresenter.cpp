@@ -1,6 +1,6 @@
 #include "shared/presentation/driver/ConsolePresenter.h"
-#include <iostream>
 #include <iomanip>
+#include <iostream>
 
 namespace scrap {
 
@@ -9,9 +9,15 @@ namespace scrap {
  */
 class ConsolePresenter::Impl {
 public:
-    Impl() : outputFormat_(OutputFormat::Plain), verbosity_(VerbosityLevel::Normal),
-             useColor_(true), progressStyle_(ProgressStyle::Simple),
-             progressTotal_(0), progressCurrent_(0) {}
+    Impl()
+        : outputFormat_(OutputFormat::Plain),
+          verbosity_(VerbosityLevel::Normal),
+          useColor_(true),
+          progressStyle_(ProgressStyle::Simple),
+          progressTotal_(0),
+          progressCurrent_(0)
+    {
+    }
 
     // Configuration
     OutputFormat outputFormat_;
@@ -24,7 +30,8 @@ public:
     size_t progressTotal_;
     size_t progressCurrent_;
 
-    void showInfoInternal(const std::string& message, const std::string& prefix = "") {
+    void showInfoInternal(const std::string& message, const std::string& prefix = "")
+    {
         if (useColor_) {
             std::cout << "\033[32m" << prefix << "\033[0m" << message << std::endl;
         } else {
@@ -32,7 +39,8 @@ public:
         }
     }
 
-    void showSuccessInternal(const std::string& message) {
+    void showSuccessInternal(const std::string& message)
+    {
         if (useColor_) {
             std::cout << "\033[32m✓\033[0m " << message << std::endl;
         } else {
@@ -40,7 +48,8 @@ public:
         }
     }
 
-    void showWarningInternal(const std::string& message) {
+    void showWarningInternal(const std::string& message)
+    {
         if (useColor_) {
             std::cerr << "\033[33m⚠\033[0m " << message << std::endl;
         } else {
@@ -48,7 +57,8 @@ public:
         }
     }
 
-    void showErrorInternal(const std::string& message) {
+    void showErrorInternal(const std::string& message)
+    {
         if (useColor_) {
             std::cerr << "\033[31m✗\033[0m " << message << std::endl;
         } else {
@@ -56,7 +66,8 @@ public:
         }
     }
 
-    void showDebugInternal(const std::string& message) {
+    void showDebugInternal(const std::string& message)
+    {
         if (verbosity_ >= VerbosityLevel::Debug) {
             if (useColor_) {
                 std::cout << "\033[90m[DEBUG] " << message << "\033[0m" << std::endl;
@@ -66,7 +77,8 @@ public:
         }
     }
 
-    void showProgressInternal(size_t current) {
+    void showProgressInternal(size_t current)
+    {
         if (progressStyle_ == ProgressStyle::None) {
             return;
         }
@@ -79,7 +91,8 @@ public:
         }
     }
 
-    void showListInternal(const std::string& title, const std::vector<std::string>& items) {
+    void showListInternal(const std::string& title, const std::vector<std::string>& items)
+    {
         if (!title.empty()) {
             std::cout << title << ":" << std::endl;
         }
@@ -93,7 +106,8 @@ public:
         }
     }
 
-    void showTableInternal(const Table& table) {
+    void showTableInternal(const Table& table)
+    {
         // Simple table implementation
         if (table.headers.empty() && table.rows.empty()) {
             return;
@@ -120,14 +134,16 @@ public:
         // Print headers
         if (!table.headers.empty()) {
             for (size_t i = 0; i < table.headers.size(); ++i) {
-                if (i > 0) std::cout << " | ";
+                if (i > 0)
+                    std::cout << " | ";
                 std::cout << std::left << std::setw(colWidths[i]) << table.headers[i];
             }
             std::cout << std::endl;
 
             // Print separator
             for (size_t i = 0; i < table.headers.size(); ++i) {
-                if (i > 0) std::cout << "-|-";
+                if (i > 0)
+                    std::cout << "-|-";
                 std::cout << std::string(colWidths[i], '-');
             }
             std::cout << std::endl;
@@ -136,22 +152,26 @@ public:
         // Print rows
         for (const auto& row : table.rows) {
             for (size_t i = 0; i < row.size(); ++i) {
-                if (i > 0) std::cout << " | ";
+                if (i > 0)
+                    std::cout << " | ";
                 std::cout << std::left << std::setw(colWidths[i]) << row[i];
             }
             std::cout << std::endl;
         }
     }
 
-    void showTreeInternal(const Tree& tree) {
+    void showTreeInternal(const Tree& tree)
+    {
         if (tree.root) {
             showTreeNodeInternal(tree.root.get(), "");
         }
     }
 
 private:
-    void showTreeNodeInternal(const Tree::Node* node, const std::string& prefix) {
-        if (!node) return;
+    void showTreeNodeInternal(const Tree::Node* node, const std::string& prefix)
+    {
+        if (!node)
+            return;
 
         std::cout << prefix << node->label << std::endl;
 
@@ -243,7 +263,7 @@ void ConsolePresenter::updateProgress(size_t current)
     impl_->showProgressInternal(current);
 }
 
-void ConsolePresenter::updateProgress(size_t current, const std::string& /*currentItem*/)
+void ConsolePresenter::updateProgress(size_t current, [[maybe_unused]] const std::string& currentItem)
 {
     updateProgress(current);
 }
@@ -274,31 +294,10 @@ void ConsolePresenter::displayList(const std::string& title, const std::vector<s
     impl_->showListInternal(title, items);
 }
 
-// Legacy compatibility methods
-void ConsolePresenter::showInfo(const std::string& message)
-{
-    displayInfo(message);
-}
-
-void ConsolePresenter::showError(const std::string& message)
-{
-    displayError(message);
-}
-
-void ConsolePresenter::showHelp(const std::string& helpText)
-{
-    displayInfo(helpText);
-}
-
-void ConsolePresenter::showList(const std::string& title, const std::vector<std::string>& items)
-{
-    displayList(title, items);
-}
-
 // ConsolePresenterFactory implementation
 std::unique_ptr<Presenter> ConsolePresenterFactory::createPresenter()
 {
     return std::make_unique<ConsolePresenter>();
 }
 
-} // namespace scrap
+}  // namespace scrap
