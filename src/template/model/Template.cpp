@@ -374,13 +374,15 @@ std::string templateSourceTypeToString(TemplateSourceType type)
     return "unknown";
 }
 
-TemplateSourceType stringToTemplateSourceType(const std::string& str)
+std::expected<TemplateSourceType, dross::error>
+stringToTemplateSourceType(const std::string& str) noexcept
 {
     if (str == "official") return TemplateSourceType::Official;
     if (str == "git") return TemplateSourceType::Git;
     if (str == "local") return TemplateSourceType::Local;
 
-    throw std::invalid_argument("Invalid template source type: " + str);
+    auto errorCode = make_error_code(TemplateError::InvalidSourceType);
+    return std::unexpected(dross::error{errorCode.value(), errorCode.category()});
 }
 
 } // namespace scrap::template_system::model

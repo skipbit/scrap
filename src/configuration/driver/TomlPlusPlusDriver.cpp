@@ -30,7 +30,11 @@ void parsePackageSection(const toml::table& config, Configuration::Model::Projec
     }
     if (const auto* type = package->get("type")) {
         const auto typeStr = std::string(type->value_or("app"));
-        result.type = Configuration::Model::parseProjectType(typeStr);
+        auto typeResult = Configuration::Model::parseProjectType(typeStr);
+        if (typeResult) {
+            result.type = *typeResult;
+        }
+        // If parsing fails, keep the default value
     }
     if (const auto* std = package->get("std")) {
         result.cppStandard = std::string(std->value_or("23"));
@@ -107,7 +111,11 @@ void parseBuildSection(const toml::table& config, Configuration::Model::ProjectC
 
     if (const auto* system = build->get("system")) {
         const auto systemStr = std::string(system->value_or("native"));
-        result.buildSystem = Configuration::Model::parseBuildSystem(systemStr);
+        auto systemResult = Configuration::Model::parseBuildSystem(systemStr);
+        if (systemResult) {
+            result.buildSystem = *systemResult;
+        }
+        // If parsing fails, keep the default value
     }
 
     if (const auto* cxxFlags = build->get("cxx_flags")) {

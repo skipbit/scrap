@@ -134,10 +134,9 @@ DefaultConfigurationService::validateConfiguration(const Configuration::Model::C
     // Validate project configuration
     const auto& projectConfig = config.projectConfig();
     if (projectConfig.has_value()) {
-        try {
-            projectConfig->validate();
-        } catch (const std::exception& e) {
-            errors.emplace_back("Project configuration error: " + std::string(e.what()));
+        auto validationResult = projectConfig->validate();
+        if (!validationResult) {
+            errors.emplace_back("Project configuration error: " + std::string(validationResult.error().message()));
         }
     }
 

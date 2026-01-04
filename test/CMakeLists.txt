@@ -41,6 +41,7 @@ target_include_directories(scrap_test PRIVATE
 add_library(test_dependencies OBJECT
     ${CMAKE_SOURCE_DIR}/src/configuration/model/ConfigurationSource.cpp
     ${CMAKE_SOURCE_DIR}/src/configuration/model/ProjectConfiguration.cpp
+    ${CMAKE_SOURCE_DIR}/src/configuration/model/ConfigurationError.cpp
     ${CMAKE_SOURCE_DIR}/src/configuration/model/ToolchainReference.cpp
 )
 

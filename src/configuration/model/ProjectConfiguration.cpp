@@ -1,5 +1,4 @@
 #include "ProjectConfiguration.h"
-#include <stdexcept>
 #include <string>
 
 namespace scrap::Configuration::Model {
@@ -15,7 +14,8 @@ std::string toString(ProjectType type)
     return "unknown";
 }
 
-ProjectType parseProjectType(const std::string& str)
+std::expected<ProjectType, dross::error>
+parseProjectType(const std::string& str) noexcept
 {
     if (str == "app" || str == "application") {
         return ProjectType::Application;
@@ -23,7 +23,9 @@ ProjectType parseProjectType(const std::string& str)
     if (str == "lib" || str == "library") {
         return ProjectType::Library;
     }
-    throw std::invalid_argument("Invalid project type: " + str);
+
+    auto errorCode = make_error_code(ProjectConfigurationError::InvalidProjectType);
+    return std::unexpected(dross::error{errorCode.value(), errorCode.category()});
 }
 
 std::string toString(BuildSystem system)
@@ -41,7 +43,8 @@ std::string toString(BuildSystem system)
     return "unknown";
 }
 
-BuildSystem parseBuildSystem(const std::string& str)
+std::expected<BuildSystem, dross::error>
+parseBuildSystem(const std::string& str) noexcept
 {
     if (str == "native" || str == "scrap") {
         return BuildSystem::Native;
@@ -55,7 +58,9 @@ BuildSystem parseBuildSystem(const std::string& str)
     if (str == "bazel") {
         return BuildSystem::Bazel;
     }
-    throw std::invalid_argument("Invalid build system: " + str);
+
+    auto errorCode = make_error_code(ProjectConfigurationError::InvalidBuildSystem);
+    return std::unexpected(dross::error{errorCode.value(), errorCode.category()});
 }
 
 ProjectConfiguration::ProjectConfiguration() = default;
@@ -68,17 +73,22 @@ ProjectConfiguration ProjectConfiguration::createDefault(const std::string& proj
     return config;
 }
 
-void ProjectConfiguration::validate() const
+std::expected<void, dross::error> ProjectConfiguration::validate() const noexcept
 {
     if (name.empty()) {
-        throw std::invalid_argument("Project name cannot be empty");
+        auto errorCode = make_error_code(ProjectConfigurationError::EmptyProjectName);
+        return std::unexpected(dross::error{errorCode.value(), errorCode.category()});
     }
     if (version.empty()) {
-        throw std::invalid_argument("Project version cannot be empty");
+        auto errorCode = make_error_code(ProjectConfigurationError::EmptyProjectVersion);
+        return std::unexpected(dross::error{errorCode.value(), errorCode.category()});
     }
     if (cppStandard != "17" && cppStandard != "20" && cppStandard != "23") {
-        throw std::invalid_argument("Unsupported C++ standard: " + cppStandard);
+        auto errorCode = make_error_code(ProjectConfigurationError::UnsupportedCppStandard);
+        return std::unexpected(dross::error{errorCode.value(), errorCode.category()});
     }
+
+    return {};
 }
 
 bool ProjectConfiguration::isApplication() const noexcept

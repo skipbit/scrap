@@ -56,6 +56,7 @@ target_sources(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/configuration/model/ConfigurationSource.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/configuration/model/Configuration.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/configuration/model/ProjectConfiguration.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/configuration/model/ConfigurationError.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/configuration/model/ToolchainReference.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/configuration/service/ConfigurationService.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/configuration/service/DefaultConfigurationService.cpp
@@ -64,6 +65,7 @@ target_sources(${PROJECT_NAME} PRIVATE
     # Template components
     ${CMAKE_CURRENT_SOURCE_DIR}/template/TemplateModule.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/template/model/Template.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/template/model/TemplateError.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/template/service/TemplateService.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/template/service/TemplateProcessor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/template/command/TemplateOperation.cpp

@@ -5,6 +5,9 @@
 #include <map>
 #include <optional>
 #include <filesystem>
+#include <expected>
+#include <dross/type/error.h>
+#include "TemplateError.h"
 
 namespace scrap::template_system::model {
 
@@ -157,6 +160,7 @@ private:
 
 // Helper functions
 std::string templateSourceTypeToString(TemplateSourceType type);
-TemplateSourceType stringToTemplateSourceType(const std::string& str);
+[[nodiscard]] std::expected<TemplateSourceType, dross::error>
+stringToTemplateSourceType(const std::string& str) noexcept;
 
 } // namespace scrap::template_system::model
