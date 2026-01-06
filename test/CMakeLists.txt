@@ -47,25 +47,18 @@ add_library(test_dependencies OBJECT
 
 target_include_directories(test_dependencies PRIVATE
     ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_BINARY_DIR}/include  # For dross headers
 )
 
 target_compile_features(test_dependencies PUBLIC cxx_std_23)
 
-# Add dross dependency for test_dependencies (headers only, actual linking via scrap_test)
-add_dependencies(test_dependencies dross)
-target_include_directories(test_dependencies SYSTEM BEFORE PRIVATE ${DROSS_INCLUDE_DIR})
+# Add dross dependency for test_dependencies
+target_link_libraries(test_dependencies PRIVATE dross)
 
-# Link libraries (minimal dependencies for now)
+# Link libraries
 target_link_libraries(scrap_test PRIVATE
-    catch2_library
+    Catch2::Catch2WithMain
     test_dependencies
-    ${CMAKE_BINARY_DIR}/lib/libdross.dylib
-)
-
-# Add dependencies
-add_dependencies(scrap_test
-    catch2_external
+    dross
 )
 
 # C++ standard

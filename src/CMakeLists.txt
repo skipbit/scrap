@@ -100,19 +100,9 @@ find_package(git2 REQUIRED)
 find_package(cli11 REQUIRED)
 find_package(tomlplusplus REQUIRED)
 
-add_dependencies(scrap dross_library git2_library cli11_library tomlplusplus_external)
-
-target_include_directories(${PROJECT_NAME}
-    SYSTEM BEFORE PRIVATE ${DROSS_INCLUDE_DIR} ${GIT2_INCLUDE_DIR}
-)
-
-target_link_directories(${PROJECT_NAME}
-    PRIVATE ${DROSS_LIBRARY_DIR} ${GIT2_LIBRARY_DIR}
-)
-
 target_link_libraries(${PROJECT_NAME} PRIVATE
-    dross_library
-    git2_library
-    cli11_library
-    tomlplusplus
+    dross
+    libgit2package
+    CLI11::CLI11
+    tomlplusplus::tomlplusplus
 )
