@@ -105,16 +105,22 @@ find_package(GoogleTest REQUIRED)
 add_executable(scrap_gtest
     unit/command/CommonTypesTest.cpp
     unit/command/CommandCatalogTest.cpp
+    unit/command/DefaultHelpRendererTest.cpp
+    unit/command/DefaultVersionRendererTest.cpp
     ${CMAKE_SOURCE_DIR}/src/command/CommandCatalog.cpp
     ${CMAKE_SOURCE_DIR}/src/command/CommandHandler.cpp
     ${CMAKE_SOURCE_DIR}/src/command/CommandResolver.cpp
     ${CMAKE_SOURCE_DIR}/src/command/ParserAdapter.cpp
     ${CMAKE_SOURCE_DIR}/src/command/HelpRenderer.cpp
     ${CMAKE_SOURCE_DIR}/src/command/VersionRenderer.cpp
+    ${CMAKE_SOURCE_DIR}/src/command/DefaultHelpRenderer.cpp
+    ${CMAKE_SOURCE_DIR}/src/command/DefaultVersionRenderer.cpp
+    ${CMAKE_BINARY_DIR}/src/shared/constants/version.cpp
 )
 
 target_include_directories(scrap_gtest PRIVATE
     ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_BINARY_DIR}/src
 )
 
 target_link_libraries(scrap_gtest PRIVATE GTest::gtest_main)
