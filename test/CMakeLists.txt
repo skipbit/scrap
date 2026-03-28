@@ -97,3 +97,15 @@ set_tests_properties(scrap_unit_tests PROPERTIES
     TIMEOUT 30
     ENVIRONMENT "SCRAP_TEST_DATA_DIR=${CMAKE_CURRENT_SOURCE_DIR}/fixtures"
 )
+
+# --- Google Test integration ---
+# New tests should use Google Test. Add GTest test sources below.
+# CTest automatically discovers and runs both Catch2 and GTest tests.
+#
+# Example:
+#   find_package(GoogleTest REQUIRED)
+#   add_executable(scrap_gtest unit/example/ExampleTest.cpp)
+#   target_link_libraries(scrap_gtest PRIVATE GTest::gtest_main test_dependencies)
+#   target_compile_features(scrap_gtest PUBLIC cxx_std_23)
+#   include(GoogleTest)
+#   gtest_discover_tests(scrap_gtest)

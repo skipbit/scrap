@@ -2,10 +2,10 @@
 
 <div align="center">
 
+[![Build](https://github.com/skipbit/scrap/actions/workflows/main-checks.yml/badge.svg?branch=main)](https://github.com/skipbit/scrap/actions/workflows/main-checks.yml)
+[![codecov](https://codecov.io/gh/skipbit/scrap/branch/main/graph/badge.svg)](https://codecov.io/gh/skipbit/scrap)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![C++23](https://img.shields.io/badge/C%2B%2B-23-blue.svg)](https://en.cppreference.com/w/cpp/23)
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)]()
-[![Version](https://img.shields.io/badge/version-0.0.1--alpha-orange.svg)]()
 
 **A Modern C++ Package Manager and Build System**
 
