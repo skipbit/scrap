@@ -104,6 +104,8 @@ find_package(GoogleTest REQUIRED)
 
 add_executable(scrap_gtest
     unit/command/CommonTypesTest.cpp
+    unit/command/CommandCatalogTest.cpp
+    ${CMAKE_SOURCE_DIR}/src/command/CommandCatalog.cpp
     ${CMAKE_SOURCE_DIR}/src/command/CommandHandler.cpp
     ${CMAKE_SOURCE_DIR}/src/command/CommandResolver.cpp
     ${CMAKE_SOURCE_DIR}/src/command/ParserAdapter.cpp
