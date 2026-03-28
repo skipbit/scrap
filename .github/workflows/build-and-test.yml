@@ -1,0 +1,136 @@
+# Reusable workflow for cross-platform build and test.
+#
+# Called by pr-checks.yml, main-checks.yml, and release.yml.
+# Not intended for standalone execution (workflow_call only).
+
+name: Build and Test
+
+on:
+  workflow_call:
+    inputs:
+      build-system:
+        description: 'Build system to use (cmake, meson, scrap)'
+        type: string
+        required: false
+        default: 'cmake'
+      build-type:
+        description: 'Build type filter (empty = all profiles)'
+        type: string
+        required: false
+        default: ''
+      ref:
+        description: 'Git ref to checkout (empty = caller default)'
+        type: string
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.compiler }} / ${{ matrix.profile }}
+    if: inputs.build-type == '' || matrix.profile == inputs.build-type
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-24.04, compiler: gcc-14, profile: Debug }
+          - { os: ubuntu-24.04, compiler: gcc-14, profile: Release }
+          - { os: ubuntu-24.04, compiler: gcc-13, profile: Debug }
+          - { os: ubuntu-24.04, compiler: gcc-13, profile: Release }
+          - { os: ubuntu-24.04, compiler: clang-18, profile: Debug }
+          - { os: ubuntu-24.04, compiler: clang-18, profile: Release }
+          - { os: ubuntu-24.04, compiler: clang-17, profile: Debug }
+          - { os: ubuntu-24.04, compiler: clang-17, profile: Release }
+          - { os: macos-14, compiler: apple-clang, profile: Debug }
+          - { os: macos-14, compiler: apple-clang, profile: Release }
+    runs-on: ${{ matrix.os }}
+    env:
+      CCACHE_DIR: ~/.ccache
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Install compiler (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq
+          case "${{ matrix.compiler }}" in
+            gcc-*)
+              version="${{ matrix.compiler }}"
+              version="${version#gcc-}"
+              sudo apt-get install -y -qq "gcc-${version}" "g++-${version}"
+              ;;
+            clang-*)
+              version="${{ matrix.compiler }}"
+              version="${version#clang-}"
+              sudo apt-get install -y -qq "clang-${version}"
+              ;;
+          esac
+
+      - name: Set up compiler environment
+        run: |
+          case "${{ matrix.compiler }}" in
+            gcc-*)
+              version="${{ matrix.compiler }}"
+              version="${version#gcc-}"
+              echo "CC=gcc-${version}" >> "$GITHUB_ENV"
+              echo "CXX=g++-${version}" >> "$GITHUB_ENV"
+              ;;
+            clang-*)
+              version="${{ matrix.compiler }}"
+              version="${version#clang-}"
+              echo "CC=clang-${version}" >> "$GITHUB_ENV"
+              echo "CXX=clang++-${version}" >> "$GITHUB_ENV"
+              ;;
+            apple-clang)
+              echo "CC=clang" >> "$GITHUB_ENV"
+              echo "CXX=clang++" >> "$GITHUB_ENV"
+              ;;
+          esac
+
+      - name: Install ccache
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            sudo apt-get install -y -qq ccache
+          elif [ "$RUNNER_OS" = "macOS" ]; then
+            brew install ccache
+          fi
+
+      - name: Restore ccache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.ccache
+          key: ccache-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.profile }}-${{ github.sha }}
+          restore-keys: |
+            ccache-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.profile }}-
+
+      - name: Configure ccache
+        run: |
+          ccache --set-config=max_size=500M
+          ccache --set-config=compression=true
+          ccache --zero-stats
+
+      - name: Configure (CMake)
+        if: inputs.build-system == 'cmake'
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=${{ matrix.profile }} \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DBUILD_TESTS=ON
+
+      - name: Build (CMake)
+        if: inputs.build-system == 'cmake'
+        run: cmake --build build --parallel
+
+      - name: Test (CTest)
+        if: inputs.build-system == 'cmake'
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Print ccache statistics
+        if: always()
+        run: ccache --show-stats
