@@ -107,6 +107,7 @@ add_executable(scrap_gtest
     unit/command/CommandCatalogTest.cpp
     unit/command/DefaultHelpRendererTest.cpp
     unit/command/DefaultVersionRendererTest.cpp
+    unit/command/ResolverTest.cpp
     ${CMAKE_SOURCE_DIR}/src/command/CommandCatalog.cpp
     ${CMAKE_SOURCE_DIR}/src/command/CommandHandler.cpp
     ${CMAKE_SOURCE_DIR}/src/command/CommandResolver.cpp
@@ -116,6 +117,12 @@ add_executable(scrap_gtest
     ${CMAKE_SOURCE_DIR}/src/command/DefaultHelpRenderer.cpp
     ${CMAKE_SOURCE_DIR}/src/command/DefaultVersionRenderer.cpp
     ${CMAKE_BINARY_DIR}/src/shared/constants/version.cpp
+    ${CMAKE_SOURCE_DIR}/src/command/BuiltinCommandResolver.cpp
+    ${CMAKE_SOURCE_DIR}/src/command/ExternalCommandResolver.cpp
+    ${CMAKE_SOURCE_DIR}/src/command/ExternalMetadataProvider.cpp
+    ${CMAKE_SOURCE_DIR}/src/command/ProjectCommandResolver.cpp
+    ${CMAKE_SOURCE_DIR}/src/command/ScriptsReader.cpp
+    ${CMAKE_SOURCE_DIR}/src/command/StubScriptsReader.cpp
 )
 
 target_include_directories(scrap_gtest PRIVATE
