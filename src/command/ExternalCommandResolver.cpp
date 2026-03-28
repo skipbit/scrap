@@ -14,11 +14,11 @@ const std::string kExternalPrefix = "scrap-";
  */
 auto isScrapExecutable(const std::filesystem::directory_entry& entry) -> bool
 {
-    if (!entry.is_regular_file()) {
+    if (! entry.is_regular_file()) {
         return false;
     }
     auto filename = entry.path().filename().string();
-    if (!filename.starts_with(kExternalPrefix)) {
+    if (! filename.starts_with(kExternalPrefix)) {
         return false;
     }
     auto status = std::filesystem::status(entry.path());
@@ -52,12 +52,12 @@ auto ExternalCommandResolver::resolve(const RuntimeEnvironment& env) -> std::vec
     std::vector<CommandEntry> entries;
 
     for (const auto& searchPath : env.searchPaths) {
-        if (!std::filesystem::is_directory(searchPath)) {
+        if (! std::filesystem::is_directory(searchPath)) {
             continue;
         }
 
         for (const auto& dirEntry : std::filesystem::directory_iterator(searchPath)) {
-            if (!isScrapExecutable(dirEntry)) {
+            if (! isScrapExecutable(dirEntry)) {
                 continue;
             }
 
@@ -71,7 +71,7 @@ auto ExternalCommandResolver::resolve(const RuntimeEnvironment& env) -> std::vec
                 if (metadata.has_value()) {
                     description = std::move(metadata->description);
                     options = std::move(metadata->options);
-                    if (!metadata->name.empty()) {
+                    if (! metadata->name.empty()) {
                         name = std::move(metadata->name);
                     }
                 }

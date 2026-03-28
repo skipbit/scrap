@@ -59,7 +59,7 @@ public:
      */
     auto execute(const InvocationContext& ctx) -> int override
     {
-        if (!ctx.options.positional.empty()) {
+        if (! ctx.options.positional.empty()) {
             auto target = ctx.options.positional[0];
             const auto* entry = ctx.catalog.find(target);
             if (entry != nullptr) {
