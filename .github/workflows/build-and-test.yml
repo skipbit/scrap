@@ -7,6 +7,10 @@
 #   Ubuntu 24.04: GCC 13, Clang 18
 #   macOS 14: Apple Clang (Xcode default)
 # Upgrading the runner OS automatically picks up newer compiler versions.
+#
+# Default matrix runs Release only (3 jobs). Debug builds are handled
+# separately by coverage jobs in pr-checks.yml and main-checks.yml.
+# Callers can override via the build-type input if needed.
 
 name: Build and Test
 
@@ -40,11 +44,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-24.04, compiler: gcc, cc: gcc, cxx: g++, profile: Debug }
           - { os: ubuntu-24.04, compiler: gcc, cc: gcc, cxx: g++, profile: Release }
-          - { os: ubuntu-24.04, compiler: clang, cc: clang, cxx: clang++, profile: Debug }
           - { os: ubuntu-24.04, compiler: clang, cc: clang, cxx: clang++, profile: Release }
-          - { os: macos-14, compiler: apple-clang, cc: clang, cxx: clang++, profile: Debug }
           - { os: macos-14, compiler: apple-clang, cc: clang, cxx: clang++, profile: Release }
     runs-on: ${{ matrix.os }}
     env:
