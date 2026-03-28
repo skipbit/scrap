@@ -1,8 +1,8 @@
 #pragma once
 
 #include "ConfigurationSource.h"
-#include "ToolchainReference.h"
 #include "ProjectConfiguration.h"
+#include "ToolchainReference.h"
 #include <optional>
 #include <string>
 

@@ -1,0 +1,94 @@
+# Quality gate for pull requests.
+#
+# Runs build/test matrix, static analysis, format checks, and diff coverage.
+# All checks must pass before a PR can be merged.
+
+name: PR Checks
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    uses: ./.github/workflows/build-and-test.yml
+    with:
+      build-system: 'cmake'
+
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Configure CMake
+        run: |
+          CC=clang CXX=clang++ cmake -B build \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DBUILD_TESTS=OFF
+
+      - name: Run clang-tidy
+        run: |
+          find src -type f -name '*.cpp' -print0 \
+            | xargs -0 -r clang-tidy -p build --warnings-as-errors='*'
+
+  format-check:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Check formatting
+        run: |
+          find src test -type f \( -name '*.cpp' -o -name '*.h' \) -print0 \
+            | xargs -0 -r clang-format --dry-run --Werror
+
+  diff-coverage:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install coverage tools
+        run: pip install gcovr==8.5 diff-cover==10.0.0
+
+      - name: Build with coverage
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_CXX_FLAGS="--coverage" \
+            -DCMAKE_EXE_LINKER_FLAGS="--coverage" \
+            -DBUILD_TESTS=ON
+          cmake --build build --parallel
+
+      - name: Run tests
+        run: ctest --test-dir build --output-on-failure --parallel
+
+      - name: Generate coverage report
+        run: |
+          gcovr --cobertura coverage.xml \
+            --root . \
+            --exclude 'build/_deps/.*' \
+            --exclude 'test/.*'
+
+      - name: Diff coverage report
+        run: |
+          diff-cover coverage.xml \
+            --compare-branch=origin/main \
+            --markdown-report diff-coverage.md || true
+          if [ -f diff-coverage.md ]; then
+            cat diff-coverage.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Diff coverage report not generated" >> "$GITHUB_STEP_SUMMARY"
+          fi

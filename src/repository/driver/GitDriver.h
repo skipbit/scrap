@@ -19,4 +19,4 @@ private:
     std::unique_ptr<Internal> impl_;
 };
 
-}
+}  // namespace scrap::repository

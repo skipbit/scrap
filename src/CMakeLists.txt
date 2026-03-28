@@ -95,10 +95,10 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     OUTPUT_NAME "scrap"
 )
 
-find_package(dross REQUIRED)
-find_package(git2 REQUIRED)
-find_package(cli11 REQUIRED)
-find_package(tomlplusplus REQUIRED)
+find_package(Dross REQUIRED)
+find_package(Git2 REQUIRED)
+find_package(CLI11 REQUIRED)
+find_package(TomlPlusPlus REQUIRED)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
     dross

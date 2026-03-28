@@ -1,7 +1,7 @@
 #include "TemplateProcessor.h"
+#include <algorithm>
 #include <fstream>
 #include <iostream>
-#include <algorithm>
 
 namespace scrap::template_system::service {
 
@@ -28,9 +28,9 @@ std::string TemplateProcessor::processFileName(const std::string& name, const Va
 }
 
 void TemplateProcessor::processTemplateDirectory(const std::filesystem::path& templatePath,
-                                               const std::filesystem::path& targetPath,
-                                               const VariableMap& variables,
-                                               const std::vector<std::string>& ignorePatterns)
+                                                 const std::filesystem::path& targetPath,
+                                                 const VariableMap& variables,
+                                                 const std::vector<std::string>& ignorePatterns)
 {
     if (!std::filesystem::exists(templatePath)) {
         throw std::runtime_error("Template path does not exist: " + templatePath.string());
@@ -213,8 +213,8 @@ bool TemplateProcessor::evaluateCondition(const std::string& condition, const Va
 }
 
 void TemplateProcessor::copyTemplateFile(const std::filesystem::path& sourcePath,
-                                       const std::filesystem::path& targetPath,
-                                       const VariableMap& variables)
+                                         const std::filesystem::path& targetPath,
+                                         const VariableMap& variables)
 {
     // Create target directory if needed
     auto targetDir = targetPath.parent_path();
@@ -228,8 +228,7 @@ void TemplateProcessor::copyTemplateFile(const std::filesystem::path& sourcePath
         throw std::runtime_error("Cannot read template file: " + sourcePath.string());
     }
 
-    std::string content((std::istreambuf_iterator<char>(source)),
-                       std::istreambuf_iterator<char>());
+    std::string content((std::istreambuf_iterator<char>(source)), std::istreambuf_iterator<char>());
 
     // Process content
     std::string processedContent = processContent(content, variables);
@@ -244,7 +243,7 @@ void TemplateProcessor::copyTemplateFile(const std::filesystem::path& sourcePath
 }
 
 bool TemplateProcessor::shouldIgnoreFile(const std::filesystem::path& filePath,
-                                       const std::vector<std::string>& ignorePatterns)
+                                         const std::vector<std::string>& ignorePatterns)
 {
     std::string filePathStr = filePath.string();
     std::string fileName = filePath.filename().string();
@@ -259,14 +258,12 @@ bool TemplateProcessor::shouldIgnoreFile(const std::filesystem::path& filePath,
 
         try {
             std::regex patternRegex(regexPattern);
-            if (std::regex_match(filePathStr, patternRegex) ||
-                std::regex_match(fileName, patternRegex)) {
+            if (std::regex_match(filePathStr, patternRegex) || std::regex_match(fileName, patternRegex)) {
                 return true;
             }
         } catch (const std::exception&) {
             // Invalid regex, try simple string match
-            if (filePathStr.find(pattern) != std::string::npos ||
-                fileName.find(pattern) != std::string::npos) {
+            if (filePathStr.find(pattern) != std::string::npos || fileName.find(pattern) != std::string::npos) {
                 return true;
             }
         }
@@ -345,4 +342,4 @@ std::string SimpleTemplateProcessor::processFileName(const std::string& filename
     return process(filename, variables);
 }
 
-} // namespace
+}  // namespace scrap::template_system::service

@@ -29,8 +29,7 @@ public:
      * This overrides CLI11's default help generation to provide
      * a more beautiful, Presenter-based output.
      */
-    std::string make_help(const CLI::App *app, std::string name,
-                         CLI::AppFormatMode mode) const override;
+    std::string make_help(const CLI::App* app, std::string name, CLI::AppFormatMode mode) const override;
 
 private:
     std::shared_ptr<Presenter> presenter_;
@@ -38,22 +37,22 @@ private:
     /**
      * @brief Format the usage line
      */
-    std::string formatUsage(const CLI::App *app, const std::string& name) const;
+    std::string formatUsage(const CLI::App* app, const std::string& name) const;
 
     /**
      * @brief Format positional arguments section
      */
-    std::string formatPositionals(const CLI::App *app) const;
+    std::string formatPositionals(const CLI::App* app) const;
 
     /**
      * @brief Format options section
      */
-    std::string formatOptions(const CLI::App *app) const;
+    std::string formatOptions(const CLI::App* app) const;
 
     /**
      * @brief Format subcommands section
      */
-    std::string formatSubcommands(const CLI::App *app) const;
+    std::string formatSubcommands(const CLI::App* app) const;
 };
 
-} // namespace scrap
+}  // namespace scrap

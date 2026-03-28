@@ -94,4 +94,4 @@ CommandResult CommandResult::invalidCommand(const std::string& command)
     return CommandResult(Status::InvalidCommand, "Invalid command: " + command);
 }
 
-}
+}  // namespace scrap

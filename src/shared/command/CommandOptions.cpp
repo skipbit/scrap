@@ -20,8 +20,7 @@ public:
 };
 
 // CommandOption implementation
-CommandOption::CommandOption(const std::string& name, const std::string& description,
-                           OptionType type)
+CommandOption::CommandOption(const std::string& name, const std::string& description, OptionType type)
     : impl_(std::make_unique<Impl>(name, description, type))
 {
 }
@@ -155,8 +154,8 @@ CommandOptions& CommandOptions::addFlag(const std::string& name, const std::stri
     return *this;
 }
 
-CommandOptions& CommandOptions::addFlag(const std::string& name, const std::string& shortName,
-                                       const std::string& description)
+CommandOptions&
+CommandOptions::addFlag(const std::string& name, const std::string& shortName, const std::string& description)
 {
     impl_->flags_.emplace_back(name, description, OptionType::Flag).withShortName(shortName);
     return *this;
@@ -182,4 +181,4 @@ bool CommandOptions::hasOptions() const
     return !impl_->positionals_.empty() || !impl_->options_.empty() || !impl_->flags_.empty();
 }
 
-}
+}  // namespace scrap

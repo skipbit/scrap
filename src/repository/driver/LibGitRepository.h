@@ -1,8 +1,8 @@
 #pragma once
 
+#include <expected>
 #include <filesystem>
 #include <memory>
-#include <expected>
 #include <system_error>
 
 namespace scrap::repository::libgit {
@@ -20,4 +20,4 @@ private:
     std::unique_ptr<Internal> impl_;
 };
 
-}
+}  // namespace scrap::repository::libgit

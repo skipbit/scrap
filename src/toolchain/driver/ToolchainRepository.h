@@ -1,9 +1,9 @@
 #pragma once
 
 #include "toolchain/model/Toolchain.h"
-#include <vector>
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace scrap::toolchain {
 
@@ -84,4 +84,4 @@ public:
     static std::shared_ptr<ToolchainRepository> createRepository();
 };
 
-}
+}  // namespace scrap::toolchain

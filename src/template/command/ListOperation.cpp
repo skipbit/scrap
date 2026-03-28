@@ -1,7 +1,7 @@
 #include "template/command/ListOperation.h"
-#include "template/service/TemplateService.h"
 #include "shared/command/CommandOptions.h"
 #include "shared/presentation/Presenter.h"
+#include "template/service/TemplateService.h"
 
 namespace scrap::template_system::command {
 
@@ -117,4 +117,4 @@ void ListOperation::displayTemplatesBySource()
     }
 }
 
-} // namespace scrap::template_system::command
+}  // namespace scrap::template_system::command

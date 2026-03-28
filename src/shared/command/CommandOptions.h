@@ -1,9 +1,9 @@
 #pragma once
 
+#include <memory>
+#include <optional>
 #include <string>
 #include <vector>
-#include <optional>
-#include <memory>
 
 namespace scrap {
 
@@ -26,8 +26,7 @@ enum class OptionType {
  */
 class CommandOption {
 public:
-    CommandOption(const std::string& name, const std::string& description,
-                  OptionType type = OptionType::String);
+    CommandOption(const std::string& name, const std::string& description, OptionType type = OptionType::String);
     ~CommandOption();
 
     // Copy constructor and assignment
@@ -82,8 +81,7 @@ public:
     CommandOptions& addPositional(const std::string& name, const std::string& description);
     CommandOptions& addOption(const CommandOption& option);
     CommandOptions& addFlag(const std::string& name, const std::string& description);
-    CommandOptions& addFlag(const std::string& name, const std::string& shortName,
-                            const std::string& description);
+    CommandOptions& addFlag(const std::string& name, const std::string& shortName, const std::string& description);
 
     // Accessors for configured options
     const std::vector<CommandOption>& positionals() const;
@@ -98,4 +96,4 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
-}
+}  // namespace scrap

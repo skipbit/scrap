@@ -1,7 +1,7 @@
 #include "template/command/UpdateOperation.h"
-#include "template/service/TemplateService.h"
 #include "shared/command/CommandOptions.h"
 #include "shared/presentation/Presenter.h"
+#include "template/service/TemplateService.h"
 
 namespace scrap::template_system::command {
 
@@ -90,4 +90,4 @@ void UpdateOperation::updateSpecificSource(const std::string& sourceName)
     }
 }
 
-} // namespace scrap::template_system::command
+}  // namespace scrap::template_system::command

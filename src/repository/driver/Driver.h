@@ -1,8 +1,8 @@
 #pragma once
 
-#include <string>
-#include <filesystem>
 #include <expected>
+#include <filesystem>
+#include <string>
 
 namespace scrap::repository {
 
@@ -13,4 +13,4 @@ public:
     virtual std::expected<void, std::string> update(const std::filesystem::path& path) = 0;
 };
 
-}
+}  // namespace scrap::repository

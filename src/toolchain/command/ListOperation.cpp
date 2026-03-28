@@ -1,10 +1,10 @@
 #include "ListOperation.h"
-#include "toolchain/service/ToolchainService.h"
-#include "toolchain/model/Toolchain.h"
-#include "shared/presentation/Presenter.h"
 #include "shared/command/CommandOptions.h"
-#include <sstream>
+#include "shared/presentation/Presenter.h"
+#include "toolchain/model/Toolchain.h"
+#include "toolchain/service/ToolchainService.h"
 #include <algorithm>
+#include <sstream>
 
 namespace scrap::toolchain::command {
 
@@ -44,10 +44,9 @@ void ListOperation::execute(const std::vector<std::string>& /* args */)
     output->displayInfo("--------------------");
 
     // Sort toolchains for consistent display
-    std::sort(toolchains.begin(), toolchains.end(),
-        [](const model::Toolchain& a, const model::Toolchain& b) {
-            return a.triple() < b.triple();
-        });
+    std::sort(toolchains.begin(), toolchains.end(), [](const model::Toolchain& a, const model::Toolchain& b) {
+        return a.triple() < b.triple();
+    });
 
     // Display each toolchain
     for (const auto& toolchain : toolchains) {
@@ -87,4 +86,4 @@ CommandOptions ListOperation::describeOptions() const
     return CommandOptions();
 }
 
-} // namespace scrap::toolchain::command
+}  // namespace scrap::toolchain::command

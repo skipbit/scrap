@@ -1,8 +1,8 @@
 #include "SelectOperation.h"
-#include "toolchain/service/ToolchainService.h"
-#include "toolchain/model/Toolchain.h"
-#include "shared/presentation/Presenter.h"
 #include "shared/command/CommandOptions.h"
+#include "shared/presentation/Presenter.h"
+#include "toolchain/model/Toolchain.h"
+#include "toolchain/service/ToolchainService.h"
 #include <sstream>
 
 namespace scrap::toolchain::command {
@@ -64,8 +64,7 @@ void SelectOperation::execute(const std::vector<std::string>& args)
 
 CommandOptions SelectOperation::describeOptions() const
 {
-    return CommandOptions()
-        .addPositional("toolchain-id", "Full toolchain identifier");
+    return CommandOptions().addPositional("toolchain-id", "Full toolchain identifier");
 }
 
 void SelectOperation::displayHelp() const
@@ -74,4 +73,4 @@ void SelectOperation::displayHelp() const
     // Help is now generated automatically from describeOptions()
 }
 
-} // namespace scrap::toolchain::command
+}  // namespace scrap::toolchain::command

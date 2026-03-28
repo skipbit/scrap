@@ -3,8 +3,8 @@
 #include "shared/command/CommandDispatcher.h"
 #include <memory>
 #include <span>
-#include <vector>
 #include <string>
+#include <vector>
 
 namespace scrap {
 
@@ -55,8 +55,7 @@ public:
      * @param command Command name
      * @param options Command options metadata
      */
-    virtual void configureCommandOptions(const std::string& command,
-                                        const CommandOptions& options) = 0;
+    virtual void configureCommandOptions(const std::string& command, const CommandOptions& options) = 0;
 };
 
 /**
@@ -72,8 +71,7 @@ public:
      * @param appDescription Application description
      * @return Unique pointer to CLI parser
      */
-    virtual std::unique_ptr<CLIParser> createParser(const std::string& appName,
-                                                    const std::string& appDescription) = 0;
+    virtual std::unique_ptr<CLIParser> createParser(const std::string& appName, const std::string& appDescription) = 0;
 };
 
-}
+}  // namespace scrap

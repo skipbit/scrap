@@ -87,10 +87,9 @@ CommandResult CLI11CommandDispatcher::dispatch(const CommandRequest& request)
     return impl_->dispatchRecursive(request);
 }
 
-void CLI11CommandDispatcher::registerOperation(const std::string& commandName,
-                                               std::shared_ptr<Operation> operation)
+void CLI11CommandDispatcher::registerOperation(const std::string& commandName, std::shared_ptr<Operation> operation)
 {
     impl_->operations_[commandName] = operation;
 }
 
-}
+}  // namespace scrap

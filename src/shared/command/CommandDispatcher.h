@@ -1,9 +1,9 @@
 #pragma once
 
 #include "shared/command/ParsedOptions.h"
+#include <memory>
 #include <string>
 #include <vector>
-#include <memory>
 
 namespace scrap {
 
@@ -35,8 +35,7 @@ public:
      * @param commandName Name of the command
      * @param operation Operation to execute for this command
      */
-    virtual void registerOperation(const std::string& commandName,
-                                   std::shared_ptr<Operation> operation) = 0;
+    virtual void registerOperation(const std::string& commandName, std::shared_ptr<Operation> operation) = 0;
 };
 
 /**
@@ -96,4 +95,4 @@ private:
     std::string message_;
 };
 
-}
+}  // namespace scrap

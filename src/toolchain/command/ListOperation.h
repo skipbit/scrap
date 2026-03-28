@@ -6,7 +6,7 @@
 namespace scrap::toolchain {
 
 namespace service {
-    class ToolchainService;
+class ToolchainService;
 }
 
 namespace command {
@@ -37,5 +37,5 @@ private:
     std::shared_ptr<service::ToolchainService> service_;
 };
 
-} // namespace command
-} // namespace scrap::toolchain
+}  // namespace command
+}  // namespace scrap::toolchain

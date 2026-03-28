@@ -96,7 +96,8 @@ public:
      * @param recursive Whether to list recursively
      * @return List of file paths
      */
-    [[nodiscard]] static std::vector<std::filesystem::path> listFiles(const std::filesystem::path& path, bool recursive = false);
+    [[nodiscard]] static std::vector<std::filesystem::path> listFiles(const std::filesystem::path& path,
+                                                                      bool recursive = false);
 
     /**
      * @brief Copy directory recursively

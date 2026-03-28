@@ -39,4 +39,4 @@ private:
     void registerOperations();
 };
 
-}
+}  // namespace scrap

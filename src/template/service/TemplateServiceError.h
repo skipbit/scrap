@@ -18,6 +18,5 @@ enum class TemplateServiceError : std::uint8_t {
 
 // Enable automatic conversion to std::error_code
 namespace std {
-template <>
-struct is_error_code_enum<scrap::template_system::service::TemplateServiceError> : true_type { };
+template <> struct is_error_code_enum<scrap::template_system::service::TemplateServiceError> : true_type { };
 }  // namespace std

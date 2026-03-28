@@ -1,13 +1,13 @@
 #pragma once
 
-#include <string>
-#include <vector>
+#include "TemplateError.h"
+#include <dross/type/error.h>
+#include <expected>
+#include <filesystem>
 #include <map>
 #include <optional>
-#include <filesystem>
-#include <expected>
-#include <dross/type/error.h>
-#include "TemplateError.h"
+#include <string>
+#include <vector>
 
 namespace scrap::template_system::model {
 
@@ -26,7 +26,7 @@ struct TemplateVariable {
     std::optional<std::string> defaultValue;
     Type type = Type::String;
     bool required = false;
-    std::vector<std::string> choices;  // For enum-like variables
+    std::vector<std::string> choices;       // For enum-like variables
     std::optional<std::string> validation;  // Regex pattern
     std::optional<std::string> transform;   // Variable transformation
 
@@ -45,7 +45,7 @@ enum class TemplateSourceType {
 struct TemplateSource {
     std::string name;
     TemplateSourceType type;
-    std::optional<std::string> url;      // For Git sources
+    std::optional<std::string> url;             // For Git sources
     std::optional<std::filesystem::path> path;  // For Local sources
     std::string branch = "main";
     bool autoUpdate = true;
@@ -70,9 +70,7 @@ struct TemplateRequirements {
  */
 class Template {
 public:
-    Template(const std::string& name,
-             const std::filesystem::path& path,
-             const TemplateSource& source);
+    Template(const std::string& name, const std::filesystem::path& path, const TemplateSource& source);
 
     // Basic information
     const std::string& name() const;
@@ -141,14 +139,12 @@ public:
     bool has(const std::string& name) const;
 
     // Standard variables (always available)
-    void setStandardVariables(const std::string& projectName,
-                             const std::string& projectVersion = "0.1.0");
+    void setStandardVariables(const std::string& projectName, const std::string& projectVersion = "0.1.0");
 
     const std::map<std::string, std::string>& all() const;
 
     // Variable transformation
-    std::string applyTransform(const std::string& value,
-                              const std::string& transform) const;
+    std::string applyTransform(const std::string& value, const std::string& transform) const;
 
 private:
     std::map<std::string, std::string> variables_;
@@ -163,4 +159,4 @@ std::string templateSourceTypeToString(TemplateSourceType type);
 [[nodiscard]] std::expected<TemplateSourceType, dross::error>
 stringToTemplateSourceType(const std::string& str) noexcept;
 
-} // namespace scrap::template_system::model
+}  // namespace scrap::template_system::model

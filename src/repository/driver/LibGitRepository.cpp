@@ -24,44 +24,63 @@ enum class GitError {
 };
 
 namespace std {
-template<>
-struct is_error_code_enum<GitError> : true_type {};
-}
+template <> struct is_error_code_enum<GitError> : true_type { };
+}  // namespace std
 
 class GitErrorCategory : public std::error_category {
 public:
-    const char* name() const noexcept override {
+    const char* name() const noexcept override
+    {
         return "git";
     }
 
-    std::string message(int ev) const override {
+    std::string message(int ev) const override
+    {
         switch (static_cast<GitError>(ev)) {
-            case GitError::RemoteLookupFailed: return "Failed to lookup remote";
-            case GitError::FetchFailed: return "Failed to fetch remote";
-            case GitError::CommitLookupFailed: return "Failed to lookup commit";
-            case GitError::ReferenceLookupFailed: return "Failed to lookup reference";
-            case GitError::AnnotatedCommitCreationFailed: return "Failed to create annotated commit";
-            case GitError::CloneOptionsFailed: return "Failed to initialize clone options";
-            case GitError::CloneFailed: return "Failed to clone repository";
-            case GitError::RepositoryOpenFailed: return "Failed to open repository";
-            case GitError::MergeAnalysisFailed: return "Failed to analyze merge";
-            case GitError::MergeOptionsFailed: return "Failed to initialize merge options";
-            case GitError::MergeFailed: return "Failed to merge";
-            case GitError::CheckoutOptionsFailed: return "Failed to initialize checkout options";
-            case GitError::CheckoutFailed: return "Failed to checkout head";
-            case GitError::SetHeadFailed: return "Failed to set repository head";
-            case GitError::SetReferenceTargetFailed: return "Failed to set reference target";
-            default: return "Unknown git error";
+            case GitError::RemoteLookupFailed:
+                return "Failed to lookup remote";
+            case GitError::FetchFailed:
+                return "Failed to fetch remote";
+            case GitError::CommitLookupFailed:
+                return "Failed to lookup commit";
+            case GitError::ReferenceLookupFailed:
+                return "Failed to lookup reference";
+            case GitError::AnnotatedCommitCreationFailed:
+                return "Failed to create annotated commit";
+            case GitError::CloneOptionsFailed:
+                return "Failed to initialize clone options";
+            case GitError::CloneFailed:
+                return "Failed to clone repository";
+            case GitError::RepositoryOpenFailed:
+                return "Failed to open repository";
+            case GitError::MergeAnalysisFailed:
+                return "Failed to analyze merge";
+            case GitError::MergeOptionsFailed:
+                return "Failed to initialize merge options";
+            case GitError::MergeFailed:
+                return "Failed to merge";
+            case GitError::CheckoutOptionsFailed:
+                return "Failed to initialize checkout options";
+            case GitError::CheckoutFailed:
+                return "Failed to checkout head";
+            case GitError::SetHeadFailed:
+                return "Failed to set repository head";
+            case GitError::SetReferenceTargetFailed:
+                return "Failed to set reference target";
+            default:
+                return "Unknown git error";
         }
     }
 };
 
-const GitErrorCategory& gitErrorCategory() {
+const GitErrorCategory& gitErrorCategory()
+{
     static GitErrorCategory instance;
     return instance;
 }
 
-std::error_code make_error_code(GitError e) {
+std::error_code make_error_code(GitError e)
+{
     return {static_cast<int>(e), gitErrorCategory()};
 }
 
@@ -72,9 +91,13 @@ namespace scrap::repository::libgit {
  */
 class Commit {
 public:
-    explicit Commit(git_commit* commit) : commit_(commit) {}
+    explicit Commit(git_commit* commit)
+        : commit_(commit)
+    {
+    }
 
-    ~Commit() {
+    ~Commit()
+    {
         if (commit_) {
             git_commit_free(commit_);
         }
@@ -83,11 +106,14 @@ public:
     Commit(const Commit&) = delete;
     Commit& operator=(const Commit&) = delete;
 
-    Commit(Commit&& other) noexcept : commit_(other.commit_) {
+    Commit(Commit&& other) noexcept
+        : commit_(other.commit_)
+    {
         other.commit_ = nullptr;
     }
 
-    Commit& operator=(Commit&& other) noexcept {
+    Commit& operator=(Commit&& other) noexcept
+    {
         if (this != &other) {
             if (commit_) {
                 git_commit_free(commit_);
@@ -98,11 +124,15 @@ public:
         return *this;
     }
 
-    const git_oid* oid() const {
+    const git_oid* oid() const
+    {
         return git_commit_id(commit_);
     }
 
-    git_commit* get() const { return commit_; }
+    git_commit* get() const
+    {
+        return commit_;
+    }
 
 private:
     git_commit* commit_ = nullptr;
@@ -113,9 +143,13 @@ private:
  */
 class Reference {
 public:
-    explicit Reference(git_reference* reference) : reference_(reference) {}
+    explicit Reference(git_reference* reference)
+        : reference_(reference)
+    {
+    }
 
-    ~Reference() {
+    ~Reference()
+    {
         if (reference_) {
             git_reference_free(reference_);
         }
@@ -124,11 +158,14 @@ public:
     Reference(const Reference&) = delete;
     Reference& operator=(const Reference&) = delete;
 
-    Reference(Reference&& other) noexcept : reference_(other.reference_) {
+    Reference(Reference&& other) noexcept
+        : reference_(other.reference_)
+    {
         other.reference_ = nullptr;
     }
 
-    Reference& operator=(Reference&& other) noexcept {
+    Reference& operator=(Reference&& other) noexcept
+    {
         if (this != &other) {
             if (reference_) {
                 git_reference_free(reference_);
@@ -139,22 +176,28 @@ public:
         return *this;
     }
 
-    const git_oid* oid() const {
+    const git_oid* oid() const
+    {
         return git_reference_target(reference_);
     }
 
-    const char* name() const {
+    const char* name() const
+    {
         return git_reference_name(reference_);
     }
 
-    std::expected<void, std::error_code> setTarget(const Commit& c, const std::string& message) {
+    std::expected<void, std::error_code> setTarget(const Commit& c, const std::string& message)
+    {
         if (git_reference_set_target(&reference_, reference_, c.oid(), message.c_str()) != GIT_OK) {
             return std::unexpected(make_error_code(GitError::SetReferenceTargetFailed));
         }
         return {};
     }
 
-    git_reference* get() const { return reference_; }
+    git_reference* get() const
+    {
+        return reference_;
+    }
 
 private:
     git_reference* reference_ = nullptr;
@@ -166,13 +209,15 @@ private:
 class Repository::Internal {
 public:
     // --
-    Internal(const std::filesystem::path& path) {
+    Internal(const std::filesystem::path& path)
+    {
         if (git_repository_open(&repository, path.c_str()) != GIT_OK) {
-            repository = nullptr; // Ensure it's null on failure
+            repository = nullptr;  // Ensure it's null on failure
         }
     }
     // --
-    Internal(const std::string& url, const std::filesystem::path& path) {
+    Internal(const std::string& url, const std::filesystem::path& path)
+    {
         git_clone_options options;
         if (git_clone_options_init(&options, GIT_CLONE_OPTIONS_VERSION) != GIT_OK) {
             repository = nullptr;
@@ -184,24 +229,28 @@ public:
         }
     }
 
-    bool isValid() const {
+    bool isValid() const
+    {
         return repository != nullptr;
     }
 
-    std::error_code lastError() const {
+    std::error_code lastError() const
+    {
         // For now, return a generic error. In a more sophisticated implementation,
         // we could capture the specific libgit2 error
         return make_error_code(repository ? GitError::RemoteLookupFailed : GitError::RepositoryOpenFailed);
     }
     // --
-    ~Internal() {
+    ~Internal()
+    {
         if (repository) {
             git_repository_free(repository);
         }
     }
 
     // --
-    std::expected<void, std::error_code> update(const std::string& r = "origin", const std::string& b = "main") {
+    std::expected<void, std::error_code> update(const std::string& r = "origin", const std::string& b = "main")
+    {
         auto fetchResult = fetch(r);
         if (!fetchResult) {
             return std::unexpected(fetchResult.error());
@@ -226,7 +275,8 @@ public:
     }
 
     // --
-    std::expected<void, std::error_code> fetch(const std::string& r = "origin") {
+    std::expected<void, std::error_code> fetch(const std::string& r = "origin")
+    {
         git_remote* remote = nullptr;
         if (git_remote_lookup(&remote, repository, r.c_str()) != GIT_OK) {
             return std::unexpected(make_error_code(GitError::RemoteLookupFailed));
@@ -243,7 +293,8 @@ public:
         return {};
     }
 
-    std::expected<Reference, std::error_code> createReference(const std::string& name) {
+    std::expected<Reference, std::error_code> createReference(const std::string& name)
+    {
         git_reference* reference = nullptr;
         if (git_reference_lookup(&reference, repository, name.c_str()) != GIT_OK) {
             return std::unexpected(make_error_code(GitError::ReferenceLookupFailed));
@@ -251,7 +302,8 @@ public:
         return Reference{reference};
     }
 
-    std::expected<Commit, std::error_code> createCommit(const git_oid* oid) {
+    std::expected<Commit, std::error_code> createCommit(const git_oid* oid)
+    {
         git_commit* commit = nullptr;
         if (git_commit_lookup(&commit, repository, oid) != GIT_OK) {
             return std::unexpected(make_error_code(GitError::CommitLookupFailed));
@@ -260,7 +312,8 @@ public:
     }
 
     // --
-    std::expected<void, std::error_code> merge(Commit& co, Reference& ref) {
+    std::expected<void, std::error_code> merge(Commit& co, Reference& ref)
+    {
         git_merge_analysis_t analysis;
         git_merge_preference_t preference;
 
@@ -270,7 +323,7 @@ public:
         }
 
         auto cleanup = [annotation]() { git_annotated_commit_free(annotation); };
-        const git_annotated_commit* annotations[] = { annotation };
+        const git_annotated_commit* annotations[] = {annotation};
 
         if (git_merge_analysis(&analysis, &preference, repository, annotations, 1) != GIT_OK) {
             cleanup();
@@ -280,8 +333,7 @@ public:
         if (analysis & GIT_MERGE_ANALYSIS_UP_TO_DATE) {
             cleanup();
             return {};
-        }
-        else if (analysis & GIT_MERGE_ANALYSIS_FASTFORWARD) {
+        } else if (analysis & GIT_MERGE_ANALYSIS_FASTFORWARD) {
             auto setTargetResult = ref.setTarget(co, "Fast-forward");
             if (!setTargetResult) {
                 cleanup();
@@ -297,8 +349,7 @@ public:
             auto checkoutResult = checkoutHead();
             cleanup();
             return checkoutResult;
-        }
-        else if (analysis & GIT_MERGE_ANALYSIS_NORMAL) {
+        } else if (analysis & GIT_MERGE_ANALYSIS_NORMAL) {
             git_merge_options options;
             if (git_merge_init_options(&options, GIT_MERGE_OPTIONS_VERSION) != GIT_OK) {
                 cleanup();
@@ -316,7 +367,8 @@ public:
     }
 
     // --
-    std::expected<void, std::error_code> setHeadToRef(const Reference& l) {
+    std::expected<void, std::error_code> setHeadToRef(const Reference& l)
+    {
         if (git_repository_set_head(repository, l.name()) != GIT_OK) {
             return std::unexpected(make_error_code(GitError::SetHeadFailed));
         }
@@ -324,7 +376,8 @@ public:
     }
 
     // --
-    std::expected<void, std::error_code> checkoutHead() {
+    std::expected<void, std::error_code> checkoutHead()
+    {
         git_checkout_options options;
         if (git_checkout_options_init(&options, GIT_CHECKOUT_OPTIONS_VERSION) != GIT_OK) {
             return std::unexpected(make_error_code(GitError::CheckoutOptionsFailed));
@@ -358,4 +411,4 @@ std::expected<void, std::error_code> Repository::update(const std::string& remot
     return impl_->update(remote, branch);
 }
 
-}
+}  // namespace scrap::repository::libgit

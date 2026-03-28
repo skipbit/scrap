@@ -42,4 +42,4 @@ public:
     static std::vector<std::pair<std::string, std::string>> availableSubcommands();
 };
 
-}
+}  // namespace scrap::toolchain

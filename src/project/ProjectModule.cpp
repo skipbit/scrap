@@ -1,8 +1,8 @@
 #include "ProjectModule.h"
-#include "project/command/NewOperation.h"
 #include "project/command/BuildOperation.h"
-#include "project/command/RunOperation.h"
 #include "project/command/CleanOperation.h"
+#include "project/command/NewOperation.h"
+#include "project/command/RunOperation.h"
 #include "project/service/ProjectService.h"
 #include "shared/command/CommandOptions.h"
 #include <memory>
@@ -41,12 +41,10 @@ void ProjectModule::registerCommands(CommandDispatcher& dispatcher,
 
 std::vector<std::pair<std::string, std::string>> ProjectModule::availableCommands()
 {
-    return {
-        {"new", "Create a new C++ project"},
-        {"build", "Compile the current project"},
-        {"run", "Run the current project executable"},
-        {"clean", "Remove build artifacts and cached files"}
-    };
+    return {{"new", "Create a new C++ project"},
+            {"build", "Compile the current project"},
+            {"run", "Run the current project executable"},
+            {"clean", "Remove build artifacts and cached files"}};
 }
 
-} // namespace scrap::project
+}  // namespace scrap::project

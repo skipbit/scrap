@@ -1,13 +1,13 @@
 #include "NewOperation.h"
-#include "project/service/ProjectService.h"
 #include "project/model/Project.h"
-#include "shared/presentation/Presenter.h"
+#include "project/service/ProjectService.h"
 #include "shared/command/CommandOptions.h"
 #include "shared/command/ParsedOptions.h"
+#include "shared/presentation/Presenter.h"
 #include "template/TemplateModule.h"
 #include "template/service/TemplateService.h"
-#include <sstream>
 #include <algorithm>
+#include <sstream>
 
 namespace scrap::project::command {
 
@@ -15,7 +15,7 @@ namespace scrap::project::command {
 namespace Model = scrap::Project::Model;
 
 NewOperation::NewOperation(std::shared_ptr<service::ProjectService> service,
-                                   std::shared_ptr<template_system::service::TemplateService> templateService)
+                           std::shared_ptr<template_system::service::TemplateService> templateService)
     : service_(service), templateService_(templateService)
 {
 
@@ -51,8 +51,8 @@ void NewOperation::execute(const std::vector<std::string>& args)
 
     // Display creation result (cargo-style)
     std::stringstream ss;
-    ss << "     Created " << Model::projectTypeToString(project.type())
-       << " `" << project.name().toString() << "` project";
+    ss << "     Created " << Model::projectTypeToString(project.type()) << " `" << project.name().toString()
+       << "` project";
     output->displaySuccess(ss.str());
 
     // Display generated files
@@ -88,19 +88,18 @@ void NewOperation::execute(const std::vector<std::string>& args)
     }
 }
 
-
 CommandOptions NewOperation::describeOptions() const
 {
     return CommandOptions()
         .addPositional("project-name", "Name of the new project")
         .addOption(CommandOption("type", "Project type (app, lib)", OptionType::String)
-            .withDefault("app")
-            .withChoices({"app", "lib"}))
+                       .withDefault("app")
+                       .withChoices({"app", "lib"}))
         .addOption(CommandOption("template", "Use project template", OptionType::String))
         .addOption(CommandOption("path", "Target directory", OptionType::String))
         .addOption(CommandOption("std", "C++ standard version (17, 20, 23)", OptionType::String)
-            .withDefault("23")
-            .withChoices({"17", "20", "23"}));
+                       .withDefault("23")
+                       .withChoices({"17", "20", "23"}));
 }
 
 void NewOperation::execute(const ParsedOptions& options)
@@ -144,8 +143,8 @@ void NewOperation::execute(const ParsedOptions& options)
 
     // Display creation result (cargo-style)
     std::stringstream ss;
-    ss << "     Created " << Model::projectTypeToString(project.type())
-       << " `" << project.name().toString() << "` project";
+    ss << "     Created " << Model::projectTypeToString(project.type()) << " `" << project.name().toString()
+       << "` project";
     output->displaySuccess(ss.str());
 
     // Display generated files
@@ -181,4 +180,4 @@ void NewOperation::execute(const ParsedOptions& options)
     }
 }
 
-} // namespace scrap::project::command
+}  // namespace scrap::project::command

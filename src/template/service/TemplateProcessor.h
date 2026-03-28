@@ -1,9 +1,9 @@
 #pragma once
 
 #include "template/model/Template.h"
-#include <string>
-#include <regex>
 #include <filesystem>
+#include <regex>
+#include <string>
 
 namespace scrap::template_system::service {
 
@@ -44,9 +44,9 @@ public:
      * @param ignorePatterns File patterns to ignore
      */
     void processTemplateDirectory(const std::filesystem::path& templatePath,
-                                 const std::filesystem::path& targetPath,
-                                 const VariableMap& variables,
-                                 const std::vector<std::string>& ignorePatterns = {});
+                                  const std::filesystem::path& targetPath,
+                                  const VariableMap& variables,
+                                  const std::vector<std::string>& ignorePatterns = {});
 
 private:
     // Variable substitution
@@ -59,11 +59,10 @@ private:
 
     // File operations
     void copyTemplateFile(const std::filesystem::path& sourcePath,
-                         const std::filesystem::path& targetPath,
-                         const VariableMap& variables);
+                          const std::filesystem::path& targetPath,
+                          const VariableMap& variables);
 
-    bool shouldIgnoreFile(const std::filesystem::path& filePath,
-                         const std::vector<std::string>& ignorePatterns);
+    bool shouldIgnoreFile(const std::filesystem::path& filePath, const std::vector<std::string>& ignorePatterns);
 
     // Utility functions
     std::string trim(const std::string& str);
@@ -99,4 +98,4 @@ private:
     static const std::regex TRANSFORM_PATTERN;
 };
 
-} // namespace scrap::template_system::service
+}  // namespace scrap::template_system::service

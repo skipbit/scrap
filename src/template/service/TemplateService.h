@@ -1,22 +1,22 @@
 #pragma once
 
 #include "template/model/Template.h"
-#include <memory>
-#include <vector>
-#include <optional>
-#include <filesystem>
-#include <expected>
-#include <string>
 #include <dross/type/error.h>
+#include <expected>
+#include <filesystem>
+#include <memory>
+#include <optional>
+#include <string>
+#include <vector>
 
 namespace scrap {
 // Forward declarations
 namespace repository {
-    class GitDriver;
+class GitDriver;
 }
 
 class Presenter;
-}
+}  // namespace scrap
 
 namespace scrap::template_system::service {
 
@@ -103,9 +103,8 @@ public:
      * @param variables Variable values for substitution
      * @return void on success, error message on failure
      */
-    virtual std::expected<void, std::string> processTemplate(const Template& tmpl,
-                               const std::filesystem::path& targetPath,
-                               const VariableMap& variables) = 0;
+    virtual std::expected<void, std::string>
+    processTemplate(const Template& tmpl, const std::filesystem::path& targetPath, const VariableMap& variables) = 0;
 
     /**
      * @brief Collect variable values for a template (interactive prompts)
@@ -113,8 +112,7 @@ public:
      * @param projectName Project name (sets {{name}} variable)
      * @return VariableMap with collected values
      */
-    virtual VariableMap collectTemplateVariables(const Template& tmpl,
-                                               const std::string& projectName) = 0;
+    virtual VariableMap collectTemplateVariables(const Template& tmpl, const std::string& projectName) = 0;
 
     // Template validation
     /**
@@ -154,10 +152,9 @@ public:
      * @param gitDriver Optional GitDriver for repository operations (will create one if not provided)
      * @param presenter Optional Presenter for output operations (will create ConsolePresenter if not provided)
      */
-    explicit DefaultTemplateService(
-        const std::filesystem::path& templatesDir,
-        std::shared_ptr<repository::GitDriver> gitDriver = nullptr,
-        std::shared_ptr<Presenter> presenter = nullptr);
+    explicit DefaultTemplateService(const std::filesystem::path& templatesDir,
+                                    std::shared_ptr<repository::GitDriver> gitDriver = nullptr,
+                                    std::shared_ptr<Presenter> presenter = nullptr);
 
     ~DefaultTemplateService() override;
 
@@ -176,10 +173,9 @@ public:
 
     // Template processing
     std::expected<void, std::string> processTemplate(const Template& tmpl,
-                        const std::filesystem::path& targetPath,
-                        const VariableMap& variables) override;
-    VariableMap collectTemplateVariables(const Template& tmpl,
-                                       const std::string& projectName) override;
+                                                     const std::filesystem::path& targetPath,
+                                                     const VariableMap& variables) override;
+    VariableMap collectTemplateVariables(const Template& tmpl, const std::string& projectName) override;
 
     // Template validation
     std::vector<std::string> validateTemplate(const std::filesystem::path& templatePath) override;
@@ -189,12 +185,11 @@ public:
     bool isTemplateSourceAccessible(const std::string& sourceName) override;
 
     // Static utility
-    [[nodiscard]] static std::expected<std::filesystem::path, dross::error>
-    defaultTemplatesDirectory() noexcept;
+    [[nodiscard]] static std::expected<std::filesystem::path, dross::error> defaultTemplatesDirectory() noexcept;
 
 private:
     class Internal;
     std::unique_ptr<Internal> impl_;
 };
 
-} // namespace scrap::template_system::service
+}  // namespace scrap::template_system::service

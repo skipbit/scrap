@@ -6,7 +6,7 @@
 namespace scrap::template_system {
 
 namespace service {
-    class TemplateService;
+class TemplateService;
 }
 
 namespace command {
@@ -41,5 +41,5 @@ private:
     void updateSpecificSource(const std::string& sourceName);
 };
 
-} // namespace command
-} // namespace scrap::template_system
+}  // namespace command
+}  // namespace scrap::template_system

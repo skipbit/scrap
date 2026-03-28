@@ -99,4 +99,4 @@ void ParsedOptions::setPositionalArgs(const std::vector<std::string>& args)
     impl_->positionalArgs_ = args;
 }
 
-}
+}  // namespace scrap

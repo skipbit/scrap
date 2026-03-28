@@ -6,7 +6,7 @@
 namespace scrap::template_system {
 
 namespace service {
-    class TemplateService;
+class TemplateService;
 }
 
 namespace command {
@@ -40,5 +40,5 @@ private:
     std::unique_ptr<Internal> impl_;
 };
 
-} // namespace command
-} // namespace scrap::template_system
+}  // namespace command
+}  // namespace scrap::template_system

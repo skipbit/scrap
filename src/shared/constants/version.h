@@ -7,4 +7,4 @@ namespace scrap {
 // Version information
 std::string version();
 
-}
+}  // namespace scrap

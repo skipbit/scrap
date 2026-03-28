@@ -5,11 +5,11 @@
 #include <optional>
 
 namespace scrap {
-    class Presenter;
+class Presenter;
 }
 
 namespace scrap::template_system::service {
-    class TemplateService;
+class TemplateService;
 }
 
 namespace scrap::project::service {
@@ -41,8 +41,8 @@ public:
      * @param path Optional path to project directory
      * @return Project if found, nullopt otherwise
      */
-    virtual std::optional<Model::Project> loadProject(
-        const std::optional<std::filesystem::path>& path = std::nullopt) = 0;
+    virtual std::optional<Model::Project>
+    loadProject(const std::optional<std::filesystem::path>& path = std::nullopt) = 0;
 
     /**
      * @brief Save project configuration to disk
@@ -58,8 +58,7 @@ public:
      * @param options Build options
      * @return Build result
      */
-    virtual Model::BuildResult build(const Model::Project& project,
-                                     const Model::BuildOptions& options) = 0;
+    virtual Model::BuildResult build(const Model::Project& project, const Model::BuildOptions& options) = 0;
 
     /**
      * @brief Run the built executable
@@ -67,8 +66,7 @@ public:
      * @param options Run options
      * @throws std::runtime_error if run fails
      */
-    virtual void run(const Model::Project& project,
-                     const Model::RunOptions& options) = 0;
+    virtual void run(const Model::Project& project, const Model::RunOptions& options) = 0;
 
     /**
      * @brief Clean build artifacts
@@ -83,8 +81,7 @@ public:
      * @param dependency Dependency to add
      * @return Modified project
      */
-    virtual Model::Project addDependency(const Model::Project& project,
-                                         const Model::Dependency& dependency) = 0;
+    virtual Model::Project addDependency(const Model::Project& project, const Model::Dependency& dependency) = 0;
 };
 
 /**
@@ -93,37 +90,28 @@ public:
 class MockProjectService : public ProjectService {
 public:
     MockProjectService();
-    explicit MockProjectService(
-        std::shared_ptr<template_system::service::TemplateService> templateService = nullptr,
-        std::shared_ptr<Presenter> presenter = nullptr);
+    explicit MockProjectService(std::shared_ptr<template_system::service::TemplateService> templateService = nullptr,
+                                std::shared_ptr<Presenter> presenter = nullptr);
     ~MockProjectService() override = default;
 
     Model::Project createNew(const Model::ProjectSpecification& spec) override;
-    std::optional<Model::Project> loadProject(
-        const std::optional<std::filesystem::path>& path = std::nullopt) override;
+    std::optional<Model::Project> loadProject(const std::optional<std::filesystem::path>& path = std::nullopt) override;
     void saveProject(const Model::Project& project) override;
 
-    Model::BuildResult build(const Model::Project& project,
-                             const Model::BuildOptions& options) override;
-    void run(const Model::Project& project,
-             const Model::RunOptions& options) override;
+    Model::BuildResult build(const Model::Project& project, const Model::BuildOptions& options) override;
+    void run(const Model::Project& project, const Model::RunOptions& options) override;
     void clean(const Model::Project& project) override;
 
-    Model::Project addDependency(const Model::Project& project,
-                                 const Model::Dependency& dependency) override;
+    Model::Project addDependency(const Model::Project& project, const Model::Dependency& dependency) override;
 
 private:
     std::shared_ptr<template_system::service::TemplateService> templateService_;
     std::shared_ptr<Presenter> presenter_;
 
-    void createProjectStructure(const Model::Project& project,
-                                const std::filesystem::path& basePath);
-    void generateSourceFiles(const Model::Project& project,
-                             const std::filesystem::path& projectPath);
-    void generateConfigFile(const Model::Project& project,
-                            const std::filesystem::path& projectPath);
-    void createProjectFromTemplate(const Model::ProjectSpecification& spec,
-                                  const std::filesystem::path& targetPath);
+    void createProjectStructure(const Model::Project& project, const std::filesystem::path& basePath);
+    void generateSourceFiles(const Model::Project& project, const std::filesystem::path& projectPath);
+    void generateConfigFile(const Model::Project& project, const std::filesystem::path& projectPath);
+    void createProjectFromTemplate(const Model::ProjectSpecification& spec, const std::filesystem::path& targetPath);
 };
 
-} // namespace scrap::project::service
+}  // namespace scrap::project::service

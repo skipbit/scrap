@@ -1,7 +1,7 @@
 #include "Template.h"
-#include <regex>
 #include <chrono>
 #include <ctime>
+#include <regex>
 
 namespace scrap::template_system::model {
 
@@ -24,9 +24,7 @@ bool TemplateRequirements::isCompatible() const
     return true;
 }
 
-Template::Template(const std::string& name,
-                   const std::filesystem::path& path,
-                   const TemplateSource& source)
+Template::Template(const std::string& name, const std::filesystem::path& path, const TemplateSource& source)
     : name_(name), path_(path), source_(source)
 {
     loadMetadata();
@@ -180,7 +178,8 @@ std::vector<std::filesystem::path> Template::templateFiles() const
     // Recursively collect all files except template.toml and .scrap-ignore
     std::error_code ec;
     for (auto& entry : std::filesystem::recursive_directory_iterator(path_, ec)) {
-        if (ec) continue; // Skip errors
+        if (ec)
+            continue;  // Skip errors
 
         if (entry.is_regular_file()) {
             auto relativePath = std::filesystem::relative(entry.path(), path_);
@@ -249,19 +248,17 @@ const std::map<std::string, std::string>& VariableMap::all() const
     return variables_;
 }
 
-void VariableMap::setStandardVariables(const std::string& projectName,
-                                       const std::string& projectVersion)
+void VariableMap::setStandardVariables(const std::string& projectName, const std::string& projectVersion)
 {
     set("name", projectName);
     set("version", projectVersion);
     set("year", currentYear());
     set("date", currentDate());
     set("author", currentUser());
-    set("scrap_version", "0.0.1"); // TODO: Get actual scrap version
+    set("scrap_version", "0.0.1");  // TODO: Get actual scrap version
 }
 
-std::string VariableMap::applyTransform(const std::string& value,
-                                        const std::string& transform) const
+std::string VariableMap::applyTransform(const std::string& value, const std::string& transform) const
 {
     if (transform == "lower_case") {
         std::string result = value;
@@ -359,7 +356,7 @@ std::string VariableMap::currentUser() const
 {
     const char* user = std::getenv("USER");
     if (!user) {
-        user = std::getenv("USERNAME"); // Windows
+        user = std::getenv("USERNAME");  // Windows
     }
     return user ? std::string(user) : "unknown";
 }
@@ -367,22 +364,27 @@ std::string VariableMap::currentUser() const
 std::string templateSourceTypeToString(TemplateSourceType type)
 {
     switch (type) {
-        case TemplateSourceType::Official: return "official";
-        case TemplateSourceType::Git: return "git";
-        case TemplateSourceType::Local: return "local";
+        case TemplateSourceType::Official:
+            return "official";
+        case TemplateSourceType::Git:
+            return "git";
+        case TemplateSourceType::Local:
+            return "local";
     }
     return "unknown";
 }
 
-std::expected<TemplateSourceType, dross::error>
-stringToTemplateSourceType(const std::string& str) noexcept
+std::expected<TemplateSourceType, dross::error> stringToTemplateSourceType(const std::string& str) noexcept
 {
-    if (str == "official") return TemplateSourceType::Official;
-    if (str == "git") return TemplateSourceType::Git;
-    if (str == "local") return TemplateSourceType::Local;
+    if (str == "official")
+        return TemplateSourceType::Official;
+    if (str == "git")
+        return TemplateSourceType::Git;
+    if (str == "local")
+        return TemplateSourceType::Local;
 
     auto errorCode = make_error_code(TemplateError::InvalidSourceType);
     return std::unexpected(dross::error{errorCode.value(), errorCode.category()});
 }
 
-} // namespace scrap::template_system::model
+}  // namespace scrap::template_system::model

@@ -6,7 +6,7 @@
 namespace scrap::toolchain {
 
 namespace service {
-    class ToolchainService;
+class ToolchainService;
 }
 
 namespace command {
@@ -39,5 +39,5 @@ private:
     void displayHelp() const;
 };
 
-} // namespace command
-} // namespace scrap::toolchain
+}  // namespace command
+}  // namespace scrap::toolchain

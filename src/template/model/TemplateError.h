@@ -1,7 +1,7 @@
 #pragma once
 
-#include <dross/type/error.h>
 #include <cstdint>
+#include <dross/type/error.h>
 #include <system_error>
 
 namespace scrap::template_system::model {
@@ -22,7 +22,6 @@ std::error_code make_error_code(scrap::template_system::model::TemplateError e) 
 // C++ standard requires specializing std::is_error_code_enum for custom error enums
 namespace std {
 
-template <>
-struct is_error_code_enum<scrap::template_system::model::TemplateError> : true_type { };
+template <> struct is_error_code_enum<scrap::template_system::model::TemplateError> : true_type { };
 
 }  // namespace std

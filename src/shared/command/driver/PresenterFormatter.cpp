@@ -1,8 +1,8 @@
 #include "PresenterFormatter.h"
 #include "shared/presentation/Presenter.h"
-#include <sstream>
-#include <iomanip>
 #include <algorithm>
+#include <iomanip>
+#include <sstream>
 
 namespace scrap {
 
@@ -14,8 +14,7 @@ PresenterFormatter::PresenterFormatter(std::shared_ptr<Presenter> presenter)
     right_column_width(50);
 }
 
-std::string PresenterFormatter::make_help(const CLI::App *app, std::string name,
-                                         CLI::AppFormatMode mode) const
+std::string PresenterFormatter::make_help(const CLI::App* app, std::string name, CLI::AppFormatMode mode) const
 {
     if (!presenter_) {
         // Fallback to default formatter if no presenter
@@ -68,7 +67,7 @@ std::string PresenterFormatter::make_help(const CLI::App *app, std::string name,
     return out.str();
 }
 
-std::string PresenterFormatter::formatUsage(const CLI::App *app, const std::string& name) const
+std::string PresenterFormatter::formatUsage(const CLI::App* app, const std::string& name) const
 {
     std::stringstream out;
     out << "Usage: ";
@@ -110,7 +109,7 @@ std::string PresenterFormatter::formatUsage(const CLI::App *app, const std::stri
     return out.str();
 }
 
-std::string PresenterFormatter::formatPositionals(const CLI::App *app) const
+std::string PresenterFormatter::formatPositionals(const CLI::App* app) const
 {
     std::stringstream out;
 
@@ -134,7 +133,7 @@ std::string PresenterFormatter::formatPositionals(const CLI::App *app) const
     return out.str();
 }
 
-std::string PresenterFormatter::formatOptions(const CLI::App *app) const
+std::string PresenterFormatter::formatOptions(const CLI::App* app) const
 {
     std::stringstream out;
 
@@ -154,7 +153,8 @@ std::string PresenterFormatter::formatOptions(const CLI::App *app) const
         bool first = true;
         if (!opt->get_snames().empty()) {
             for (const auto& sname : opt->get_snames()) {
-                if (!first) optStr << ", ";
+                if (!first)
+                    optStr << ", ";
                 optStr << "-" << sname;
                 first = false;
             }
@@ -163,7 +163,8 @@ std::string PresenterFormatter::formatOptions(const CLI::App *app) const
         // Add long options
         if (!opt->get_lnames().empty()) {
             for (const auto& lname : opt->get_lnames()) {
-                if (!first) optStr << ", ";
+                if (!first)
+                    optStr << ", ";
                 optStr << "--" << lname;
                 first = false;
             }
@@ -205,7 +206,7 @@ std::string PresenterFormatter::formatOptions(const CLI::App *app) const
     return out.str();
 }
 
-std::string PresenterFormatter::formatSubcommands(const CLI::App *app) const
+std::string PresenterFormatter::formatSubcommands(const CLI::App* app) const
 {
     std::stringstream out;
 
@@ -230,4 +231,4 @@ std::string PresenterFormatter::formatSubcommands(const CLI::App *app) const
     return out.str();
 }
 
-} // namespace scrap
+}  // namespace scrap

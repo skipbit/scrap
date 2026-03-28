@@ -9,8 +9,7 @@ CompositeOperation::CompositeOperation() = default;
 
 CompositeOperation::~CompositeOperation() = default;
 
-void CompositeOperation::addSubOperation(const std::string& name,
-                                         std::shared_ptr<Operation> operation)
+void CompositeOperation::addSubOperation(const std::string& name, std::shared_ptr<Operation> operation)
 {
     if (operation) {
         subOperations_[name] = operation;
@@ -102,4 +101,4 @@ void CompositeOperation::displayHelp() const
     }
 }
 
-} // namespace scrap
+}  // namespace scrap

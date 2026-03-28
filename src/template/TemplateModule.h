@@ -2,14 +2,14 @@
 
 #include "template/service/TemplateService.h"
 #include <memory>
-#include <vector>
 #include <string>
+#include <vector>
 
 namespace scrap {
-    class Presenter;
-    class CLIParser;
-    class CommandDispatcher;
-}
+class Presenter;
+class CLIParser;
+class CommandDispatcher;
+}  // namespace scrap
 
 namespace scrap::template_system {
 
@@ -26,8 +26,8 @@ public:
      * @param presenter Optional presenter for output operations
      * @return Shared pointer to template service instance
      */
-    static std::shared_ptr<service::TemplateService> createTemplateService(
-        std::shared_ptr<Presenter> presenter = nullptr);
+    static std::shared_ptr<service::TemplateService>
+    createTemplateService(std::shared_ptr<Presenter> presenter = nullptr);
 
     /**
      * @brief Create template service with custom templates directory
@@ -35,9 +35,8 @@ public:
      * @param presenter Optional presenter for output operations
      * @return Shared pointer to template service instance
      */
-    static std::shared_ptr<service::TemplateService> createTemplateService(
-        const std::filesystem::path& templatesDir,
-        std::shared_ptr<Presenter> presenter = nullptr);
+    static std::shared_ptr<service::TemplateService>
+    createTemplateService(const std::filesystem::path& templatesDir, std::shared_ptr<Presenter> presenter = nullptr);
 
     /**
      * @brief Register template commands with the command dispatcher
@@ -46,8 +45,8 @@ public:
      * @param presenter Presenter for output operations
      */
     static void registerCommands(CommandDispatcher& dispatcher,
-                                std::shared_ptr<CLIParser> parser,
-                                std::shared_ptr<Presenter> presenter);
+                                 std::shared_ptr<CLIParser> parser,
+                                 std::shared_ptr<Presenter> presenter);
 
     /**
      * @brief Get list of available template commands
@@ -62,7 +61,7 @@ public:
     static std::vector<std::pair<std::string, std::string>> availableSubcommands();
 
 private:
-    TemplateModule() = default; // Static class
+    TemplateModule() = default;  // Static class
 };
 
-} // namespace scrap::template_system
+}  // namespace scrap::template_system

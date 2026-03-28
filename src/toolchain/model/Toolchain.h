@@ -1,8 +1,8 @@
 #pragma once
 
-#include <string>
 #include <filesystem>
 #include <optional>
+#include <string>
 
 namespace scrap::toolchain::model {
 
@@ -148,4 +148,4 @@ Platform stringToPlatform(const std::string& str);
 Architecture currentArchitecture();
 Platform currentPlatform();
 
-} // namespace scrap::toolchain::model
+}  // namespace scrap::toolchain::model

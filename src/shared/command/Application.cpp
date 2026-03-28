@@ -21,5 +21,4 @@ int Application::run(std::span<const char* const> args)
     return commandHandler_->execute(args);
 }
 
-
-}
+}  // namespace scrap
