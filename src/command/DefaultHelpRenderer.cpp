@@ -32,7 +32,7 @@ void appendCommandLine(std::ostringstream& out,
                        std::size_t columnWidth)
 {
     out << "    " << name;
-    if (!description.empty()) {
+    if (! description.empty()) {
         auto padding = columnWidth - name.size() + 4;
         for (std::size_t i = 0; i < padding; ++i) {
             out << ' ';
@@ -56,10 +56,10 @@ void appendSectionHeader(std::ostringstream& out, const std::string& title)
 void appendUsageLine(std::ostringstream& out, const CommandSpec& spec)
 {
     out << "USAGE: scrap " << spec.name;
-    if (!spec.options.named.empty()) {
+    if (! spec.options.named.empty()) {
         out << " [OPTIONS]";
     }
-    if (!spec.subcommands.empty()) {
+    if (! spec.subcommands.empty()) {
         out << " <COMMAND>";
     }
     for (const auto& positional : spec.options.positional) {
@@ -121,7 +121,7 @@ auto DefaultHelpRenderer::renderGlobal(std::span<const HelpEntry> entries) const
     }
 
     // External entries.
-    if (!externalEntries.empty()) {
+    if (! externalEntries.empty()) {
         appendSectionHeader(out, "External Commands");
         for (const auto* entry : externalEntries) {
             appendCommandLine(out, entry->spec.name, entry->spec.description, colWidth);
@@ -129,7 +129,7 @@ auto DefaultHelpRenderer::renderGlobal(std::span<const HelpEntry> entries) const
     }
 
     // Project entries.
-    if (!projectEntries.empty()) {
+    if (! projectEntries.empty()) {
         appendSectionHeader(out, "Project Commands");
         for (const auto* entry : projectEntries) {
             appendCommandLine(out, entry->spec.name, entry->spec.description, colWidth);
@@ -149,12 +149,12 @@ auto DefaultHelpRenderer::renderCommand(const CommandSpec& spec) const -> std::s
 
     appendUsageLine(out, spec);
 
-    if (!spec.description.empty()) {
+    if (! spec.description.empty()) {
         out << '\n' << spec.description << '\n';
     }
 
     // Subcommands section.
-    if (!spec.subcommands.empty()) {
+    if (! spec.subcommands.empty()) {
         out << "\nSUBCOMMANDS:\n";
         std::size_t maxLen = 0;
         for (const auto& sub : spec.subcommands) {
@@ -166,7 +166,7 @@ auto DefaultHelpRenderer::renderCommand(const CommandSpec& spec) const -> std::s
     }
 
     // Options section.
-    if (!spec.options.named.empty()) {
+    if (! spec.options.named.empty()) {
         out << "\nOPTIONS:\n";
         std::size_t maxLen = 0;
         for (const auto& opt : spec.options.named) {

@@ -18,7 +18,7 @@ namespace scrap::Command {
 // =============================================================================
 
 /**
- * @brief Holds mutable value slots that CLI11 writes into during parsing.
+ * Holds mutable value slots that CLI11 writes into during parsing.
  *
  * One instance is created per CommandSpec node in the spec tree.
  * After CLI11 finishes parsing, the values are harvested into a
@@ -51,7 +51,7 @@ public:
 namespace {
 
 /**
- * @brief Register one OptionDef as a CLI11 option or flag.
+ * Register one OptionDef as a CLI11 option or flag.
  *
  * Writes the parsed value into @p storage so it can be harvested
  * after CLI11 returns.
@@ -91,7 +91,7 @@ void addOption(CLI::App& app, const OptionDef& def, OptionStorage& storage)
             if (def.defaultValue.has_value()) {
                 opt->default_val(std::get<std::string>(*def.defaultValue));
             }
-            if (!def.choices.empty()) {
+            if (! def.choices.empty()) {
                 opt->check(CLI::IsMember(def.choices));
             }
             break;
@@ -109,7 +109,7 @@ void addOption(CLI::App& app, const OptionDef& def, OptionStorage& storage)
 }
 
 /**
- * @brief Register one PositionalDef as a CLI11 positional argument.
+ * Register one PositionalDef as a CLI11 positional argument.
  */
 void addPositional(CLI::App& app, const PositionalDef& def, OptionStorage& storage)
 {
@@ -122,7 +122,7 @@ void addPositional(CLI::App& app, const PositionalDef& def, OptionStorage& stora
 }
 
 /**
- * @brief Recursively map a CommandSpec tree onto CLI11 subcommands.
+ * Recursively map a CommandSpec tree onto CLI11 subcommands.
  *
  * @param parent      CLI11 app or subcommand to attach children to.
  * @param specs       CommandSpec nodes at the current tree level.
@@ -153,14 +153,14 @@ void addSubcommands(CLI::App& parent,
         storageMap[path] = std::move(storage);
 
         // Recurse into subcommands.
-        if (!spec.subcommands.empty()) {
+        if (! spec.subcommands.empty()) {
             addSubcommands(*sub, spec.subcommands, storageMap, path);
         }
     }
 }
 
 /**
- * @brief Walk the parsed subcommand chain and build a dot-separated path.
+ * Walk the parsed subcommand chain and build a dot-separated path.
  *
  * Starts from @p app and follows the first parsed child at each level.
  *
@@ -185,7 +185,7 @@ auto buildCommandPath(const CLI::App& app) -> std::string
             break;
         }
 
-        if (!path.empty()) {
+        if (! path.empty()) {
             path += '.';
         }
         path += parsed->get_name();
@@ -196,7 +196,7 @@ auto buildCommandPath(const CLI::App& app) -> std::string
 }
 
 /**
- * @brief Harvest parsed values from OptionStorage into ParsedOptions.
+ * Harvest parsed values from OptionStorage into ParsedOptions.
  */
 auto harvestOptions(const OptionStorage& storage) -> ParsedOptions
 {
@@ -209,12 +209,12 @@ auto harvestOptions(const OptionStorage& storage) -> ParsedOptions
         opts.named[name] = value;
     }
     for (const auto& [name, value] : storage.strings) {
-        if (!value.empty()) {
+        if (! value.empty()) {
             opts.named[name] = value;
         }
     }
     for (const auto& [name, value] : storage.stringLists) {
-        if (!value.empty()) {
+        if (! value.empty()) {
             opts.named[name] = value;
         }
     }
@@ -224,7 +224,7 @@ auto harvestOptions(const OptionStorage& storage) -> ParsedOptions
 }
 
 /**
- * @brief Determine the help target from the parsed subcommand chain.
+ * Determine the help target from the parsed subcommand chain.
  *
  * When CLI11 throws CallForHelp, we need to know which subcommand
  * the user asked help for (e.g. "scrap build --help" → target "build").
