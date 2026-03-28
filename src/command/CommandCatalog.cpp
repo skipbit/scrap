@@ -34,14 +34,18 @@ auto CommandCatalog::find(const std::string& commandPath) const -> const Command
         return nullptr;
     }
 
+    // Reject malformed paths: leading/trailing dots, consecutive dots
+    if (commandPath.front() == '.' || commandPath.back() == '.' ||
+        commandPath.contains("..")) {
+        return nullptr;
+    }
+
     // Split path on '.'
     std::vector<std::string> segments;
     std::istringstream stream(commandPath);
     std::string segment;
     while (std::getline(stream, segment, '.')) {
-        if (!segment.empty()) {
-            segments.push_back(std::move(segment));
-        }
+        segments.push_back(std::move(segment));
     }
 
     if (segments.empty()) {
