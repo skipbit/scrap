@@ -1,0 +1,59 @@
+# Post-merge checks for the main branch.
+#
+# Runs build/test matrix and uploads coverage to Codecov.
+
+name: Main Checks
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    uses: ./.github/workflows/build-and-test.yml
+    with:
+      build-system: 'cmake'
+
+  coverage:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install coverage tools
+        run: pip install gcovr==8.5
+
+      - name: Build with coverage
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_CXX_FLAGS="--coverage" \
+            -DCMAKE_EXE_LINKER_FLAGS="--coverage" \
+            -DBUILD_TESTS=ON
+          cmake --build build --parallel
+
+      - name: Run tests
+        run: ctest --test-dir build --output-on-failure --parallel
+
+      - name: Generate coverage report
+        run: |
+          gcovr --cobertura coverage.xml \
+            --root . \
+            --exclude 'build/_deps/.*' \
+            --exclude 'test/.*'
+
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v6
+        with:
+          files: coverage.xml
+          token: ${{ secrets.CODECOV_TOKEN }}
+        continue-on-error: true
