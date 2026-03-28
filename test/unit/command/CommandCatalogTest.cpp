@@ -16,7 +16,9 @@ auto makeEntry(const std::string& name,
     entry.spec.description = description;
     entry.spec.category = category;
     entry.source = source;
-    entry.createHandler = [](const ParsedOptions&) { return nullptr; };
+    entry.createHandler = [](const ParsedOptions&) {
+        return nullptr;
+    };
     return entry;
 }
 
