@@ -95,6 +95,17 @@ TEST(ParseResultTest, HelpDirective)
     EXPECT_EQ(directive.target.value(), "build");
 }
 
+TEST(ParseResultTest, VersionDirective)
+{
+    ParseResult result =
+        std::unexpected(ParseInterruption{ParseDirective{ParseDirectiveKind::VersionRequested, std::nullopt}});
+    EXPECT_FALSE(result.has_value());
+
+    auto& directive = std::get<ParseDirective>(result.error());
+    EXPECT_EQ(directive.kind, ParseDirectiveKind::VersionRequested);
+    EXPECT_FALSE(directive.target.has_value());
+}
+
 TEST(ParseResultTest, FailureCase)
 {
     ParseResult result = std::unexpected(ParseInterruption{ParseFailure{"Unknown command: nonexistent"}});

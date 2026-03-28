@@ -6,7 +6,7 @@ struct InvocationContext;
 
 class CommandHandler {
 public:
-    virtual ~CommandHandler() = default;
+    virtual ~CommandHandler();
     virtual auto execute(const InvocationContext& ctx) -> int = 0;
 };
 

@@ -9,7 +9,7 @@ namespace scrap::Command {
 
 class CommandResolver {
 public:
-    virtual ~CommandResolver() = default;
+    virtual ~CommandResolver();
     virtual auto resolve(const RuntimeEnvironment& env) -> std::vector<CommandEntry> = 0;
 };
 

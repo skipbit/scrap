@@ -1,6 +1,6 @@
 #pragma once
 
-#include "command/CommandEntry.h"
+#include "command/CommandSource.h"
 #include "command/CommandSpec.h"
 
 #include <span>
@@ -15,7 +15,7 @@ struct HelpEntry {
 
 class HelpRenderer {
 public:
-    virtual ~HelpRenderer() = default;
+    virtual ~HelpRenderer();
     virtual auto renderGlobal(std::span<const HelpEntry> entries) const -> std::string = 0;
     virtual auto renderCommand(const CommandSpec& spec) const -> std::string = 0;
 };

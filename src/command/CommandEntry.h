@@ -1,21 +1,15 @@
 #pragma once
 
 #include "command/CommandHandler.h"
+#include "command/CommandSource.h"
 #include "command/CommandSpec.h"
 #include "command/ParsedOptions.h"
 
 #include <functional>
 #include <memory>
-#include <string>
 #include <vector>
 
 namespace scrap::Command {
-
-enum class CommandSource {
-    Builtin,
-    External,
-    Project
-};
 
 struct CommandEntry {
     CommandSpec spec;

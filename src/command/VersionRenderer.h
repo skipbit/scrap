@@ -6,7 +6,7 @@ namespace scrap::Command {
 
 class VersionRenderer {
 public:
-    virtual ~VersionRenderer() = default;
+    virtual ~VersionRenderer();
     virtual auto render() const -> std::string = 0;
 };
 
