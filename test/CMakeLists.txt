@@ -107,7 +107,9 @@ add_executable(scrap_gtest
     unit/command/CommandCatalogTest.cpp
     unit/command/DefaultHelpRendererTest.cpp
     unit/command/DefaultVersionRendererTest.cpp
-    unit/command/ResolverTest.cpp
+    unit/command/BuiltinCommandResolverTest.cpp
+    unit/command/ExternalCommandResolverTest.cpp
+    unit/command/ProjectCommandResolverTest.cpp
     ${CMAKE_SOURCE_DIR}/src/command/CommandCatalog.cpp
     ${CMAKE_SOURCE_DIR}/src/command/CommandHandler.cpp
     ${CMAKE_SOURCE_DIR}/src/command/CommandResolver.cpp
