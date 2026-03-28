@@ -10,7 +10,6 @@
 #
 # Default matrix runs Release only (3 jobs). Debug builds are handled
 # separately by coverage jobs in pr-checks.yml and main-checks.yml.
-# Callers can override via the build-type input if needed.
 
 name: Build and Test
 
@@ -22,11 +21,6 @@ on:
         type: string
         required: false
         default: 'cmake'
-      build-type:
-        description: 'Build type filter (empty = all profiles)'
-        type: string
-        required: false
-        default: ''
       ref:
         description: 'Git ref to checkout (empty = caller default)'
         type: string
@@ -39,7 +33,9 @@ permissions:
 jobs:
   build:
     name: ${{ matrix.compiler }} / ${{ matrix.profile }}
-    if: inputs.build-type == '' || matrix.profile == inputs.build-type
+    # Note: build-type filtering removed — matrix context is not available
+    # in job-level if conditions. Current matrix is Release-only; callers
+    # needing Debug should build directly (e.g. coverage jobs).
     strategy:
       fail-fast: false
       matrix:
