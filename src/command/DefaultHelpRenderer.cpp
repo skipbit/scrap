@@ -9,7 +9,7 @@ namespace scrap::Command {
 namespace {
 
 /**
- * Compute the maximum command name length across all entries for column alignment.
+ * Compute the maximum command name length for column alignment.
  */
 auto maxNameLength(std::span<const HelpEntry> entries) -> std::size_t
 {
@@ -21,7 +21,10 @@ auto maxNameLength(std::span<const HelpEntry> entries) -> std::size_t
 }
 
 /**
- * Format a single command line: indented name, padded to column width, followed by description.
+ * Format a single command line with aligned columns.
+ *
+ * Output: "    <name>    <description>\n"
+ * The name is padded to @p columnWidth for alignment.
  */
 void appendCommandLine(std::ostringstream& out,
                        const std::string& name,
@@ -40,7 +43,7 @@ void appendCommandLine(std::ostringstream& out,
 }
 
 /**
- * Format a section header (category name).
+ * Append a section header line (e.g. "Project Commands:").
  */
 void appendSectionHeader(std::ostringstream& out, const std::string& title)
 {
@@ -48,7 +51,7 @@ void appendSectionHeader(std::ostringstream& out, const std::string& title)
 }
 
 /**
- * Build the USAGE line for a single command, including positional arguments.
+ * Build a USAGE line including positional arguments.
  */
 void appendUsageLine(std::ostringstream& out, const CommandSpec& spec)
 {
@@ -71,6 +74,9 @@ void appendUsageLine(std::ostringstream& out, const CommandSpec& spec)
 
 }  // namespace
 
+/**
+ * Render the top-level help listing all commands grouped by source.
+ */
 auto DefaultHelpRenderer::renderGlobal(std::span<const HelpEntry> entries) const -> std::string
 {
     std::ostringstream out;
@@ -83,7 +89,7 @@ auto DefaultHelpRenderer::renderGlobal(std::span<const HelpEntry> entries) const
 
     auto colWidth = maxNameLength(entries);
 
-    // Partition entries by source
+    // Partition entries by source.
     std::map<std::string, std::vector<const HelpEntry*>> builtinCategories;
     std::vector<const HelpEntry*> externalEntries;
     std::vector<const HelpEntry*> projectEntries;
@@ -102,7 +108,7 @@ auto DefaultHelpRenderer::renderGlobal(std::span<const HelpEntry> entries) const
         }
     }
 
-    // Render Builtin entries grouped by category
+    // Builtin entries grouped by category.
     for (const auto& [category, categoryEntries] : builtinCategories) {
         if (category.empty()) {
             appendSectionHeader(out, "Commands");
@@ -114,7 +120,7 @@ auto DefaultHelpRenderer::renderGlobal(std::span<const HelpEntry> entries) const
         }
     }
 
-    // Render External entries
+    // External entries.
     if (!externalEntries.empty()) {
         appendSectionHeader(out, "External Commands");
         for (const auto* entry : externalEntries) {
@@ -122,7 +128,7 @@ auto DefaultHelpRenderer::renderGlobal(std::span<const HelpEntry> entries) const
         }
     }
 
-    // Render Project entries
+    // Project entries.
     if (!projectEntries.empty()) {
         appendSectionHeader(out, "Project Commands");
         for (const auto* entry : projectEntries) {
@@ -134,6 +140,9 @@ auto DefaultHelpRenderer::renderGlobal(std::span<const HelpEntry> entries) const
     return out.str();
 }
 
+/**
+ * Render help for a single command with usage, subcommands, and options.
+ */
 auto DefaultHelpRenderer::renderCommand(const CommandSpec& spec) const -> std::string
 {
     std::ostringstream out;
@@ -144,7 +153,7 @@ auto DefaultHelpRenderer::renderCommand(const CommandSpec& spec) const -> std::s
         out << '\n' << spec.description << '\n';
     }
 
-    // Subcommands section
+    // Subcommands section.
     if (!spec.subcommands.empty()) {
         out << "\nSUBCOMMANDS:\n";
         std::size_t maxLen = 0;
@@ -156,14 +165,14 @@ auto DefaultHelpRenderer::renderCommand(const CommandSpec& spec) const -> std::s
         }
     }
 
-    // Options section
+    // Options section.
     if (!spec.options.named.empty()) {
         out << "\nOPTIONS:\n";
         std::size_t maxLen = 0;
         for (const auto& opt : spec.options.named) {
-            std::size_t len = 2 + opt.longName.size();  // "--" prefix
+            std::size_t len = 2 + opt.longName.size();
             if (opt.shortName.has_value()) {
-                len += 4;  // "-x, " prefix
+                len += 4;
             }
             maxLen = std::max(maxLen, len);
         }

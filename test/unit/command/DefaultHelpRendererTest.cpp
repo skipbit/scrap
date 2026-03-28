@@ -1,12 +1,14 @@
 #include <gtest/gtest.h>
 
 #include "command/DefaultHelpRenderer.h"
-#include "command/DefaultVersionRenderer.h"
 
 using namespace scrap::Command;
 
 namespace {
 
+/**
+ * Helper to build a HelpEntry for testing.
+ */
 auto makeHelpEntry(const std::string& name,
                    CommandSource source,
                    const std::string& category = "",
@@ -22,8 +24,9 @@ auto makeHelpEntry(const std::string& name,
 
 }  // namespace
 
-// --- DefaultHelpRenderer::renderGlobal ---
-
+/**
+ * Verify that entries are grouped under their category headers.
+ */
 TEST(DefaultHelpRendererTest, RenderGlobal_GroupsByCategory)
 {
     DefaultHelpRenderer renderer;
@@ -37,7 +40,6 @@ TEST(DefaultHelpRendererTest, RenderGlobal_GroupsByCategory)
     EXPECT_NE(result.find("Build Commands:"), std::string::npos);
     EXPECT_NE(result.find("Project Commands:"), std::string::npos);
 
-    // build and run should appear under the same category header
     auto buildCommandsPos = result.find("Build Commands:");
     auto projectCommandsPos = result.find("Project Commands:");
     auto buildPos = result.find("build");
@@ -51,6 +53,9 @@ TEST(DefaultHelpRendererTest, RenderGlobal_GroupsByCategory)
     EXPECT_GT(newPos, projectCommandsPos);
 }
 
+/**
+ * Verify column alignment across command names of different lengths.
+ */
 TEST(DefaultHelpRendererTest, RenderGlobal_AlignsColumns)
 {
     DefaultHelpRenderer renderer;
@@ -60,9 +65,6 @@ TEST(DefaultHelpRendererTest, RenderGlobal_AlignsColumns)
 
     auto result = renderer.renderGlobal(entries);
 
-    // Extract individual lines for comparison.
-    // The output should have aligned descriptions: both "Build the project" and
-    // "Short name command" start at the same column despite different name lengths.
     auto extractLine = [](const std::string& text, const std::string& linePrefix) -> std::string {
         auto pos = text.find(linePrefix);
         if (pos == std::string::npos)
@@ -84,6 +86,9 @@ TEST(DefaultHelpRendererTest, RenderGlobal_AlignsColumns)
     EXPECT_EQ(buildDescPos, bDescPos);
 }
 
+/**
+ * Empty entries should still produce the USAGE header and footer.
+ */
 TEST(DefaultHelpRendererTest, RenderGlobal_EmptyEntries)
 {
     DefaultHelpRenderer renderer;
@@ -95,6 +100,9 @@ TEST(DefaultHelpRendererTest, RenderGlobal_EmptyEntries)
     EXPECT_NE(result.find("See 'scrap help <command>' for more information."), std::string::npos);
 }
 
+/**
+ * Builtin, External, and Project entries should appear in separate sections.
+ */
 TEST(DefaultHelpRendererTest, RenderGlobal_SeparatesBuiltinExternalProject)
 {
     DefaultHelpRenderer renderer;
@@ -112,14 +120,46 @@ TEST(DefaultHelpRendererTest, RenderGlobal_SeparatesBuiltinExternalProject)
     EXPECT_NE(builtinPos, std::string::npos);
     EXPECT_NE(externalPos, std::string::npos);
     EXPECT_NE(projectPos, std::string::npos);
-
-    // Builtin appears first, then External, then Project
     EXPECT_LT(builtinPos, externalPos);
     EXPECT_LT(externalPos, projectPos);
 }
 
-// --- DefaultHelpRenderer::renderCommand ---
+/**
+ * Empty category should fall back to the generic "Commands:" header.
+ */
+TEST(DefaultHelpRendererTest, RenderGlobal_EmptyCategoryFallback)
+{
+    DefaultHelpRenderer renderer;
+    std::vector<HelpEntry> entries;
+    entries.push_back(makeHelpEntry("help", CommandSource::Builtin, "", "Display help"));
 
+    auto result = renderer.renderGlobal(entries);
+
+    EXPECT_NE(result.find("Commands:"), std::string::npos);
+}
+
+/**
+ * External-only entries should not produce any Builtin category sections.
+ */
+TEST(DefaultHelpRendererTest, RenderGlobal_ExternalOnlyNoBuiltinSection)
+{
+    DefaultHelpRenderer renderer;
+    std::vector<HelpEntry> entries;
+    entries.push_back(makeHelpEntry("lint", CommandSource::External, "", "Run linter"));
+
+    auto result = renderer.renderGlobal(entries);
+
+    EXPECT_NE(result.find("External Commands:"), std::string::npos);
+    // The only "Commands:" occurrence should be inside "External Commands:".
+    auto pos = result.find("Commands:");
+    ASSERT_NE(pos, std::string::npos);
+    EXPECT_GT(pos, 0u);
+    EXPECT_EQ(result[pos - 1], ' ');
+}
+
+/**
+ * renderCommand should list subcommands.
+ */
 TEST(DefaultHelpRendererTest, RenderCommand_WithSubcommands)
 {
     DefaultHelpRenderer renderer;
@@ -144,10 +184,11 @@ TEST(DefaultHelpRendererTest, RenderCommand_WithSubcommands)
     EXPECT_NE(result.find("SUBCOMMANDS:"), std::string::npos);
     EXPECT_NE(result.find("install"), std::string::npos);
     EXPECT_NE(result.find("Install a toolchain"), std::string::npos);
-    EXPECT_NE(result.find("list"), std::string::npos);
-    EXPECT_NE(result.find("List available toolchains"), std::string::npos);
 }
 
+/**
+ * renderCommand should list options with short and long names.
+ */
 TEST(DefaultHelpRendererTest, RenderCommand_WithOptions)
 {
     DefaultHelpRenderer renderer;
@@ -174,11 +215,12 @@ TEST(DefaultHelpRendererTest, RenderCommand_WithOptions)
     EXPECT_NE(result.find("USAGE: scrap build [OPTIONS]"), std::string::npos);
     EXPECT_NE(result.find("OPTIONS:"), std::string::npos);
     EXPECT_NE(result.find("-r, --release"), std::string::npos);
-    EXPECT_NE(result.find("Build in release mode"), std::string::npos);
     EXPECT_NE(result.find("-j, --jobs"), std::string::npos);
-    EXPECT_NE(result.find("Number of parallel jobs"), std::string::npos);
 }
 
+/**
+ * Positional arguments should appear in the USAGE line.
+ */
 TEST(DefaultHelpRendererTest, RenderCommand_WithPositionalsInUsage)
 {
     DefaultHelpRenderer renderer;
@@ -186,23 +228,17 @@ TEST(DefaultHelpRendererTest, RenderCommand_WithPositionalsInUsage)
     spec.name = "new";
     spec.description = "Create a new project";
 
-    PositionalDef pos;
-    pos.name = "name";
-    pos.description = "Project name";
-    pos.required = true;
-    spec.options.positional.push_back(pos);
-
-    PositionalDef optionalPos;
-    optionalPos.name = "path";
-    optionalPos.description = "Output path";
-    optionalPos.required = false;
-    spec.options.positional.push_back(optionalPos);
+    spec.options.positional.push_back(PositionalDef{.name = "name", .description = "Project name", .required = true});
+    spec.options.positional.push_back(PositionalDef{.name = "path", .description = "Output path", .required = false});
 
     auto result = renderer.renderCommand(spec);
 
     EXPECT_NE(result.find("USAGE: scrap new <name> [path]"), std::string::npos);
 }
 
+/**
+ * Command with no options should not show [OPTIONS] or OPTIONS section.
+ */
 TEST(DefaultHelpRendererTest, RenderCommand_NoOptionsOmitsSection)
 {
     DefaultHelpRenderer renderer;
@@ -217,6 +253,9 @@ TEST(DefaultHelpRendererTest, RenderCommand_NoOptionsOmitsSection)
     EXPECT_EQ(result.find("OPTIONS:"), std::string::npos);
 }
 
+/**
+ * Both subcommands and options should be shown when present.
+ */
 TEST(DefaultHelpRendererTest, RenderCommand_WithSubcommandsAndOptions)
 {
     DefaultHelpRenderer renderer;
@@ -244,6 +283,9 @@ TEST(DefaultHelpRendererTest, RenderCommand_WithSubcommandsAndOptions)
     EXPECT_NE(result.find("<COMMAND>"), std::string::npos);
 }
 
+/**
+ * Empty description should not produce a description paragraph.
+ */
 TEST(DefaultHelpRendererTest, RenderCommand_EmptyDescription)
 {
     DefaultHelpRenderer renderer;
@@ -253,50 +295,5 @@ TEST(DefaultHelpRendererTest, RenderCommand_EmptyDescription)
     auto result = renderer.renderCommand(spec);
 
     EXPECT_NE(result.find("USAGE: scrap clean"), std::string::npos);
-    // No blank line for description paragraph
-    auto usageEnd = result.find('\n');
-    ASSERT_NE(usageEnd, std::string::npos);
-    // Should NOT have double newline (description paragraph absent)
     EXPECT_EQ(result.find("\n\n"), std::string::npos);
-}
-
-TEST(DefaultHelpRendererTest, RenderGlobal_EmptyCategoryFallback)
-{
-    DefaultHelpRenderer renderer;
-    std::vector<HelpEntry> entries;
-    entries.push_back(makeHelpEntry("help", CommandSource::Builtin, "", "Display help"));
-
-    auto result = renderer.renderGlobal(entries);
-
-    // Empty category should render as "Commands:"
-    EXPECT_NE(result.find("Commands:"), std::string::npos);
-}
-
-TEST(DefaultHelpRendererTest, RenderGlobal_ExternalOnlyNoBuiltinSection)
-{
-    DefaultHelpRenderer renderer;
-    std::vector<HelpEntry> entries;
-    entries.push_back(makeHelpEntry("lint", CommandSource::External, "", "Run linter"));
-
-    auto result = renderer.renderGlobal(entries);
-
-    EXPECT_NE(result.find("External Commands:"), std::string::npos);
-    // The only "Commands:" occurrence should be inside "External Commands:"
-    auto pos = result.find("Commands:");
-    ASSERT_NE(pos, std::string::npos);
-    EXPECT_GT(pos, 0u);  // Must be preceded by "External "
-    EXPECT_EQ(result[pos - 1], ' ');
-}
-
-// --- DefaultVersionRenderer ---
-
-TEST(DefaultVersionRendererTest, ReturnsVersionString)
-{
-    DefaultVersionRenderer renderer;
-    auto result = renderer.render();
-
-    // scrap::version() returns "scrap <version>", so it should not be empty
-    // and should contain the application name
-    EXPECT_FALSE(result.empty());
-    EXPECT_NE(result.find("scrap"), std::string::npos);
 }

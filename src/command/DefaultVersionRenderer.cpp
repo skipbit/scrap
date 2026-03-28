@@ -4,6 +4,9 @@
 
 namespace scrap::Command {
 
+/**
+ * Return the application version string.
+ */
 auto DefaultVersionRenderer::render() const -> std::string
 {
     return scrap::version();
