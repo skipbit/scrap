@@ -2,6 +2,11 @@
 #
 # Called by pr-checks.yml, main-checks.yml, and release.yml.
 # Not intended for standalone execution (workflow_call only).
+#
+# Compiler versions follow the runner OS defaults:
+#   Ubuntu 24.04: GCC 13, Clang 18
+#   macOS 14: Apple Clang (Xcode default)
+# Upgrading the runner OS automatically picks up newer compiler versions.
 
 name: Build and Test
 
@@ -35,18 +40,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-24.04, compiler: gcc-14, profile: Debug }
-          - { os: ubuntu-24.04, compiler: gcc-14, profile: Release }
-          - { os: ubuntu-24.04, compiler: gcc-13, profile: Debug }
-          - { os: ubuntu-24.04, compiler: gcc-13, profile: Release }
-          - { os: ubuntu-24.04, compiler: clang-18, profile: Debug }
-          - { os: ubuntu-24.04, compiler: clang-18, profile: Release }
-          - { os: ubuntu-24.04, compiler: clang-17, profile: Debug }
-          - { os: ubuntu-24.04, compiler: clang-17, profile: Release }
-          - { os: macos-14, compiler: apple-clang, profile: Debug }
-          - { os: macos-14, compiler: apple-clang, profile: Release }
+          - { os: ubuntu-24.04, compiler: gcc, cc: gcc, cxx: g++, profile: Debug }
+          - { os: ubuntu-24.04, compiler: gcc, cc: gcc, cxx: g++, profile: Release }
+          - { os: ubuntu-24.04, compiler: clang, cc: clang, cxx: clang++, profile: Debug }
+          - { os: ubuntu-24.04, compiler: clang, cc: clang, cxx: clang++, profile: Release }
+          - { os: macos-14, compiler: apple-clang, cc: clang, cxx: clang++, profile: Debug }
+          - { os: macos-14, compiler: apple-clang, cc: clang, cxx: clang++, profile: Release }
     runs-on: ${{ matrix.os }}
     env:
+      CC: ${{ matrix.cc }}
+      CXX: ${{ matrix.cxx }}
       CCACHE_DIR: ~/.ccache
       CCACHE_BASEDIR: ${{ github.workspace }}
     steps:
@@ -65,52 +68,16 @@ jobs:
               ;;
           esac
 
-      - name: Install packages (Linux)
-        if: runner.os == 'Linux'
+      - name: Install ccache
         run: |
-          sudo apt-get update -qq
-          packages=(ccache)
-          case "${{ matrix.compiler }}" in
-            gcc-*)
-              version="${{ matrix.compiler }}"
-              version="${version#gcc-}"
-              packages+=("gcc-${version}" "g++-${version}")
-              ;;
-            clang-*)
-              version="${{ matrix.compiler }}"
-              version="${version#clang-}"
-              packages+=("clang-${version}")
-              ;;
-          esac
-          sudo apt-get install -y -qq "${packages[@]}"
-
-      - name: Install packages (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          if ! command -v ccache &>/dev/null; then
-            brew install ccache
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq ccache
+          elif [ "$RUNNER_OS" = "macOS" ]; then
+            if ! command -v ccache &>/dev/null; then
+              brew install ccache
+            fi
           fi
-
-      - name: Set up compiler environment
-        run: |
-          case "${{ matrix.compiler }}" in
-            gcc-*)
-              version="${{ matrix.compiler }}"
-              version="${version#gcc-}"
-              echo "CC=gcc-${version}" >> "$GITHUB_ENV"
-              echo "CXX=g++-${version}" >> "$GITHUB_ENV"
-              ;;
-            clang-*)
-              version="${{ matrix.compiler }}"
-              version="${version#clang-}"
-              echo "CC=clang-${version}" >> "$GITHUB_ENV"
-              echo "CXX=clang++-${version}" >> "$GITHUB_ENV"
-              ;;
-            apple-clang)
-              echo "CC=clang" >> "$GITHUB_ENV"
-              echo "CXX=clang++" >> "$GITHUB_ENV"
-              ;;
-          esac
 
       - name: Restore ccache
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
