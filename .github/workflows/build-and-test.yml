@@ -1,0 +1,117 @@
+# Reusable workflow for cross-platform build and test.
+#
+# Called by pr-checks.yml, main-checks.yml, and release.yml.
+# Not intended for standalone execution (workflow_call only).
+#
+# Compiler versions follow the runner OS defaults:
+#   Ubuntu 24.04: GCC 13, Clang 18
+#   macOS 14: Apple Clang (Xcode default)
+# Upgrading the runner OS automatically picks up newer compiler versions.
+#
+# Default matrix runs Release only (3 jobs). Debug builds are handled
+# separately by coverage jobs in pr-checks.yml and main-checks.yml.
+# Callers can override via the build-type input if needed.
+
+name: Build and Test
+
+on:
+  workflow_call:
+    inputs:
+      build-system:
+        description: 'Build system to use (currently: cmake only)'
+        type: string
+        required: false
+        default: 'cmake'
+      build-type:
+        description: 'Build type filter (empty = all profiles)'
+        type: string
+        required: false
+        default: ''
+      ref:
+        description: 'Git ref to checkout (empty = caller default)'
+        type: string
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.compiler }} / ${{ matrix.profile }}
+    if: inputs.build-type == '' || matrix.profile == inputs.build-type
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-24.04, compiler: gcc, cc: gcc, cxx: g++, profile: Release }
+          - { os: ubuntu-24.04, compiler: clang, cc: clang, cxx: clang++, profile: Release }
+          - { os: macos-14, compiler: apple-clang, cc: clang, cxx: clang++, profile: Release }
+    runs-on: ${{ matrix.os }}
+    env:
+      CC: ${{ matrix.cc }}
+      CXX: ${{ matrix.cxx }}
+      CCACHE_DIR: ~/.ccache
+      CCACHE_BASEDIR: ${{ github.workspace }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Validate build system
+        run: |
+          case "${{ inputs.build-system }}" in
+            cmake) ;;
+            *)
+              echo "::error::Unsupported build system: '${{ inputs.build-system }}'"
+              exit 1
+              ;;
+          esac
+
+      - name: Install ccache
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq ccache
+          elif [ "$RUNNER_OS" = "macOS" ]; then
+            if ! command -v ccache &>/dev/null; then
+              brew install ccache
+            fi
+          fi
+
+      - name: Restore ccache
+        uses: actions/cache@v5
+        with:
+          path: ~/.ccache
+          key: ccache-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.profile }}-${{ github.run_id }}
+          restore-keys: |
+            ccache-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.profile }}-
+
+      - name: Configure ccache
+        run: |
+          ccache --set-config=max_size=2G
+          ccache --set-config=compression=true
+          ccache --set-config=compiler_check=content
+          ccache --zero-stats
+
+      - name: Configure (CMake)
+        if: inputs.build-system == 'cmake'
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=${{ matrix.profile }} \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DBUILD_TESTS=ON
+
+      - name: Build (CMake)
+        if: inputs.build-system == 'cmake'
+        run: cmake --build build --parallel
+
+      - name: Test (CTest)
+        if: inputs.build-system == 'cmake'
+        run: ctest --test-dir build --output-on-failure --parallel
+
+      - name: Print ccache statistics
+        if: always()
+        run: ccache --show-stats
