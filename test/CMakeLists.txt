@@ -99,13 +99,35 @@ set_tests_properties(scrap_unit_tests PROPERTIES
 )
 
 # --- Google Test integration ---
-# New tests should use Google Test. Add GTest test sources below.
-# CTest automatically discovers and runs both Catch2 and GTest tests.
-#
-# Example:
-#   find_package(GoogleTest REQUIRED)
-#   add_executable(scrap_gtest unit/example/ExampleTest.cpp)
-#   target_link_libraries(scrap_gtest PRIVATE GTest::gtest_main test_dependencies)
-#   target_compile_features(scrap_gtest PUBLIC cxx_std_23)
-#   include(GoogleTest)
-#   gtest_discover_tests(scrap_gtest)
+# New tests use Google Test. CTest runs both Catch2 and GTest tests.
+find_package(GoogleTest REQUIRED)
+
+add_executable(scrap_gtest
+    unit/command/CommonTypesTest.cpp
+    ${CMAKE_SOURCE_DIR}/src/command/CommandHandler.cpp
+    ${CMAKE_SOURCE_DIR}/src/command/CommandResolver.cpp
+    ${CMAKE_SOURCE_DIR}/src/command/ParserAdapter.cpp
+    ${CMAKE_SOURCE_DIR}/src/command/HelpRenderer.cpp
+    ${CMAKE_SOURCE_DIR}/src/command/VersionRenderer.cpp
+)
+
+target_include_directories(scrap_gtest PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(scrap_gtest PRIVATE GTest::gtest_main)
+target_compile_features(scrap_gtest PUBLIC cxx_std_23)
+
+target_compile_options(scrap_gtest PRIVATE
+    -Wall -Wextra -Wpedantic
+    $<$<CONFIG:Debug>:-O0 -g3>
+    $<$<CONFIG:Release>:-O3>
+)
+
+set_target_properties(scrap_gtest PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/test
+    CXX_EXTENSIONS OFF
+)
+
+include(GoogleTest)
+gtest_discover_tests(scrap_gtest)
