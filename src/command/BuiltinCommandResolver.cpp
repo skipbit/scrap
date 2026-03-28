@@ -13,18 +13,22 @@ namespace scrap::Command {
 namespace {
 
 /**
- * @brief Minimal CommandHandler that prints a message and returns 0.
- *
- * Used as a placeholder for domain commands whose real handlers
- * will be wired during the main.cpp migration.
+ * Minimal CommandHandler that prints a message and returns 0.
+ * Used as a placeholder until real domain handlers are wired.
  */
 class PlaceholderHandler : public CommandHandler {
 public:
+    /**
+     * Construct with the command name shown in the placeholder message.
+     */
     explicit PlaceholderHandler(std::string commandName)
         : commandName_(std::move(commandName))
     {
     }
 
+    /**
+     * Print a "not yet implemented" message and return success.
+     */
     auto execute([[maybe_unused]] const InvocationContext& ctx) -> int override
     {
         std::cout << commandName_ << ": not yet implemented\n";
@@ -36,20 +40,28 @@ private:
 };
 
 /**
- * @brief Handler for the built-in "help" command.
+ * Handler for the built-in "help" command.
+ * Renders global or per-command help via the injected HelpRenderer.
  */
 class HelpCommandHandler : public CommandHandler {
 public:
+    /**
+     * Construct with a reference to the shared HelpRenderer.
+     */
     explicit HelpCommandHandler(HelpRenderer& renderer)
         : renderer_(renderer)
     {
     }
 
+    /**
+     * If a positional argument is given, render help for that command.
+     * Otherwise render the global help listing.
+     */
     auto execute(const InvocationContext& ctx) -> int override
     {
         if (!ctx.options.positional.empty()) {
             auto target = ctx.options.positional[0];
-            auto* entry = ctx.catalog.find(target);
+            const auto* entry = ctx.catalog.find(target);
             if (entry != nullptr) {
                 auto specs = ctx.catalog.specs();
                 for (const auto& spec : specs) {
@@ -71,15 +83,22 @@ private:
 };
 
 /**
- * @brief Handler for the built-in "version" command.
+ * Handler for the built-in "version" command.
+ * Outputs the version string via the injected VersionRenderer.
  */
 class VersionCommandHandler : public CommandHandler {
 public:
+    /**
+     * Construct with a reference to the shared VersionRenderer.
+     */
     explicit VersionCommandHandler(VersionRenderer& renderer)
         : renderer_(renderer)
     {
     }
 
+    /**
+     * Print the version string and return success.
+     */
     auto execute([[maybe_unused]] const InvocationContext& ctx) -> int override
     {
         std::cout << renderer_.render() << "\n";
@@ -91,7 +110,7 @@ private:
 };
 
 /**
- * @brief Create a placeholder CommandEntry with a no-op handler.
+ * Create a placeholder CommandEntry with a no-op handler.
  */
 auto makePlaceholder(const std::string& name, const std::string& description, const std::string& category)
     -> CommandEntry
@@ -109,11 +128,18 @@ auto makePlaceholder(const std::string& name, const std::string& description, co
 
 }  // anonymous namespace
 
+/**
+ * Construct with references to the renderers used by help/version commands.
+ */
 BuiltinCommandResolver::BuiltinCommandResolver(HelpRenderer& helpRenderer, VersionRenderer& versionRenderer)
     : helpRenderer_(helpRenderer), versionRenderer_(versionRenderer)
 {
 }
 
+/**
+ * Return the fixed set of built-in command entries.
+ * Includes help, version, and placeholders for all domain commands.
+ */
 auto BuiltinCommandResolver::resolve([[maybe_unused]] const RuntimeEnvironment& env) -> std::vector<CommandEntry>
 {
     std::vector<CommandEntry> entries;

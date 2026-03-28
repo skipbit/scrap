@@ -15,15 +15,21 @@ using namespace scrap::Command;
 namespace {
 
 /**
- * @brief Minimal HelpRenderer mock for BuiltinCommandResolver DI.
+ * Minimal HelpRenderer mock for BuiltinCommandResolver DI.
  */
 class MockHelpRenderer : public HelpRenderer {
 public:
+    /**
+     * Return a fixed global help string.
+     */
     auto renderGlobal([[maybe_unused]] std::span<const HelpEntry> entries) const -> std::string override
     {
         return "global help";
     }
 
+    /**
+     * Return a fixed command help string.
+     */
     auto renderCommand([[maybe_unused]] const CommandSpec& spec) const -> std::string override
     {
         return "command help";
@@ -31,10 +37,13 @@ public:
 };
 
 /**
- * @brief Minimal VersionRenderer mock for BuiltinCommandResolver DI.
+ * Minimal VersionRenderer mock for BuiltinCommandResolver DI.
  */
 class MockVersionRenderer : public VersionRenderer {
 public:
+    /**
+     * Return a fixed version string.
+     */
     auto render() const -> std::string override
     {
         return "scrap 0.0.1-test";
@@ -42,10 +51,13 @@ public:
 };
 
 /**
- * @brief Mock ExternalMetadataProvider for testing.
+ * Mock ExternalMetadataProvider that derives metadata from the filename.
  */
 class MockMetadataProvider : public ExternalMetadataProvider {
 public:
+    /**
+     * Return metadata with name derived from executable filename.
+     */
     auto fetch(const std::filesystem::path& executable) -> std::expected<ExternalCommandMetadata, std::string> override
     {
         ExternalCommandMetadata meta;
@@ -56,15 +68,21 @@ public:
 };
 
 /**
- * @brief Mock ScriptsReader that returns a configurable result.
+ * Mock ScriptsReader that returns a configurable result.
  */
 class MockScriptsReader : public ScriptsReader {
 public:
+    /**
+     * Construct with the result to return from read().
+     */
     explicit MockScriptsReader(std::expected<std::vector<ScriptDef>, std::string> result)
         : result_(std::move(result))
     {
     }
 
+    /**
+     * Return the pre-configured result.
+     */
     auto read([[maybe_unused]] const std::filesystem::path& projectRoot)
         -> std::expected<std::vector<ScriptDef>, std::string> override
     {
@@ -76,7 +94,7 @@ private:
 };
 
 /**
- * @brief Find an entry by name in a flat vector.
+ * Find an entry by name in a flat vector.
  */
 auto findByName(const std::vector<CommandEntry>& entries, const std::string& name) -> const CommandEntry*
 {
@@ -88,10 +106,9 @@ auto findByName(const std::vector<CommandEntry>& entries, const std::string& nam
 
 }  // namespace
 
-// =============================================================================
-// BuiltinCommandResolver
-// =============================================================================
-
+/**
+ * Verify that help and version entries are always present.
+ */
 TEST(BuiltinCommandResolverTest, ReturnsHelpAndVersion)
 {
     MockHelpRenderer helpRenderer;
@@ -105,6 +122,9 @@ TEST(BuiltinCommandResolverTest, ReturnsHelpAndVersion)
     EXPECT_NE(findByName(entries, "version"), nullptr);
 }
 
+/**
+ * Verify that placeholder entries for all domain commands are present.
+ */
 TEST(BuiltinCommandResolverTest, ReturnsPlaceholderCommands)
 {
     MockHelpRenderer helpRenderer;
@@ -122,6 +142,9 @@ TEST(BuiltinCommandResolverTest, ReturnsPlaceholderCommands)
     EXPECT_NE(findByName(entries, "template"), nullptr);
 }
 
+/**
+ * Verify that toolchain has install/list/select subcommands.
+ */
 TEST(BuiltinCommandResolverTest, ToolchainHasSubcommands)
 {
     MockHelpRenderer helpRenderer;
@@ -139,6 +162,9 @@ TEST(BuiltinCommandResolverTest, ToolchainHasSubcommands)
     EXPECT_NE(findByName(toolchain->subcommands, "select"), nullptr);
 }
 
+/**
+ * Verify that template has list/update subcommands.
+ */
 TEST(BuiltinCommandResolverTest, TemplateHasSubcommands)
 {
     MockHelpRenderer helpRenderer;
@@ -155,6 +181,9 @@ TEST(BuiltinCommandResolverTest, TemplateHasSubcommands)
     EXPECT_NE(findByName(tmpl->subcommands, "update"), nullptr);
 }
 
+/**
+ * Verify that all entries from BuiltinCommandResolver have Builtin source.
+ */
 TEST(BuiltinCommandResolverTest, AllEntriesAreBuiltinSource)
 {
     MockHelpRenderer helpRenderer;
@@ -169,23 +198,31 @@ TEST(BuiltinCommandResolverTest, AllEntriesAreBuiltinSource)
     }
 }
 
-// =============================================================================
-// ExternalCommandResolver
-// =============================================================================
-
+/**
+ * Test fixture providing temp directory for external command tests.
+ */
 class ExternalCommandResolverTest : public ::testing::Test {
 protected:
+    /**
+     * Create a temp directory for test fixtures.
+     */
     void SetUp() override
     {
         tempDir_ = std::filesystem::temp_directory_path() / "scrap_resolver_test";
         std::filesystem::create_directories(tempDir_);
     }
 
+    /**
+     * Clean up the temp directory.
+     */
     void TearDown() override
     {
         std::filesystem::remove_all(tempDir_);
     }
 
+    /**
+     * Create a shell script with execute permission.
+     */
     void createExecutable(const std::string& name)
     {
         auto path = tempDir_ / name;
@@ -193,6 +230,9 @@ protected:
         std::filesystem::permissions(path, std::filesystem::perms::owner_exec, std::filesystem::perm_options::add);
     }
 
+    /**
+     * Create a regular file without execute permission.
+     */
     void createNonExecutable(const std::string& name)
     {
         auto path = tempDir_ / name;
@@ -202,6 +242,9 @@ protected:
     std::filesystem::path tempDir_;
 };
 
+/**
+ * Verify that scrap-* executables are discovered from searchPaths.
+ */
 TEST_F(ExternalCommandResolverTest, FindsScrapPrefixedExecutables)
 {
     createExecutable("scrap-lint");
@@ -219,6 +262,9 @@ TEST_F(ExternalCommandResolverTest, FindsScrapPrefixedExecutables)
     EXPECT_NE(findByName(entries, "fmt"), nullptr);
 }
 
+/**
+ * Verify that files not starting with scrap- are ignored.
+ */
 TEST_F(ExternalCommandResolverTest, SkipsNonScrapFiles)
 {
     createExecutable("scrap-lint");
@@ -235,6 +281,9 @@ TEST_F(ExternalCommandResolverTest, SkipsNonScrapFiles)
     EXPECT_NE(findByName(entries, "lint"), nullptr);
 }
 
+/**
+ * Verify that non-executable scrap-* files are ignored.
+ */
 TEST_F(ExternalCommandResolverTest, SkipsNonExecutables)
 {
     createNonExecutable("scrap-lint");
@@ -249,6 +298,9 @@ TEST_F(ExternalCommandResolverTest, SkipsNonExecutables)
     EXPECT_TRUE(entries.empty());
 }
 
+/**
+ * Verify that empty searchPaths produces no entries.
+ */
 TEST_F(ExternalCommandResolverTest, EmptySearchPathsReturnsEmpty)
 {
     auto provider = std::make_unique<MockMetadataProvider>();
@@ -260,6 +312,9 @@ TEST_F(ExternalCommandResolverTest, EmptySearchPathsReturnsEmpty)
     EXPECT_TRUE(entries.empty());
 }
 
+/**
+ * Verify that discovered entries have External source.
+ */
 TEST_F(ExternalCommandResolverTest, EntriesHaveExternalSource)
 {
     createExecutable("scrap-lint");
@@ -275,10 +330,9 @@ TEST_F(ExternalCommandResolverTest, EntriesHaveExternalSource)
     EXPECT_EQ(entries[0].source, CommandSource::External);
 }
 
-// =============================================================================
-// ProjectCommandResolver
-// =============================================================================
-
+/**
+ * Verify that StubScriptsReader returns an empty entry list.
+ */
 TEST(ProjectCommandResolverTest, StubReaderReturnsEmpty)
 {
     auto reader = std::make_unique<StubScriptsReader>();
@@ -291,6 +345,9 @@ TEST(ProjectCommandResolverTest, StubReaderReturnsEmpty)
     EXPECT_TRUE(entries.empty());
 }
 
+/**
+ * Verify that read errors result in an empty entry list.
+ */
 TEST(ProjectCommandResolverTest, ErrorReaderReturnsEmpty)
 {
     auto reader = std::make_unique<MockScriptsReader>(std::unexpected(std::string{"file not found"}));
@@ -303,6 +360,9 @@ TEST(ProjectCommandResolverTest, ErrorReaderReturnsEmpty)
     EXPECT_TRUE(entries.empty());
 }
 
+/**
+ * Verify that ScriptDefs are correctly converted to CommandEntry list.
+ */
 TEST(ProjectCommandResolverTest, ScriptDefsConvertToEntries)
 {
     std::vector<ScriptDef> scripts = {

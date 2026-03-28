@@ -10,7 +10,7 @@ namespace {
 const std::string kExternalPrefix = "scrap-";
 
 /**
- * @brief Check if a directory entry is an executable scrap-* command.
+ * Check if a directory entry is an executable scrap-* command.
  */
 auto isScrapExecutable(const std::filesystem::directory_entry& entry) -> bool
 {
@@ -26,7 +26,7 @@ auto isScrapExecutable(const std::filesystem::directory_entry& entry) -> bool
 }
 
 /**
- * @brief Extract the command name from a scrap-* filename.
+ * Extract the command name from a scrap-* filename.
  */
 auto commandNameFrom(const std::filesystem::path& path) -> std::string
 {
@@ -35,11 +35,18 @@ auto commandNameFrom(const std::filesystem::path& path) -> std::string
 
 }  // anonymous namespace
 
+/**
+ * Construct with an ExternalMetadataProvider for fetching command metadata.
+ */
 ExternalCommandResolver::ExternalCommandResolver(std::unique_ptr<ExternalMetadataProvider> metadataProvider)
     : metadataProvider_(std::move(metadataProvider))
 {
 }
 
+/**
+ * Scan env.searchPaths for scrap-* executables and build CommandEntry list.
+ * Metadata is fetched via the provider; failures fall back to empty description.
+ */
 auto ExternalCommandResolver::resolve(const RuntimeEnvironment& env) -> std::vector<CommandEntry>
 {
     std::vector<CommandEntry> entries;
