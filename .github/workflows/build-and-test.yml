@@ -32,7 +32,7 @@ permissions:
 
 jobs:
   build:
-    name: ${{ matrix.compiler }} / ${{ matrix.profile }}
+    name: ${{ matrix.compiler }}
     # Note: build-type filtering removed — matrix context is not available
     # in job-level if conditions. Current matrix is Release-only; callers
     # needing Debug should build directly (e.g. coverage jobs).
