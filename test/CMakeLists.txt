@@ -110,6 +110,8 @@ add_executable(scrap_gtest
     unit/command/BuiltinCommandResolverTest.cpp
     unit/command/ExternalCommandResolverTest.cpp
     unit/command/ProjectCommandResolverTest.cpp
+    unit/command/ApplicationTest.cpp
+    ${CMAKE_SOURCE_DIR}/src/command/Application.cpp
     ${CMAKE_SOURCE_DIR}/src/command/CommandCatalog.cpp
     ${CMAKE_SOURCE_DIR}/src/command/CommandHandler.cpp
     ${CMAKE_SOURCE_DIR}/src/command/CommandResolver.cpp
