@@ -217,6 +217,77 @@ TEST(DefaultHelpRendererTest, RenderCommand_NoOptionsOmitsSection)
     EXPECT_EQ(result.find("OPTIONS:"), std::string::npos);
 }
 
+TEST(DefaultHelpRendererTest, RenderCommand_WithSubcommandsAndOptions)
+{
+    DefaultHelpRenderer renderer;
+    CommandSpec spec;
+    spec.name = "toolchain";
+    spec.description = "Manage toolchains";
+
+    CommandSpec sub;
+    sub.name = "install";
+    sub.description = "Install a toolchain";
+    spec.subcommands = {sub};
+
+    OptionDef opt;
+    opt.longName = "verbose";
+    opt.shortName = 'v';
+    opt.type = OptionValueType::Bool;
+    opt.description = "Verbose output";
+    spec.options.named.push_back(opt);
+
+    auto result = renderer.renderCommand(spec);
+
+    EXPECT_NE(result.find("SUBCOMMANDS:"), std::string::npos);
+    EXPECT_NE(result.find("OPTIONS:"), std::string::npos);
+    EXPECT_NE(result.find("[OPTIONS]"), std::string::npos);
+    EXPECT_NE(result.find("<COMMAND>"), std::string::npos);
+}
+
+TEST(DefaultHelpRendererTest, RenderCommand_EmptyDescription)
+{
+    DefaultHelpRenderer renderer;
+    CommandSpec spec;
+    spec.name = "clean";
+
+    auto result = renderer.renderCommand(spec);
+
+    EXPECT_NE(result.find("USAGE: scrap clean"), std::string::npos);
+    // No blank line for description paragraph
+    auto usageEnd = result.find('\n');
+    ASSERT_NE(usageEnd, std::string::npos);
+    // Should NOT have double newline (description paragraph absent)
+    EXPECT_EQ(result.find("\n\n"), std::string::npos);
+}
+
+TEST(DefaultHelpRendererTest, RenderGlobal_EmptyCategoryFallback)
+{
+    DefaultHelpRenderer renderer;
+    std::vector<HelpEntry> entries;
+    entries.push_back(makeHelpEntry("help", CommandSource::Builtin, "", "Display help"));
+
+    auto result = renderer.renderGlobal(entries);
+
+    // Empty category should render as "Commands:"
+    EXPECT_NE(result.find("Commands:"), std::string::npos);
+}
+
+TEST(DefaultHelpRendererTest, RenderGlobal_ExternalOnlyNoBuiltinSection)
+{
+    DefaultHelpRenderer renderer;
+    std::vector<HelpEntry> entries;
+    entries.push_back(makeHelpEntry("lint", CommandSource::External, "", "Run linter"));
+
+    auto result = renderer.renderGlobal(entries);
+
+    EXPECT_NE(result.find("External Commands:"), std::string::npos);
+    // The only "Commands:" occurrence should be inside "External Commands:"
+    auto pos = result.find("Commands:");
+    ASSERT_NE(pos, std::string::npos);
+    EXPECT_GT(pos, 0u);  // Must be preceded by "External "
+    EXPECT_EQ(result[pos - 1], ' ');
+}
+
 // --- DefaultVersionRenderer ---
 
 TEST(DefaultVersionRendererTest, ReturnsVersionString)
