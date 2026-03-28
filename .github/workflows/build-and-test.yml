@@ -9,7 +9,7 @@ on:
   workflow_call:
     inputs:
       build-system:
-        description: 'Build system to use (cmake, meson, scrap)'
+        description: 'Build system to use (currently: cmake only)'
         type: string
         required: false
         default: 'cmake'
