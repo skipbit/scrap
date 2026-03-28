@@ -133,3 +133,36 @@ set_target_properties(scrap_gtest PROPERTIES
 
 include(GoogleTest)
 gtest_discover_tests(scrap_gtest)
+
+# --- CLI11ParserAdapter tests (requires CLI11 linkage) ---
+find_package(CLI11 REQUIRED)
+
+add_executable(scrap_gtest_cli11
+    unit/command/CLI11ParserAdapterTest.cpp
+    ${CMAKE_SOURCE_DIR}/src/command/driver/CLI11ParserAdapter.cpp
+    ${CMAKE_SOURCE_DIR}/src/command/ParserAdapter.cpp
+)
+
+target_include_directories(scrap_gtest_cli11 PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(scrap_gtest_cli11 PRIVATE
+    GTest::gtest_main
+    CLI11::CLI11
+)
+
+target_compile_features(scrap_gtest_cli11 PUBLIC cxx_std_23)
+
+target_compile_options(scrap_gtest_cli11 PRIVATE
+    -Wall -Wextra -Wpedantic
+    $<$<CONFIG:Debug>:-O0 -g3>
+    $<$<CONFIG:Release>:-O3>
+)
+
+set_target_properties(scrap_gtest_cli11 PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/test
+    CXX_EXTENSIONS OFF
+)
+
+gtest_discover_tests(scrap_gtest_cli11)
