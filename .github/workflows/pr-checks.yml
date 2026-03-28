@@ -33,8 +33,8 @@ jobs:
 
       - name: Run clang-tidy
         run: |
-          find src -type f -name '*.cpp' \
-            | xargs clang-tidy -p build --warnings-as-errors='*'
+          find src -type f -name '*.cpp' -print0 \
+            | xargs -0 clang-tidy -p build --warnings-as-errors='*'
 
   format-check:
     runs-on: ubuntu-24.04
@@ -44,8 +44,8 @@ jobs:
 
       - name: Check formatting
         run: |
-          find src test -type f \( -name '*.cpp' -o -name '*.h' \) \
-            | xargs clang-format --dry-run --Werror
+          find src test -type f \( -name '*.cpp' -o -name '*.h' \) -print0 \
+            | xargs -0 clang-format --dry-run --Werror
 
   diff-coverage:
     runs-on: ubuntu-24.04
@@ -56,7 +56,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install coverage tools
-        run: pip install gcovr diff-cover
+        run: pip install gcovr==8.5 diff-cover==10.0.0
 
       - name: Build with coverage
         run: |
