@@ -110,7 +110,15 @@ jobs:
 
       - name: Build (CMake)
         if: inputs.build-system == 'cmake'
-        run: cmake --build build --parallel
+        run: |
+          # macOS runners hit posix_spawn limits with unlimited parallelism;
+          # use sequential build on macOS, full parallelism elsewhere.
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            cmake --build build --parallel 1
+          else
+            jobs=$(nproc 2>/dev/null || echo 4)
+            cmake --build build --parallel "$jobs"
+          fi
 
       - name: Test (CTest)
         if: inputs.build-system == 'cmake'

@@ -64,12 +64,16 @@ TEST(CommandEntryTest, CanHoldSubcommands)
     CommandEntry child;
     child.spec.name = "install";
     child.source = CommandSource::Builtin;
-    child.createHandler = [](const ParsedOptions&) { return nullptr; };
+    child.createHandler = [](const ParsedOptions&) {
+        return nullptr;
+    };
 
     CommandEntry parent;
     parent.spec.name = "toolchain";
     parent.source = CommandSource::Builtin;
-    parent.createHandler = [](const ParsedOptions&) { return nullptr; };
+    parent.createHandler = [](const ParsedOptions&) {
+        return nullptr;
+    };
     parent.subcommands.push_back(std::move(child));
 
     EXPECT_EQ(parent.subcommands.size(), 1);
