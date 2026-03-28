@@ -13,9 +13,12 @@ namespace {
 /**
  * Visitor helper for std::visit with multiple lambdas.
  */
-template <class... Ts> struct Overloaded : Ts... {
+template <class... Ts>
+struct Overloaded : Ts... {
     using Ts::operator()...;
 };
+template <class... Ts>
+Overloaded(Ts...) -> Overloaded<Ts...>;
 
 }  // namespace
 
