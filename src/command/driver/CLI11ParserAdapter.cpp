@@ -6,6 +6,7 @@
 #include "command/ParsedOptions.h"
 
 #include <CLI/CLI.hpp>
+#include <deque>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -22,13 +23,16 @@ namespace scrap::Command {
  * One instance is created per CommandSpec node in the spec tree.
  * After CLI11 finishes parsing, the values are harvested into a
  * ParsedOptions struct.
+ *
+ * Positionals use std::deque so that push_back never invalidates
+ * the references that CLI11 holds to earlier elements.
  */
 struct OptionStorage {
     std::unordered_map<std::string, bool> bools;
     std::unordered_map<std::string, std::int64_t> ints;
     std::unordered_map<std::string, std::string> strings;
     std::unordered_map<std::string, std::vector<std::string>> stringLists;
-    std::vector<std::string> positionals;
+    std::deque<std::string> positionals;
 };
 
 // =============================================================================
@@ -215,7 +219,7 @@ auto harvestOptions(const OptionStorage& storage) -> ParsedOptions
         }
     }
 
-    opts.positional = storage.positionals;
+    opts.positional.assign(storage.positionals.begin(), storage.positionals.end());
     return opts;
 }
 
@@ -264,17 +268,21 @@ auto CLI11ParserAdapter::configure(std::span<const CommandSpec> specs) -> void
 auto CLI11ParserAdapter::parse(std::span<const char* const> argv) const -> ParseResult
 {
     // Build a temporary CLI::App from the stored specs.
+    // Defined outside try so that catch blocks can inspect parsed state.
     CLI::App app{"Modern C++ development tool", "scrap"};
     app.set_version_flag("--version,-V", "");
+    app.require_subcommand(1);
 
     // Per-call storage map: dot-path → OptionStorage.
     std::unordered_map<std::string, std::unique_ptr<OptionStorage>> storageMap;
 
-    addSubcommands(app, impl_->specs_, storageMap, "");
-
-    // --- Parse ---------------------------------------------------------------
     try {
+        // Map the CommandSpec tree onto CLI11 subcommands and options.
+        addSubcommands(app, impl_->specs_, storageMap, "");
+
+        // --- Parse ---------------------------------------------------------------
         app.parse(static_cast<int>(argv.size()), argv.data());
+
     } catch (const CLI::CallForHelp&) {
         return std::unexpected(
             ParseInterruption{ParseDirective{ParseDirectiveKind::HelpRequested, determineHelpTarget(app)}});
@@ -284,9 +292,13 @@ auto CLI11ParserAdapter::parse(std::span<const char* const> argv) const -> Parse
         return std::unexpected(ParseInterruption{ParseDirective{ParseDirectiveKind::HelpRequested, std::nullopt}});
     } catch (const CLI::ParseError& e) {
         return std::unexpected(ParseInterruption{ParseFailure{e.what()}});
+    } catch (const std::exception& e) {
+        // Catch remaining exceptions (e.g. bad_variant_access from
+        // misconfigured OptionDef default values) and convert to failure.
+        return std::unexpected(ParseInterruption{ParseFailure{e.what()}});
     }
 
-    // --- Harvest results -----------------------------------------------------
+    // --- Harvest results ---------------------------------------------------------
     auto commandPath = buildCommandPath(app);
 
     ParsedOptions options;

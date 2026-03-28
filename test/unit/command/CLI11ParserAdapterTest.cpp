@@ -212,6 +212,72 @@ TEST(CLI11ParserAdapterTest, Parse_Positional)
     EXPECT_EQ(result->options.positional[0], "myproject");
 }
 
+TEST(CLI11ParserAdapterTest, Parse_MultiplePositionals)
+{
+    CLI11ParserAdapter adapter;
+
+    CommandSpec spec = makeSpec("new");
+    spec.options.positional.push_back(PositionalDef{
+        .name = "project-name",
+        .description = "Name of the new project",
+        .required = true,
+    });
+    spec.options.positional.push_back(PositionalDef{
+        .name = "directory",
+        .description = "Target directory",
+        .required = false,
+    });
+
+    adapter.configure(std::vector{spec});
+
+    ArgvBuilder argv{"scrap", "new", "myproject", "/tmp/dest"};
+    auto result = adapter.parse(argv.span());
+
+    ASSERT_TRUE(result.has_value());
+    ASSERT_EQ(result->options.positional.size(), 2);
+    EXPECT_EQ(result->options.positional[0], "myproject");
+    EXPECT_EQ(result->options.positional[1], "/tmp/dest");
+}
+
+// =============================================================================
+// No subcommand (error)
+// =============================================================================
+
+TEST(CLI11ParserAdapterTest, Parse_NoSubcommand)
+{
+    CLI11ParserAdapter adapter;
+
+    adapter.configure(std::vector{makeSpec("build")});
+
+    ArgvBuilder argv{"scrap"};
+    auto result = adapter.parse(argv.span());
+
+    ASSERT_FALSE(result.has_value());
+    ASSERT_TRUE(std::holds_alternative<ParseFailure>(result.error()));
+}
+
+// =============================================================================
+// Nested subcommand help
+// =============================================================================
+
+TEST(CLI11ParserAdapterTest, Parse_NestedSubcommandHelp)
+{
+    CLI11ParserAdapter adapter;
+
+    std::vector<CommandSpec> specs = {
+        makeSpecWithSubs("toolchain", {makeSpec("install", "Install"), makeSpec("list", "List")})};
+    adapter.configure(specs);
+
+    ArgvBuilder argv{"scrap", "toolchain", "install", "--help"};
+    auto result = adapter.parse(argv.span());
+
+    ASSERT_FALSE(result.has_value());
+    auto& directive = std::get<ParseDirective>(result.error());
+    EXPECT_EQ(directive.kind, ParseDirectiveKind::HelpRequested);
+    ASSERT_TRUE(directive.target.has_value());
+    EXPECT_EQ(*directive.target, "toolchain.install");
+}
+
 // =============================================================================
 // Help / Version directives
 // =============================================================================
