@@ -12,6 +12,12 @@ namespace scrap::Command {
  */
 class StubScriptsReader : public ScriptsReader {
 public:
+    /**
+     * @brief Always return an empty script list.
+     *
+     * @param projectRoot Project root path (unused).
+     * @return Empty ScriptDef vector.
+     */
     [[nodiscard]] auto read(const std::filesystem::path& projectRoot)
         -> std::expected<std::vector<ScriptDef>, std::string> override;
 };

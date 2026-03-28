@@ -16,8 +16,19 @@ namespace scrap::Command {
  */
 class ExternalCommandResolver : public CommandResolver {
 public:
+    /**
+     * @brief Construct with a metadata provider for fetching command info.
+     *
+     * @param metadataProvider Provider that fetches metadata from external executables.
+     */
     explicit ExternalCommandResolver(std::unique_ptr<ExternalMetadataProvider> metadataProvider);
 
+    /**
+     * @brief Scan search paths for scrap-* executables and return entries.
+     *
+     * @param env Runtime environment containing searchPaths to scan.
+     * @return CommandEntry list for discovered external commands.
+     */
     auto resolve(const RuntimeEnvironment& env) -> std::vector<CommandEntry> override;
 
 private:
