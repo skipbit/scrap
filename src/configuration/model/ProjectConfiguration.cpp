@@ -14,8 +14,7 @@ std::string toString(ProjectType type)
     return "unknown";
 }
 
-std::expected<ProjectType, dross::error>
-parseProjectType(const std::string& str) noexcept
+std::expected<ProjectType, dross::error> parseProjectType(const std::string& str) noexcept
 {
     if (str == "app" || str == "application") {
         return ProjectType::Application;
@@ -43,8 +42,7 @@ std::string toString(BuildSystem system)
     return "unknown";
 }
 
-std::expected<BuildSystem, dross::error>
-parseBuildSystem(const std::string& str) noexcept
+std::expected<BuildSystem, dross::error> parseBuildSystem(const std::string& str) noexcept
 {
     if (str == "native" || str == "scrap") {
         return BuildSystem::Native;

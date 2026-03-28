@@ -1,8 +1,8 @@
 #pragma once
 
 #include "repository/model/Repository.h"
-#include <memory>
 #include <filesystem>
+#include <memory>
 
 namespace scrap::repository {
 
@@ -20,8 +20,7 @@ public:
      * @param path Repository directory path
      * @return Unique pointer to Repository
      */
-    static std::unique_ptr<Repository> createGitRepository(
-        const std::filesystem::path& path);
+    static std::unique_ptr<Repository> createGitRepository(const std::filesystem::path& path);
 };
 
-} // namespace scrap::repository
+}  // namespace scrap::repository

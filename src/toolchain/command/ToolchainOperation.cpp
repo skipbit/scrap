@@ -1,10 +1,10 @@
 #include "ToolchainOperation.h"
-#include "ListOperation.h"
 #include "InstallOperation.h"
+#include "ListOperation.h"
 #include "SelectOperation.h"
-#include "toolchain/service/ToolchainService.h"
-#include "shared/presentation/Presenter.h"
 #include "shared/command/CommandOptions.h"
+#include "shared/presentation/Presenter.h"
+#include "toolchain/service/ToolchainService.h"
 
 namespace scrap::toolchain::command {
 
@@ -30,4 +30,4 @@ void ToolchainOperation::displayHelp() const
     // Subcommands are displayed automatically by CLI11
 }
 
-} // namespace scrap::toolchain::command
+}  // namespace scrap::toolchain::command

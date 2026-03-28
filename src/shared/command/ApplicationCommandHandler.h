@@ -1,7 +1,7 @@
 #pragma once
 
-#include "shared/command/CommandDispatcher.h"
 #include "shared/command/CLIParser.h"
+#include "shared/command/CommandDispatcher.h"
 #include "shared/presentation/Presenter.h"
 #include <memory>
 #include <span>
@@ -45,8 +45,7 @@ public:
      * @param commandName Command name
      * @param operation Operation to execute
      */
-    void registerRootOperation(const std::string& commandName,
-                               std::shared_ptr<Operation> operation);
+    void registerRootOperation(const std::string& commandName, std::shared_ptr<Operation> operation);
 
     /**
      * @brief Configure command structure for CLI help generation
@@ -80,9 +79,8 @@ public:
      * @param dispatcher Command dispatcher
      * @return Unique pointer to application command handler
      */
-    static std::unique_ptr<ApplicationCommandHandler> create(
-        std::unique_ptr<CLIParserFactory> parserFactory,
-        std::unique_ptr<CommandDispatcher> dispatcher);
+    static std::unique_ptr<ApplicationCommandHandler> create(std::unique_ptr<CLIParserFactory> parserFactory,
+                                                             std::unique_ptr<CommandDispatcher> dispatcher);
 };
 
-}
+}  // namespace scrap

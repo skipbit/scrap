@@ -2,8 +2,8 @@
 
 #include "Operation.h"
 #include <map>
-#include <string>
 #include <memory>
+#include <string>
 #include <vector>
 
 namespace scrap {
@@ -75,4 +75,4 @@ private:
     std::map<std::string, std::shared_ptr<Operation>> subOperations_;
 };
 
-} // namespace scrap
+}  // namespace scrap

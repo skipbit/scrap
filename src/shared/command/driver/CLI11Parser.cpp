@@ -1,13 +1,13 @@
 #include "shared/command/driver/CLI11Parser.h"
-#include "shared/command/driver/PresenterFormatter.h"
 #include "shared/command/CommandOptions.h"
 #include "shared/command/ParsedOptions.h"
-#include "shared/presentation/Presenter.h"
+#include "shared/command/driver/PresenterFormatter.h"
 #include "shared/constants/version.h"
+#include "shared/presentation/Presenter.h"
 #include <CLI/CLI.hpp>
+#include <cstdlib>
 #include <map>
 #include <unordered_map>
-#include <cstdlib>
 
 namespace scrap {
 
@@ -120,7 +120,8 @@ public:
                     break;
                 }
             }
-            if (!foundParsed) break;
+            if (!foundParsed)
+                break;
         }
 
         // Get remaining arguments from the last parsed command
@@ -338,8 +339,7 @@ std::string CLI11Parser::helpText(const std::string& commandPath)
     return impl_->helpTextInternal(commandPath);
 }
 
-void CLI11Parser::configureCommandOptions(const std::string& command,
-                                         const CommandOptions& options)
+void CLI11Parser::configureCommandOptions(const std::string& command, const CommandOptions& options)
 {
     impl_->configureCommandOptionsInternal(command, options);
 }
@@ -351,9 +351,9 @@ void CLI11Parser::setPresenter(std::shared_ptr<Presenter> presenter)
 
 // CLI11ParserFactory implementation
 std::unique_ptr<CLIParser> CLI11ParserFactory::createParser(const std::string& appName,
-                                                           const std::string& appDescription)
+                                                            const std::string& appDescription)
 {
     return std::make_unique<CLI11Parser>(appName, appDescription);
 }
 
-} // namespace
+}  // namespace scrap

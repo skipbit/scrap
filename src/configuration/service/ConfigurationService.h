@@ -3,10 +3,10 @@
 #include "configuration/model/Configuration.h"
 #include "configuration/model/ProjectConfiguration.h"
 #include "configuration/model/ToolchainReference.h"
+#include <dross/type/error.h>
+#include <expected>
 #include <filesystem>
 #include <optional>
-#include <expected>
-#include <dross/type/error.h>
 
 namespace scrap::Configuration::Service {
 

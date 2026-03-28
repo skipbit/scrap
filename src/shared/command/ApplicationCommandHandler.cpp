@@ -1,21 +1,21 @@
 #include "shared/command/ApplicationCommandHandler.h"
-#include "shared/command/Operation.h"
-#include "shared/command/CommandOptions.h"
-#include "shared/command/driver/CLI11Parser.h"
-#include "shared/command/driver/CLI11CommandDispatcher.h"
-#include "shared/presentation/driver/ConsolePresenter.h"
-#include "toolchain/ToolchainModule.h"
 #include "project/ProjectModule.h"
+#include "project/command/BuildOperation.h"
+#include "project/command/CleanOperation.h"
+#include "project/command/NewOperation.h"
+#include "project/command/RunOperation.h"
+#include "project/service/ProjectService.h"
+#include "shared/command/CommandOptions.h"
+#include "shared/command/Operation.h"
+#include "shared/command/driver/CLI11CommandDispatcher.h"
+#include "shared/command/driver/CLI11Parser.h"
+#include "shared/presentation/driver/ConsolePresenter.h"
 #include "template/TemplateModule.h"
 #include "template/command/ListOperation.h"
 #include "template/command/UpdateOperation.h"
-#include "project/command/NewOperation.h"
-#include "project/command/BuildOperation.h"
-#include "project/command/RunOperation.h"
-#include "project/command/CleanOperation.h"
-#include "project/service/ProjectService.h"
-#include "toolchain/command/ListOperation.h"
+#include "toolchain/ToolchainModule.h"
 #include "toolchain/command/InstallOperation.h"
+#include "toolchain/command/ListOperation.h"
 #include "toolchain/command/SelectOperation.h"
 #include "toolchain/service/ToolchainService.h"
 #include <CLI/CLI.hpp>
@@ -94,19 +94,16 @@ void ApplicationCommandHandler::configureCommands()
 void ApplicationCommandHandler::registerDomainModules()
 {
     // Register toolchain domain module
-    toolchain::ToolchainModule::registerCommands(*dispatcher_,
-                                                  std::shared_ptr<CLIParser>(parser_.get(), [](CLIParser*){}),
-                                                  presenter_);
+    toolchain::ToolchainModule::registerCommands(
+        *dispatcher_, std::shared_ptr<CLIParser>(parser_.get(), [](CLIParser*) { }), presenter_);
 
     // Register project domain module
-    project::ProjectModule::registerCommands(*dispatcher_,
-                                              std::shared_ptr<CLIParser>(parser_.get(), [](CLIParser*){}),
-                                              presenter_);
+    project::ProjectModule::registerCommands(
+        *dispatcher_, std::shared_ptr<CLIParser>(parser_.get(), [](CLIParser*) { }), presenter_);
 
     // Register template domain module
-    template_system::TemplateModule::registerCommands(*dispatcher_,
-                                                       std::shared_ptr<CLIParser>(parser_.get(), [](CLIParser*){}),
-                                                       presenter_);
+    template_system::TemplateModule::registerCommands(
+        *dispatcher_, std::shared_ptr<CLIParser>(parser_.get(), [](CLIParser*) { }), presenter_);
 
     // TODO: Register other domain modules as they are implemented
     // package::PackageModule::registerCommands(*dispatcher_, parser_, presenter_);
@@ -191,9 +188,9 @@ std::unique_ptr<ApplicationCommandHandler> ApplicationCommandHandlerFactory::cre
     return std::make_unique<ApplicationCommandHandler>(std::move(parser), std::move(dispatcher), std::move(presenter));
 }
 
-std::unique_ptr<ApplicationCommandHandler> ApplicationCommandHandlerFactory::create(
-    std::unique_ptr<CLIParserFactory> parserFactory,
-    std::unique_ptr<CommandDispatcher> dispatcher)
+std::unique_ptr<ApplicationCommandHandler>
+ApplicationCommandHandlerFactory::create(std::unique_ptr<CLIParserFactory> parserFactory,
+                                         std::unique_ptr<CommandDispatcher> dispatcher)
 {
     auto parser = parserFactory->createParser("scrap", "Modern C++ development tool");
     auto presenterFactory = std::make_unique<ConsolePresenterFactory>();
@@ -202,4 +199,4 @@ std::unique_ptr<ApplicationCommandHandler> ApplicationCommandHandlerFactory::cre
     return std::make_unique<ApplicationCommandHandler>(std::move(parser), std::move(dispatcher), std::move(presenter));
 }
 
-}
+}  // namespace scrap

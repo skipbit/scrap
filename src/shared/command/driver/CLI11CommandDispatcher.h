@@ -28,12 +28,11 @@ public:
     CLI11CommandDispatcher& operator=(CLI11CommandDispatcher&&) noexcept;
 
     CommandResult dispatch(const CommandRequest& request) override;
-    void registerOperation(const std::string& commandName,
-                           std::shared_ptr<Operation> operation) override;
+    void registerOperation(const std::string& commandName, std::shared_ptr<Operation> operation) override;
 
 private:
     class Impl;
     std::unique_ptr<Impl> impl_;
 };
 
-}
+}  // namespace scrap

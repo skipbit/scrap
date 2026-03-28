@@ -6,7 +6,7 @@
 namespace scrap::project {
 
 namespace service {
-    class ProjectService;
+class ProjectService;
 }
 
 namespace command {
@@ -39,5 +39,5 @@ private:
     void displayHelp() const;
 };
 
-} // namespace command
-} // namespace scrap::project
+}  // namespace command
+}  // namespace scrap::project

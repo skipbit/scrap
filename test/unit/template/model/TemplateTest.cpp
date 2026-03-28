@@ -1,7 +1,7 @@
 #include "template/model/Template.h"
 #include "helpers/FileSystemHelper.h"
-#include <catch2/catch_test_macros.hpp>
 #include <algorithm>
+#include <catch2/catch_test_macros.hpp>
 
 using namespace scrap::template_system::model;
 using namespace scrap::test;

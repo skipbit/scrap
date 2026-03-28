@@ -1,9 +1,9 @@
 #include "template/command/TemplateOperation.h"
+#include "shared/command/CommandOptions.h"
+#include "shared/presentation/Presenter.h"
 #include "template/command/ListOperation.h"
 #include "template/command/UpdateOperation.h"
 #include "template/service/TemplateService.h"
-#include "shared/command/CommandOptions.h"
-#include "shared/presentation/Presenter.h"
 
 namespace scrap::template_system::command {
 
@@ -47,8 +47,9 @@ void TemplateOperation::displayHelp() const
         presenter()->displayInfo("  list     List available templates");
         presenter()->displayInfo("  update   Update template sources");
         presenter()->displayInfo("");
-        presenter()->displayInfo("Use 'scrap template <subcommand> --help' for more information about a specific subcommand.");
+        presenter()->displayInfo(
+            "Use 'scrap template <subcommand> --help' for more information about a specific subcommand.");
     }
 }
 
-} // namespace scrap::template_system::command
+}  // namespace scrap::template_system::command

@@ -1,6 +1,6 @@
 #include "Toolchain.h"
-#include <sstream>
 #include <algorithm>
+#include <sstream>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -13,7 +13,8 @@
 namespace scrap::toolchain::model {
 
 // ToolchainId implementation
-ToolchainId::ToolchainId(const std::string& value) : value_(value)
+ToolchainId::ToolchainId(const std::string& value)
+    : value_(value)
 {
 }
 
@@ -33,7 +34,8 @@ bool ToolchainId::operator<(const ToolchainId& other) const
 }
 
 // ToolchainName implementation
-ToolchainName::ToolchainName(const std::string& value) : value_(value)
+ToolchainName::ToolchainName(const std::string& value)
+    : value_(value)
 {
 }
 
@@ -48,7 +50,8 @@ std::string ToolchainName::toString() const
 }
 
 // Version implementation
-Version::Version(const std::string& value) : value_(value)
+Version::Version(const std::string& value)
+    : value_(value)
 {
 }
 
@@ -68,12 +71,7 @@ Toolchain::Toolchain(const ToolchainId& id,
                      const Version& version,
                      Architecture architecture,
                      Platform platform)
-    : id_(id)
-    , name_(name)
-    , version_(version)
-    , architecture_(architecture)
-    , platform_(platform)
-    , isSelected_(false)
+    : id_(id), name_(name), version_(version), architecture_(architecture), platform_(platform), isSelected_(false)
 {
 }
 
@@ -137,9 +135,8 @@ std::string Toolchain::fullName() const
 std::string Toolchain::triple() const
 {
     std::stringstream ss;
-    ss << name_.toString() << "-" << version_.toString()
-       << "-" << architectureToString(architecture_)
-       << "-" << platformToString(platform_);
+    ss << name_.toString() << "-" << version_.toString() << "-" << architectureToString(architecture_) << "-"
+       << platformToString(platform_);
     return ss.str();
 }
 
@@ -263,4 +260,4 @@ Platform currentPlatform()
 #endif
 }
 
-} // namespace scrap::toolchain::model
+}  // namespace scrap::toolchain::model

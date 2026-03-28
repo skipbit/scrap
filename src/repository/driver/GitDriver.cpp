@@ -7,10 +7,12 @@ namespace scrap::repository {
 
 class GitDriver::Internal {
 public:
-    Internal() {
+    Internal()
+    {
         git_libgit2_init();
     }
-    ~Internal() {
+    ~Internal()
+    {
         git_libgit2_shutdown();
     }
 
@@ -57,4 +59,4 @@ std::expected<void, std::string> GitDriver::update(const std::filesystem::path& 
     }
 }
 
-} // namespace scrap::repository
+}  // namespace scrap::repository

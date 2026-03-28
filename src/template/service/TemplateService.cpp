@@ -1,12 +1,12 @@
 #include "TemplateService.h"
-#include "TemplateServiceError.h"
 #include "TemplateProcessor.h"
+#include "TemplateServiceError.h"
 #include "repository/driver/GitDriver.h"
 #include "shared/presentation/driver/ConsolePresenter.h"
-#include <fstream>
-#include <iostream>
 #include <algorithm>
 #include <dross/type/error.h>
+#include <fstream>
+#include <iostream>
 
 namespace scrap::template_system::service {
 
@@ -85,7 +85,8 @@ public:
         return {};
     }
 
-    void loadTemplateRegistry() {
+    void loadTemplateRegistry()
+    {
         if (!std::filesystem::exists(registryFile_)) {
             return;
         }
@@ -139,10 +140,9 @@ public:
 
     std::optional<TemplateSource> findTemplateSource(const std::string& sourceName)
     {
-        auto it = std::find_if(templateSources_.begin(), templateSources_.end(),
-                              [&sourceName](const TemplateSource& source) {
-                                  return source.name == sourceName;
-                              });
+        auto it = std::find_if(templateSources_.begin(),
+                               templateSources_.end(),
+                               [&sourceName](const TemplateSource& source) { return source.name == sourceName; });
 
         if (it != templateSources_.end()) {
             return *it;
@@ -151,8 +151,8 @@ public:
         return std::nullopt;
     }
 
-    std::vector<Template> scanTemplatesInDirectory(
-        const std::filesystem::path& dir, const TemplateSource& source) {
+    std::vector<Template> scanTemplatesInDirectory(const std::filesystem::path& dir, const TemplateSource& source)
+    {
 
         std::vector<Template> templates;
 
@@ -162,7 +162,8 @@ public:
 
         std::error_code ec;
         for (auto& entry : std::filesystem::directory_iterator(dir, ec)) {
-            if (ec) continue;
+            if (ec)
+                continue;
 
             if (entry.is_directory()) {
                 auto templateName = entry.path().filename().string();
@@ -188,8 +189,8 @@ public:
 };
 
 DefaultTemplateService::DefaultTemplateService(const std::filesystem::path& templatesDir,
-                                             std::shared_ptr<repository::GitDriver> gitDriver,
-                                             std::shared_ptr<Presenter> presenter)
+                                               std::shared_ptr<repository::GitDriver> gitDriver,
+                                               std::shared_ptr<Presenter> presenter)
     : impl_(std::make_unique<Internal>(templatesDir, gitDriver, presenter))
 {
 }
@@ -324,10 +325,9 @@ std::expected<void, std::string> DefaultTemplateService::removeTemplateSource(co
         return std::unexpected("Cannot remove official template source");
     }
 
-    auto it = std::find_if(impl_->templateSources_.begin(), impl_->templateSources_.end(),
-                          [&sourceName](const TemplateSource& source) {
-                              return source.name == sourceName;
-                          });
+    auto it = std::find_if(impl_->templateSources_.begin(),
+                           impl_->templateSources_.end(),
+                           [&sourceName](const TemplateSource& source) { return source.name == sourceName; });
 
     if (it == impl_->templateSources_.end()) {
         return std::unexpected("Template source not found: " + sourceName);
@@ -364,7 +364,8 @@ std::expected<void, std::string> DefaultTemplateService::updateTemplateSources()
             if (!result) {
                 hasErrors = true;
                 errors += "Failed to update template source '" + source.name + "': " + result.error() + "; ";
-                impl_->presenter_->displayError("Failed to update template source '" + source.name + "': " + result.error());
+                impl_->presenter_->displayError("Failed to update template source '" + source.name +
+                                                "': " + result.error());
             }
         }
     }
@@ -416,8 +417,8 @@ std::expected<void, std::string> DefaultTemplateService::updateTemplateSource(co
 }
 
 std::expected<void, std::string> DefaultTemplateService::processTemplate(const Template& tmpl,
-                                            const std::filesystem::path& targetPath,
-                                            const VariableMap& variables)
+                                                                         const std::filesystem::path& targetPath,
+                                                                         const VariableMap& variables)
 {
     try {
         // Use the advanced TemplateProcessor for proper processing
@@ -429,8 +430,7 @@ std::expected<void, std::string> DefaultTemplateService::processTemplate(const T
     }
 }
 
-VariableMap DefaultTemplateService::collectTemplateVariables(const Template& tmpl,
-                                                           const std::string& projectName)
+VariableMap DefaultTemplateService::collectTemplateVariables(const Template& tmpl, const std::string& projectName)
 {
     VariableMap variables;
     variables.setStandardVariables(projectName);
@@ -501,8 +501,7 @@ bool DefaultTemplateService::isTemplateSourceAccessible(const std::string& sourc
     return std::filesystem::exists(sourceDir);
 }
 
-std::expected<std::filesystem::path, dross::error>
-DefaultTemplateService::defaultTemplatesDirectory() noexcept
+std::expected<std::filesystem::path, dross::error> DefaultTemplateService::defaultTemplatesDirectory() noexcept
 {
     // Check SCRAP_HOME environment variable first
     const char* scrapHome = std::getenv("SCRAP_HOME");
@@ -513,7 +512,7 @@ DefaultTemplateService::defaultTemplatesDirectory() noexcept
     // Fall back to ~/.scrap/templates
     const char* home = std::getenv("HOME");
     if (!home) {
-        home = std::getenv("USERPROFILE"); // Windows
+        home = std::getenv("USERPROFILE");  // Windows
     }
 
     if (!home) {
@@ -524,4 +523,4 @@ DefaultTemplateService::defaultTemplatesDirectory() noexcept
     return std::filesystem::path(home) / ".scrap" / "templates";
 }
 
-} // namespace scrap::template_system::service
+}  // namespace scrap::template_system::service

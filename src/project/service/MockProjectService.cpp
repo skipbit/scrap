@@ -1,9 +1,9 @@
 #include "ProjectService.h"
+#include "shared/presentation/driver/ConsolePresenter.h"
 #include "template/TemplateModule.h"
 #include "template/service/TemplateService.h"
-#include "shared/presentation/driver/ConsolePresenter.h"
-#include <fstream>
 #include <chrono>
+#include <fstream>
 #include <thread>
 
 namespace scrap::project::service {
@@ -17,7 +17,7 @@ MockProjectService::MockProjectService()
 }
 
 MockProjectService::MockProjectService(std::shared_ptr<template_system::service::TemplateService> templateService,
-                                     std::shared_ptr<Presenter> presenter)
+                                       std::shared_ptr<Presenter> presenter)
     : templateService_(templateService), presenter_(presenter)
 {
     if (!presenter_) {
@@ -36,11 +36,8 @@ Model::Project MockProjectService::createNew(const Model::ProjectSpecification& 
     }
 
     // Create project entity
-    auto project = Model::Project(
-        Model::ProjectName::create(spec.name).value(),
-        spec.type,
-        Model::Version::createDefault()
-    );
+    auto project =
+        Model::Project(Model::ProjectName::create(spec.name).value(), spec.type, Model::Version::createDefault());
 
     // Set optional configurations
     if (spec.cppStandard) {
@@ -63,8 +60,8 @@ Model::Project MockProjectService::createNew(const Model::ProjectSpecification& 
         createProjectFromTemplate(spec, targetPath);
     } else {
         // Try to find default template for project type
-        auto recommendedTemplate = templateService_->recommendedTemplate(
-            spec.type == ProjectType::Application ? "app" : "lib");
+        auto recommendedTemplate =
+            templateService_->recommendedTemplate(spec.type == ProjectType::Application ? "app" : "lib");
 
         if (recommendedTemplate) {
             // Use recommended template
@@ -80,8 +77,7 @@ Model::Project MockProjectService::createNew(const Model::ProjectSpecification& 
     return project;
 }
 
-std::optional<Model::Project> MockProjectService::loadProject(
-    const std::optional<std::filesystem::path>& path)
+std::optional<Model::Project> MockProjectService::loadProject(const std::optional<std::filesystem::path>& path)
 {
 
     auto projectPath = path.value_or(std::filesystem::current_path());
@@ -94,11 +90,9 @@ std::optional<Model::Project> MockProjectService::loadProject(
 
     // For mock implementation, create a simple project
     // In real implementation, this would parse scrap.toml
-    auto project = Model::Project(
-        Model::ProjectName::create("example").value(),
-        Model::ProjectType::Application,
-        Model::Version::createDefault()
-    );
+    auto project = Model::Project(Model::ProjectName::create("example").value(),
+                                  Model::ProjectType::Application,
+                                  Model::Version::createDefault());
     project.setPath(projectPath);
 
     // Add some mock dependencies
@@ -146,11 +140,7 @@ Model::BuildResult MockProjectService::build(const Model::Project& project, cons
         }
     }
 
-    return Model::BuildResult::success(
-        "Build completed successfully",
-        duration,
-        artifacts
-    );
+    return Model::BuildResult::success("Build completed successfully", duration, artifacts);
 }
 
 void MockProjectService::run(const Model::Project& project, const Model::RunOptions& options)
@@ -187,16 +177,14 @@ void MockProjectService::clean(const Model::Project& project)
     presenter_->displayInfo("     Cleaned build artifacts");
 }
 
-Model::Project MockProjectService::addDependency(const Model::Project& project,
-                                           const Model::Dependency& dependency)
+Model::Project MockProjectService::addDependency(const Model::Project& project, const Model::Dependency& dependency)
 {
     auto modifiedProject = project;
     modifiedProject.addDependency(dependency);
     return modifiedProject;
 }
 
-void MockProjectService::createProjectStructure(const Model::Project& project,
-                                                 const std::filesystem::path& basePath)
+void MockProjectService::createProjectStructure(const Model::Project& project, const std::filesystem::path& basePath)
 {
     // Create directory structure
     std::filesystem::create_directories(basePath);
@@ -209,8 +197,7 @@ void MockProjectService::createProjectStructure(const Model::Project& project,
     }
 }
 
-void MockProjectService::generateSourceFiles(const Model::Project& project,
-                                              const std::filesystem::path& projectPath)
+void MockProjectService::generateSourceFiles(const Model::Project& project, const std::filesystem::path& projectPath)
 {
     // Generate main source file
     auto mainFile = projectPath / "src" / "main.cpp";
@@ -233,8 +220,7 @@ void MockProjectService::generateSourceFiles(const Model::Project& project,
 
     // Generate header file for library
     if (project.isLibrary()) {
-        auto headerFile = projectPath / "include" / project.name().toString() /
-                          (project.name().toString() + ".h");
+        auto headerFile = projectPath / "include" / project.name().toString() / (project.name().toString() + ".h");
         std::ofstream header(headerFile);
 
         header << "#pragma once\n\n";
@@ -261,8 +247,7 @@ void MockProjectService::generateSourceFiles(const Model::Project& project,
     test << "}\n";
 }
 
-void MockProjectService::generateConfigFile(const Model::Project& project,
-                                             const std::filesystem::path& projectPath)
+void MockProjectService::generateConfigFile(const Model::Project& project, const std::filesystem::path& projectPath)
 {
     auto configFile = projectPath / "scrap.toml";
     std::ofstream config(configFile);
@@ -298,7 +283,8 @@ void MockProjectService::createProjectFromTemplate(const Model::ProjectSpecifica
         std::optional<template_system::model::Template> tmpl;
 
         // Check if it's a local path
-        if (spec.templateName->starts_with("/") || spec.templateName->starts_with("./") || spec.templateName->starts_with("../")) {
+        if (spec.templateName->starts_with("/") || spec.templateName->starts_with("./") ||
+            spec.templateName->starts_with("../")) {
             tmpl = templateService_->loadTemplateFromPath(*spec.templateName);
         } else {
             tmpl = templateService_->loadTemplate(*spec.templateName);
@@ -334,11 +320,12 @@ void MockProjectService::createProjectFromTemplate(const Model::ProjectSpecifica
         presenter_->displayWarning("Falling back to default project generation.");
 
         // Fall back to hardcoded generation
-        auto fallbackProject = Model::Project(Model::ProjectName::create(spec.name).value(), spec.type, Model::Version::createDefault());
+        auto fallbackProject =
+            Model::Project(Model::ProjectName::create(spec.name).value(), spec.type, Model::Version::createDefault());
         createProjectStructure(fallbackProject, targetPath);
         generateSourceFiles(fallbackProject, targetPath);
         generateConfigFile(fallbackProject, targetPath);
     }
 }
 
-} // namespace scrap::project::service
+}  // namespace scrap::project::service

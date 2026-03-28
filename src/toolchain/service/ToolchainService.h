@@ -1,10 +1,10 @@
 #pragma once
 
 #include "toolchain/model/Toolchain.h"
-#include <vector>
-#include <optional>
 #include <expected>
+#include <optional>
 #include <string>
+#include <vector>
 
 namespace scrap::toolchain::service {
 
@@ -83,4 +83,4 @@ private:
     void initializeMockData();
 };
 
-} // namespace scrap::toolchain::service
+}  // namespace scrap::toolchain::service

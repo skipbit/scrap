@@ -32,8 +32,7 @@ public:
     void configureSubcommands(const std::string& parentCommand,
                               const std::vector<std::pair<std::string, std::string>>& subcommands) override;
     std::string helpText(const std::string& commandPath = "") override;
-    void configureCommandOptions(const std::string& command,
-                                const CommandOptions& options) override;
+    void configureCommandOptions(const std::string& command, const CommandOptions& options) override;
 
     /**
      * @brief Set the presenter for custom help formatting
@@ -51,8 +50,7 @@ private:
  */
 class CLI11ParserFactory : public CLIParserFactory {
 public:
-    std::unique_ptr<CLIParser> createParser(const std::string& appName,
-                                            const std::string& appDescription) override;
+    std::unique_ptr<CLIParser> createParser(const std::string& appName, const std::string& appDescription) override;
 };
 
-}
+}  // namespace scrap

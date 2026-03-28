@@ -1,8 +1,8 @@
 #include "toolchain/ToolchainModule.h"
-#include "toolchain/command/ToolchainOperation.h"
-#include "toolchain/command/ListOperation.h"
 #include "toolchain/command/InstallOperation.h"
+#include "toolchain/command/ListOperation.h"
 #include "toolchain/command/SelectOperation.h"
+#include "toolchain/command/ToolchainOperation.h"
 #include "toolchain/service/ToolchainService.h"
 #include <memory>
 
@@ -38,18 +38,14 @@ void ToolchainModule::registerCommands(CommandDispatcher& dispatcher,
 
 std::vector<std::pair<std::string, std::string>> ToolchainModule::availableCommands()
 {
-    return {
-        {"toolchain", "Manages the toolchain for the project"}
-    };
+    return {{"toolchain", "Manages the toolchain for the project"}};
 }
 
 std::vector<std::pair<std::string, std::string>> ToolchainModule::availableSubcommands()
 {
-    return {
-        {"list", "Display installed toolchains and indicate which one is currently selected"},
-        {"install", "Install a new toolchain from the ecosystem"},
-        {"select", "Select a toolchain as the default"}
-    };
+    return {{"list", "Display installed toolchains and indicate which one is currently selected"},
+            {"install", "Install a new toolchain from the ecosystem"},
+            {"select", "Select a toolchain as the default"}};
 }
 
-} // namespace scrap::toolchain
+}  // namespace scrap::toolchain

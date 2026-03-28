@@ -1,10 +1,10 @@
 #pragma once
 
-#include <string>
+#include <memory>
 #include <optional>
+#include <string>
 #include <variant>
 #include <vector>
-#include <memory>
 
 namespace scrap {
 
@@ -89,4 +89,4 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
-}
+}  // namespace scrap

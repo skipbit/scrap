@@ -1,12 +1,14 @@
 #pragma once
 
-#include <string>
 #include <filesystem>
 #include <memory>
+#include <string>
 
 namespace scrap {
 
-namespace repository { class Driver; }
+namespace repository {
+class Driver;
+}
 
 class Repository {
 public:
@@ -14,8 +16,7 @@ public:
         Git,
     };
 
-    Repository(std::shared_ptr<repository::Driver> driver,
-               const std::filesystem::path& directory);
+    Repository(std::shared_ptr<repository::Driver> driver, const std::filesystem::path& directory);
     Repository(const Repository&);
     ~Repository();
 
@@ -27,4 +28,4 @@ private:
     std::filesystem::path directory_;
 };
 
-}
+}  // namespace scrap

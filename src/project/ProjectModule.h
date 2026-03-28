@@ -1,11 +1,11 @@
 #pragma once
 
-#include "shared/command/CommandDispatcher.h"
 #include "shared/command/CLIParser.h"
+#include "shared/command/CommandDispatcher.h"
 #include "shared/presentation/Presenter.h"
 #include <memory>
-#include <vector>
 #include <string>
+#include <vector>
 
 namespace scrap::project {
 
@@ -34,4 +34,4 @@ public:
     static std::vector<std::pair<std::string, std::string>> availableCommands();
 };
 
-} // namespace scrap::project
+}  // namespace scrap::project

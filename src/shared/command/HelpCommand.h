@@ -1,7 +1,7 @@
 #pragma once
 
-#include "shared/command/Operation.h"
 #include "shared/command/CLIParser.h"
+#include "shared/command/Operation.h"
 #include <memory>
 
 namespace scrap {
@@ -24,4 +24,4 @@ private:
     std::string commandPath_;
 };
 
-}
+}  // namespace scrap

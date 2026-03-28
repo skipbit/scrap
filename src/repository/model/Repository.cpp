@@ -3,8 +3,7 @@
 
 namespace scrap {
 
-Repository::Repository(std::shared_ptr<repository::Driver> driver,
-                       const std::filesystem::path& path)
+Repository::Repository(std::shared_ptr<repository::Driver> driver, const std::filesystem::path& path)
     : driver_(std::move(driver)), directory_(path)
 {
 }
@@ -26,4 +25,4 @@ void Repository::update()
     driver_->update(directory_);
 }
 
-}
+}  // namespace scrap
