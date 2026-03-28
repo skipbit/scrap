@@ -6,7 +6,8 @@ using namespace scrap::Command;
 
 namespace {
 
-auto makeEntry(const std::string& name, CommandSource source,
+auto makeEntry(const std::string& name,
+               CommandSource source,
                const std::string& category = "",
                const std::string& description = "") -> CommandEntry
 {
@@ -19,8 +20,7 @@ auto makeEntry(const std::string& name, CommandSource source,
     return entry;
 }
 
-auto makeEntryWithSubs(const std::string& name, CommandSource source,
-                       std::vector<CommandEntry> subs) -> CommandEntry
+auto makeEntryWithSubs(const std::string& name, CommandSource source, std::vector<CommandEntry> subs) -> CommandEntry
 {
     auto entry = makeEntry(name, source);
     entry.subcommands = std::move(subs);
@@ -250,14 +250,13 @@ TEST(CommandCatalogTest, Specs_PreservesOptions)
     CommandCatalog catalog;
 
     auto entry = makeEntry("build", CommandSource::Builtin, "", "Build project");
-    entry.spec.options.named.push_back(OptionDef{
-        .longName = "release",
-        .shortName = 'r',
-        .type = OptionValueType::Bool,
-        .required = false,
-        .description = "Build in release mode",
-        .defaultValue = std::nullopt,
-        .choices = {}});
+    entry.spec.options.named.push_back(OptionDef{.longName = "release",
+                                                 .shortName = 'r',
+                                                 .type = OptionValueType::Bool,
+                                                 .required = false,
+                                                 .description = "Build in release mode",
+                                                 .defaultValue = std::nullopt,
+                                                 .choices = {}});
 
     std::vector<CommandEntry> entries;
     entries.push_back(std::move(entry));

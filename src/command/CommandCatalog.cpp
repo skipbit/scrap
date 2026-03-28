@@ -6,21 +6,23 @@
 
 namespace scrap::Command {
 
+// --- Special members ----------------------------------------------------------
+
 CommandCatalog::CommandCatalog() = default;
 CommandCatalog::~CommandCatalog() = default;
 CommandCatalog::CommandCatalog(CommandCatalog&&) noexcept = default;
 CommandCatalog& CommandCatalog::operator=(CommandCatalog&&) noexcept = default;
 
+// --- Public interface ---------------------------------------------------------
+
 auto CommandCatalog::addEntries(std::vector<CommandEntry> entries) -> void
 {
     for (auto& incoming : entries) {
-        auto it = std::ranges::find_if(entries_, [&](const CommandEntry& existing) {
-            return existing.spec.name == incoming.spec.name;
-        });
+        auto it = std::ranges::find_if(
+            entries_, [&](const CommandEntry& existing) { return existing.spec.name == incoming.spec.name; });
 
         if (it != entries_.end()) {
-            std::cerr << "warning: command '" << incoming.spec.name
-                      << "' already registered; ignoring duplicate\n";
+            std::cerr << "warning: command '" << incoming.spec.name << "' already registered; ignoring duplicate\n";
             continue;
         }
 
@@ -34,13 +36,12 @@ auto CommandCatalog::find(const std::string& commandPath) const -> const Command
         return nullptr;
     }
 
-    // Reject malformed paths: leading/trailing dots, consecutive dots
-    if (commandPath.front() == '.' || commandPath.back() == '.' ||
-        commandPath.contains("..")) {
+    // Reject malformed paths: leading/trailing dots, consecutive dots.
+    if (commandPath.front() == '.' || commandPath.back() == '.' || commandPath.contains("..")) {
         return nullptr;
     }
 
-    // Split path on '.'
+    // Split path on '.'.
     std::vector<std::string> segments;
     std::istringstream stream(commandPath);
     std::string segment;
@@ -52,14 +53,13 @@ auto CommandCatalog::find(const std::string& commandPath) const -> const Command
         return nullptr;
     }
 
-    // Walk the tree level by level
+    // Walk the tree level by level.
     const std::vector<CommandEntry>* currentLevel = &entries_;
     const CommandEntry* found = nullptr;
 
     for (const auto& seg : segments) {
-        auto it = std::ranges::find_if(*currentLevel, [&](const CommandEntry& entry) {
-            return entry.spec.name == seg;
-        });
+        auto it =
+            std::ranges::find_if(*currentLevel, [&](const CommandEntry& entry) { return entry.spec.name == seg; });
 
         if (it == currentLevel->end()) {
             return nullptr;
@@ -96,9 +96,14 @@ auto CommandCatalog::helpEntries() const -> std::vector<HelpEntry>
     return result;
 }
 
+// --- Private helpers ----------------------------------------------------------
+
 auto CommandCatalog::buildSpec(const CommandEntry& entry) -> CommandSpec
 {
     CommandSpec spec = entry.spec;
+
+    // Populate subcommands from the entry tree (entry.spec.subcommands
+    // is always empty per the CommandEntry invariant).
     spec.subcommands.clear();
     spec.subcommands.reserve(entry.subcommands.size());
 
