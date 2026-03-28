@@ -65,7 +65,8 @@ TEST(DefaultHelpRendererTest, RenderGlobal_AlignsColumns)
     // "Short name command" start at the same column despite different name lengths.
     auto extractLine = [](const std::string& text, const std::string& linePrefix) -> std::string {
         auto pos = text.find(linePrefix);
-        if (pos == std::string::npos) return {};
+        if (pos == std::string::npos)
+            return {};
         auto end = text.find('\n', pos);
         return text.substr(pos, end - pos);
     };

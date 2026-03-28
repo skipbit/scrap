@@ -23,7 +23,9 @@ auto maxNameLength(std::span<const HelpEntry> entries) -> std::size_t
 /**
  * Format a single command line: indented name, padded to column width, followed by description.
  */
-void appendCommandLine(std::ostringstream& out, const std::string& name, const std::string& description,
+void appendCommandLine(std::ostringstream& out,
+                       const std::string& name,
+                       const std::string& description,
                        std::size_t columnWidth)
 {
     out << "    " << name;
