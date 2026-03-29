@@ -1,5 +1,10 @@
 #include "command/StubScriptsReader.h"
 
+#include "command/ScriptsReader.h"
+
+#include <filesystem>
+#include <vector>
+
 namespace scrap::Command {
 
 /**

@@ -6,9 +6,15 @@
 #include "command/ParsedOptions.h"
 
 #include <CLI/CLI.hpp>
+#include <cstdint>
 #include <deque>
+#include <exception>
+#include <memory>
+#include <optional>
+#include <span>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace scrap::Command {

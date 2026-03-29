@@ -4,10 +4,12 @@
 #include "command/CommandEntry.h"
 #include "command/CommandHandler.h"
 #include "command/CommandSource.h"
+#include "command/HelpRenderer.h"
 #include "command/InvocationContext.h"
 #include "command/OptionSchema.h"
 #include "command/ParsedOptions.h"
 #include "command/RuntimeEnvironment.h"
+#include "command/VersionRenderer.h"
 
 #include <iostream>
 #include <memory>

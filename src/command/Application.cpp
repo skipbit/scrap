@@ -1,13 +1,18 @@
 #include "command/Application.h"
 
 #include "command/CommandCatalog.h"
-#include "command/CommandEntry.h"
+#include "command/CommandResolver.h"
+#include "command/HelpRenderer.h"
 #include "command/InvocationContext.h"
 #include "command/ParseResult.h"
+#include "command/ParserAdapter.h"
 #include "command/RuntimeEnvironment.h"
+#include "command/VersionRenderer.h"
 
 #include <iostream>
+#include <memory>
 #include <span>
+#include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>

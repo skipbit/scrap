@@ -1,8 +1,15 @@
 #include "command/CommandCatalog.h"
 
+#include "command/CommandEntry.h"
+#include "command/CommandSpec.h"
+#include "command/HelpRenderer.h"
+
 #include <algorithm>
 #include <iostream>
 #include <sstream>
+#include <string>
+#include <utility>
+#include <vector>
 
 namespace scrap::Command {
 

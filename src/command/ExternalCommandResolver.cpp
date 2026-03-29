@@ -1,13 +1,25 @@
 #include "command/ExternalCommandResolver.h"
 
+#include "command/CommandEntry.h"
+#include "command/CommandHandler.h"
+#include "command/CommandSource.h"
+#include "command/ExternalMetadataProvider.h"
+#include "command/OptionSchema.h"
+#include "command/ParsedOptions.h"
+#include "command/RuntimeEnvironment.h"
+
 #include <filesystem>
+#include <memory>
 #include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 namespace scrap::Command {
 
 namespace {
 
-const std::string kExternalPrefix = "scrap-";
+constexpr std::string_view ExternalPrefix = "scrap-";
 
 /**
  * Check if a directory entry is an executable scrap-* command.
@@ -18,7 +30,7 @@ auto isScrapExecutable(const std::filesystem::directory_entry& entry) -> bool
         return false;
     }
     auto filename = entry.path().filename().string();
-    if (! filename.starts_with(kExternalPrefix)) {
+    if (! filename.starts_with(ExternalPrefix)) {
         return false;
     }
     auto status = std::filesystem::status(entry.path());
@@ -30,7 +42,7 @@ auto isScrapExecutable(const std::filesystem::directory_entry& entry) -> bool
  */
 auto commandNameFrom(const std::filesystem::path& path) -> std::string
 {
-    return path.filename().string().substr(kExternalPrefix.size());
+    return path.filename().string().substr(ExternalPrefix.size());
 }
 
 }  // anonymous namespace
@@ -83,8 +95,7 @@ auto ExternalCommandResolver::resolve(const RuntimeEnvironment& env) -> std::vec
             entry.spec.category = "External Commands";
             entry.spec.options = std::move(options);
             entry.source = CommandSource::External;
-            auto execPath = dirEntry.path();
-            entry.createHandler = [execPath](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
+            entry.createHandler = [](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
                 // External command execution will be implemented later.
                 return nullptr;
             };

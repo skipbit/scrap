@@ -2,6 +2,8 @@
 
 #include "shared/constants/version.h"
 
+#include <string>
+
 namespace scrap::Command {
 
 /**

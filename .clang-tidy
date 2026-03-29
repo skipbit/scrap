@@ -53,7 +53,8 @@ Checks: >
   -readability-identifier-length,
   -readability-magic-numbers,
   -readability-named-parameter,
-  -readability-uppercase-literal-suffix
+  -readability-uppercase-literal-suffix,
+  -portability-avoid-pragma-once  # Project standard is #pragma once per CODINGSTYLE.md
 
 # Warning as errors (strict mode)
 WarningsAsErrors: '*'

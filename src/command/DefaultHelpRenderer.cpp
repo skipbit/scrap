@@ -1,8 +1,17 @@
 #include "command/DefaultHelpRenderer.h"
 
+#include "command/CommandSource.h"
+#include "command/CommandSpec.h"
+#include "command/HelpRenderer.h"
+#include "command/OptionSchema.h"
+
 #include <algorithm>
+#include <cstddef>
 #include <map>
+#include <span>
 #include <sstream>
+#include <string>
+#include <vector>
 
 namespace scrap::Command {
 
