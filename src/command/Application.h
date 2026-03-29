@@ -2,6 +2,7 @@
 
 #include "command/CommandResolver.h"
 #include "command/HelpRenderer.h"
+#include "command/ParseResult.h"
 #include "command/ParserAdapter.h"
 #include "command/VersionRenderer.h"
 
@@ -10,6 +11,8 @@
 #include <vector>
 
 namespace scrap::Command {
+
+class CommandCatalog;
 
 /**
  * @brief Unified application class managing the CLI pipeline.
@@ -61,6 +64,16 @@ public:
     auto run(std::span<const char* const> argv, const RuntimeEnvironment& env) -> int;
 
 private:
+    /**
+     * @brief Handle a ParseDirective (help or version request).
+     */
+    auto handleDirective(const CommandCatalog& catalog, const ParseDirective& directive) -> int;
+
+    /**
+     * @brief Handle a ParseFailure (error message + help suggestion).
+     */
+    static auto handleFailure(const ParseFailure& failure) -> int;
+
     std::unique_ptr<ParserAdapter> parser_;
     std::unique_ptr<HelpRenderer> helpRenderer_;
     std::unique_ptr<VersionRenderer> versionRenderer_;

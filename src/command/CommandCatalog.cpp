@@ -102,18 +102,36 @@ auto CommandCatalog::helpEntries() const -> std::vector<HelpEntry>
 
 auto CommandCatalog::buildSpec(const CommandEntry& entry) -> CommandSpec
 {
-    CommandSpec spec = entry.spec;
+    CommandSpec root = entry.spec;
+    root.subcommands.clear();
 
-    // Populate subcommands from the entry tree (entry.spec.subcommands
-    // is always empty per the CommandEntry invariant).
-    spec.subcommands.clear();
-    spec.subcommands.reserve(entry.subcommands.size());
+    // Iterative BFS: process each tree level without recursion.
+    struct Pending {
+        const std::vector<CommandEntry>* sources;
+        CommandSpec* dest;
+    };
 
-    for (const auto& child : entry.subcommands) {
-        spec.subcommands.push_back(buildSpec(child));
+    std::vector<Pending> current;
+    if (! entry.subcommands.empty()) {
+        current.push_back({&entry.subcommands, &root});
     }
 
-    return spec;
+    while (! current.empty()) {
+        std::vector<Pending> next;
+        for (auto& [sources, dest] : current) {
+            dest->subcommands.reserve(sources->size());
+            for (const auto& child : *sources) {
+                auto& added = dest->subcommands.emplace_back(child.spec);
+                added.subcommands.clear();
+                if (! child.subcommands.empty()) {
+                    next.push_back({&child.subcommands, &added});
+                }
+            }
+        }
+        current = std::move(next);
+    }
+
+    return root;
 }
 
 }  // namespace scrap::Command

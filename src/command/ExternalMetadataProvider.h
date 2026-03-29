@@ -26,6 +26,10 @@ struct ExternalCommandMetadata {
 class ExternalMetadataProvider {
 public:
     virtual ~ExternalMetadataProvider();
+    ExternalMetadataProvider(const ExternalMetadataProvider&) = default;
+    ExternalMetadataProvider& operator=(const ExternalMetadataProvider&) = default;
+    ExternalMetadataProvider(ExternalMetadataProvider&&) = default;
+    ExternalMetadataProvider& operator=(ExternalMetadataProvider&&) = default;
 
     /**
      * @brief Fetch metadata from an external command executable.
@@ -35,6 +39,9 @@ public:
      */
     [[nodiscard]] virtual auto fetch(const std::filesystem::path& executable)
         -> std::expected<ExternalCommandMetadata, std::string> = 0;
+
+protected:
+    ExternalMetadataProvider() = default;
 };
 
 }  // namespace scrap::Command

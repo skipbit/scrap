@@ -13,7 +13,7 @@ namespace scrap::Command {
 
 struct CommandEntry {
     CommandSpec spec;
-    CommandSource source;
+    CommandSource source = CommandSource::Builtin;
     using HandlerFactory = std::function<std::unique_ptr<CommandHandler>(const ParsedOptions&)>;
     HandlerFactory createHandler;
     std::vector<CommandEntry> subcommands;

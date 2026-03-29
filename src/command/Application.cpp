@@ -1,26 +1,18 @@
 #include "command/Application.h"
 
 #include "command/CommandCatalog.h"
+#include "command/CommandEntry.h"
 #include "command/InvocationContext.h"
+#include "command/ParseResult.h"
+#include "command/RuntimeEnvironment.h"
 
 #include <iostream>
+#include <span>
+#include <utility>
 #include <variant>
+#include <vector>
 
 namespace scrap::Command {
-
-namespace {
-
-/**
- * Visitor helper for std::visit with multiple lambdas.
- */
-template <class... Ts>
-struct Overloaded : Ts... {
-    using Ts::operator()...;
-};
-template <class... Ts>
-Overloaded(Ts...) -> Overloaded<Ts...>;
-
-}  // namespace
 
 /**
  * Construct with parser and renderer dependencies.
@@ -66,52 +58,64 @@ auto Application::run(std::span<const char* const> argv, const RuntimeEnvironmen
     if (result.has_value()) {
         auto& invocation = *result;
         const auto* entry = catalog.find(invocation.commandPath);
-        if (! entry) {
+        if (entry == nullptr) {
             std::cerr << "Internal error: command not found after parsing: " << invocation.commandPath << "\n";
             return 1;
         }
-
         auto handler = entry->createHandler(invocation.options);
         InvocationContext ctx{invocation.options, env, catalog};
         return handler->execute(ctx);
     }
 
-    // Handle interruptions (directives and failures).
-    return std::visit(Overloaded{
-                          [&](const ParseDirective& directive) -> int {
-                              switch (directive.kind) {
-                                  case ParseDirectiveKind::HelpRequested: {
-                                      if (! directive.target.has_value()) {
-                                          std::cout << helpRenderer_->renderGlobal(catalog.helpEntries());
-                                      } else {
-                                          // Find the matching spec with subcommands populated.
-                                          auto specs = catalog.specs();
-                                          for (const auto& spec : specs) {
-                                              if (spec.name == *directive.target) {
-                                                  std::cout << helpRenderer_->renderCommand(spec);
-                                                  return 0;
-                                              }
-                                          }
-                                          std::cerr << "Unknown command: " << *directive.target << "\n";
-                                          std::cerr << "Run 'scrap --help' for usage information.\n";
-                                          return 1;
-                                      }
-                                      return 0;
-                                  }
-                                  case ParseDirectiveKind::VersionRequested: {
-                                      std::cout << versionRenderer_->render() << "\n";
-                                      return 0;
-                                  }
-                              }
-                              return 1;
-                          },
-                          [&](const ParseFailure& failure) -> int {
-                              std::cerr << failure.message << "\n";
-                              std::cerr << "Run 'scrap --help' for usage information.\n";
-                              return 1;
-                          },
-                      },
-                      result.error());
+    return std::visit(
+        [&](const auto& value) -> int {
+            using T = std::decay_t<decltype(value)>;
+            if constexpr (std::is_same_v<T, ParseDirective>) {
+                return handleDirective(catalog, value);
+            } else {
+                return handleFailure(value);
+            }
+        },
+        result.error());
+}
+
+/**
+ * Handle a ParseDirective (help or version request).
+ */
+auto Application::handleDirective(const CommandCatalog& catalog, const ParseDirective& directive) -> int
+{
+    switch (directive.kind) {
+        case ParseDirectiveKind::HelpRequested: {
+            if (! directive.target.has_value()) {
+                std::cout << helpRenderer_->renderGlobal(catalog.helpEntries());
+                return 0;
+            }
+            for (const auto& spec : catalog.specs()) {
+                if (spec.name == *directive.target) {
+                    std::cout << helpRenderer_->renderCommand(spec);
+                    return 0;
+                }
+            }
+            std::cerr << "Unknown command: " << *directive.target << "\n";
+            std::cerr << "Run 'scrap --help' for usage information.\n";
+            return 1;
+        }
+        case ParseDirectiveKind::VersionRequested: {
+            std::cout << versionRenderer_->render() << "\n";
+            return 0;
+        }
+    }
+    return 1;
+}
+
+/**
+ * Handle a ParseFailure (error message + help suggestion).
+ */
+auto Application::handleFailure(const ParseFailure& failure) -> int
+{
+    std::cerr << failure.message << "\n";
+    std::cerr << "Run 'scrap --help' for usage information.\n";
+    return 1;
 }
 
 }  // namespace scrap::Command
