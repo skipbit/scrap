@@ -2,6 +2,7 @@
 
 #include "command/ParsedOptions.h"
 
+#include <cstdint>
 #include <expected>
 #include <optional>
 #include <string>
@@ -14,13 +15,13 @@ struct CommandInvocation {
     ParsedOptions options;
 };
 
-enum class ParseDirectiveKind {
+enum class ParseDirectiveKind : std::uint8_t {
     HelpRequested,
     VersionRequested
 };
 
 struct ParseDirective {
-    ParseDirectiveKind kind;
+    ParseDirectiveKind kind = ParseDirectiveKind::HelpRequested;
     std::optional<std::string> target;
 };
 

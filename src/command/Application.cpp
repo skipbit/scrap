@@ -68,7 +68,7 @@ auto Application::run(std::span<const char* const> argv, const RuntimeEnvironmen
             return 1;
         }
         auto handler = entry->createHandler(invocation.options);
-        InvocationContext ctx{invocation.options, env, catalog};
+        InvocationContext ctx{invocation.options, &env, &catalog};
         return handler->execute(ctx);
     }
 

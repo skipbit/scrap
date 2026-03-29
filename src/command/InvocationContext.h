@@ -9,8 +9,8 @@ class CommandCatalog;
 
 struct InvocationContext {
     ParsedOptions options;
-    const RuntimeEnvironment& env;
-    const CommandCatalog& catalog;
+    const RuntimeEnvironment* env;
+    const CommandCatalog* catalog;
 };
 
 }  // namespace scrap::Command

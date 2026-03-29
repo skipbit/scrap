@@ -12,7 +12,7 @@ public:
     VersionRenderer(VersionRenderer&&) = default;
     VersionRenderer& operator=(VersionRenderer&&) = default;
 
-    virtual auto render() const -> std::string = 0;
+    [[nodiscard]] virtual auto render() const -> std::string = 0;
 
 protected:
     VersionRenderer() = default;

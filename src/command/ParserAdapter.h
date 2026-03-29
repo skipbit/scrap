@@ -16,7 +16,7 @@ public:
     ParserAdapter& operator=(ParserAdapter&&) = default;
 
     virtual auto configure(std::span<const CommandSpec> specs) -> void = 0;
-    virtual auto parse(std::span<const char* const> argv) const -> ParseResult = 0;
+    [[nodiscard]] virtual auto parse(std::span<const char* const> argv) const -> ParseResult = 0;
 
 protected:
     ParserAdapter() = default;

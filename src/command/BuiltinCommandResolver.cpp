@@ -68,12 +68,12 @@ public:
     auto execute(const InvocationContext& ctx) -> int override
     {
         if (ctx.options.positional.empty()) {
-            std::cout << renderer_->renderGlobal(ctx.catalog.helpEntries());
+            std::cout << renderer_->renderGlobal(ctx.catalog->helpEntries());
             return 0;
         }
 
         auto target = ctx.options.positional[0];
-        for (const auto& spec : ctx.catalog.specs()) {
+        for (const auto& spec : ctx.catalog->specs()) {
             if (spec.name == target) {
                 std::cout << renderer_->renderCommand(spec);
                 return 0;
