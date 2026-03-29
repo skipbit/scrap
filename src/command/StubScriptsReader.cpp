@@ -2,7 +2,7 @@
 
 #include "command/ScriptsReader.h"
 
-#include <expected>
+#include <expected>  // NOLINT(misc-include-cleaner) — provides std::expected return type
 #include <filesystem>
 #include <string>
 #include <vector>

@@ -9,7 +9,7 @@
 #include <cstdint>
 #include <deque>
 #include <exception>
-#include <expected>
+#include <expected>  // NOLINT(misc-include-cleaner) — provides std::unexpected
 #include <memory>
 #include <optional>
 #include <span>
@@ -131,6 +131,7 @@ void addPositional(CLI::App& app, const PositionalDef& def, OptionStorage& stora
 /**
  * Map a CommandSpec tree onto CLI11 subcommands iteratively (BFS).
  */
+// NOLINTNEXTLINE(readability-function-size) — iterative BFS requires local struct + loop state
 void addSubcommands(CLI::App& root,
                     const std::vector<CommandSpec>& rootSpecs,
                     std::unordered_map<std::string, std::unique_ptr<OptionStorage>>& storageMap)

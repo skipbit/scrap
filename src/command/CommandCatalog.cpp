@@ -107,6 +107,7 @@ auto CommandCatalog::helpEntries() const -> std::vector<HelpEntry>
 
 // --- Private helpers ----------------------------------------------------------
 
+// NOLINTNEXTLINE(readability-function-size) — iterative BFS requires local struct + loop state
 auto CommandCatalog::buildSpec(const CommandEntry& entry) -> CommandSpec
 {
     CommandSpec root = entry.spec;
