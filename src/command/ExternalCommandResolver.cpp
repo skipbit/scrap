@@ -45,6 +45,38 @@ auto commandNameFrom(const std::filesystem::path& path) -> std::string
     return path.filename().string().substr(ExternalPrefix.size());
 }
 
+/**
+ * Build a CommandEntry from a discovered executable, fetching metadata if available.
+ */
+auto buildEntry(const std::filesystem::path& executablePath, ExternalMetadataProvider* provider) -> CommandEntry
+{
+    auto name = commandNameFrom(executablePath);
+    std::string description;
+    OptionSchema options;
+
+    if (provider != nullptr) {
+        auto metadata = provider->fetch(executablePath);
+        if (metadata.has_value()) {
+            description = std::move(metadata->description);
+            options = std::move(metadata->options);
+            if (! metadata->name.empty()) {
+                name = std::move(metadata->name);
+            }
+        }
+    }
+
+    CommandEntry entry;
+    entry.spec.name = name;
+    entry.spec.description = description;
+    entry.spec.category = "External Commands";
+    entry.spec.options = std::move(options);
+    entry.source = CommandSource::External;
+    entry.createHandler = [](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
+        return nullptr;
+    };
+    return entry;
+}
+
 }  // anonymous namespace
 
 /**
@@ -57,7 +89,6 @@ ExternalCommandResolver::ExternalCommandResolver(std::unique_ptr<ExternalMetadat
 
 /**
  * Scan env.searchPaths for scrap-* executables and build CommandEntry list.
- * Metadata is fetched via the provider; failures fall back to empty description.
  */
 auto ExternalCommandResolver::resolve(const RuntimeEnvironment& env) -> std::vector<CommandEntry>
 {
@@ -67,39 +98,10 @@ auto ExternalCommandResolver::resolve(const RuntimeEnvironment& env) -> std::vec
         if (! std::filesystem::is_directory(searchPath)) {
             continue;
         }
-
         for (const auto& dirEntry : std::filesystem::directory_iterator(searchPath)) {
-            if (! isScrapExecutable(dirEntry)) {
-                continue;
+            if (isScrapExecutable(dirEntry)) {
+                entries.push_back(buildEntry(dirEntry.path(), metadataProvider_.get()));
             }
-
-            auto name = commandNameFrom(dirEntry.path());
-            std::string description;
-            OptionSchema options;
-
-            // Attempt metadata fetch; fall back to empty description on failure.
-            if (metadataProvider_) {
-                auto metadata = metadataProvider_->fetch(dirEntry.path());
-                if (metadata.has_value()) {
-                    description = std::move(metadata->description);
-                    options = std::move(metadata->options);
-                    if (! metadata->name.empty()) {
-                        name = std::move(metadata->name);
-                    }
-                }
-            }
-
-            CommandEntry entry;
-            entry.spec.name = name;
-            entry.spec.description = description;
-            entry.spec.category = "External Commands";
-            entry.spec.options = std::move(options);
-            entry.source = CommandSource::External;
-            entry.createHandler = [](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
-                // External command execution will be implemented later.
-                return nullptr;
-            };
-            entries.push_back(std::move(entry));
         }
     }
 

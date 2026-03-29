@@ -7,7 +7,9 @@
 #include "command/VersionRenderer.h"
 
 #include <memory>
+#include <optional>
 #include <span>
+#include <string>
 #include <vector>
 
 namespace scrap::Command {
@@ -68,6 +70,11 @@ private:
      * @brief Handle a ParseDirective (help or version request).
      */
     auto handleDirective(const CommandCatalog& catalog, const ParseDirective& directive) -> int;
+
+    /**
+     * @brief Render help for a specific command or the global listing.
+     */
+    auto handleHelp(const CommandCatalog& catalog, const std::optional<std::string>& target) -> int;
 
     /**
      * @brief Handle a ParseFailure (error message + help suggestion).

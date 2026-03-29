@@ -2,7 +2,9 @@
 
 #include "command/ScriptsReader.h"
 
+#include <expected>
 #include <filesystem>
+#include <string>
 #include <vector>
 
 namespace scrap::Command {

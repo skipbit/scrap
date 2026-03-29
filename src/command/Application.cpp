@@ -68,7 +68,7 @@ auto Application::run(std::span<const char* const> argv, const RuntimeEnvironmen
             return 1;
         }
         auto handler = entry->createHandler(invocation.options);
-        InvocationContext ctx{invocation.options, &env, &catalog};
+        const InvocationContext ctx{invocation.options, &env, &catalog};
         return handler->execute(ctx);
     }
 
@@ -90,26 +90,32 @@ auto Application::run(std::span<const char* const> argv, const RuntimeEnvironmen
 auto Application::handleDirective(const CommandCatalog& catalog, const ParseDirective& directive) -> int
 {
     switch (directive.kind) {
-        case ParseDirectiveKind::HelpRequested: {
-            if (! directive.target.has_value()) {
-                std::cout << helpRenderer_->renderGlobal(catalog.helpEntries());
-                return 0;
-            }
-            for (const auto& spec : catalog.specs()) {
-                if (spec.name == *directive.target) {
-                    std::cout << helpRenderer_->renderCommand(spec);
-                    return 0;
-                }
-            }
-            std::cerr << "Unknown command: " << *directive.target << "\n";
-            std::cerr << "Run 'scrap --help' for usage information.\n";
-            return 1;
-        }
-        case ParseDirectiveKind::VersionRequested: {
+        case ParseDirectiveKind::HelpRequested:
+            return handleHelp(catalog, directive.target);
+        case ParseDirectiveKind::VersionRequested:
             std::cout << versionRenderer_->render() << "\n";
+            return 0;
+    }
+    return 1;
+}
+
+/**
+ * Render help for a specific command or the global listing.
+ */
+auto Application::handleHelp(const CommandCatalog& catalog, const std::optional<std::string>& target) -> int
+{
+    if (! target.has_value()) {
+        std::cout << helpRenderer_->renderGlobal(catalog.helpEntries());
+        return 0;
+    }
+    for (const auto& spec : catalog.specs()) {
+        if (spec.name == *target) {
+            std::cout << helpRenderer_->renderCommand(spec);
             return 0;
         }
     }
+    std::cerr << "Unknown command: " << *target << "\n";
+    std::cerr << "Run 'scrap --help' for usage information.\n";
     return 1;
 }
 

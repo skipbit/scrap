@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <deque>
 #include <exception>
+#include <expected>
 #include <memory>
 #include <optional>
 #include <span>
