@@ -12,7 +12,24 @@ target_sources(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp
     # Generated version source
     ${CMAKE_CURRENT_BINARY_DIR}/shared/constants/version.cpp
-    # Shared command components
+    # New command architecture
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/Application.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/CommandCatalog.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/CommandHandler.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/CommandResolver.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/ParserAdapter.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/HelpRenderer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/VersionRenderer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/DefaultHelpRenderer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/DefaultVersionRenderer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/BuiltinCommandResolver.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/ExternalCommandResolver.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/ExternalMetadataProvider.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/ProjectCommandResolver.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/ScriptsReader.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/StubScriptsReader.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/driver/CLI11ParserAdapter.cpp
+    # Legacy command components (to be removed in main.cpp migration)
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/command/Application.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/command/Operation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/command/CompositeOperation.cpp
