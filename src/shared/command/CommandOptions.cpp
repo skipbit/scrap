@@ -178,7 +178,7 @@ const std::vector<CommandOption>& CommandOptions::flags() const
 
 bool CommandOptions::hasOptions() const
 {
-    return !impl_->positionals_.empty() || !impl_->options_.empty() || !impl_->flags_.empty();
+    return ! impl_->positionals_.empty() || ! impl_->options_.empty() || ! impl_->flags_.empty();
 }
 
 }  // namespace scrap

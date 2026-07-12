@@ -93,7 +93,7 @@ public:
 
     void showListInternal(const std::string& title, const std::vector<std::string>& items)
     {
-        if (!title.empty()) {
+        if (! title.empty()) {
             std::cout << title << ":" << std::endl;
         }
 
@@ -115,7 +115,7 @@ public:
 
         // Calculate column widths
         std::vector<size_t> colWidths;
-        if (!table.headers.empty()) {
+        if (! table.headers.empty()) {
             colWidths.resize(table.headers.size());
             for (size_t i = 0; i < table.headers.size(); ++i) {
                 colWidths[i] = table.headers[i].length();
@@ -132,7 +132,7 @@ public:
         }
 
         // Print headers
-        if (!table.headers.empty()) {
+        if (! table.headers.empty()) {
             for (size_t i = 0; i < table.headers.size(); ++i) {
                 if (i > 0)
                     std::cout << " | ";
@@ -170,7 +170,7 @@ public:
 private:
     void showTreeNodeInternal(const Tree::Node* node, const std::string& prefix)
     {
-        if (!node)
+        if (! node)
             return;
 
         std::cout << prefix << node->label << std::endl;

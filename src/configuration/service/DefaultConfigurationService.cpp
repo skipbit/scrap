@@ -66,7 +66,7 @@ DefaultConfigurationService::loadProjectConfiguration(const std::filesystem::pat
     // Currently silently converts all errors (parse errors, file access errors) to nullopt
     // This loses error information but maintains API compatibility with current interface
     // Callers cannot distinguish between "file not found" and "malformed TOML"
-    if (!result.has_value()) {
+    if (! result.has_value()) {
         return std::nullopt;
     }
 
@@ -109,7 +109,7 @@ DefaultConfigurationService::setProjectToolchain(const std::filesystem::path& pr
 {
     // Load existing configuration or create default
     auto config = loadProjectConfiguration(projectPath);
-    if (!config.has_value()) {
+    if (! config.has_value()) {
         auto errorCode = make_error_code(ConfigurationServiceError::ProjectConfigNotFound);
         return std::unexpected(dross::error{errorCode.value(), errorCode.category()});
     }
@@ -131,14 +131,14 @@ DefaultConfigurationService::setRepositoryToolchain(const std::filesystem::path&
 
     // Write toolchain specification to marker file
     std::ofstream file(markerPath);
-    if (!file.is_open()) {
+    if (! file.is_open()) {
         auto errorCode = make_error_code(ConfigurationServiceError::RepositoryMarkerCreateFailed);
         return std::unexpected(dross::error{errorCode.value(), errorCode.category()});
     }
 
     file << toolchain.toString() << std::endl;
 
-    if (!file.good()) {
+    if (! file.good()) {
         auto errorCode = make_error_code(ConfigurationServiceError::RepositoryMarkerWriteFailed);
         return std::unexpected(dross::error{errorCode.value(), errorCode.category()});
     }
@@ -152,7 +152,7 @@ DefaultConfigurationService::validateConfiguration(const Configuration::Model::C
     std::vector<std::string> errors;
 
     // Validate toolchain
-    if (!config.toolchain().hasValue()) {
+    if (! config.toolchain().hasValue()) {
         errors.emplace_back("No toolchain specified");
     }
 
@@ -160,7 +160,7 @@ DefaultConfigurationService::validateConfiguration(const Configuration::Model::C
     const auto& projectConfig = config.projectConfig();
     if (projectConfig.has_value()) {
         auto validationResult = projectConfig->validate();
-        if (!validationResult) {
+        if (! validationResult) {
             errors.emplace_back("Project configuration error: " + std::string(validationResult.error().message()));
         }
     }
@@ -173,24 +173,29 @@ DefaultConfigurationService::loadRepositoryToolchain(const std::filesystem::path
 {
     const auto markerPath = repositoryRoot / ".scrap-toolchain";
 
-    if (!std::filesystem::exists(markerPath)) {
+    if (! std::filesystem::exists(markerPath)) {
         return std::nullopt;
     }
 
     std::ifstream file(markerPath);
-    if (!file.is_open()) {
+    if (! file.is_open()) {
         return std::nullopt;
     }
 
     std::string line;
     if (std::getline(file, line)) {
         // Trim whitespace
-        line.erase(line.begin(), std::ranges::find_if(line, [](unsigned char ch) { return !std::isspace(ch); }));
-        line.erase(
-            std::ranges::find_if(line | std::views::reverse, [](unsigned char ch) { return !std::isspace(ch); }).base(),
-            line.end());
+        line.erase(line.begin(), std::ranges::find_if(line, [](unsigned char ch) {
+                       return ! std::isspace(ch);
+                   }));
+        line.erase(std::ranges::find_if(line | std::views::reverse,
+                                        [](unsigned char ch) {
+                                            return ! std::isspace(ch);
+                                        })
+                       .base(),
+                   line.end());
 
-        if (!line.empty()) {
+        if (! line.empty()) {
             auto result = Configuration::Model::ToolchainReference::parse(line);
             if (result.has_value()) {
                 return result.value();
@@ -206,7 +211,7 @@ DefaultConfigurationService::loadRepositoryToolchain(const std::filesystem::path
 std::optional<Configuration::Model::ToolchainReference> DefaultConfigurationService::loadEnvironmentToolchain()
 {
     const auto envValue = environmentVariable("SCRAP_TOOLCHAIN");
-    if (!envValue.has_value() || envValue->empty()) {
+    if (! envValue.has_value() || envValue->empty()) {
         return std::nullopt;
     }
 

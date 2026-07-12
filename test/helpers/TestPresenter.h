@@ -84,11 +84,11 @@ public:
     void clear();
     [[nodiscard]] bool hasOutput() const
     {
-        return !output_.str().empty();
+        return ! output_.str().empty();
     }
     [[nodiscard]] bool hasErrors() const noexcept
     {
-        return !errors_.empty();
+        return ! errors_.empty();
     }
     [[nodiscard]] std::string lastMessage() const;
     [[nodiscard]] std::string lastError() const;

@@ -24,7 +24,7 @@ FileSystemHelper::TempDirectory::TempDirectory(const std::string& prefix)
 
 FileSystemHelper::TempDirectory::~TempDirectory()
 {
-    if (shouldCleanup_ && !path_.empty()) {
+    if (shouldCleanup_ && ! path_.empty()) {
         std::error_code ec;
         std::filesystem::remove_all(path_, ec);
         // Ignore errors during cleanup
@@ -42,7 +42,7 @@ FileSystemHelper::TempDirectory& FileSystemHelper::TempDirectory::operator=(Temp
 {
     if (this != &other) {
         // Clean up current directory if needed
-        if (shouldCleanup_ && !path_.empty()) {
+        if (shouldCleanup_ && ! path_.empty()) {
             std::error_code ec;
             std::filesystem::remove_all(path_, ec);
         }
@@ -65,12 +65,12 @@ void FileSystemHelper::createFile(const std::filesystem::path& path, const std::
 {
     // Ensure parent directory exists
     auto parent = path.parent_path();
-    if (!parent.empty()) {
+    if (! parent.empty()) {
         std::filesystem::create_directories(parent);
     }
 
     std::ofstream file(path);
-    if (!file) {
+    if (! file) {
         throw std::runtime_error("Failed to create file: " + path.string());
     }
     file << content;
@@ -84,7 +84,7 @@ void FileSystemHelper::createDirectories(const std::filesystem::path& path)
 std::string FileSystemHelper::readFile(const std::filesystem::path& path)
 {
     std::ifstream file(path);  // NOLINT(misc-const-correctness)
-    if (!file) {
+    if (! file) {
         throw std::runtime_error("Failed to read file: " + path.string());
     }
 
@@ -110,7 +110,7 @@ std::vector<std::filesystem::path> FileSystemHelper::listFiles(const std::filesy
 
     std::vector<std::filesystem::path> files;
 
-    if (!std::filesystem::exists(path)) {
+    if (! std::filesystem::exists(path)) {
         return files;
     }
 

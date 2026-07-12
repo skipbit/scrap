@@ -17,7 +17,7 @@ const std::optional<ProjectConfiguration>& Configuration::projectConfig() const 
 
 void Configuration::setToolchain(ToolchainReference toolchain, ConfigurationSource source)
 {
-    if (!toolchain_.hasValue() || hasHigherPrecedence(source, toolchain_.source())) {
+    if (! toolchain_.hasValue() || hasHigherPrecedence(source, toolchain_.source())) {
         toolchain_ = ConfigurationValue<ToolchainReference>(std::move(toolchain), source);
     }
 }
@@ -39,7 +39,7 @@ bool Configuration::isComplete() const noexcept
 
 void Configuration::applyDefaults()
 {
-    if (!toolchain_.hasValue()) {
+    if (! toolchain_.hasValue()) {
         toolchain_ = ConfigurationValue<ToolchainReference>(ToolchainReference::createSystemDefault(),
                                                             ConfigurationSource::SystemDefault);
     }

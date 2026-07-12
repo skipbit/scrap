@@ -7,7 +7,15 @@ namespace scrap::Command {
 class VersionRenderer {
 public:
     virtual ~VersionRenderer();
-    virtual auto render() const -> std::string = 0;
+    VersionRenderer(const VersionRenderer&) = default;
+    VersionRenderer& operator=(const VersionRenderer&) = default;
+    VersionRenderer(VersionRenderer&&) = default;
+    VersionRenderer& operator=(VersionRenderer&&) = default;
+
+    [[nodiscard]] virtual auto render() const -> std::string = 0;
+
+protected:
+    VersionRenderer() = default;
 };
 
 }  // namespace scrap::Command

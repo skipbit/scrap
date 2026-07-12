@@ -32,7 +32,7 @@ void TemplateProcessor::processTemplateDirectory(const std::filesystem::path& te
                                                  const VariableMap& variables,
                                                  const std::vector<std::string>& ignorePatterns)
 {
-    if (!std::filesystem::exists(templatePath)) {
+    if (! std::filesystem::exists(templatePath)) {
         throw std::runtime_error("Template path does not exist: " + templatePath.string());
     }
 
@@ -92,7 +92,7 @@ std::string TemplateProcessor::substituteVariables(const std::string& content, c
 
         if (value) {
             replacement = *value;
-            if (!transform.empty()) {
+            if (! transform.empty()) {
                 replacement = variables.applyTransform(replacement, transform);
             }
         } else {
@@ -168,8 +168,8 @@ bool TemplateProcessor::evaluateCondition(const std::string& condition, const Va
     // Check if it's a simple variable existence check
     if (trimmedCondition.find(' ') == std::string::npos) {
         auto value = variables.get(trimmedCondition);
-        bool exists = value.has_value() && !value->empty() && *value != "false" && *value != "0";
-        return negate ? !exists : exists;
+        bool exists = value.has_value() && ! value->empty() && *value != "false" && *value != "0";
+        return negate ? ! exists : exists;
     }
 
     // Handle simple comparisons (variable == value)
@@ -186,7 +186,7 @@ bool TemplateProcessor::evaluateCondition(const std::string& condition, const Va
 
         auto actualValue = variables.get(varName);
         bool equal = actualValue && *actualValue == expectedValue;
-        return negate ? !equal : equal;
+        return negate ? ! equal : equal;
     }
 
     // Handle simple comparisons (variable != value)
@@ -203,13 +203,13 @@ bool TemplateProcessor::evaluateCondition(const std::string& condition, const Va
 
         auto actualValue = variables.get(varName);
         bool equal = actualValue && *actualValue == expectedValue;
-        return negate ? equal : !equal;
+        return negate ? equal : ! equal;
     }
 
     // Default: treat as variable existence check
     auto value = variables.get(trimmedCondition);
-    bool exists = value.has_value() && !value->empty() && *value != "false" && *value != "0";
-    return negate ? !exists : exists;
+    bool exists = value.has_value() && ! value->empty() && *value != "false" && *value != "0";
+    return negate ? ! exists : exists;
 }
 
 void TemplateProcessor::copyTemplateFile(const std::filesystem::path& sourcePath,
@@ -218,13 +218,13 @@ void TemplateProcessor::copyTemplateFile(const std::filesystem::path& sourcePath
 {
     // Create target directory if needed
     auto targetDir = targetPath.parent_path();
-    if (!targetDir.empty() && !std::filesystem::exists(targetDir)) {
+    if (! targetDir.empty() && ! std::filesystem::exists(targetDir)) {
         std::filesystem::create_directories(targetDir);
     }
 
     // Read source file
     std::ifstream source(sourcePath);
-    if (!source) {
+    if (! source) {
         throw std::runtime_error("Cannot read template file: " + sourcePath.string());
     }
 
@@ -235,7 +235,7 @@ void TemplateProcessor::copyTemplateFile(const std::filesystem::path& sourcePath
 
     // Write target file
     std::ofstream target(targetPath);
-    if (!target) {
+    if (! target) {
         throw std::runtime_error("Cannot write target file: " + targetPath.string());
     }
 
@@ -287,7 +287,7 @@ std::vector<std::string> TemplateProcessor::loadIgnoreFile(const std::filesystem
     std::vector<std::string> patterns;
     auto ignoreFile = templatePath / ".scrap-ignore";
 
-    if (!std::filesystem::exists(ignoreFile)) {
+    if (! std::filesystem::exists(ignoreFile)) {
         return patterns;
     }
 
@@ -296,7 +296,7 @@ std::vector<std::string> TemplateProcessor::loadIgnoreFile(const std::filesystem
 
     while (std::getline(file, line)) {
         line = trim(line);
-        if (!line.empty() && !line.starts_with("#")) {
+        if (! line.empty() && ! line.starts_with("#")) {
             patterns.push_back(line);
         }
     }
@@ -324,7 +324,7 @@ std::string SimpleTemplateProcessor::process(const std::string& content, const V
 
         if (value) {
             replacement = *value;
-            if (!transform.empty()) {
+            if (! transform.empty()) {
                 transform.erase(0, transform.find_first_not_of(" \t"));
                 transform.erase(transform.find_last_not_of(" \t") + 1);
                 replacement = variables.applyTransform(replacement, transform);

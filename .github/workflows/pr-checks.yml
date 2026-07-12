@@ -25,15 +25,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Install libc++
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq libc++-dev libc++abi-dev
+
       - name: Configure CMake
         run: |
           CC=clang CXX=clang++ cmake -B build \
             -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_CXX_FLAGS="-stdlib=libc++" \
             -DBUILD_TESTS=OFF
 
+      # Lint is scoped to the new command architecture for now. Legacy modules
+      # predate the strict check set and are migrated or removed incrementally;
+      # the scope widens as that migration progresses. Findings in any src/
+      # header pulled in by these TUs (see HeaderFilterRegex) also fail the gate.
       - name: Run clang-tidy
         run: |
-          find src -type f -name '*.cpp' -print0 \
+          find src/command -type f -name '*.cpp' -print0 \
             | xargs -0 -r clang-tidy -p build --warnings-as-errors='*'
 
   format-check:

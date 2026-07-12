@@ -24,7 +24,7 @@ std::expected<ProjectName, dross::error> ProjectName::create(const std::string& 
 
     // Check for valid C++ identifier pattern
     static const std::regex validName("^[a-zA-Z_][a-zA-Z0-9_]*$");
-    if (!std::regex_match(value, validName)) {
+    if (! std::regex_match(value, validName)) {
         auto errorCode = make_error_code(ProjectNameError::InvalidIdentifier);
         return std::unexpected(dross::error{errorCode.value(), errorCode.category()});
     }
@@ -96,7 +96,7 @@ std::expected<Version, dross::error> Version::parse(const std::string& versionSt
     static const std::regex versionPattern(R"(^(\d+)\.(\d+)\.(\d+)$)");
     std::smatch match;
 
-    if (!std::regex_match(versionStr, match, versionPattern)) {
+    if (! std::regex_match(versionStr, match, versionPattern)) {
         auto errorCode = make_error_code(VersionError::InvalidFormat);
         return std::unexpected(dross::error{errorCode.value(), errorCode.category()});
     }
@@ -182,7 +182,7 @@ std::string Dependency::toString() const
 {
     std::stringstream ss;
     ss << name_ << "@" << version_;
-    if (!features_.empty()) {
+    if (! features_.empty()) {
         ss << " [";
         for (size_t i = 0; i < features_.size(); ++i) {
             if (i > 0)
@@ -356,7 +356,7 @@ std::string Project::fullName() const
 
 std::filesystem::path Project::buildDirectory(BuildMode mode) const
 {
-    if (!path_) {
+    if (! path_) {
         return "build";
     }
 
@@ -394,7 +394,7 @@ ProjectSpecification::parse(const std::vector<std::string>& args) noexcept
             spec.targetPath = std::filesystem::path(arg.substr(7));
         } else if (arg.starts_with("--std=")) {
             spec.cppStandard = arg.substr(6);
-        } else if (!arg.starts_with("--")) {
+        } else if (! arg.starts_with("--")) {
             // Treat as initial dependency
             spec.initialDependencies.push_back(arg);
         }

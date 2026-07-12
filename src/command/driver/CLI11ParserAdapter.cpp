@@ -6,9 +6,16 @@
 #include "command/ParsedOptions.h"
 
 #include <CLI/CLI.hpp>
+#include <cstdint>
 #include <deque>
+#include <exception>
+#include <expected>  // NOLINT(misc-include-cleaner) — provides std::unexpected
+#include <memory>
+#include <optional>
+#include <span>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace scrap::Command {
@@ -18,7 +25,7 @@ namespace scrap::Command {
 // =============================================================================
 
 /**
- * @brief Holds mutable value slots that CLI11 writes into during parsing.
+ * Holds mutable value slots that CLI11 writes into during parsing.
  *
  * One instance is created per CommandSpec node in the spec tree.
  * After CLI11 finishes parsing, the values are harvested into a
@@ -41,7 +48,7 @@ struct OptionStorage {
 
 class CLI11ParserAdapter::Impl {
 public:
-    std::vector<CommandSpec> specs_;
+    std::vector<CommandSpec> specs;
 };
 
 // =============================================================================
@@ -51,7 +58,7 @@ public:
 namespace {
 
 /**
- * @brief Register one OptionDef as a CLI11 option or flag.
+ * Register one OptionDef as a CLI11 option or flag.
  *
  * Writes the parsed value into @p storage so it can be harvested
  * after CLI11 returns.
@@ -91,7 +98,7 @@ void addOption(CLI::App& app, const OptionDef& def, OptionStorage& storage)
             if (def.defaultValue.has_value()) {
                 opt->default_val(std::get<std::string>(*def.defaultValue));
             }
-            if (!def.choices.empty()) {
+            if (! def.choices.empty()) {
                 opt->check(CLI::IsMember(def.choices));
             }
             break;
@@ -109,7 +116,7 @@ void addOption(CLI::App& app, const OptionDef& def, OptionStorage& storage)
 }
 
 /**
- * @brief Register one PositionalDef as a CLI11 positional argument.
+ * Register one PositionalDef as a CLI11 positional argument.
  */
 void addPositional(CLI::App& app, const PositionalDef& def, OptionStorage& storage)
 {
@@ -122,45 +129,50 @@ void addPositional(CLI::App& app, const PositionalDef& def, OptionStorage& stora
 }
 
 /**
- * @brief Recursively map a CommandSpec tree onto CLI11 subcommands.
- *
- * @param parent      CLI11 app or subcommand to attach children to.
- * @param specs       CommandSpec nodes at the current tree level.
- * @param storageMap  Flat map from dot-path → OptionStorage (owned by caller).
- * @param prefix      Dot-separated path prefix for the current level.
+ * Map a CommandSpec tree onto CLI11 subcommands iteratively (BFS).
  */
-void addSubcommands(CLI::App& parent,
-                    const std::vector<CommandSpec>& specs,
-                    std::unordered_map<std::string, std::unique_ptr<OptionStorage>>& storageMap,
-                    const std::string& prefix)
+// NOLINTNEXTLINE(readability-function-size) — iterative BFS requires local struct + loop state
+void addSubcommands(CLI::App& root,
+                    const std::vector<CommandSpec>& rootSpecs,
+                    std::unordered_map<std::string, std::unique_ptr<OptionStorage>>& storageMap)
 {
-    for (const auto& spec : specs) {
-        auto* sub = parent.add_subcommand(spec.name, spec.description);
+    struct Pending {
+        CLI::App* parent;
+        const std::vector<CommandSpec>* specs;
+        std::string prefix;
+    };
 
-        // Build the dot-separated key for this node.
-        std::string path = prefix.empty() ? spec.name : (prefix + "." + spec.name);
+    std::vector<Pending> current;
+    current.push_back({&root, &rootSpecs, ""});
 
-        // Create option storage for this command node.
-        auto storage = std::make_unique<OptionStorage>();
+    while (! current.empty()) {
+        std::vector<Pending> next;
+        for (auto& [parent, specs, prefix] : current) {
+            for (const auto& spec : *specs) {
+                auto* sub = parent->add_subcommand(spec.name, spec.description);
 
-        for (const auto& opt : spec.options.named) {
-            addOption(*sub, opt, *storage);
+                const std::string path = prefix.empty() ? spec.name : (prefix + "." + spec.name);
+
+                auto storage = std::make_unique<OptionStorage>();
+                for (const auto& opt : spec.options.named) {
+                    addOption(*sub, opt, *storage);
+                }
+                for (const auto& pos : spec.options.positional) {
+                    addPositional(*sub, pos, *storage);
+                }
+                storageMap[path] = std::move(storage);
+
+                if (! spec.subcommands.empty()) {
+                    next.push_back({sub, &spec.subcommands, path});
+                }
+            }
         }
-        for (const auto& pos : spec.options.positional) {
-            addPositional(*sub, pos, *storage);
-        }
-
-        storageMap[path] = std::move(storage);
-
-        // Recurse into subcommands.
-        if (!spec.subcommands.empty()) {
-            addSubcommands(*sub, spec.subcommands, storageMap, path);
-        }
+        current = std::move(next);
     }
 }
 
 /**
- * @brief Walk the parsed subcommand chain and build a dot-separated path.
+ * Walk the parsed subcommand chain and build a dot-separated path.
  *
  * Starts from @p app and follows the first parsed child at each level.
  *
@@ -185,7 +197,7 @@ auto buildCommandPath(const CLI::App& app) -> std::string
             break;
         }
 
-        if (!path.empty()) {
+        if (! path.empty()) {
             path += '.';
         }
         path += parsed->get_name();
@@ -196,7 +208,7 @@ auto buildCommandPath(const CLI::App& app) -> std::string
 }
 
 /**
- * @brief Harvest parsed values from OptionStorage into ParsedOptions.
+ * Harvest parsed values from OptionStorage into ParsedOptions.
  */
 auto harvestOptions(const OptionStorage& storage) -> ParsedOptions
 {
@@ -209,12 +221,12 @@ auto harvestOptions(const OptionStorage& storage) -> ParsedOptions
         opts.named[name] = value;
     }
     for (const auto& [name, value] : storage.strings) {
-        if (!value.empty()) {
+        if (! value.empty()) {
             opts.named[name] = value;
         }
     }
     for (const auto& [name, value] : storage.stringLists) {
-        if (!value.empty()) {
+        if (! value.empty()) {
             opts.named[name] = value;
         }
     }
@@ -224,7 +236,7 @@ auto harvestOptions(const OptionStorage& storage) -> ParsedOptions
 }
 
 /**
- * @brief Determine the help target from the parsed subcommand chain.
+ * Determine the help target from the parsed subcommand chain.
  *
  * When CLI11 throws CallForHelp, we need to know which subcommand
  * the user asked help for (e.g. "scrap build --help" → target "build").
@@ -260,7 +272,7 @@ CLI11ParserAdapter& CLI11ParserAdapter::operator=(CLI11ParserAdapter&&) noexcept
 
 auto CLI11ParserAdapter::configure(std::span<const CommandSpec> specs) -> void
 {
-    impl_->specs_.assign(specs.begin(), specs.end());
+    impl_->specs.assign(specs.begin(), specs.end());
 }
 
 // --- parse -------------------------------------------------------------------
@@ -278,7 +290,7 @@ auto CLI11ParserAdapter::parse(std::span<const char* const> argv) const -> Parse
 
     try {
         // Map the CommandSpec tree onto CLI11 subcommands and options.
-        addSubcommands(app, impl_->specs_, storageMap, "");
+        addSubcommands(app, impl_->specs, storageMap);
 
         // --- Parse ---------------------------------------------------------------
         app.parse(static_cast<int>(argv.size()), argv.data());

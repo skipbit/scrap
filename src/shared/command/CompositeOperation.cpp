@@ -56,7 +56,7 @@ void CompositeOperation::execute(const std::vector<std::string>& args)
     const std::string& subcommand = args[0];
     auto operation = subOperation(subcommand);
 
-    if (!operation) {
+    if (! operation) {
         auto output = presenter();
         if (output) {
             std::stringstream ss;
@@ -86,7 +86,7 @@ void CompositeOperation::setPresenter(std::shared_ptr<Presenter> presenter)
 void CompositeOperation::displayHelp() const
 {
     auto output = presenter();
-    if (!output) {
+    if (! output) {
         return;
     }
 

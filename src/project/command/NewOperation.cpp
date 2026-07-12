@@ -20,7 +20,7 @@ NewOperation::NewOperation(std::shared_ptr<service::ProjectService> service,
 {
 
     // Create default template service if not provided
-    if (!templateService_) {
+    if (! templateService_) {
         templateService_ = template_system::TemplateModule::createTemplateService();
     }
 }
@@ -28,7 +28,7 @@ NewOperation::NewOperation(std::shared_ptr<service::ProjectService> service,
 void NewOperation::execute(const std::vector<std::string>& args)
 {
     auto output = presenter();
-    if (!output) {
+    if (! output) {
         return;
     }
 
@@ -40,7 +40,7 @@ void NewOperation::execute(const std::vector<std::string>& args)
 
     // Parse project specification
     auto specResult = Model::ProjectSpecification::parse(args);
-    if (!specResult) {
+    if (! specResult) {
         output->displayError("Invalid specification: " + std::string(specResult.error().message()));
         return;
     }
@@ -80,7 +80,7 @@ void NewOperation::execute(const std::vector<std::string>& args)
     }
 
     // Display dependencies if any were added
-    if (!spec.initialDependencies.empty()) {
+    if (! spec.initialDependencies.empty()) {
         output->displayInfo("     Installing template dependencies...");
         for (const auto& dep : spec.initialDependencies) {
             output->displaySuccess("       ✓ " + dep + " (latest)");
@@ -105,13 +105,13 @@ CommandOptions NewOperation::describeOptions() const
 void NewOperation::execute(const ParsedOptions& options)
 {
     auto output = presenter();
-    if (!output) {
+    if (! output) {
         return;
     }
 
     // Get project name from positional argument
     auto projectName = options.string("project-name");
-    if (!projectName || projectName->empty()) {
+    if (! projectName || projectName->empty()) {
         // No project name provided - CLI11 should handle this
         output->displayError("Error: Missing required argument: <project-name>");
         output->displayInfo("Run 'scrap new --help' for usage information.");
@@ -172,7 +172,7 @@ void NewOperation::execute(const ParsedOptions& options)
     }
 
     // Display dependencies if any were added
-    if (!spec.initialDependencies.empty()) {
+    if (! spec.initialDependencies.empty()) {
         output->displayInfo("     Installing template dependencies...");
         for (const auto& dep : spec.initialDependencies) {
             output->displaySuccess("       ✓ " + dep + " (latest)");

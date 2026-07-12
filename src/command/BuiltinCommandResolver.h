@@ -36,8 +36,8 @@ public:
     auto resolve(const RuntimeEnvironment& env) -> std::vector<CommandEntry> override;
 
 private:
-    HelpRenderer& helpRenderer_;
-    VersionRenderer& versionRenderer_;
+    HelpRenderer* helpRenderer_;
+    VersionRenderer* versionRenderer_;
 };
 
 }  // namespace scrap::Command

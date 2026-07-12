@@ -1,5 +1,16 @@
 #include "command/ProjectCommandResolver.h"
 
+#include "command/CommandEntry.h"
+#include "command/CommandHandler.h"
+#include "command/CommandSource.h"
+#include "command/ParsedOptions.h"
+#include "command/RuntimeEnvironment.h"
+#include "command/ScriptsReader.h"
+
+#include <memory>
+#include <utility>
+#include <vector>
+
 namespace scrap::Command {
 
 /**

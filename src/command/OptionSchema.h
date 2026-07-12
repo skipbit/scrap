@@ -8,7 +8,7 @@
 
 namespace scrap::Command {
 
-enum class OptionValueType {
+enum class OptionValueType : std::uint8_t {
     Bool,
     Int64,
     String,

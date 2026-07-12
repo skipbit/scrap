@@ -16,7 +16,7 @@ PresenterFormatter::PresenterFormatter(std::shared_ptr<Presenter> presenter)
 
 std::string PresenterFormatter::make_help(const CLI::App* app, std::string name, CLI::AppFormatMode mode) const
 {
-    if (!presenter_) {
+    if (! presenter_) {
         // Fallback to default formatter if no presenter
         return CLI::Formatter::make_help(app, name, mode);
     }
@@ -24,7 +24,7 @@ std::string PresenterFormatter::make_help(const CLI::App* app, std::string name,
     std::stringstream out;
 
     // Description
-    if (!app->get_description().empty()) {
+    if (! app->get_description().empty()) {
         out << app->get_description() << "\n";
         out << "\n";
     }
@@ -34,7 +34,7 @@ std::string PresenterFormatter::make_help(const CLI::App* app, std::string name,
 
     // Positionals
     std::string positionals = formatPositionals(app);
-    if (!positionals.empty()) {
+    if (! positionals.empty()) {
         out << "\n";
         out << "Arguments:\n";
         out << positionals;
@@ -42,7 +42,7 @@ std::string PresenterFormatter::make_help(const CLI::App* app, std::string name,
 
     // Options
     std::string options = formatOptions(app);
-    if (!options.empty()) {
+    if (! options.empty()) {
         out << "\n";
         out << "Options:\n";
         out << options;
@@ -51,7 +51,7 @@ std::string PresenterFormatter::make_help(const CLI::App* app, std::string name,
     // Subcommands
     if (mode != CLI::AppFormatMode::Sub) {
         std::string subcommands = formatSubcommands(app);
-        if (!subcommands.empty()) {
+        if (! subcommands.empty()) {
             out << "\n";
             out << "Commands:\n";
             out << subcommands;
@@ -59,7 +59,7 @@ std::string PresenterFormatter::make_help(const CLI::App* app, std::string name,
     }
 
     // Footer
-    if (!app->get_footer().empty()) {
+    if (! app->get_footer().empty()) {
         out << "\n";
         out << app->get_footer() << "\n";
     }
@@ -74,7 +74,7 @@ std::string PresenterFormatter::formatUsage(const CLI::App* app, const std::stri
 
     // Build the proper command path
     std::string commandPath = "scrap";
-    if (!name.empty()) {
+    if (! name.empty()) {
         // Use provided name but ensure it starts with "scrap"
         if (name.find("scrap") != 0) {
             commandPath = "scrap " + name;
@@ -83,7 +83,7 @@ std::string PresenterFormatter::formatUsage(const CLI::App* app, const std::stri
         }
     } else {
         // Build command path - always include "scrap" prefix
-        if (!app->get_name().empty()) {
+        if (! app->get_name().empty()) {
             commandPath += " " + app->get_name();
         }
     }
@@ -101,7 +101,7 @@ std::string PresenterFormatter::formatUsage(const CLI::App* app, const std::stri
     out << " [options]";
 
     // Add subcommand placeholder if has subcommands
-    if (!app->get_subcommands({}).empty()) {
+    if (! app->get_subcommands({}).empty()) {
         out << " [command]";
     }
 
@@ -114,7 +114,7 @@ std::string PresenterFormatter::formatPositionals(const CLI::App* app) const
     std::stringstream out;
 
     for (const auto* opt : app->get_options()) {
-        if (!opt->get_positional()) {
+        if (! opt->get_positional()) {
             continue;
         }
 
@@ -123,7 +123,7 @@ std::string PresenterFormatter::formatPositionals(const CLI::App* app) const
         out << std::setw(static_cast<int>(column_width_)) << std::left << name;
 
         std::string desc = opt->get_description();
-        if (!desc.empty()) {
+        if (! desc.empty()) {
             out << desc;
         }
 
@@ -151,9 +151,9 @@ std::string PresenterFormatter::formatOptions(const CLI::App* app) const
 
         // Add short options first
         bool first = true;
-        if (!opt->get_snames().empty()) {
+        if (! opt->get_snames().empty()) {
             for (const auto& sname : opt->get_snames()) {
-                if (!first)
+                if (! first)
                     optStr << ", ";
                 optStr << "-" << sname;
                 first = false;
@@ -161,9 +161,9 @@ std::string PresenterFormatter::formatOptions(const CLI::App* app) const
         }
 
         // Add long options
-        if (!opt->get_lnames().empty()) {
+        if (! opt->get_lnames().empty()) {
             for (const auto& lname : opt->get_lnames()) {
-                if (!first)
+                if (! first)
                     optStr << ", ";
                 optStr << "--" << lname;
                 first = false;
@@ -174,9 +174,9 @@ std::string PresenterFormatter::formatOptions(const CLI::App* app) const
         if (opt->get_expected() > 0) {
             // Get type name or use generic placeholder
             std::string typeName = "value";
-            if (!opt->get_lnames().empty()) {
+            if (! opt->get_lnames().empty()) {
                 typeName = opt->get_lnames()[0];
-            } else if (!opt->get_snames().empty()) {
+            } else if (! opt->get_snames().empty()) {
                 typeName = opt->get_snames()[0];
             }
             optStr << "=<" << typeName << ">";
@@ -190,13 +190,13 @@ std::string PresenterFormatter::formatOptions(const CLI::App* app) const
         std::string desc = opt->get_description();
 
         // Add default value if present
-        if (!opt->get_default_str().empty()) {
+        if (! opt->get_default_str().empty()) {
             desc += " [default: " + opt->get_default_str() + "]";
         }
 
         // Note: Choices are already shown in default_str for validators
 
-        if (!desc.empty()) {
+        if (! desc.empty()) {
             out << desc;
         }
 
@@ -221,7 +221,7 @@ std::string PresenterFormatter::formatSubcommands(const CLI::App* app) const
         out << std::setw(static_cast<int>(column_width_)) << std::left << name;
 
         std::string desc = sub->get_description();
-        if (!desc.empty()) {
+        if (! desc.empty()) {
             out << desc;
         }
 

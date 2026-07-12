@@ -10,14 +10,22 @@ namespace scrap::Command {
 
 struct HelpEntry {
     CommandSpec spec;
-    CommandSource source;
+    CommandSource source = CommandSource::Builtin;
 };
 
 class HelpRenderer {
 public:
     virtual ~HelpRenderer();
-    virtual auto renderGlobal(std::span<const HelpEntry> entries) const -> std::string = 0;
-    virtual auto renderCommand(const CommandSpec& spec) const -> std::string = 0;
+    HelpRenderer(const HelpRenderer&) = default;
+    HelpRenderer& operator=(const HelpRenderer&) = default;
+    HelpRenderer(HelpRenderer&&) = default;
+    HelpRenderer& operator=(HelpRenderer&&) = default;
+
+    [[nodiscard]] virtual auto renderGlobal(std::span<const HelpEntry> entries) const -> std::string = 0;
+    [[nodiscard]] virtual auto renderCommand(const CommandSpec& spec) const -> std::string = 0;
+
+protected:
+    HelpRenderer() = default;
 };
 
 }  // namespace scrap::Command

@@ -105,7 +105,7 @@ public:
         // Find parsed subcommand path
         CLI::App* current = &app_;
         std::string currentCommand;
-        while (!current->get_subcommands().empty()) {
+        while (! current->get_subcommands().empty()) {
             bool foundParsed = false;
             for (auto* sub : current->get_subcommands()) {
                 if (sub->parsed()) {
@@ -120,7 +120,7 @@ public:
                     break;
                 }
             }
-            if (!foundParsed)
+            if (! foundParsed)
                 break;
         }
 
@@ -218,7 +218,7 @@ public:
                     parsed.set(storageName, *option.defaultValue());
                 }
 
-                if (!option.choices().empty()) {
+                if (! option.choices().empty()) {
                     opt->check(CLI::IsMember(option.choices()));
                 }
 
@@ -269,7 +269,7 @@ public:
 
             // Copy string values
             for (const auto& [key, value] : storage.strings) {
-                if (!value.empty()) {
+                if (! value.empty()) {
                     options.set(key, value);
                 }
             }

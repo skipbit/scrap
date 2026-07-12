@@ -13,7 +13,7 @@ CleanOperation::CleanOperation(std::shared_ptr<service::ProjectService> service)
 void CleanOperation::execute(const std::vector<std::string>& args)
 {
     auto output = presenter();
-    if (!output) {
+    if (! output) {
         return;
     }
 
@@ -21,7 +21,7 @@ void CleanOperation::execute(const std::vector<std::string>& args)
 
     // Load current project
     auto project = service_->loadProject();
-    if (!project) {
+    if (! project) {
         output->displayError("No project found in current directory");
         output->displayInfo("Run 'scrap new <project-name>' to create a new project");
         return;

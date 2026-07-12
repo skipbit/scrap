@@ -1,12 +1,21 @@
 #include "command/BuiltinCommandResolver.h"
 
 #include "command/CommandCatalog.h"
+#include "command/CommandEntry.h"
 #include "command/CommandHandler.h"
+#include "command/CommandSource.h"
+#include "command/HelpRenderer.h"
 #include "command/InvocationContext.h"
+#include "command/OptionSchema.h"
+#include "command/ParsedOptions.h"
+#include "command/RuntimeEnvironment.h"
+#include "command/VersionRenderer.h"
 
 #include <iostream>
 #include <memory>
 #include <string>
+#include <utility>
+#include <vector>
 
 namespace scrap::Command {
 
@@ -46,40 +55,37 @@ private:
 class HelpCommandHandler : public CommandHandler {
 public:
     /**
-     * Construct with a reference to the shared HelpRenderer.
+     * Construct with a non-owning pointer to the shared HelpRenderer.
      */
-    explicit HelpCommandHandler(HelpRenderer& renderer)
+    explicit HelpCommandHandler(HelpRenderer* renderer)
         : renderer_(renderer)
     {
     }
 
     /**
-     * If a positional argument is given, render help for that command.
-     * Otherwise render the global help listing.
+     * Render help for a specific command, or global help if no target given.
      */
     auto execute(const InvocationContext& ctx) -> int override
     {
-        if (! ctx.options.positional.empty()) {
-            auto target = ctx.options.positional[0];
-            const auto* entry = ctx.catalog.find(target);
-            if (entry != nullptr) {
-                auto specs = ctx.catalog.specs();
-                for (const auto& spec : specs) {
-                    if (spec.name == target) {
-                        std::cout << renderer_.renderCommand(spec);
-                        return 0;
-                    }
-                }
-            }
-            std::cerr << "Unknown command: " << target << "\n";
-            return 1;
+        if (ctx.options.positional.empty()) {
+            std::cout << renderer_->renderGlobal(ctx.catalog->helpEntries());
+            return 0;
         }
-        std::cout << renderer_.renderGlobal(ctx.catalog.helpEntries());
-        return 0;
+
+        auto target = ctx.options.positional[0];
+        for (const auto& spec : ctx.catalog->specs()) {
+            if (spec.name == target) {
+                std::cout << renderer_->renderCommand(spec);
+                return 0;
+            }
+        }
+
+        std::cerr << "Unknown command: " << target << "\n";
+        return 1;
     }
 
 private:
-    HelpRenderer& renderer_;
+    HelpRenderer* renderer_;
 };
 
 /**
@@ -89,9 +95,9 @@ private:
 class VersionCommandHandler : public CommandHandler {
 public:
     /**
-     * Construct with a reference to the shared VersionRenderer.
+     * Construct with a non-owning pointer to the shared VersionRenderer.
      */
-    explicit VersionCommandHandler(VersionRenderer& renderer)
+    explicit VersionCommandHandler(VersionRenderer* renderer)
         : renderer_(renderer)
     {
     }
@@ -101,19 +107,20 @@ public:
      */
     auto execute([[maybe_unused]] const InvocationContext& ctx) -> int override
     {
-        std::cout << renderer_.render() << "\n";
+        std::cout << renderer_->render() << "\n";
         return 0;
     }
 
 private:
-    VersionRenderer& renderer_;
+    VersionRenderer* renderer_;
 };
 
 /**
  * Create a placeholder CommandEntry with a no-op handler.
  */
-auto makePlaceholder(const std::string& name, const std::string& description, const std::string& category)
-    -> CommandEntry
+auto makePlaceholder(const std::string& name,
+                     const std::string& description,
+                     const std::string& category) -> CommandEntry
 {
     CommandEntry entry;
     entry.spec.name = name;
@@ -129,16 +136,15 @@ auto makePlaceholder(const std::string& name, const std::string& description, co
 }  // anonymous namespace
 
 /**
- * Construct with references to the renderers used by help/version commands.
+ * Construct with renderer pointers for help/version commands.
  */
 BuiltinCommandResolver::BuiltinCommandResolver(HelpRenderer& helpRenderer, VersionRenderer& versionRenderer)
-    : helpRenderer_(helpRenderer), versionRenderer_(versionRenderer)
+    : helpRenderer_(&helpRenderer), versionRenderer_(&versionRenderer)
 {
 }
 
 /**
  * Return the fixed set of built-in command entries.
- * Includes help, version, and placeholders for all domain commands.
  */
 auto BuiltinCommandResolver::resolve([[maybe_unused]] const RuntimeEnvironment& env) -> std::vector<CommandEntry>
 {
@@ -153,8 +159,8 @@ auto BuiltinCommandResolver::resolve([[maybe_unused]] const RuntimeEnvironment& 
         entry.spec.options.positional.push_back(
             PositionalDef{.name = "command", .description = "Command to get help for", .required = false});
         entry.source = CommandSource::Builtin;
-        auto& renderer = helpRenderer_;
-        entry.createHandler = [&renderer](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
+        auto* renderer = helpRenderer_;
+        entry.createHandler = [renderer](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
             return std::make_unique<HelpCommandHandler>(renderer);
         };
         entries.push_back(std::move(entry));
@@ -167,8 +173,8 @@ auto BuiltinCommandResolver::resolve([[maybe_unused]] const RuntimeEnvironment& 
         entry.spec.description = "Display version information";
         entry.spec.category = "Built-in Commands";
         entry.source = CommandSource::Builtin;
-        auto& renderer = versionRenderer_;
-        entry.createHandler = [&renderer](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
+        auto* renderer = versionRenderer_;
+        entry.createHandler = [renderer](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
             return std::make_unique<VersionCommandHandler>(renderer);
         };
         entries.push_back(std::move(entry));

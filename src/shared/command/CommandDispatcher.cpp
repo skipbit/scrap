@@ -46,7 +46,7 @@ bool CommandRequest::hasOptions() const
 
 bool CommandRequest::hasSubcommand() const
 {
-    return !subcommands_.empty();
+    return ! subcommands_.empty();
 }
 
 CommandRequest CommandRequest::createSubcommandRequest() const

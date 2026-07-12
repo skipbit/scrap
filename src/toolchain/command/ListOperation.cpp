@@ -16,13 +16,13 @@ ListOperation::ListOperation(std::shared_ptr<service::ToolchainService> service)
 void ListOperation::execute(const std::vector<std::string>& /* args */)
 {
     auto output = presenter();
-    if (!output) {
+    if (! output) {
         return;
     }
 
     // Note: Help is now handled by CLI11, no need to check for --help here
 
-    if (!service_) {
+    if (! service_) {
         output->displayError("Toolchain service not available");
         return;
     }

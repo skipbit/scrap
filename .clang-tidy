@@ -3,6 +3,10 @@
 # Comprehensive checks for modern C++23 development
 
 # Check configuration
+# Note: portability-avoid-pragma-once stays disabled — the project standard
+# is #pragma once (see CODINGSTYLE.md). The entry is kept for newer clang-tidy
+# versions that implement the check.
+# Careful: '#' inside the folded scalar below is literal text, not a comment.
 Checks: >
   -*,
   bugprone-*,
@@ -53,7 +57,8 @@ Checks: >
   -readability-identifier-length,
   -readability-magic-numbers,
   -readability-named-parameter,
-  -readability-uppercase-literal-suffix
+  -readability-uppercase-literal-suffix,
+  -portability-avoid-pragma-once
 
 # Warning as errors (strict mode)
 WarningsAsErrors: '*'
@@ -153,6 +158,10 @@ CheckOptions:
     value: '8388608'
 
   # Misc options
+  # clang-tidy 18 cannot map std::expected/std::unexpected to <expected>;
+  # ignore libc++ detail headers so include-cleaner does not require them.
+  - key: misc-include-cleaner.IgnoreHeaders
+    value: '.*__expected/.*'
   - key: misc-throw-by-value-catch-by-reference.CheckThrowTemporaries
     value: 'true'
   # Headers should contain declarations only - enforce strict separation

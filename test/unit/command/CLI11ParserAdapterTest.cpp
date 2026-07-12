@@ -7,7 +7,7 @@ using namespace scrap::Command;
 namespace {
 
 /**
- * @brief Helper: build a minimal CommandSpec with no options.
+ * Helper: build a minimal CommandSpec with no options.
  */
 auto makeSpec(const std::string& name, const std::string& desc = "") -> CommandSpec
 {
@@ -18,10 +18,11 @@ auto makeSpec(const std::string& name, const std::string& desc = "") -> CommandS
 }
 
 /**
- * @brief Helper: build a CommandSpec with child subcommands.
+ * Helper: build a CommandSpec with child subcommands.
  */
-auto makeSpecWithSubs(const std::string& name, std::vector<CommandSpec> subs, const std::string& desc = "")
-    -> CommandSpec
+auto makeSpecWithSubs(const std::string& name,
+                      std::vector<CommandSpec> subs,
+                      const std::string& desc = "") -> CommandSpec
 {
     auto spec = makeSpec(name, desc);
     spec.subcommands = std::move(subs);
@@ -29,7 +30,7 @@ auto makeSpecWithSubs(const std::string& name, std::vector<CommandSpec> subs, co
 }
 
 /**
- * @brief Helper: simulate argv from an initializer list.
+ * Helper: simulate argv from an initializer list.
  *
  * Stores C-strings in a vector whose lifetime is tied to the
  * returned object.  Use the .data() / .size() members to get

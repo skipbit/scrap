@@ -28,7 +28,7 @@ UpdateOperation& UpdateOperation::operator=(UpdateOperation&&) noexcept = defaul
 
 void UpdateOperation::execute(const std::vector<std::string>& args)
 {
-    if (!impl_->service_) {
+    if (! impl_->service_) {
         if (presenter()) {
             presenter()->displayError("Template service not available");
         }
