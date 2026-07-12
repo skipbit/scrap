@@ -49,7 +49,9 @@ jobs:
           gcovr --cobertura coverage.xml \
             --root . \
             --exclude 'build/_deps/.*' \
-            --exclude 'test/.*'
+            --exclude 'test/.*' \
+            --gcov-ignore-errors=source_not_found \
+            --gcov-ignore-errors=no_working_dir_found
 
       - name: Upload to Codecov
         uses: codecov/codecov-action@v6
