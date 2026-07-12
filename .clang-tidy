@@ -3,6 +3,10 @@
 # Comprehensive checks for modern C++23 development
 
 # Check configuration
+# Note: portability-avoid-pragma-once stays disabled — the project standard
+# is #pragma once (see CODINGSTYLE.md). The entry is kept for newer clang-tidy
+# versions that implement the check.
+# Careful: '#' inside the folded scalar below is literal text, not a comment.
 Checks: >
   -*,
   bugprone-*,
@@ -54,7 +58,7 @@ Checks: >
   -readability-magic-numbers,
   -readability-named-parameter,
   -readability-uppercase-literal-suffix,
-  -portability-avoid-pragma-once  # Project standard is #pragma once per CODINGSTYLE.md
+  -portability-avoid-pragma-once
 
 # Warning as errors (strict mode)
 WarningsAsErrors: '*'
