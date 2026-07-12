@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <string>
 
 using namespace scrap::Command;
 
@@ -46,11 +47,16 @@ auto findByName(const std::vector<CommandEntry>& entries, const std::string& nam
 class ExternalCommandResolverTest : public ::testing::Test {
 protected:
     /**
-     * Create a temp directory for test fixtures.
+     * Create a per-test temp directory.
+     *
+     * Each test case runs as its own ctest entry and ctest may run them
+     * in parallel, so the directory name must be unique per test case.
      */
     void SetUp() override
     {
-        tempDir_ = std::filesystem::temp_directory_path() / "scrap_resolver_test";
+        const auto* info = ::testing::UnitTest::GetInstance()->current_test_info();
+        tempDir_ = std::filesystem::temp_directory_path() / (std::string("scrap_resolver_test_") + info->name());
+        std::filesystem::remove_all(tempDir_);
         std::filesystem::create_directories(tempDir_);
     }
 
