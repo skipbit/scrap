@@ -44,12 +44,12 @@ std::expected<void, std::string> GitDriver::clone(const std::string& url, const 
 std::expected<void, std::string> GitDriver::update(const std::filesystem::path& path)
 {
     try {
-        if (!impl_->repository) {
+        if (! impl_->repository) {
             impl_->repository = std::make_unique<libgit::Repository>(path);
         }
 
         auto result = impl_->repository->update("origin", "main");
-        if (!result) {
+        if (! result) {
             return std::unexpected("Failed to update repository: " + result.error().message());
         }
 

@@ -144,19 +144,19 @@ std::string Toolchain::triple() const
 bool DefaultToolchainPolicy::canInstall(const Toolchain& toolchain) const
 {
     // Can install if not already installed
-    return !toolchain.isInstalled();
+    return ! toolchain.isInstalled();
 }
 
 bool DefaultToolchainPolicy::canSelect(const Toolchain& toolchain) const
 {
     // Can select if installed and not already selected
-    return toolchain.isInstalled() && !toolchain.isSelected();
+    return toolchain.isInstalled() && ! toolchain.isSelected();
 }
 
 bool DefaultToolchainPolicy::canRemove(const Toolchain& toolchain) const
 {
     // Can remove if installed and not currently selected
-    return toolchain.isInstalled() && !toolchain.isSelected();
+    return toolchain.isInstalled() && ! toolchain.isSelected();
 }
 
 // ToolchainSpecification implementation

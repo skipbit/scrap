@@ -117,7 +117,7 @@ std::expected<ToolchainReference, dross::error> ToolchainReference::parse(const 
     if (atPos == std::string::npos) {
         // No version specified
         auto result = createManaged(spec);
-        if (!result) {
+        if (! result) {
             return std::unexpected(result.error());
         }
         return result.value();
@@ -132,7 +132,7 @@ std::expected<ToolchainReference, dross::error> ToolchainReference::parse(const 
     }
 
     auto result = createManaged(name, version);
-    if (!result) {
+    if (! result) {
         return std::unexpected(result.error());
     }
     return result.value();
@@ -146,7 +146,7 @@ bool ToolchainReference::operator==(const ToolchainReference& other) const
 
 bool ToolchainReference::operator!=(const ToolchainReference& other) const
 {
-    return !(*this == other);
+    return ! (*this == other);
 }
 
 bool ToolchainReference::isSystemDefault() const noexcept

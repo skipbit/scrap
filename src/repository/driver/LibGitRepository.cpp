@@ -252,22 +252,22 @@ public:
     std::expected<void, std::error_code> update(const std::string& r = "origin", const std::string& b = "main")
     {
         auto fetchResult = fetch(r);
-        if (!fetchResult) {
+        if (! fetchResult) {
             return std::unexpected(fetchResult.error());
         }
 
         auto refResult = createReference("refs/remotes/" + r + "/" + b);
-        if (!refResult) {
+        if (! refResult) {
             return std::unexpected(refResult.error());
         }
 
         auto commitResult = createCommit(refResult->oid());
-        if (!commitResult) {
+        if (! commitResult) {
             return std::unexpected(commitResult.error());
         }
 
         auto localRefResult = createReference("refs/heads/" + b);
-        if (!localRefResult) {
+        if (! localRefResult) {
             return std::unexpected(localRefResult.error());
         }
 
@@ -282,7 +282,9 @@ public:
             return std::unexpected(make_error_code(GitError::RemoteLookupFailed));
         }
 
-        auto cleanup = [remote]() { git_remote_free(remote); };
+        auto cleanup = [remote]() {
+            git_remote_free(remote);
+        };
 
         if (git_remote_fetch(remote, nullptr, nullptr, nullptr) != GIT_OK) {
             cleanup();
@@ -322,7 +324,9 @@ public:
             return std::unexpected(make_error_code(GitError::AnnotatedCommitCreationFailed));
         }
 
-        auto cleanup = [annotation]() { git_annotated_commit_free(annotation); };
+        auto cleanup = [annotation]() {
+            git_annotated_commit_free(annotation);
+        };
         const git_annotated_commit* annotations[] = {annotation};
 
         if (git_merge_analysis(&analysis, &preference, repository, annotations, 1) != GIT_OK) {
@@ -335,13 +339,13 @@ public:
             return {};
         } else if (analysis & GIT_MERGE_ANALYSIS_FASTFORWARD) {
             auto setTargetResult = ref.setTarget(co, "Fast-forward");
-            if (!setTargetResult) {
+            if (! setTargetResult) {
                 cleanup();
                 return std::unexpected(setTargetResult.error());
             }
 
             auto setHeadResult = setHeadToRef(ref);
-            if (!setHeadResult) {
+            if (! setHeadResult) {
                 cleanup();
                 return std::unexpected(setHeadResult.error());
             }

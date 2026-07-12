@@ -28,7 +28,7 @@ ListOperation& ListOperation::operator=(ListOperation&&) noexcept = default;
 
 void ListOperation::execute(const std::vector<std::string>& /* args */)
 {
-    if (!impl_->service_) {
+    if (! impl_->service_) {
         if (presenter()) {
             presenter()->displayError("Template service not available");
         }
@@ -64,7 +64,7 @@ void ListOperation::displayTemplateList()
 
         for (const auto& tmpl : templates) {
             std::string line = "  " + tmpl.name();
-            if (!tmpl.description().empty()) {
+            if (! tmpl.description().empty()) {
                 line += " - " + tmpl.description();
             }
             presenter()->displayInfo(line);
@@ -93,7 +93,7 @@ void ListOperation::displayTemplatesBySource()
     for (const auto& source : sources) {
         auto templates = impl_->service_->listTemplatesFromSource(source.name);
 
-        if (!templates.empty()) {
+        if (! templates.empty()) {
             hasAnyTemplates = true;
 
             if (presenter()) {
@@ -101,7 +101,7 @@ void ListOperation::displayTemplatesBySource()
 
                 for (const auto& tmpl : templates) {
                     std::string line = "  " + tmpl.name();
-                    if (!tmpl.description().empty()) {
+                    if (! tmpl.description().empty()) {
                         line += " - " + tmpl.description();
                     }
                     presenter()->displayInfo(line);
@@ -111,7 +111,7 @@ void ListOperation::displayTemplatesBySource()
         }
     }
 
-    if (!hasAnyTemplates && presenter()) {
+    if (! hasAnyTemplates && presenter()) {
         presenter()->displayInfo("No templates available.");
         presenter()->displayInfo("Run 'scrap template update' to download templates.");
     }

@@ -20,10 +20,10 @@ MockProjectService::MockProjectService(std::shared_ptr<template_system::service:
                                        std::shared_ptr<Presenter> presenter)
     : templateService_(templateService), presenter_(presenter)
 {
-    if (!presenter_) {
+    if (! presenter_) {
         presenter_ = std::make_shared<ConsolePresenter>();
     }
-    if (!templateService_) {
+    if (! templateService_) {
         templateService_ = template_system::TemplateModule::createTemplateService(presenter_);
     }
 }
@@ -84,7 +84,7 @@ std::optional<Model::Project> MockProjectService::loadProject(const std::optiona
     auto configPath = projectPath / "scrap.toml";
 
     // Check if scrap.toml exists
-    if (!std::filesystem::exists(configPath)) {
+    if (! std::filesystem::exists(configPath)) {
         return std::nullopt;
     }
 
@@ -104,7 +104,7 @@ std::optional<Model::Project> MockProjectService::loadProject(const std::optiona
 
 void MockProjectService::saveProject(const Model::Project& project)
 {
-    if (!project.path()) {
+    if (! project.path()) {
         throw std::runtime_error("Project path not set");
     }
 
@@ -145,7 +145,7 @@ Model::BuildResult MockProjectService::build(const Model::Project& project, cons
 
 void MockProjectService::run(const Model::Project& project, const Model::RunOptions& options)
 {
-    if (!project.isApplication()) {
+    if (! project.isApplication()) {
         throw std::runtime_error("Cannot run library project");
     }
 
@@ -164,7 +164,7 @@ void MockProjectService::run(const Model::Project& project, const Model::RunOpti
 
 void MockProjectService::clean(const Model::Project& project)
 {
-    if (!project.path()) {
+    if (! project.path()) {
         return;
     }
 
@@ -192,7 +192,7 @@ void MockProjectService::createProjectStructure(const Model::Project& project, c
     std::filesystem::create_directories(basePath / "include" / project.name().toString());
     std::filesystem::create_directories(basePath / "tests");
 
-    if (!project.isApplication()) {
+    if (! project.isApplication()) {
         std::filesystem::create_directories(basePath / "examples");
     }
 }
@@ -267,7 +267,7 @@ void MockProjectService::generateConfigFile(const Model::Project& project, const
 
     config << "\n";
 
-    if (!project.dependencies().empty()) {
+    if (! project.dependencies().empty()) {
         config << "[dependencies]\n";
         for (const auto& dep : project.dependencies()) {
             config << dep.name() << " = \"" << dep.version() << "\"\n";
@@ -290,7 +290,7 @@ void MockProjectService::createProjectFromTemplate(const Model::ProjectSpecifica
             tmpl = templateService_->loadTemplate(*spec.templateName);
         }
 
-        if (!tmpl) {
+        if (! tmpl) {
             throw std::runtime_error("Template not found: " + *spec.templateName);
         }
 
@@ -309,7 +309,7 @@ void MockProjectService::createProjectFromTemplate(const Model::ProjectSpecifica
 
         // Process template
         auto result = templateService_->processTemplate(*tmpl, targetPath, variables);
-        if (!result) {
+        if (! result) {
             throw std::runtime_error(result.error());
         }
 

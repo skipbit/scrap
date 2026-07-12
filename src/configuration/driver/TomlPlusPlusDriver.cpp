@@ -42,7 +42,7 @@ void parsePackageSection(const toml::table& config, Configuration::Model::Projec
     }
     if (const auto* toolchain = package->get("toolchain")) {
         const auto toolchainStr = std::string(toolchain->value_or(""));
-        if (!toolchainStr.empty()) {
+        if (! toolchainStr.empty()) {
             const auto parseResult = Configuration::Model::ToolchainReference::parse(toolchainStr);
             if (parseResult.has_value()) {
                 result.toolchain = parseResult.value();
@@ -92,13 +92,13 @@ void parseDefinesArray(const toml::node* defines, Configuration::Model::ProjectC
     for (const auto& define : *definesArray) {
         const auto defineStr = define.value<std::string>();
         if (defineStr.has_value()) {
-            if (!defineList.empty()) {
+            if (! defineList.empty()) {
                 defineList += ",";
             }
             defineList += *defineStr;
         }
     }
-    if (!defineList.empty()) {
+    if (! defineList.empty()) {
         result.buildOptions["defines"] = defineList;
     }
 }
@@ -177,7 +177,7 @@ toml::table createPackageSection(const Configuration::Model::ProjectConfiguratio
 
 void addCxxFlagsToTable(const std::vector<std::string>& cxxFlags, toml::table& build)
 {
-    if (!cxxFlags.empty()) {
+    if (! cxxFlags.empty()) {
         toml::array cxxFlagsArray;
         for (const auto& flag : cxxFlags) {
             cxxFlagsArray.push_back(flag);
@@ -188,7 +188,7 @@ void addCxxFlagsToTable(const std::vector<std::string>& cxxFlags, toml::table& b
 
 void addLinkFlagsToTable(const std::vector<std::string>& linkFlags, toml::table& build)
 {
-    if (!linkFlags.empty()) {
+    if (! linkFlags.empty()) {
         toml::array linkFlagsArray;
         for (const auto& flag : linkFlags) {
             linkFlagsArray.push_back(flag);
@@ -200,16 +200,16 @@ void addLinkFlagsToTable(const std::vector<std::string>& linkFlags, toml::table&
 void addDefinesToTable(const std::map<std::string, std::string>& buildOptions, toml::table& build)
 {
     const auto definesIt = buildOptions.find("defines");
-    if (definesIt != buildOptions.end() && !definesIt->second.empty()) {
+    if (definesIt != buildOptions.end() && ! definesIt->second.empty()) {
         toml::array definesArray;
         std::stringstream ss(definesIt->second);
         std::string define;
         while (std::getline(ss, define, ',')) {
-            if (!define.empty()) {
+            if (! define.empty()) {
                 definesArray.push_back(define);
             }
         }
-        if (!definesArray.empty()) {
+        if (! definesArray.empty()) {
             build.insert("defines", std::move(definesArray));
         }
     }
@@ -239,7 +239,7 @@ toml::table createDependenciesSection(const Configuration::Model::ProjectConfigu
 toml::table createTestSection(const Configuration::Model::ProjectConfiguration& config)
 {
     toml::table test;
-    if (!config.testFramework.empty()) {
+    if (! config.testFramework.empty()) {
         test.insert("framework", config.testFramework);
     }
     return test;
@@ -251,7 +251,7 @@ void flattenToml(const toml::node& node, const std::string& prefix, std::map<std
     std::stack<std::pair<std::reference_wrapper<const toml::node>, std::string>> nodeStack;
     nodeStack.emplace(std::cref(node), prefix);
 
-    while (!nodeStack.empty()) {
+    while (! nodeStack.empty()) {
         const auto [currentNode, currentPrefix] = nodeStack.top();
         nodeStack.pop();
 
@@ -283,7 +283,7 @@ public:
     static std::expected<std::optional<Configuration::Model::ProjectConfiguration>, dross::error>
     loadProjectConfiguration(const std::filesystem::path& filePath) noexcept
     {
-        if (!std::filesystem::exists(filePath)) {
+        if (! std::filesystem::exists(filePath)) {
             return std::optional<Configuration::Model::ProjectConfiguration>{};
         }
 
@@ -303,14 +303,14 @@ public:
         const auto tomlTable = serializeProjectConfiguration(config);
 
         std::ofstream file(filePath);
-        if (!file.is_open()) {
+        if (! file.is_open()) {
             auto errorCode = make_error_code(TomlDriverError::FileOpenError);
             return std::unexpected(dross::error{errorCode.value(), errorCode.category()});
         }
 
         file << tomlTable;
 
-        if (!file.good()) {
+        if (! file.good()) {
             auto errorCode = make_error_code(TomlDriverError::FileWriteError);
             return std::unexpected(dross::error{errorCode.value(), errorCode.category()});
         }
@@ -321,7 +321,7 @@ public:
     static std::expected<std::optional<std::map<std::string, std::string>>, dross::error>
     loadKeyValues(const std::filesystem::path& filePath) noexcept
     {
-        if (!std::filesystem::exists(filePath)) {
+        if (! std::filesystem::exists(filePath)) {
             return std::optional<std::map<std::string, std::string>>{};
         }
 
@@ -349,14 +349,14 @@ public:
         }
 
         std::ofstream file(filePath);
-        if (!file.is_open()) {
+        if (! file.is_open()) {
             auto errorCode = make_error_code(TomlDriverError::FileOpenError);
             return std::unexpected(dross::error{errorCode.value(), errorCode.category()});
         }
 
         file << tomlTable;
 
-        if (!file.good()) {
+        if (! file.good()) {
             auto errorCode = make_error_code(TomlDriverError::FileWriteError);
             return std::unexpected(dross::error{errorCode.value(), errorCode.category()});
         }
@@ -371,7 +371,7 @@ public:
 
     static std::string validateSyntax(const std::filesystem::path& filePath)
     {
-        if (!std::filesystem::exists(filePath)) {
+        if (! std::filesystem::exists(filePath)) {
             return "File does not exist";
         }
 
@@ -403,11 +403,11 @@ private:
         result.insert("package", createPackageSection(config));
         result.insert("build", createBuildSection(config));
 
-        if (!config.dependencies.empty()) {
+        if (! config.dependencies.empty()) {
             result.insert("dependencies", createDependenciesSection(config));
         }
 
-        if (!config.testFramework.empty()) {
+        if (! config.testFramework.empty()) {
             result.insert("test", createTestSection(config));
         }
 

@@ -101,7 +101,7 @@ public:
                                                      [[maybe_unused]] const VariableMap& variables) override
     {
 
-        if (!std::filesystem::exists(targetPath)) {
+        if (! std::filesystem::exists(targetPath)) {
             std::filesystem::create_directories(targetPath);
         }
 
@@ -121,7 +121,7 @@ public:
     std::vector<std::string> validateTemplate(const std::filesystem::path& templatePath) override
     {
         std::vector<std::string> errors;
-        if (!std::filesystem::exists(templatePath)) {
+        if (! std::filesystem::exists(templatePath)) {
             errors.push_back("Template path does not exist");
         }
         return errors;

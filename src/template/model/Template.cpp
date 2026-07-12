@@ -140,13 +140,13 @@ std::vector<std::string> Template::validate() const
         errors.push_back("Template name cannot be empty");
     }
 
-    if (!std::filesystem::exists(path_)) {
+    if (! std::filesystem::exists(path_)) {
         errors.push_back("Template path does not exist: " + path_.string());
     }
 
     // Check for required files
     auto templateToml = path_ / "template.toml";
-    if (!std::filesystem::exists(templateToml)) {
+    if (! std::filesystem::exists(templateToml)) {
         errors.push_back("template.toml not found in template directory");
     }
 
@@ -159,7 +159,7 @@ std::vector<std::string> Template::validate() const
 
         // Check if variable name is a valid identifier
         std::regex identifierPattern("^[a-zA-Z_][a-zA-Z0-9_]*$");
-        if (!std::regex_match(var.name, identifierPattern)) {
+        if (! std::regex_match(var.name, identifierPattern)) {
             errors.push_back("Invalid variable name: " + var.name);
         }
     }
@@ -171,7 +171,7 @@ std::vector<std::filesystem::path> Template::templateFiles() const
 {
     std::vector<std::filesystem::path> files;
 
-    if (!std::filesystem::exists(path_)) {
+    if (! std::filesystem::exists(path_)) {
         return files;
     }
 
@@ -212,7 +212,7 @@ void Template::loadMetadata()
 {
     auto templateToml = path_ / "template.toml";
 
-    if (!std::filesystem::exists(templateToml)) {
+    if (! std::filesystem::exists(templateToml)) {
         // If no template.toml exists, use defaults based on directory name
         return;
     }
@@ -280,7 +280,7 @@ std::string VariableMap::applyTransform(const std::string& value, const std::str
             char c = value[i];
 
             if (std::isupper(c)) {
-                if (i > 0 && !prevWasUpper) {
+                if (i > 0 && ! prevWasUpper) {
                     result += '_';
                 }
                 result += std::tolower(c);
@@ -317,7 +317,7 @@ std::string VariableMap::applyTransform(const std::string& value, const std::str
 
     if (transform == "camelCase") {
         std::string pascalCase = applyTransform(value, "PascalCase");
-        if (!pascalCase.empty()) {
+        if (! pascalCase.empty()) {
             pascalCase[0] = std::tolower(pascalCase[0]);
         }
         return pascalCase;
@@ -355,7 +355,7 @@ std::string VariableMap::currentDate() const
 std::string VariableMap::currentUser() const
 {
     const char* user = std::getenv("USER");
-    if (!user) {
+    if (! user) {
         user = std::getenv("USERNAME");  // Windows
     }
     return user ? std::string(user) : "unknown";

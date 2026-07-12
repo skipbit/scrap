@@ -52,7 +52,7 @@ int ApplicationCommandHandler::execute(std::span<const char* const> args)
         // Handle result
         switch (result.status()) {
             case CommandResult::Status::Success:
-                if (!result.message().empty()) {
+                if (! result.message().empty()) {
                     std::cout << result.message() << std::endl;
                 }
                 return 0;
@@ -95,15 +95,15 @@ void ApplicationCommandHandler::registerDomainModules()
 {
     // Register toolchain domain module
     toolchain::ToolchainModule::registerCommands(
-        *dispatcher_, std::shared_ptr<CLIParser>(parser_.get(), [](CLIParser*) { }), presenter_);
+        *dispatcher_, std::shared_ptr<CLIParser>(parser_.get(), [](CLIParser*) {}), presenter_);
 
     // Register project domain module
     project::ProjectModule::registerCommands(
-        *dispatcher_, std::shared_ptr<CLIParser>(parser_.get(), [](CLIParser*) { }), presenter_);
+        *dispatcher_, std::shared_ptr<CLIParser>(parser_.get(), [](CLIParser*) {}), presenter_);
 
     // Register template domain module
     template_system::TemplateModule::registerCommands(
-        *dispatcher_, std::shared_ptr<CLIParser>(parser_.get(), [](CLIParser*) { }), presenter_);
+        *dispatcher_, std::shared_ptr<CLIParser>(parser_.get(), [](CLIParser*) {}), presenter_);
 
     // TODO: Register other domain modules as they are implemented
     // package::PackageModule::registerCommands(*dispatcher_, parser_, presenter_);

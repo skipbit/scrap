@@ -37,8 +37,8 @@ public:
      * @param projectRoot Path to the project root containing scrap.toml.
      * @return Script definitions on success, or an error message on failure.
      */
-    [[nodiscard]] virtual auto read(const std::filesystem::path& projectRoot)
-        -> std::expected<std::vector<ScriptDef>, std::string> = 0;
+    [[nodiscard]] virtual auto
+    read(const std::filesystem::path& projectRoot) -> std::expected<std::vector<ScriptDef>, std::string> = 0;
 
 protected:
     ScriptsReader() = default;

@@ -15,7 +15,7 @@ SelectOperation::SelectOperation(std::shared_ptr<service::ToolchainService> serv
 void SelectOperation::execute(const std::vector<std::string>& args)
 {
     auto output = presenter();
-    if (!output) {
+    if (! output) {
         return;
     }
 
@@ -29,7 +29,7 @@ void SelectOperation::execute(const std::vector<std::string>& args)
 
     // Find the toolchain
     auto toolchain = service_->findById(model::ToolchainId(toolchainId));
-    if (!toolchain) {
+    if (! toolchain) {
         output->displayError("Toolchain not found: " + toolchainId);
         output->displayInfo("Run 'scrap toolchain list' to see available toolchains");
         return;
@@ -42,7 +42,7 @@ void SelectOperation::execute(const std::vector<std::string>& args)
 
     // Select the toolchain
     auto result = service_->select(toolchain->id());
-    if (!result) {
+    if (! result) {
         output->displayError("Selection failed: " + result.error());
         return;
     }

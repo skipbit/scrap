@@ -17,7 +17,7 @@ InstallOperation::InstallOperation(std::shared_ptr<service::ToolchainService> se
 void InstallOperation::execute(const std::vector<std::string>& args)
 {
     auto output = presenter();
-    if (!output) {
+    if (! output) {
         return;
     }
 

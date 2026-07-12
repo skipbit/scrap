@@ -18,7 +18,7 @@ RunOperation::RunOperation(std::shared_ptr<service::ProjectService> service)
 void RunOperation::execute(const std::vector<std::string>& args)
 {
     auto output = presenter();
-    if (!output) {
+    if (! output) {
         return;
     }
 
@@ -26,13 +26,13 @@ void RunOperation::execute(const std::vector<std::string>& args)
 
     // Load current project
     auto project = service_->loadProject();
-    if (!project) {
+    if (! project) {
         output->displayError("No project found in current directory");
         output->displayInfo("Run 'scrap new <project-name>' to create a new project");
         return;
     }
 
-    if (!project->isApplication()) {
+    if (! project->isApplication()) {
         output->displayError("Cannot run library project");
         output->displayInfo("Libraries cannot be executed directly");
         return;
@@ -40,7 +40,7 @@ void RunOperation::execute(const std::vector<std::string>& args)
 
     // Parse run options
     auto optionsResult = Model::RunOptions::parse(args);
-    if (!optionsResult) {
+    if (! optionsResult) {
         output->displayError("Invalid run options: " + std::string(optionsResult.error().message()));
         return;
     }
@@ -59,7 +59,7 @@ void RunOperation::execute(const std::vector<std::string>& args)
 
     // Build the project first
     auto buildResult = service_->build(*project, buildOptions);
-    if (!buildResult.isSuccess()) {
+    if (! buildResult.isSuccess()) {
         output->displayError("Build failed, cannot run");
         return;
     }

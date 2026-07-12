@@ -52,7 +52,7 @@ template <typename T> ConfigurationSource ConfigurationValue<T>::source() const 
 
 template <typename T> bool ConfigurationValue<T>::hasValue() const noexcept
 {
-    return source_ != ConfigurationSource::SystemDefault || !value_.toString().empty();
+    return source_ != ConfigurationSource::SystemDefault || ! value_.toString().empty();
 }
 
 template <typename T> ConfigurationValue<T>::operator const T&() const noexcept

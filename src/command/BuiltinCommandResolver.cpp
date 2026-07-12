@@ -118,8 +118,9 @@ private:
 /**
  * Create a placeholder CommandEntry with a no-op handler.
  */
-auto makePlaceholder(const std::string& name, const std::string& description, const std::string& category)
-    -> CommandEntry
+auto makePlaceholder(const std::string& name,
+                     const std::string& description,
+                     const std::string& category) -> CommandEntry
 {
     CommandEntry entry;
     entry.spec.name = name;

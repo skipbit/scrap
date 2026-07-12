@@ -37,8 +37,8 @@ public:
      * @param executable Path to the scrap-* executable.
      * @return Metadata on success, or an error message on failure.
      */
-    [[nodiscard]] virtual auto fetch(const std::filesystem::path& executable)
-        -> std::expected<ExternalCommandMetadata, std::string> = 0;
+    [[nodiscard]] virtual auto
+    fetch(const std::filesystem::path& executable) -> std::expected<ExternalCommandMetadata, std::string> = 0;
 
 protected:
     ExternalMetadataProvider() = default;

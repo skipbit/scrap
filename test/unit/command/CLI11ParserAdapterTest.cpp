@@ -20,8 +20,9 @@ auto makeSpec(const std::string& name, const std::string& desc = "") -> CommandS
 /**
  * Helper: build a CommandSpec with child subcommands.
  */
-auto makeSpecWithSubs(const std::string& name, std::vector<CommandSpec> subs, const std::string& desc = "")
-    -> CommandSpec
+auto makeSpecWithSubs(const std::string& name,
+                      std::vector<CommandSpec> subs,
+                      const std::string& desc = "") -> CommandSpec
 {
     auto spec = makeSpec(name, desc);
     spec.subcommands = std::move(subs);

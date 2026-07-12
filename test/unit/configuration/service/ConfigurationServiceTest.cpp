@@ -33,7 +33,7 @@ public:
     {
 
         auto scrapToml = projectPath / "scrap.toml";
-        if (!std::filesystem::exists(scrapToml)) {
+        if (! std::filesystem::exists(scrapToml)) {
             return std::nullopt;
         }
 
@@ -94,7 +94,7 @@ public:
     std::vector<std::string> validateConfiguration(const Configuration& config) override
     {
         std::vector<std::string> errors;
-        if (!config.isComplete()) {
+        if (! config.isComplete()) {
             errors.emplace_back("Configuration is incomplete");
         }
         return errors;

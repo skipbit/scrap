@@ -13,7 +13,7 @@ HelpCommand::~HelpCommand() = default;
 void HelpCommand::execute(const std::vector<std::string>& /*args*/)
 {
     auto output = presenter();
-    if (!output) {
+    if (! output) {
         return;  // No presenter available
     }
 

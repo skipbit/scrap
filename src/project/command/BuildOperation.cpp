@@ -20,13 +20,13 @@ BuildOperation::BuildOperation(std::shared_ptr<service::ProjectService> service)
 void BuildOperation::execute(const std::vector<std::string>& args)
 {
     auto output = presenter();
-    if (!output) {
+    if (! output) {
         return;
     }
 
     // Load current project
     auto project = service_->loadProject();
-    if (!project) {
+    if (! project) {
         output->displayError("No project found in current directory");
         output->displayInfo("Run 'scrap new <project-name>' to create a new project");
         return;
@@ -34,7 +34,7 @@ void BuildOperation::execute(const std::vector<std::string>& args)
 
     // Parse build options
     auto optionsResult = Model::BuildOptions::parse(args);
-    if (!optionsResult) {
+    if (! optionsResult) {
         output->displayError("Invalid build options: " + std::string(optionsResult.error().message()));
         return;
     }
@@ -47,7 +47,7 @@ void BuildOperation::execute(const std::vector<std::string>& args)
     }
 
     // Display resolving dependencies
-    if (!project->dependencies().empty()) {
+    if (! project->dependencies().empty()) {
         output->displayInfo("   Resolving dependencies...");
         for (const auto& dep : project->dependencies()) {
             output->displaySuccess("     ✓ " + dep.name() + " " + dep.version() + " (cached)");

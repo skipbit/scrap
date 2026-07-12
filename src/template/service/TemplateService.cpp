@@ -33,7 +33,7 @@ public:
         loadTemplateRegistry();
         // Ignore errors during initialization - templates can be cloned on demand
         auto result = ensureOfficialTemplatesExist();
-        if (!result) {
+        if (! result) {
             presenter_->displayWarning(result.error());
         }
     }
@@ -50,7 +50,7 @@ public:
     {
         // Check if official templates source is configured
         auto officialSource = findTemplateSource("official");
-        if (!officialSource) {
+        if (! officialSource) {
             // Add official template source
             auto official = TemplateSource("official", TemplateSourceType::Git);
             official.url = "https://github.com/skipbit/scrap-templates.git";
@@ -67,7 +67,7 @@ public:
             auto targetDir = sourceDirectory("official");
 
             // Clone if directory doesn't exist
-            if (!std::filesystem::exists(targetDir)) {
+            if (! std::filesystem::exists(targetDir)) {
                 try {
                     // Create parent directory if needed
                     std::filesystem::create_directories(targetDir.parent_path());
@@ -87,7 +87,7 @@ public:
 
     void loadTemplateRegistry()
     {
-        if (!std::filesystem::exists(registryFile_)) {
+        if (! std::filesystem::exists(registryFile_)) {
             return;
         }
 
@@ -99,7 +99,7 @@ public:
     [[nodiscard]] std::expected<void, dross::error> saveTemplateRegistry() noexcept
     {
         std::ofstream registry(registryFile_);
-        if (!registry) {
+        if (! registry) {
             auto errorCode = make_error_code(TemplateServiceError::RegistryWriteFailed);
             return std::unexpected(dross::error{errorCode.value(), errorCode.category()});
         }
@@ -140,9 +140,10 @@ public:
 
     std::optional<TemplateSource> findTemplateSource(const std::string& sourceName)
     {
-        auto it = std::find_if(templateSources_.begin(),
-                               templateSources_.end(),
-                               [&sourceName](const TemplateSource& source) { return source.name == sourceName; });
+        auto it =
+            std::find_if(templateSources_.begin(), templateSources_.end(), [&sourceName](const TemplateSource& source) {
+                return source.name == sourceName;
+            });
 
         if (it != templateSources_.end()) {
             return *it;
@@ -156,7 +157,7 @@ public:
 
         std::vector<Template> templates;
 
-        if (!std::filesystem::exists(dir)) {
+        if (! std::filesystem::exists(dir)) {
             return templates;
         }
 
@@ -211,7 +212,7 @@ std::optional<Template> DefaultTemplateService::loadTemplate(const std::string& 
 
     // Find the template source
     auto source = impl_->findTemplateSource(sourceName);
-    if (!source) {
+    if (! source) {
         return std::nullopt;
     }
 
@@ -228,7 +229,7 @@ std::optional<Template> DefaultTemplateService::loadTemplate(const std::string& 
 
 std::optional<Template> DefaultTemplateService::loadTemplateFromPath(const std::filesystem::path& path)
 {
-    if (!std::filesystem::exists(path) || !std::filesystem::is_directory(path)) {
+    if (! std::filesystem::exists(path) || ! std::filesystem::is_directory(path)) {
         return std::nullopt;
     }
 
@@ -260,7 +261,7 @@ std::vector<Template> DefaultTemplateService::listAllTemplates()
 std::vector<Template> DefaultTemplateService::listTemplatesFromSource(const std::string& sourceName)
 {
     auto source = impl_->findTemplateSource(sourceName);
-    if (!source) {
+    if (! source) {
         return {};
     }
 
@@ -286,7 +287,7 @@ std::expected<void, std::string> DefaultTemplateService::addTemplateSource(const
 
     impl_->templateSources_.push_back(source);
     auto saveResult = impl_->saveTemplateRegistry();
-    if (!saveResult) {
+    if (! saveResult) {
         // Rollback: remove the source we just added
         impl_->templateSources_.pop_back();
         return std::unexpected(std::string(saveResult.error().message()));
@@ -325,9 +326,10 @@ std::expected<void, std::string> DefaultTemplateService::removeTemplateSource(co
         return std::unexpected("Cannot remove official template source");
     }
 
-    auto it = std::find_if(impl_->templateSources_.begin(),
-                           impl_->templateSources_.end(),
-                           [&sourceName](const TemplateSource& source) { return source.name == sourceName; });
+    auto it = std::find_if(
+        impl_->templateSources_.begin(), impl_->templateSources_.end(), [&sourceName](const TemplateSource& source) {
+            return source.name == sourceName;
+        });
 
     if (it == impl_->templateSources_.end()) {
         return std::unexpected("Template source not found: " + sourceName);
@@ -341,7 +343,7 @@ std::expected<void, std::string> DefaultTemplateService::removeTemplateSource(co
 
     impl_->templateSources_.erase(it);
     auto saveResult = impl_->saveTemplateRegistry();
-    if (!saveResult) {
+    if (! saveResult) {
         return std::unexpected(std::string(saveResult.error().message()));
     }
 
@@ -361,7 +363,7 @@ std::expected<void, std::string> DefaultTemplateService::updateTemplateSources()
     for (const auto& source : impl_->templateSources_) {
         if (source.autoUpdate) {
             auto result = updateTemplateSource(source.name);
-            if (!result) {
+            if (! result) {
                 hasErrors = true;
                 errors += "Failed to update template source '" + source.name + "': " + result.error() + "; ";
                 impl_->presenter_->displayError("Failed to update template source '" + source.name +
@@ -380,7 +382,7 @@ std::expected<void, std::string> DefaultTemplateService::updateTemplateSources()
 std::expected<void, std::string> DefaultTemplateService::updateTemplateSource(const std::string& sourceName)
 {
     auto source = impl_->findTemplateSource(sourceName);
-    if (!source) {
+    if (! source) {
         return std::unexpected("Template source not found: " + sourceName);
     }
 
@@ -388,7 +390,7 @@ std::expected<void, std::string> DefaultTemplateService::updateTemplateSource(co
         auto sourceDir = impl_->sourceDirectory(sourceName);
 
         // Check if directory exists
-        if (!std::filesystem::exists(sourceDir)) {
+        if (! std::filesystem::exists(sourceDir)) {
             // If not cloned yet, clone it now
             if (source->url) {
                 try {
@@ -452,13 +454,13 @@ VariableMap DefaultTemplateService::collectTemplateVariables(const Template& tmp
 
 std::vector<std::string> DefaultTemplateService::validateTemplate(const std::filesystem::path& templatePath)
 {
-    if (!std::filesystem::exists(templatePath)) {
+    if (! std::filesystem::exists(templatePath)) {
         return {"Template path does not exist"};
     }
 
     // Load template and validate
     auto tmpl = loadTemplateFromPath(templatePath);
-    if (!tmpl) {
+    if (! tmpl) {
         return {"Cannot load template from path"};
     }
 
@@ -489,7 +491,7 @@ std::optional<std::string> DefaultTemplateService::recommendedTemplate(const std
 bool DefaultTemplateService::isTemplateSourceAccessible(const std::string& sourceName)
 {
     auto source = impl_->findTemplateSource(sourceName);
-    if (!source) {
+    if (! source) {
         return false;
     }
 
@@ -511,11 +513,11 @@ std::expected<std::filesystem::path, dross::error> DefaultTemplateService::defau
 
     // Fall back to ~/.scrap/templates
     const char* home = std::getenv("HOME");
-    if (!home) {
+    if (! home) {
         home = std::getenv("USERPROFILE");  // Windows
     }
 
-    if (!home) {
+    if (! home) {
         auto errorCode = make_error_code(TemplateServiceError::HomeDirectoryNotFound);
         return std::unexpected(dross::error{errorCode.value(), errorCode.category()});
     }

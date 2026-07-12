@@ -37,19 +37,19 @@ public:
     bool ensureRegistryAvailableInternal()
     {
         const auto directory = dross::xdg("scrap").data_home();
-        if (!directory.has_value()) {
+        if (! directory.has_value()) {
             return false;
         }
 
-        if (!dross::path(directory.value()).exists()) {
+        if (! dross::path(directory.value()).exists()) {
             std::error_code err;
-            if (!std::filesystem::create_directories(directory.value(), err)) {
+            if (! std::filesystem::create_directories(directory.value(), err)) {
                 return false;
             }
         }
 
         const auto path = dross::path(directory.value()).append("toolchain");
-        if (!path.exists()) {
+        if (! path.exists()) {
             repository::RepositoryFactory::createGitRepository(path)->clone(
                 "https://github.com/skipbit/scrap-toolchain.git");
             return true;
@@ -62,7 +62,7 @@ public:
     std::string registryPathInternal()
     {
         const auto directory = dross::xdg("scrap").data_home();
-        if (!directory.has_value()) {
+        if (! directory.has_value()) {
             return "";
         }
 

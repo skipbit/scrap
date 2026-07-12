@@ -102,7 +102,7 @@ std::vector<Toolchain> MockToolchainService::listInstalled()
 
 std::optional<Toolchain> MockToolchainService::currentToolchain()
 {
-    if (!currentToolchainId_) {
+    if (! currentToolchainId_) {
         return std::nullopt;
     }
     return findById(*currentToolchainId_);
@@ -110,7 +110,9 @@ std::optional<Toolchain> MockToolchainService::currentToolchain()
 
 std::optional<Toolchain> MockToolchainService::findById(const ToolchainId& id)
 {
-    auto it = std::find_if(toolchains_.begin(), toolchains_.end(), [&id](const Toolchain& t) { return t.id() == id; });
+    auto it = std::find_if(toolchains_.begin(), toolchains_.end(), [&id](const Toolchain& t) {
+        return t.id() == id;
+    });
 
     if (it != toolchains_.end()) {
         return *it;
@@ -148,11 +150,11 @@ std::expected<void, std::string> MockToolchainService::install(const ToolchainSp
 std::expected<void, std::string> MockToolchainService::select(const ToolchainId& id)
 {
     auto toolchain = findById(id);
-    if (!toolchain) {
+    if (! toolchain) {
         return std::unexpected("Toolchain not found: " + id.value());
     }
 
-    if (!toolchain->isInstalled()) {
+    if (! toolchain->isInstalled()) {
         return std::unexpected("Toolchain is not installed: " + id.value());
     }
 
@@ -166,7 +168,9 @@ std::expected<void, std::string> MockToolchainService::select(const ToolchainId&
 
 std::expected<void, std::string> MockToolchainService::remove(const ToolchainId& id)
 {
-    auto it = std::find_if(toolchains_.begin(), toolchains_.end(), [&id](const Toolchain& t) { return t.id() == id; });
+    auto it = std::find_if(toolchains_.begin(), toolchains_.end(), [&id](const Toolchain& t) {
+        return t.id() == id;
+    });
 
     if (it == toolchains_.end()) {
         return std::unexpected("Toolchain not found: " + id.value());
