@@ -158,6 +158,10 @@ CheckOptions:
     value: '8388608'
 
   # Misc options
+  # clang-tidy 18 cannot map std::expected/std::unexpected to <expected>;
+  # ignore libc++ detail headers so include-cleaner does not require them.
+  - key: misc-include-cleaner.IgnoreHeaders
+    value: '.*__expected/.*'
   - key: misc-throw-by-value-catch-by-reference.CheckThrowTemporaries
     value: 'true'
   # Headers should contain declarations only - enforce strict separation
