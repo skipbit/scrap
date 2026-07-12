@@ -604,7 +604,13 @@ void ClassName::setName(const std::string& name) {  // name in implementation
 
 ### Doxygen Style
 
+Doxygen tags (`@brief`, `@param`, `@return`, ...) belong on declarations in
+header files only. Implementation files use plain comment blocks without
+Doxygen tags: the documentation lives with the declaration, so it is not
+duplicated — and cannot diverge — in the definition.
+
 ```cpp
+// Header file (.h) — Doxygen tags on declarations
 /**
  * @brief Template loading and processing service
  *
@@ -624,6 +630,17 @@ public:
 private:
     std::string defaultSource_;  ///< Default template source name
 };
+```
+
+```cpp
+// Implementation file (.cpp) — plain comment block, no Doxygen tags
+/**
+ * Load a template by name.
+ */
+std::expected<Template, Error> TemplateService::loadTemplate(const std::string& name) noexcept
+{
+    // ...
+}
 ```
 
 ### Inline Comments
