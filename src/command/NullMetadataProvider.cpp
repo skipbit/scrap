@@ -2,7 +2,6 @@
 
 #include "command/ExternalMetadataProvider.h"
 
-#include <expected>
 #include <filesystem>
 #include <string>
 

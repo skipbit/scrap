@@ -19,7 +19,7 @@ auto makeRuntimeEnvironment(const std::filesystem::path& cwd,
     env.projectRoot = cwd;
 
     if (! scrapHome.empty()) {
-        env.searchPaths.push_back(std::filesystem::path(scrapHome) / "bin");
+        env.searchPaths.emplace_back(std::filesystem::path(scrapHome) / "bin");
     }
 
     std::size_t start = 0;
@@ -28,7 +28,7 @@ auto makeRuntimeEnvironment(const std::filesystem::path& cwd,
         auto segment =
             (separator == std::string::npos) ? pathEnv.substr(start) : pathEnv.substr(start, separator - start);
         if (! segment.empty()) {
-            env.searchPaths.push_back(std::filesystem::path(segment));
+            env.searchPaths.emplace_back(segment);
         }
         if (separator == std::string::npos) {
             break;
