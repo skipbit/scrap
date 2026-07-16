@@ -70,6 +70,11 @@ auto Application::run(std::span<const char* const> argv, const RuntimeEnvironmen
             return 1;
         }
         auto handler = entry->createHandler(invocation.options);
+        if (handler == nullptr) {
+            std::cerr << "Command '" << invocation.commandPath << "' is not available yet.\n";
+            std::cerr << "Run 'scrap --help' for usage information.\n";
+            return 1;
+        }
         const InvocationContext ctx{invocation.options, &env, &catalog};
         return handler->execute(ctx);
     }
