@@ -54,7 +54,7 @@ jobs:
             --gcov-ignore-errors=no_working_dir_found
 
       - name: Upload to Codecov
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           files: coverage.xml
           token: ${{ secrets.CODECOV_TOKEN }}
