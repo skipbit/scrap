@@ -41,10 +41,10 @@ clean:
 
 # Test targets
 test: build
-	./build/debug/test/scrap_test
+	ctest --test-dir build/debug --output-on-failure
 
 test-verbose: build
-	./build/debug/test/scrap_test -v high
+	ctest --test-dir build/debug --output-on-failure --verbose
 
 # Code quality targets
 format:

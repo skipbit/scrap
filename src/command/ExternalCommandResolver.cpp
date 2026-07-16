@@ -12,6 +12,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <utility>
 #include <vector>
 
@@ -26,14 +27,18 @@ constexpr std::string_view ExternalPrefix = "scrap-";
  */
 auto isScrapExecutable(const std::filesystem::directory_entry& entry) -> bool
 {
-    if (! entry.is_regular_file()) {
+    std::error_code ec;
+    if (! entry.is_regular_file(ec) || ec) {
         return false;
     }
     auto filename = entry.path().filename().string();
     if (! filename.starts_with(ExternalPrefix)) {
         return false;
     }
-    auto status = std::filesystem::status(entry.path());
+    auto status = std::filesystem::status(entry.path(), ec);
+    if (ec) {
+        return false;
+    }
     return (status.permissions() & std::filesystem::perms::owner_exec) != std::filesystem::perms::none;
 }
 
@@ -95,12 +100,13 @@ auto ExternalCommandResolver::resolve(const RuntimeEnvironment& env) -> std::vec
     std::vector<CommandEntry> entries;
 
     for (const auto& searchPath : env.searchPaths) {
-        if (! std::filesystem::is_directory(searchPath)) {
+        std::error_code ec;
+        if (! std::filesystem::is_directory(searchPath, ec) || ec) {
             continue;
         }
-        for (const auto& dirEntry : std::filesystem::directory_iterator(searchPath)) {
-            if (isScrapExecutable(dirEntry)) {
-                entries.push_back(buildEntry(dirEntry.path(), metadataProvider_.get()));
+        for (std::filesystem::directory_iterator it(searchPath, ec), end; ! ec && it != end; it.increment(ec)) {
+            if (isScrapExecutable(*it)) {
+                entries.push_back(buildEntry(it->path(), metadataProvider_.get()));
             }
         }
     }

@@ -6,91 +6,31 @@ configure_file(
     @ONLY
 )
 
-add_executable(${PROJECT_NAME} ${SCRAP_SOURCES})
+add_executable(${PROJECT_NAME} ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp)
 
 target_sources(${PROJECT_NAME} PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp
     # Generated version source
     ${CMAKE_CURRENT_BINARY_DIR}/shared/constants/version.cpp
-    # New command architecture
+    # Command architecture
     ${CMAKE_CURRENT_SOURCE_DIR}/command/Application.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/BuiltinCommandResolver.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/CommandCatalog.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/CommandHandler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/CommandResolver.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/command/ParserAdapter.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/command/HelpRenderer.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/command/VersionRenderer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/DefaultHelpRenderer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/DefaultVersionRenderer.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/command/BuiltinCommandResolver.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ExternalCommandResolver.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ExternalMetadataProvider.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/HelpRenderer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/ParserAdapter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ProjectCommandResolver.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ScriptsReader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/StubScriptsReader.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/VersionRenderer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/driver/CLI11ParserAdapter.cpp
-    # Legacy command components (to be removed in main.cpp migration)
-    ${CMAKE_CURRENT_SOURCE_DIR}/shared/command/Application.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/shared/command/Operation.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/shared/command/CompositeOperation.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/shared/command/CommandDispatcher.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/shared/command/ApplicationCommandHandler.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/shared/command/HelpCommand.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/shared/command/CommandOptions.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/shared/command/ParsedOptions.cpp
-    # CLI driver implementations
-    ${CMAKE_CURRENT_SOURCE_DIR}/shared/command/driver/CLI11Parser.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/shared/command/driver/CLI11CommandDispatcher.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/shared/command/driver/PresenterFormatter.cpp
-    # Presentation components
-    ${CMAKE_CURRENT_SOURCE_DIR}/shared/presentation/driver/ConsolePresenter.cpp
-    # Repository components
-    ${CMAKE_CURRENT_SOURCE_DIR}/repository/model/Repository.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/repository/RepositoryFactory.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/repository/driver/GitDriver.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/repository/driver/LibGitRepository.cpp
-    # Toolchain components
-    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/ToolchainModule.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/model/Toolchain.cpp
-    # ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/service/ToolchainService.cpp  # Old implementation
-    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/service/MockToolchainService.cpp
-    # ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/driver/ToolchainRepository.cpp  # Old implementation
-    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/command/ToolchainOperation.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/command/ListOperation.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/command/InstallOperation.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/command/SelectOperation.cpp
-    # Project components
-    ${CMAKE_CURRENT_SOURCE_DIR}/project/ProjectModule.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/project/model/Project.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/project/model/ProjectError.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/project/service/MockProjectService.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/project/command/NewOperation.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/project/command/BuildOperation.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/project/command/RunOperation.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/project/command/CleanOperation.cpp
-    # Configuration components
-    ${CMAKE_CURRENT_SOURCE_DIR}/configuration/ConfigurationModule.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/configuration/model/ConfigurationSource.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/configuration/model/Configuration.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/configuration/model/ProjectConfiguration.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/configuration/model/ConfigurationError.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/configuration/model/ToolchainReference.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/configuration/service/ConfigurationService.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/configuration/service/DefaultConfigurationService.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/configuration/service/ConfigurationServiceError.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/configuration/driver/TomlDriver.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/configuration/driver/TomlPlusPlusDriver.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/configuration/driver/TomlDriverError.cpp
-    # Template components
-    ${CMAKE_CURRENT_SOURCE_DIR}/template/TemplateModule.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/template/model/Template.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/template/model/TemplateError.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/template/service/TemplateService.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/template/service/TemplateServiceError.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/template/service/TemplateProcessor.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/template/command/TemplateOperation.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/template/command/ListOperation.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/template/command/UpdateOperation.cpp
+    # Composition root helpers
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/NullMetadataProvider.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/RuntimeEnvironmentFactory.cpp
 )
 
 target_compile_options(${PROJECT_NAME} PUBLIC
@@ -112,14 +52,8 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     OUTPUT_NAME "scrap"
 )
 
-find_package(Dross REQUIRED)
-find_package(Git2 REQUIRED)
 find_package(CLI11 REQUIRED)
-find_package(TomlPlusPlus REQUIRED)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
-    dross
-    libgit2package
     CLI11::CLI11
-    tomlplusplus::tomlplusplus
 )
