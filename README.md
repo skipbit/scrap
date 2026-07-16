@@ -257,7 +257,8 @@ cmake --build build/release --target test
 ## 📊 Roadmap
 
 ### Phase 1: Foundation (Current)
-- ✅ Command structure and template system
+- ✅ Command structure (CLI framework)
+- 🚧 Template system
 - 🚧 Configuration management
 - 🚧 Basic build system
 
