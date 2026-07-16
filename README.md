@@ -127,6 +127,10 @@ scrap is in early alpha development (v0.0.1). Currently implemented:
 
 ✅ **Core Features**
 - CLI command framework (help, version, command discovery)
+- External command metadata fetching - `scrap-*` executables are probed via
+  `--scrap-metadata` (falling back to `--help`) for a plain first-line
+  description shown in `scrap --help`; structured JSON/options metadata is
+  not yet part of the protocol
 
 🚧 **In Progress**
 - Project creation (`scrap new`) - currently a placeholder command
@@ -233,7 +237,7 @@ ctest --test-dir build/debug --output-on-failure
 
 ### Testing
 
-The project uses GoogleTest for unit testing, run through ctest. Tests are automatically built when `BUILD_TESTS=ON`.
+The project uses GoogleTest for unit and end-to-end testing, run through ctest. Tests are automatically built when `BUILD_TESTS=ON`.
 
 ```bash
 # Build and run all tests
@@ -245,6 +249,7 @@ ctest --test-dir build/debug --output-on-failure --verbose
 # Run a specific test executable directly
 ./build/debug/test/scrap_gtest
 ./build/debug/test/scrap_gtest_cli11
+./build/debug/test/scrap_e2e
 
 # Release build testing
 cmake -S . -B build/release -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON
@@ -253,6 +258,7 @@ cmake --build build/release --target test
 
 **Test Structure:**
 - `test/unit/command/` - Unit tests for the command layer
+- `test/e2e/` - End-to-end tests that spawn the built `scrap` binary as a subprocess
 
 ## 📊 Roadmap
 
