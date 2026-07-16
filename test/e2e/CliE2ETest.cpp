@@ -10,6 +10,8 @@
 #include <chrono>
 #include <csignal>
 #include <cstddef>
+#include <cstdlib>
+#include <cstring>
 #include <fcntl.h>
 #include <filesystem>
 #include <fstream>
@@ -188,9 +190,14 @@ protected:
     void SetUp() override
     {
         const auto* info = ::testing::UnitTest::GetInstance()->current_test_info();
-        root_ = std::filesystem::temp_directory_path() /
-            (std::string("scrap_e2e_") + info->name() + "_" + std::to_string(::getpid()));
-        std::filesystem::remove_all(root_);
+        auto dirTemplate =
+            (std::filesystem::temp_directory_path() / (std::string("scrap_e2e_") + info->name() + "_XXXXXX")).string();
+        // mkdtemp(3) atomically creates a uniquely-named directory in place
+        // of the trailing "XXXXXX", removing the /tmp symlink-preplacement
+        // race inherent in "pick a name, then create_directories(name)".
+        const char* created = ::mkdtemp(dirTemplate.data());
+        ASSERT_NE(created, nullptr) << "mkdtemp failed: " << std::strerror(errno);
+        root_ = std::filesystem::path(created);
         std::filesystem::create_directories(root_ / "bin");
     }
 
@@ -429,9 +436,15 @@ TEST_F(CliE2ETest, RealCli11Nested)
 
 TEST_F(CliE2ETest, MetadataFetch)
 {
+    // The --scrap-metadata and --help responses are deliberately disjoint
+    // (unlike TS-02's dummy, where --help's text is a superstring of
+    // --scrap-metadata's): if metadata fetching silently fell back to
+    // --help instead of using --scrap-metadata, this dummy would still make
+    // "greet" appear in the output, but the --scrap-metadata-only marker
+    // below would not.
     makeDummy("scrap-greet", R"(case "$1" in
-  --scrap-metadata) echo "Greet people" ;;
-  --help) echo "greet - Greet people" ;;
+  --scrap-metadata) echo "metadata-greets-you" ;;
+  --help) echo "greet help text" ;;
   *) echo "greet called" ;;
 esac)");
 
@@ -440,7 +453,7 @@ esac)");
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
     EXPECT_NE(result.stdoutText.find("greet"), std::string::npos);
-    EXPECT_NE(result.stdoutText.find("Greet people"), std::string::npos);
+    EXPECT_NE(result.stdoutText.find("metadata-greets-you"), std::string::npos);
 }
 
 // --- TS-09: all version forms agree ----------------------------------------------

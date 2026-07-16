@@ -137,6 +137,63 @@ TEST_F(MetadataProtocolProviderTest, Timeout)
 }
 
 /**
+ * Verify that a child which emits more than the capture cap and then hangs
+ * is still killed and reaped promptly. Regression for a bug where the kill
+ * was gated on "the drain timed out", so hitting the capture cap (a
+ * distinct stop reason) skipped the kill and waitpid() blocked for the
+ * child's full lifetime.
+ */
+TEST_F(MetadataProtocolProviderTest, CapThenHang)
+{
+    // MaxCaptureBytes is 64 * 1024; 70000 bytes safely exceeds it for both
+    // probe attempts.
+    auto script = createExecutable("scrap-x", R"(case "$1" in
+  --scrap-metadata|--help) yes x | head -c 70000; sleep 30 ;;
+esac
+exit 1)");
+
+    constexpr std::chrono::milliseconds shortTimeout{200};
+    MetadataProtocolProvider provider(shortTimeout);
+
+    auto start = std::chrono::steady_clock::now();
+    auto result = provider.fetch(script);
+    auto elapsed = std::chrono::steady_clock::now() - start;
+
+    EXPECT_FALSE(result.has_value());
+    // Two probe attempts each bounded by shortTimeout; generous upper bound
+    // keeps this robust under CI load while still proving the capture-cap
+    // path no longer blocks for the child's 30s sleep.
+    EXPECT_LT(elapsed, std::chrono::seconds(5));
+}
+
+/**
+ * Verify that a child which closes stdout (EOF) but keeps running is still
+ * killed and reaped promptly. Regression for a bug where the kill was
+ * gated on "the drain timed out"; plain EOF is a distinct stop reason that
+ * also skipped the kill, so a child that closes stdout and then keeps
+ * running could hang waitpid() indefinitely — the security-flagged variant
+ * (a bad `scrap-*` plugin can be probed on every `scrap --help`).
+ */
+TEST_F(MetadataProtocolProviderTest, ClosesStdoutThenHang)
+{
+    auto script = createExecutable("scrap-x", "exec 1>&-; sleep 30");
+
+    constexpr std::chrono::milliseconds shortTimeout{200};
+    MetadataProtocolProvider provider(shortTimeout);
+
+    auto start = std::chrono::steady_clock::now();
+    auto result = provider.fetch(script);
+    auto elapsed = std::chrono::steady_clock::now() - start;
+
+    EXPECT_FALSE(result.has_value());
+    // EOF is observed immediately (stdout is closed), but the child keeps
+    // running; fetch() must still return within a small multiple of
+    // shortTimeout, proving the EOF path no longer blocks for the child's
+    // 30s sleep.
+    EXPECT_LT(elapsed, std::chrono::seconds(5));
+}
+
+/**
  * Verify that a missing or non-executable path fails cleanly (no crash).
  */
 TEST_F(MetadataProtocolProviderTest, NonExecutableOrMissing)

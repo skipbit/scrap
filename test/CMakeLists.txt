@@ -111,4 +111,4 @@ set_target_properties(scrap_e2e PROPERTIES
 # The e2e tests spawn the scrap binary itself, so it must be built first.
 add_dependencies(scrap_e2e scrap)
 
-gtest_discover_tests(scrap_e2e)
+gtest_discover_tests(scrap_e2e PROPERTIES LABELS e2e)

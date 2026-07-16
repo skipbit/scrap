@@ -237,7 +237,7 @@ ctest --test-dir build/debug --output-on-failure
 
 ### Testing
 
-The project uses GoogleTest for unit testing, run through ctest. Tests are automatically built when `BUILD_TESTS=ON`.
+The project uses GoogleTest for unit and end-to-end testing, run through ctest. Tests are automatically built when `BUILD_TESTS=ON`.
 
 ```bash
 # Build and run all tests

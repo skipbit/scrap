@@ -23,6 +23,12 @@
 #include <unistd.h>
 #include <utility>
 
+#if defined(__APPLE__)
+// NOLINTNEXTLINE(misc-include-cleaner) - only pulled in on Darwin, guarded by __APPLE__
+#include <crt_externs.h>  // _NSGetEnviron(): the only correct way to reach environ on Darwin
+#define environ (*_NSGetEnviron())
+#endif
+
 namespace scrap::Command {
 
 namespace {
@@ -96,20 +102,83 @@ auto setCloseOnExec(int fd) -> bool
 }
 
 /**
- * Drain @p readFd into @p out until EOF, the capture cap is hit, or
- * @p deadline passes. Uses poll() so a full pipe can never deadlock the
- * caller (the child keeps making progress as we keep reading).
- *
- * @return true if the deadline was reached before the child's stdout closed.
+ * RAII wrapper around a POSIX file descriptor. Move-only; closes a valid
+ * (>= 0) descriptor in its destructor so every exit path out of runOnce()
+ * — including one taken because of an exception thrown between pipe()
+ * creation and the descriptor's last explicit use — closes it exactly once.
  */
-auto drainUntilEofOrDeadline(int readFd, std::chrono::steady_clock::time_point deadline, std::string& out) -> bool
+class UniqueFd {
+public:
+    UniqueFd() = default;
+    explicit UniqueFd(int fd)
+        : fd_(fd)
+    {
+    }
+
+    UniqueFd(const UniqueFd&) = delete;
+    auto operator=(const UniqueFd&) -> UniqueFd& = delete;
+
+    UniqueFd(UniqueFd&& other) noexcept
+        : fd_(other.release())
+    {
+    }
+    auto operator=(UniqueFd&& other) noexcept -> UniqueFd&
+    {
+        if (this != &other) {
+            reset(other.release());
+        }
+        return *this;
+    }
+
+    ~UniqueFd()
+    {
+        reset();
+    }
+
+    [[nodiscard]] auto get() const -> int
+    {
+        return fd_;
+    }
+
+    /** Relinquish ownership, returning the raw descriptor without closing it. */
+    [[nodiscard]] auto release() -> int
+    {
+        auto fd = fd_;
+        fd_ = -1;
+        return fd;
+    }
+
+    /** Close the current descriptor (if any) and take ownership of @p fd. */
+    void reset(int fd = -1)
+    {
+        if (fd_ >= 0) {
+            ::close(fd_);
+        }
+        fd_ = fd;
+    }
+
+private:
+    int fd_ = -1;
+};
+
+/**
+ * Drain @p readFd into @p out until EOF, the capture cap is hit, the
+ * deadline passes, or an unexpected poll()/read() error occurs. Uses
+ * poll() so a full pipe can never deadlock the caller (the child keeps
+ * making progress as we keep reading).
+ *
+ * The caller (runOnce) always kills and reaps the child once this returns,
+ * regardless of which of the above reasons stopped the drain, so no return
+ * value is needed to single out "timed out" from the others.
+ */
+auto drainUntilEofOrDeadline(int readFd, std::chrono::steady_clock::time_point deadline, std::string& out) -> void
 {
     std::array<char, ReadChunkBytes> buffer{};
 
     while (true) {
         auto remaining = deadline - std::chrono::steady_clock::now();
         if (remaining <= std::chrono::steady_clock::duration::zero()) {
-            return true;
+            return;  // Deadline reached; the caller kills and reaps the child unconditionally.
         }
 
         // NOLINTNEXTLINE(misc-include-cleaner) - std::chrono::ceil is provided by <chrono>
@@ -122,37 +191,40 @@ auto drainUntilEofOrDeadline(int readFd, std::chrono::steady_clock::time_point d
         // NOLINTNEXTLINE(misc-include-cleaner) - poll() is provided by <poll.h>
         const int pollResult = ::poll(&pfd, 1, static_cast<int>(remainingMs));
         if (pollResult == 0) {
-            return true;  // Timed out waiting for the next chunk.
+            return;  // Timed out waiting for the next chunk.
         }
         if (pollResult < 0) {
             if (errno == EINTR) {
                 continue;
             }
-            return false;  // Unexpected poll() failure: stop reading, not a timeout.
+            return;  // Unexpected poll() failure: stop reading.
         }
 
         // NOLINTNEXTLINE(hicpp-signed-bitwise, misc-include-cleaner) - POLLHUP is provided by <poll.h>
         if ((pfd.revents & (POLLIN | POLLHUP)) == 0) {
             // NOLINTNEXTLINE(hicpp-signed-bitwise, misc-include-cleaner) - POLLERR is provided by <poll.h>
             if ((pfd.revents & POLLERR) != 0) {
-                return false;
+                return;
             }
             continue;
         }
 
         auto bytesRead = ::read(readFd, buffer.data(), buffer.size());
         if (bytesRead == 0) {
-            return false;  // EOF: child closed stdout (normally because it exited).
+            // EOF: the child closed its stdout. It may have exited already,
+            // or it may still be running (e.g. `exec 1>&-; sleep ...`) — the
+            // caller's unconditional kill-then-reap handles both uniformly.
+            return;
         }
         if (bytesRead < 0) {
             if (errno == EINTR || errno == EAGAIN) {
                 continue;
             }
-            return false;  // Unexpected read() failure: stop reading, not a timeout.
+            return;  // Unexpected read() failure: stop reading.
         }
 
         if (out.size() >= MaxCaptureBytes) {
-            return false;  // Capture cap reached; stop reading and let the caller reap.
+            return;  // Capture cap reached; stop reading and let the caller reap.
         }
         auto available = MaxCaptureBytes - out.size();
         auto toAppend = std::min(static_cast<std::size_t>(bytesRead), available);
@@ -163,10 +235,25 @@ auto drainUntilEofOrDeadline(int readFd, std::chrono::steady_clock::time_point d
 /**
  * Run @p executable with a single @p flag argument (no shell, argv-array
  * only), capturing stdout while discarding stdin/stderr. The child runs in
- * its own process group so the whole subtree can be killed on timeout.
+ * its own process group.
  *
- * Every path below closes any fds it opened and, once posix_spawn has
- * created a child, reaps it with waitpid — no fd leaks, no zombies.
+ * The process group is unconditionally SIGKILLed right before the final
+ * (blocking) waitpid(), regardless of why draining its stdout stopped. If
+ * the child already exited (the common case: it wrote its output and
+ * closed stdout), it is a zombie and the kill is a harmless no-op — the
+ * zombie's exit status is preserved, so waitpid() still returns the real
+ * WIFEXITED/WEXITSTATUS. If the child is still alive (deadline reached,
+ * capture cap hit, or a poll/read error while it keeps running), the kill
+ * bounds the reap so waitpid() cannot block for the child's full lifetime.
+ * Either way WIFEXITED(status) below naturally distinguishes "exited
+ * normally" from "we had to kill it" — no separate flag is needed. killpg
+ * (not kill) also reaps any grandchildren the probe spawned; killing
+ * before waitpid (not after) avoids a pid/pgid-reuse race, since the
+ * still-unreaped group leader keeps pgid valid and unique.
+ *
+ * Every path below closes any fds it opened (via UniqueFd's RAII) and, once
+ * posix_spawn has created a child, reaps it with waitpid — no fd leaks, no
+ * zombies.
  */
 auto runOnce(const std::filesystem::path& executable,
              const char* flag,
@@ -176,23 +263,21 @@ auto runOnce(const std::filesystem::path& executable,
     if (::pipe(pipeFds.data()) != 0) {
         return {};
     }
-    const int readFd = pipeFds[0];
-    const int writeFd = pipeFds[1];
+    UniqueFd readFd{pipeFds[0]};
+    UniqueFd writeFd{pipeFds[1]};
 
-    if (! setCloseOnExec(readFd) || ! setCloseOnExec(writeFd)) {
-        ::close(readFd);
-        ::close(writeFd);
+    if (! setCloseOnExec(readFd.get()) || ! setCloseOnExec(writeFd.get())) {
         return {};
     }
 
     posix_spawn_file_actions_t fileActions;
     posix_spawn_file_actions_init(&fileActions);
     posix_spawn_file_actions_addopen(&fileActions, STDIN_FILENO, "/dev/null", O_RDONLY, 0);
-    posix_spawn_file_actions_adddup2(&fileActions, writeFd, STDOUT_FILENO);
+    posix_spawn_file_actions_adddup2(&fileActions, writeFd.get(), STDOUT_FILENO);
     posix_spawn_file_actions_addopen(&fileActions, STDERR_FILENO, "/dev/null", O_WRONLY, 0);
     // Explicit close of the read end for clarity; FD_CLOEXEC already closes
     // both pipe fds at exec() time, so this is redundant-but-documented.
-    posix_spawn_file_actions_addclose(&fileActions, readFd);
+    posix_spawn_file_actions_addclose(&fileActions, readFd.get());
 
     posix_spawnattr_t attr;
     posix_spawnattr_init(&attr);
@@ -212,25 +297,23 @@ auto runOnce(const std::filesystem::path& executable,
     posix_spawn_file_actions_destroy(&fileActions);
     posix_spawnattr_destroy(&attr);
 
-    ::close(writeFd);  // Parent's copy: read() below must see EOF once the child is done.
+    writeFd.reset();  // Parent's copy: read() below must see EOF once the child is done.
 
     if (spawnStatus != 0) {
-        ::close(readFd);
         return {};
     }
 
     SubprocessResult result;
     const auto deadline = std::chrono::steady_clock::now() + timeout;
-    const bool timedOut = drainUntilEofOrDeadline(readFd, deadline, result.capturedStdout);
-    ::close(readFd);
+    drainUntilEofOrDeadline(readFd.get(), deadline, result.capturedStdout);
+    readFd.reset();
 
-    if (timedOut) {
-        // Child is its own process group leader, so pgid == childPid.
-        // Any write it attempts after we've closed readFd yields SIGPIPE,
-        // which is harmless: we are about to kill and reap it regardless.
-        // NOLINTNEXTLINE(misc-include-cleaner) - killpg() and SIGKILL are provided by <signal.h>
-        ::killpg(childPid, SIGKILL);
-    }
+    // Kill unconditionally (see the doc comment above for why this is safe
+    // for an already-exited child too). It is its own process group
+    // leader, so pgid == childPid; any write it attempts after we've
+    // closed readFd yields a harmless SIGPIPE, since we are about to kill it.
+    // NOLINTNEXTLINE(misc-include-cleaner) - killpg() and SIGKILL are provided by <signal.h>
+    ::killpg(childPid, SIGKILL);
 
     int status = 0;
     // No do-while: waitpid() must be attempted at least once, then retried on EINTR.
@@ -240,7 +323,7 @@ auto runOnce(const std::filesystem::path& executable,
     }
 
     // NOLINTNEXTLINE(misc-include-cleaner) - WIFEXITED/WEXITSTATUS are provided by <sys/wait.h>
-    if (! timedOut && waited == childPid && WIFEXITED(status)) {
+    if (waited == childPid && WIFEXITED(status)) {
         result.exitedNormally = true;
         result.exitCode = WEXITSTATUS(status);  // NOLINT(misc-include-cleaner) - provided by <sys/wait.h>
     }
