@@ -126,12 +126,13 @@ scrap update
 scrap is in early alpha development (v0.0.1). Currently implemented:
 
 ✅ **Core Features**
-- Project creation (`scrap new`)
-- Template system with variable substitution
-- Basic command structure (build, run, clean)
-- Configuration file parsing (`scrap.toml`)
+- CLI command framework (help, version, command discovery)
 
 🚧 **In Progress**
+- Project creation (`scrap new`) - currently a placeholder command
+- Template system with variable substitution
+- Basic command structure (build, run, clean) - currently placeholder commands
+- Configuration file parsing (`scrap.toml`)
 - Git-based template repository integration
 - Build system implementation
 - Toolchain management
@@ -226,13 +227,13 @@ cmake --build build/debug --parallel
 # Run tests
 cmake --build build/debug --target test
 
-# Or run tests directly
-./build/debug/test/scrap_test
+# Or run tests directly with ctest
+ctest --test-dir build/debug --output-on-failure
 ```
 
 ### Testing
 
-The project uses Catch2 v3.7.1 for unit testing. Tests are automatically built when `BUILD_TESTS=ON`.
+The project uses GoogleTest for unit testing, run through ctest. Tests are automatically built when `BUILD_TESTS=ON`.
 
 ```bash
 # Build and run all tests
@@ -241,8 +242,9 @@ cmake --build build/debug --target test
 # Run tests with verbose output
 ctest --test-dir build/debug --output-on-failure --verbose
 
-# Run specific test executable
-./build/debug/test/scrap_test
+# Run a specific test executable directly
+./build/debug/test/scrap_gtest
+./build/debug/test/scrap_gtest_cli11
 
 # Release build testing
 cmake -S . -B build/release -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON
@@ -250,9 +252,7 @@ cmake --build build/release --target test
 ```
 
 **Test Structure:**
-- `test/unit/` - Unit tests for individual components
-- `test/helpers/` - Test utilities (TestPresenter, FileSystemHelper)
-- `test/fixtures/` - Test data and mock templates
+- `test/unit/command/` - Unit tests for the command layer
 
 ## 📊 Roadmap
 
