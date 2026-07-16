@@ -4,7 +4,7 @@
 #include "command/DefaultVersionRenderer.h"
 #include "command/ExternalCommandResolver.h"
 #include "command/HelpRenderer.h"
-#include "command/NullMetadataProvider.h"
+#include "command/MetadataProtocolProvider.h"
 #include "command/ProjectCommandResolver.h"
 #include "command/RuntimeEnvironment.h"
 #include "command/RuntimeEnvironmentFactory.h"
@@ -51,7 +51,7 @@ int main(int argc, char* argv[])
 
         Application app(std::make_unique<CLI11ParserAdapter>(), std::move(helpRenderer), std::move(versionRenderer));
         app.addResolver(std::make_unique<BuiltinCommandResolver>(helpRef, versionRef));
-        app.addResolver(std::make_unique<ExternalCommandResolver>(std::make_unique<NullMetadataProvider>()));
+        app.addResolver(std::make_unique<ExternalCommandResolver>(std::make_unique<MetadataProtocolProvider>()));
         app.addResolver(std::make_unique<ProjectCommandResolver>(std::make_unique<StubScriptsReader>()));
 
         return app.run(std::span<const char* const>{argv, static_cast<size_t>(argc)}, env);

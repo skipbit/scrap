@@ -22,6 +22,7 @@ target_sources(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ExternalCommandResolver.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ExternalMetadataProvider.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/HelpRenderer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/MetadataProtocolProvider.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ParserAdapter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ProjectCommandResolver.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ScriptsReader.cpp
@@ -29,7 +30,6 @@ target_sources(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/command/VersionRenderer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/driver/CLI11ParserAdapter.cpp
     # Composition root helpers
-    ${CMAKE_CURRENT_SOURCE_DIR}/command/NullMetadataProvider.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/RuntimeEnvironmentFactory.cpp
 )
 
