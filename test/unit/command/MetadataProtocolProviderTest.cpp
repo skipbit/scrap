@@ -194,6 +194,32 @@ TEST_F(MetadataProtocolProviderTest, ClosesStdoutThenHang)
 }
 
 /**
+ * Verify that a valid child which closes stdout, does a bit of brief work,
+ * and then exits 0 is NOT force-failed. Regression for a bug where the
+ * reap unconditionally SIGKILLed the process group right after the drain
+ * saw EOF: EOF only proves stdout's write end is closed, not that the
+ * child has exited, so a still-alive-but-about-to-exit child raced the
+ * kill and its already-captured (valid) output was discarded in favor of
+ * a bogus killed/WIFSIGNALED status.
+ */
+TEST_F(MetadataProtocolProviderTest, ValidProviderClosingStdoutEarly)
+{
+    auto script = createExecutable("scrap-x", R"(if [ "$1" = "--scrap-metadata" ]; then
+  echo "early-close-desc"
+  exec 1>&-
+  sleep 0.1
+  exit 0
+fi
+exit 1)");
+
+    MetadataProtocolProvider provider(FastTimeout);
+    auto result = provider.fetch(script);
+
+    ASSERT_TRUE(result.has_value());
+    EXPECT_EQ(result->description, "early-close-desc");
+}
+
+/**
  * Verify that a missing or non-executable path fails cleanly (no crash).
  */
 TEST_F(MetadataProtocolProviderTest, NonExecutableOrMissing)

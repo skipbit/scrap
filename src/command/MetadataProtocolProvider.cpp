@@ -9,6 +9,7 @@
 #include <cstddef>
 #include <fcntl.h>
 #include <filesystem>
+#include <optional>
 #include <poll.h>
 // <csignal> does not reliably resolve killpg()/SIGKILL for include-cleaner on
 // all platforms; <signal.h> is the POSIX header that actually declares them.
@@ -44,6 +45,12 @@ constexpr const char* HelpFlag = "--help";
 // line, so this is generous headroom rather than an expected size.
 constexpr std::size_t MaxCaptureBytes = 64UL * 1024UL;
 constexpr std::size_t ReadChunkBytes = 4096;
+
+// Short sleep between non-blocking reap polls while waiting for a child that
+// has already closed stdout to actually exit (see the deadline-bounded reap
+// in runOnce()). Small enough not to add perceptible latency, large enough
+// to avoid busy-waiting.
+constexpr int ReapPollIntervalMs = 5;
 
 /**
  * Result of running an executable once and capturing its stdout.
@@ -167,9 +174,9 @@ private:
  * poll() so a full pipe can never deadlock the caller (the child keeps
  * making progress as we keep reading).
  *
- * The caller (runOnce) always kills and reaps the child once this returns,
- * regardless of which of the above reasons stopped the drain, so no return
- * value is needed to single out "timed out" from the others.
+ * The caller (runOnce) reaps the child (bounded by the same deadline) once
+ * this returns, regardless of which of the above reasons stopped the drain,
+ * so no return value is needed to single out "timed out" from the others.
  */
 auto drainUntilEofOrDeadline(int readFd, std::chrono::steady_clock::time_point deadline, std::string& out) -> void
 {
@@ -178,7 +185,7 @@ auto drainUntilEofOrDeadline(int readFd, std::chrono::steady_clock::time_point d
     while (true) {
         auto remaining = deadline - std::chrono::steady_clock::now();
         if (remaining <= std::chrono::steady_clock::duration::zero()) {
-            return;  // Deadline reached; the caller kills and reaps the child unconditionally.
+            return;  // Deadline reached; the caller reaps the child, bounded by the deadline.
         }
 
         // NOLINTNEXTLINE(misc-include-cleaner) - std::chrono::ceil is provided by <chrono>
@@ -213,7 +220,7 @@ auto drainUntilEofOrDeadline(int readFd, std::chrono::steady_clock::time_point d
         if (bytesRead == 0) {
             // EOF: the child closed its stdout. It may have exited already,
             // or it may still be running (e.g. `exec 1>&-; sleep ...`) — the
-            // caller's unconditional kill-then-reap handles both uniformly.
+            // caller's deadline-bounded reap handles both uniformly.
             return;
         }
         if (bytesRead < 0) {
@@ -233,27 +240,77 @@ auto drainUntilEofOrDeadline(int readFd, std::chrono::steady_clock::time_point d
 }
 
 /**
+ * Reap @p childPid, bounded by @p deadline, and return its exit code if it
+ * exited normally in time.
+ *
+ * EOF on the child's stdout (where draining stops) proves only that the write
+ * end is closed, not that the child has exited — a valid probe can legitimately
+ * `echo ...; exec 1>&-; sleep 0.05; exit 0`, closing stdout while still doing
+ * brief work. Killing unconditionally at that point would race a
+ * still-alive-but-about-to-exit child and discard its real (already-captured)
+ * output for a bogus WIFSIGNALED status. So the reap instead: (1) tries a
+ * non-blocking waitpid() first — a child that has already exited (the common
+ * case) is reaped at once with its real status; (2) if the child is still
+ * running, keeps polling (bounded by @p deadline) so one that closed stdout
+ * early but exits shortly after is still reaped with its real status; (3) a
+ * child still alive at the deadline is SIGKILLed (its whole process group) and
+ * then waited for, bounding the reap so it can never block for the child's full
+ * lifetime. killpg (not kill) SIGKILLs the whole process group, including
+ * grandchildren the probe spawned, but waitpid(childPid) only reaps the direct
+ * child itself — any signalled grandchildren are reparented to init, which
+ * reaps them. Killing before the post-kill waitpid (not after) avoids a
+ * pid/pgid-reuse race, since the still-unreaped group leader keeps pgid valid
+ * and unique.
+ *
+ * @return the exit code if the child exited normally within the deadline, or
+ *   std::nullopt if it had to be killed (or could not be reaped).
+ */
+auto reapBounded(pid_t childPid, std::chrono::steady_clock::time_point deadline) -> std::optional<int>
+{
+    int status = 0;
+    pid_t waited = 0;
+    bool killed = false;
+    while (true) {
+        // NOLINTNEXTLINE(misc-include-cleaner) - WNOHANG is provided by <sys/wait.h>
+        waited = ::waitpid(childPid, &status, WNOHANG);
+        if (waited == childPid) {
+            break;  // Reaped; status is valid.
+        }
+        if (waited < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            break;  // e.g. ECHILD; nothing more we can do.
+        }
+        // waited == 0: still running.
+        if (std::chrono::steady_clock::now() >= deadline) {
+            // NOLINTNEXTLINE(misc-include-cleaner) - killpg() and SIGKILL are provided by <signal.h>
+            ::killpg(childPid, SIGKILL);
+            killed = true;
+            waited = ::waitpid(childPid, &status, 0);
+            while (waited < 0 && errno == EINTR) {
+                waited = ::waitpid(childPid, &status, 0);
+            }
+            break;
+        }
+        ::poll(nullptr, 0, ReapPollIntervalMs);  // Portable short sleep; avoid busy-waiting.
+    }
+
+    // NOLINTNEXTLINE(misc-include-cleaner) - WIFEXITED/WEXITSTATUS are provided by <sys/wait.h>
+    if (! killed && waited == childPid && WIFEXITED(status)) {
+        return WEXITSTATUS(status);  // NOLINT(misc-include-cleaner) - provided by <sys/wait.h>
+    }
+    return std::nullopt;
+}
+
+/**
  * Run @p executable with a single @p flag argument (no shell, argv-array
  * only), capturing stdout while discarding stdin/stderr. The child runs in
- * its own process group.
- *
- * The process group is unconditionally SIGKILLed right before the final
- * (blocking) waitpid(), regardless of why draining its stdout stopped. If
- * the child already exited (the common case: it wrote its output and
- * closed stdout), it is a zombie and the kill is a harmless no-op — the
- * zombie's exit status is preserved, so waitpid() still returns the real
- * WIFEXITED/WEXITSTATUS. If the child is still alive (deadline reached,
- * capture cap hit, or a poll/read error while it keeps running), the kill
- * bounds the reap so waitpid() cannot block for the child's full lifetime.
- * Either way WIFEXITED(status) below naturally distinguishes "exited
- * normally" from "we had to kill it" — no separate flag is needed. killpg
- * (not kill) also reaps any grandchildren the probe spawned; killing
- * before waitpid (not after) avoids a pid/pgid-reuse race, since the
- * still-unreaped group leader keeps pgid valid and unique.
+ * its own process group and is reaped via reapBounded(), so a slow or hung
+ * probe can never block the caller past @p timeout.
  *
  * Every path below closes any fds it opened (via UniqueFd's RAII) and, once
- * posix_spawn has created a child, reaps it with waitpid — no fd leaks, no
- * zombies.
+ * posix_spawn has created a child, reaps it — no fd leaks, no zombies.
  */
 auto runOnce(const std::filesystem::path& executable,
              const char* flag,
@@ -308,24 +365,12 @@ auto runOnce(const std::filesystem::path& executable,
     drainUntilEofOrDeadline(readFd.get(), deadline, result.capturedStdout);
     readFd.reset();
 
-    // Kill unconditionally (see the doc comment above for why this is safe
-    // for an already-exited child too). It is its own process group
-    // leader, so pgid == childPid; any write it attempts after we've
-    // closed readFd yields a harmless SIGPIPE, since we are about to kill it.
-    // NOLINTNEXTLINE(misc-include-cleaner) - killpg() and SIGKILL are provided by <signal.h>
-    ::killpg(childPid, SIGKILL);
-
-    int status = 0;
-    // No do-while: waitpid() must be attempted at least once, then retried on EINTR.
-    pid_t waited = ::waitpid(childPid, &status, 0);
-    while (waited < 0 && errno == EINTR) {
-        waited = ::waitpid(childPid, &status, 0);
-    }
-
-    // NOLINTNEXTLINE(misc-include-cleaner) - WIFEXITED/WEXITSTATUS are provided by <sys/wait.h>
-    if (waited == childPid && WIFEXITED(status)) {
+    // Reap the child, bounded by the deadline (see reapBounded). Its process
+    // group leader is childPid; any write it attempts after we closed readFd
+    // yields a harmless SIGPIPE.
+    if (auto exitCode = reapBounded(childPid, deadline)) {
         result.exitedNormally = true;
-        result.exitCode = WEXITSTATUS(status);  // NOLINT(misc-include-cleaner) - provided by <sys/wait.h>
+        result.exitCode = *exitCode;
     }
 
     return result;
