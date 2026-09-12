@@ -8,34 +8,28 @@
 # source, which the tag does not change, and the commit carries their result
 # from the checks it passed on its way into main.
 #
-# Nothing is attached to the release. The Release build below exists to be
-# asked for its version; GitHub's source archives are the artefacts.
+# Nothing is attached to the release. The build below exists to be asked for
+# its version; GitHub's source archives are the artefacts.
 
 name: Release
 
 on:
   push:
     tags:
-      # Matches the glob the version logic uses. Shapes it admits but the
-      # release pattern rejects (v1.2.3.4) still reach the version check
-      # below, which is what fails them.
-      - 'v[0-9]*.[0-9]*.[0-9]*'
+      # Deliberately broader than a release tag. A mistyped tag (v1.0, v2)
+      # has to fail somewhere visible: narrowing this to the release shape
+      # would start no run at all, and the only evidence of the mistake would
+      # be a release that never appeared.
+      - 'v[0-9]*'
 
 permissions:
   contents: read
 
 jobs:
-  build-and-test:
-    uses: ./.github/workflows/build-and-test.yml
-    with:
-      build-system: 'cmake'
-
-  release:
-    needs: build-and-test
+  # Ahead of the matrix, so a tag that cannot produce a version costs one
+  # build rather than three.
+  check-version:
     runs-on: ubuntu-24.04
-    permissions:
-      contents: write  # creating the release
-
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -60,7 +54,7 @@ jobs:
       - name: Check the built version against the tag
         run: |
           version="${GITHUB_REF_NAME#v}"
-          version="${version%%[-+]*}"
+          version="${version%%-*}"
           if [ "$GITHUB_REF_NAME" = "v$version" ]; then
             expected="scrap $version"
           else
@@ -74,6 +68,26 @@ jobs:
           fi
           echo "version matches $GITHUB_REF_NAME: $banner"
 
+  build-and-test:
+    needs: check-version
+    uses: ./.github/workflows/build-and-test.yml
+    with:
+      build-system: 'cmake'
+
+  release:
+    needs: build-and-test
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write  # creating the release
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # An existing release is an error rather than a no-op: a tag that was
+      # moved and re-pushed would otherwise pass every check above and leave
+      # the stale release in place, reported as success.
+      #
       # --verify-tag: without it gh creates the tag when it is missing, at the
       # default branch's head, publishing a release for a commit that was
       # never built here.
@@ -82,8 +96,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
-            echo "release $GITHUB_REF_NAME already exists, leaving it alone"
-            exit 0
+            echo "::error::a release for $GITHUB_REF_NAME already exists; delete it before re-running"
+            exit 1
           fi
 
           flags=(--generate-notes --verify-tag)

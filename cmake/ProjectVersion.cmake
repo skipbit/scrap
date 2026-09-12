@@ -4,16 +4,23 @@
 #   include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/ProjectVersion.cmake)
 #   scrap_version_detect(<version-var> <describe-var> <source-dir>)
 #   project(<name> VERSION ${<version-var>} ...)
-#   scrap_version_banner(<banner-var> <name> <version> <describe>)
 #
-# Release tags are named v<major>.<minor>.<patch> and may carry a pre-release
-# suffix (v1.0.0-rc1). Only tags of that shape count: v0.2, v1.2.3.4 and
+# A release tag is v<major>.<minor>.<patch>, optionally followed by a
+# pre-release suffix (v1.0.0-rc1). Components carry no leading zeros, and
+# nothing may follow the triple but that suffix: v0.2, v1.2.3.4, v01.2.3 and
 # nightly-2026 are not releases, and do not become releases by sitting closer
 # to HEAD than one.
 #
+# The tags git is asked about are chosen by this pattern, not by a glob. A
+# glob cannot express "digits only", so anything narrow enough to run inside
+# git would still admit shapes the pattern rejects -- and `describe` returns
+# the nearest match, so one such tag would hide every release behind it.
+# Listing the tags, filtering them here, and naming the survivors gives both
+# describe calls the same set by construction.
+#
 # A tree with no release tag reports 0.0.0, which is what an unreleased
 # checkout is. So does a tree that is not this project's own repository --
-# git searches upwards, so sources unpacked inside another project would
+# git searches upwards, so sources vendored inside another project would
 # otherwise report that project's version as ours.
 #
 # Both values are read at configure time, which is the only point where
@@ -21,24 +28,13 @@
 # on every build instead (see cmake/GenerateVersionSource.cmake), so what the
 # binary prints follows the tags without waiting for a reconfigure.
 
-# The glob git filters candidate tags with. A glob cannot express "digits
-# only", so this admits shapes the pattern below rejects -- v1.2.3.4 and
-# v0.1.0junk both match it. Such a tag would hide every release behind it
-# from `describe --abbrev=0`, so the search below excludes the ones the
-# pattern rejects and asks again rather than giving up on the first answer.
-set(SCRAP_RELEASE_TAG_GLOB "v[0-9]*.[0-9]*.[0-9]*")
-
-# How many rejected tags to walk past before giving up. A repository with
-# more than this many malformed tags between HEAD and its last release has a
-# problem the version logic should not paper over.
-set(SCRAP_MAX_TAG_ATTEMPTS 16)
-
 # Normalise a release tag to the major.minor.patch triple that
 # project(VERSION) accepts. A pre-release suffix is dropped here and stays
 # visible in the description. Anything else is 0.0.0.
 function(scrap_version_from_tag OUT_VERSION TAG)
-    if(TAG MATCHES "^v([0-9]+\\.[0-9]+\\.[0-9]+)($|[-+])")
-        set(${OUT_VERSION} "${CMAKE_MATCH_1}" PARENT_SCOPE)
+    set(component "(0|[1-9][0-9]*)")
+    if(TAG MATCHES "^v${component}\\.${component}\\.${component}($|-)")
+        set(${OUT_VERSION} "${CMAKE_MATCH_1}.${CMAKE_MATCH_2}.${CMAKE_MATCH_3}" PARENT_SCOPE)
     else()
         set(${OUT_VERSION} "0.0.0" PARENT_SCOPE)
     endif()
@@ -58,8 +54,8 @@ function(scrap_version_detect OUT_VERSION OUT_DESCRIBE SOURCE_DIR)
     endif()
 
     # The repository has to be this project's own. git walks up the directory
-    # tree, so without this an archive extracted inside another checkout
-    # would inherit that checkout's tags.
+    # tree, so without this a copy vendored inside another checkout would
+    # inherit that checkout's tags.
     execute_process(
         COMMAND ${SCRAP_GIT_EXECUTABLE} rev-parse --show-toplevel
         WORKING_DIRECTORY ${SOURCE_DIR}
@@ -77,43 +73,53 @@ function(scrap_version_detect OUT_VERSION OUT_DESCRIBE SOURCE_DIR)
         return()
     endif()
 
-    # The nearest tag the pattern accepts. Tags the glob admits but the
-    # pattern rejects are excluded and the search repeats, so one malformed
-    # tag cannot hide the release behind it.
-    set(exclusions "")
-    set(attempt 0)
-    while(attempt LESS SCRAP_MAX_TAG_ATTEMPTS)
-        math(EXPR attempt "${attempt} + 1")
+    # Every tag, filtered by the pattern. Names carrying a CMake list
+    # separator split here, and both halves fail the pattern, which is the
+    # right answer: such a name is not a release tag.
+    execute_process(
+        COMMAND ${SCRAP_GIT_EXECUTABLE} tag --list
+        WORKING_DIRECTORY ${SOURCE_DIR}
+        OUTPUT_VARIABLE all_tags
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+        RESULT_VARIABLE list_result
+    )
+    if(NOT list_result EQUAL 0)
+        return()
+    endif()
+
+    string(REPLACE "\n" ";" all_tags "${all_tags}")
+    set(selectors "")
+    foreach(tag IN LISTS all_tags)
+        scrap_version_from_tag(candidate "${tag}")
+        if(NOT candidate STREQUAL "0.0.0")
+            list(APPEND selectors "--match=${tag}")
+        endif()
+    endforeach()
+
+    # With no release tag the version stays 0.0.0, and the description falls
+    # back to the commit id so the build can still say where it came from.
+    set(describe_selectors ${selectors})
+    if(NOT selectors)
+        set(describe_selectors "--match=")
+    else()
         execute_process(
-            COMMAND ${SCRAP_GIT_EXECUTABLE} describe --tags --abbrev=0
-                    --match=${SCRAP_RELEASE_TAG_GLOB} ${exclusions}
+            COMMAND ${SCRAP_GIT_EXECUTABLE} describe --tags --abbrev=0 ${selectors}
             WORKING_DIRECTORY ${SOURCE_DIR}
             OUTPUT_VARIABLE tag
             OUTPUT_STRIP_TRAILING_WHITESPACE
             ERROR_QUIET
             RESULT_VARIABLE tag_result
         )
-        if(NOT tag_result EQUAL 0)
-            break()
-        endif()
-
-        scrap_version_from_tag(version "${tag}")
-        if(NOT version STREQUAL "0.0.0")
+        if(tag_result EQUAL 0)
+            scrap_version_from_tag(version "${tag}")
             set(${OUT_VERSION} "${version}" PARENT_SCOPE)
-            break()
         endif()
+    endif()
 
-        # Saying so beats reporting an unreleased tree while a tag is
-        # checked out, and names the tag that needs deleting.
-        message(WARNING "ignoring tag '${tag}': not a release tag")
-        list(APPEND exclusions "--exclude=${tag}")
-    endwhile()
-
-    # The full description, filtered by the same glob and the same exclusions
-    # so both halves describe the same tag.
+    # The same set of tags, so both halves describe the same one.
     execute_process(
-        COMMAND ${SCRAP_GIT_EXECUTABLE} describe --tags --always --dirty
-                --match=${SCRAP_RELEASE_TAG_GLOB} ${exclusions}
+        COMMAND ${SCRAP_GIT_EXECUTABLE} describe --tags --always --dirty ${describe_selectors}
         WORKING_DIRECTORY ${SOURCE_DIR}
         OUTPUT_VARIABLE describe
         OUTPUT_STRIP_TRAILING_WHITESPACE
