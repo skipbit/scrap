@@ -34,3 +34,7 @@
 # Language server files
 .cache/
 compile_commands.json
+
+# Build directories. The Makefile configures build/debug and build/release,
+# the workflows configure build, and none of it belongs in the history.
+build/
