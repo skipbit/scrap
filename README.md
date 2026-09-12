@@ -122,7 +122,7 @@ scrap update
 
 ## 📋 Project Status
 
-scrap is in early alpha development (v0.0.1). Currently implemented:
+scrap is in early alpha development. Currently implemented:
 
 ✅ **Core Features**
 - CLI command framework (help, version, command discovery)

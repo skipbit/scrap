@@ -3,7 +3,7 @@
 namespace scrap {
 
 std::string version() {
-    return "@PROJECT_NAME@ @PROJECT_VERSION@";
+    return "@SCRAP_VERSION_BANNER@";
 }
 
 }

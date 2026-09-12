@@ -150,3 +150,14 @@ set_target_properties(scrap_e2e PROPERTIES
 add_dependencies(scrap_e2e scrap)
 
 gtest_discover_tests(scrap_e2e PROPERTIES LABELS e2e)
+
+# --- CMake module tests (run in script mode) ---
+#
+# The version is resolved at configure time, so the logic behind it cannot be
+# reached from a C++ test; the e2e check only confirms that whatever the
+# configure produced is what the binary prints.
+add_test(NAME ProjectVersionTest
+    COMMAND ${CMAKE_COMMAND}
+        -D "SCRATCH_DIR=${CMAKE_CURRENT_BINARY_DIR}/version-test"
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ProjectVersionTest.cmake
+)

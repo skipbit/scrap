@@ -14,7 +14,7 @@ public:
     /**
      * @brief Render the version string.
      *
-     * @return Version string (e.g. "scrap 0.0.1").
+     * @return Version banner (e.g. "scrap 0.1.0").
      */
     [[nodiscard]] auto render() const -> std::string override;
 };
