@@ -130,13 +130,7 @@ add_executable(scrap_e2e
     e2e/CliE2ETest.cpp
 )
 
-# The expected banner comes from the same configure that generated the one the
-# binary carries, so the test pins the generation path without pinning a number
-# that every release would have to chase.
-target_compile_definitions(scrap_e2e PRIVATE
-    SCRAP_BINARY_PATH="$<TARGET_FILE:scrap>"
-    SCRAP_EXPECTED_VERSION="${SCRAP_VERSION_BANNER}"
-)
+target_compile_definitions(scrap_e2e PRIVATE SCRAP_BINARY_PATH="$<TARGET_FILE:scrap>")
 
 target_link_libraries(scrap_e2e PRIVATE GTest::gtest_main)
 target_compile_features(scrap_e2e PUBLIC cxx_std_23)
@@ -163,5 +157,7 @@ gtest_discover_tests(scrap_e2e PROPERTIES LABELS e2e)
 # reached from a C++ test; the e2e check only confirms that whatever the
 # configure produced is what the binary prints.
 add_test(NAME ProjectVersionTest
-    COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ProjectVersionTest.cmake
+    COMMAND ${CMAKE_COMMAND}
+        -D "SCRATCH_DIR=${CMAKE_CURRENT_BINARY_DIR}/version-test"
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ProjectVersionTest.cmake
 )

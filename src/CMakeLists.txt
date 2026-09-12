@@ -1,16 +1,31 @@
 
-# Generate version source from template
-configure_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/shared/constants/version.cpp.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/shared/constants/version.cpp"
-    @ONLY
+# The version source is refreshed on every build rather than only at configure
+# time: a commit, a tag or an edit moves the description, and the banner the
+# binary prints should follow. Generating it once here as well gives the first
+# build a file to compile.
+set(SCRAP_VERSION_SOURCE "${CMAKE_CURRENT_BINARY_DIR}/shared/constants/version.cpp")
+set(SCRAP_VERSION_GENERATOR_ARGS
+    -D "SOURCE_DIR=${CMAKE_SOURCE_DIR}"
+    -D "NAME=${PROJECT_NAME}"
+    -D "INPUT=${CMAKE_CURRENT_SOURCE_DIR}/shared/constants/version.cpp.in"
+    -D "OUTPUT=${SCRAP_VERSION_SOURCE}"
+    -P "${CMAKE_SOURCE_DIR}/cmake/GenerateVersionSource.cmake"
+)
+
+execute_process(COMMAND ${CMAKE_COMMAND} ${SCRAP_VERSION_GENERATOR_ARGS})
+
+add_custom_target(scrap_version_source ALL
+    COMMAND ${CMAKE_COMMAND} ${SCRAP_VERSION_GENERATOR_ARGS}
+    BYPRODUCTS "${SCRAP_VERSION_SOURCE}"
+    COMMENT "Resolving the version"
+    VERBATIM
 )
 
 add_executable(${PROJECT_NAME} ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp)
 
 target_sources(${PROJECT_NAME} PRIVATE
     # Generated version source
-    ${CMAKE_CURRENT_BINARY_DIR}/shared/constants/version.cpp
+    ${SCRAP_VERSION_SOURCE}
     # Command architecture
     ${CMAKE_CURRENT_SOURCE_DIR}/command/Application.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/BuiltinCommandResolver.cpp
@@ -56,6 +71,8 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     CXX_EXTENSIONS OFF
     OUTPUT_NAME "scrap"
 )
+
+add_dependencies(${PROJECT_NAME} scrap_version_source)
 
 find_package(CLI11 REQUIRED)
 find_package(TomlPlusPlus REQUIRED)

@@ -16,6 +16,7 @@
 #include <filesystem>
 #include <fstream>
 #include <poll.h>
+#include <regex>
 #include <string>
 #include <string_view>
 #include <sys/wait.h>
@@ -26,11 +27,21 @@
 #error "SCRAP_BINARY_PATH must be defined by the build (path to the scrap executable)"
 #endif
 
-#ifndef SCRAP_EXPECTED_VERSION
-#error "SCRAP_EXPECTED_VERSION must be defined by the build (version banner the binary should print)"
-#endif
-
 namespace {
+
+/**
+ * Whether text is a version banner: the program name, a release triple, and
+ * an optional parenthesised description of the build.
+ *
+ * The check is structural on purpose. Comparing against the exact string the
+ * build produced would put the same value on both sides of the assertion, so
+ * no wrong derivation could fail it.
+ */
+auto isVersionBanner(const std::string& text) -> bool
+{
+    static const std::regex Pattern{R"(^scrap [0-9]+\.[0-9]+\.[0-9]+( \(.+\))?$)"};
+    return std::regex_match(text, Pattern);
+}
 
 constexpr std::chrono::milliseconds HarnessTimeout{5000};
 constexpr std::size_t ReadChunkBytes = 4096;
@@ -341,7 +352,7 @@ TEST_F(CliE2ETest, BuiltinResolveExecute)
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
-    EXPECT_EQ(trim(result.stdoutText), SCRAP_EXPECTED_VERSION);
+    EXPECT_TRUE(isVersionBanner(trim(result.stdoutText))) << "banner: " << trim(result.stdoutText);
     EXPECT_TRUE(result.stderrText.empty());
 }
 
@@ -464,12 +475,21 @@ esac)");
 
 TEST_F(CliE2ETest, VersionForms)
 {
+    std::vector<std::string> banners;
+
     for (const auto& args :
          {std::vector<std::string>{"version"}, std::vector<std::string>{"--version"}, std::vector<std::string>{"-V"}}) {
         auto result = runScrap(args, {}, root_);
 
         ASSERT_TRUE(result.exitedNormally);
         EXPECT_EQ(result.exitCode, 0);
-        EXPECT_EQ(trim(result.stdoutText), SCRAP_EXPECTED_VERSION);
+
+        const std::string banner = trim(result.stdoutText);
+        EXPECT_TRUE(isVersionBanner(banner)) << "banner: " << banner;
+        banners.push_back(banner);
     }
+
+    ASSERT_EQ(banners.size(), 3U);
+    EXPECT_EQ(banners[0], banners[1]);
+    EXPECT_EQ(banners[1], banners[2]);
 }
