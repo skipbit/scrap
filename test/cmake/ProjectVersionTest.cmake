@@ -85,10 +85,14 @@ expect_banner("scrap" "0.2.0" "v0.2.0-rc1" "scrap 0.2.0 (v0.2.0-rc1)")
 
 # --- detection against real repositories -------------------------------------
 
+set(MINIMUM_CHECKS 17)
+
 find_program(GIT_FOR_TEST NAMES git)
 if(NOT GIT_FOR_TEST)
     message(STATUS "ProjectVersion: git not found, skipping the detection cases")
 else()
+    math(EXPR MINIMUM_CHECKS "${MINIMUM_CHECKS} + 14")
+
     function(run_git DIR)
         execute_process(
             COMMAND ${GIT_FOR_TEST} -c user.email=t@example.invalid -c user.name=t ${ARGN}
@@ -146,6 +150,14 @@ else()
     run_git("${SCRATCH_DIR}/shadowed" tag v0.2)
     expect_detect("${SCRATCH_DIR}/shadowed" "0.1.0" "^v0[.]1[.]0-1-g[0-9a-f]+$" "non-release tag ahead")
 
+    # A tag the glob admits but the pattern rejects is the case a glob
+    # cannot filter: it would otherwise hide every release behind it.
+    make_repo("${SCRATCH_DIR}/malformed")
+    run_git("${SCRATCH_DIR}/malformed" tag v0.1.0)
+    run_git("${SCRATCH_DIR}/malformed" commit -q --allow-empty -m next)
+    run_git("${SCRATCH_DIR}/malformed" tag v1.2.3.4)
+    expect_detect("${SCRATCH_DIR}/malformed" "0.1.0" "^v0[.]1[.]0-1-g[0-9a-f]+$" "malformed tag ahead")
+
     # A non-release tag sharing the release's commit must not become the
     # description, or a release build stops looking like one.
     make_repo("${SCRATCH_DIR}/colocated")
@@ -167,7 +179,6 @@ endif()
 
 # An empty run exits 0 without this: every assertion could be removed and the
 # test would still report success.
-set(MINIMUM_CHECKS 17)
 if(checks LESS MINIMUM_CHECKS)
     message(SEND_ERROR "ProjectVersion: ran ${checks} checks, expected at least ${MINIMUM_CHECKS}")
 elseif(failures GREATER 0)

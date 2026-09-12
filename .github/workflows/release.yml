@@ -2,15 +2,24 @@
 #
 # The tag is where the version comes from (see cmake/ProjectVersion.cmake), so
 # a release is cut by pushing one. The build and the tests run again here
-# rather than trusting the branch checks: a tag can point at any commit, and
-# the version the binary carries only exists once the tag does.
+# because the version is baked in at build time and only exists once the tag
+# does -- the matrix that ran on the branch built a different version of the
+# same code. Static analysis and formatting are not repeated: they read the
+# source, which the tag does not change, and the commit carries their result
+# from the checks it passed on its way into main.
+#
+# Nothing is attached to the release. The Release build below exists to be
+# asked for its version; GitHub's source archives are the artefacts.
 
 name: Release
 
 on:
   push:
     tags:
-      - 'v[0-9]*'
+      # Matches the glob the version logic uses. Shapes it admits but the
+      # release pattern rejects (v1.2.3.4) still reach the version check
+      # below, which is what fails them.
+      - 'v[0-9]*.[0-9]*.[0-9]*'
 
 permissions:
   contents: read
@@ -41,28 +50,43 @@ jobs:
           cmake --build build -j"$(nproc)"
 
       # A tag that does not reach the binary is the failure this guards: a
-      # shallow checkout, a tag outside the pattern, or a rename would each
-      # leave the binary reporting 0.0.0 while the release says otherwise.
+      # shallow checkout, a tag the release pattern rejects, or a second tag
+      # on the same commit would each leave the binary naming something other
+      # than the release being published, and nothing else would notice.
+      #
+      # The comparison is exact. A tag with no suffix produces the bare
+      # banner; anything else carries the tag itself, because that is what
+      # git describe reports when standing on it.
       - name: Check the built version against the tag
         run: |
-          expected="${GITHUB_REF_NAME#v}"
-          expected="${expected%%-*}"
-          banner="$(./build/bin/scrap version)"
-          case "$banner" in
-            "scrap $expected"|"scrap $expected ("*)
-              echo "version matches $GITHUB_REF_NAME: $banner"
-              ;;
-            *)
-              echo "::error::the binary reports '$banner', the tag says $expected"
-              exit 1
-              ;;
-          esac
+          version="${GITHUB_REF_NAME#v}"
+          version="${version%%[-+]*}"
+          if [ "$GITHUB_REF_NAME" = "v$version" ]; then
+            expected="scrap $version"
+          else
+            expected="scrap $version ($GITHUB_REF_NAME)"
+          fi
 
+          banner="$(./build/bin/scrap version)"
+          if [ "$banner" != "$expected" ]; then
+            echo "::error::the binary reports '$banner', expected '$expected'"
+            exit 1
+          fi
+          echo "version matches $GITHUB_REF_NAME: $banner"
+
+      # --verify-tag: without it gh creates the tag when it is missing, at the
+      # default branch's head, publishing a release for a commit that was
+      # never built here.
       - name: Create the release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          flags=(--generate-notes)
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            echo "release $GITHUB_REF_NAME already exists, leaving it alone"
+            exit 0
+          fi
+
+          flags=(--generate-notes --verify-tag)
           case "$GITHUB_REF_NAME" in
             *-*) flags+=(--prerelease) ;;
           esac

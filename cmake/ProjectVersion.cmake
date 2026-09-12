@@ -21,10 +21,17 @@
 # on every build instead (see cmake/GenerateVersionSource.cmake), so what the
 # binary prints follows the tags without waiting for a reconfigure.
 
-# The glob git filters candidate tags with. It has to be at least as strict
-# as the pattern below, or a tag that is rejected here can still hide a real
-# release from `describe --abbrev=0`.
+# The glob git filters candidate tags with. A glob cannot express "digits
+# only", so this admits shapes the pattern below rejects -- v1.2.3.4 and
+# v0.1.0junk both match it. Such a tag would hide every release behind it
+# from `describe --abbrev=0`, so the search below excludes the ones the
+# pattern rejects and asks again rather than giving up on the first answer.
 set(SCRAP_RELEASE_TAG_GLOB "v[0-9]*.[0-9]*.[0-9]*")
+
+# How many rejected tags to walk past before giving up. A repository with
+# more than this many malformed tags between HEAD and its last release has a
+# problem the version logic should not paper over.
+set(SCRAP_MAX_TAG_ATTEMPTS 16)
 
 # Normalise a release tag to the major.minor.patch triple that
 # project(VERSION) accepts. A pre-release suffix is dropped here and stays
@@ -70,29 +77,43 @@ function(scrap_version_detect OUT_VERSION OUT_DESCRIBE SOURCE_DIR)
         return()
     endif()
 
-    # The nearest release tag.
-    execute_process(
-        COMMAND ${SCRAP_GIT_EXECUTABLE} describe --tags --abbrev=0 --match=${SCRAP_RELEASE_TAG_GLOB}
-        WORKING_DIRECTORY ${SOURCE_DIR}
-        OUTPUT_VARIABLE tag
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        ERROR_QUIET
-        RESULT_VARIABLE tag_result
-    )
-    if(tag_result EQUAL 0)
-        scrap_version_from_tag(version "${tag}")
-        if(version STREQUAL "0.0.0")
-            # The glob let a tag through that the pattern rejects. Saying so
-            # beats reporting an unreleased tree while a tag is checked out.
-            message(WARNING "ignoring tag '${tag}': not a release tag")
+    # The nearest tag the pattern accepts. Tags the glob admits but the
+    # pattern rejects are excluded and the search repeats, so one malformed
+    # tag cannot hide the release behind it.
+    set(exclusions "")
+    set(attempt 0)
+    while(attempt LESS SCRAP_MAX_TAG_ATTEMPTS)
+        math(EXPR attempt "${attempt} + 1")
+        execute_process(
+            COMMAND ${SCRAP_GIT_EXECUTABLE} describe --tags --abbrev=0
+                    --match=${SCRAP_RELEASE_TAG_GLOB} ${exclusions}
+            WORKING_DIRECTORY ${SOURCE_DIR}
+            OUTPUT_VARIABLE tag
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            ERROR_QUIET
+            RESULT_VARIABLE tag_result
+        )
+        if(NOT tag_result EQUAL 0)
+            break()
         endif()
-        set(${OUT_VERSION} "${version}" PARENT_SCOPE)
-    endif()
 
-    # The full description, filtered by the same glob so it describes distance
-    # from a release rather than from whatever tag happens to be nearest.
+        scrap_version_from_tag(version "${tag}")
+        if(NOT version STREQUAL "0.0.0")
+            set(${OUT_VERSION} "${version}" PARENT_SCOPE)
+            break()
+        endif()
+
+        # Saying so beats reporting an unreleased tree while a tag is
+        # checked out, and names the tag that needs deleting.
+        message(WARNING "ignoring tag '${tag}': not a release tag")
+        list(APPEND exclusions "--exclude=${tag}")
+    endwhile()
+
+    # The full description, filtered by the same glob and the same exclusions
+    # so both halves describe the same tag.
     execute_process(
-        COMMAND ${SCRAP_GIT_EXECUTABLE} describe --tags --always --dirty --match=${SCRAP_RELEASE_TAG_GLOB}
+        COMMAND ${SCRAP_GIT_EXECUTABLE} describe --tags --always --dirty
+                --match=${SCRAP_RELEASE_TAG_GLOB} ${exclusions}
         WORKING_DIRECTORY ${SOURCE_DIR}
         OUTPUT_VARIABLE describe
         OUTPUT_STRIP_TRAILING_WHITESPACE

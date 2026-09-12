@@ -23,6 +23,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          # The tests run against the built binary, whose version comes from
+          # git tags: a shallow checkout would measure a 0.0.0 build.
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v7
