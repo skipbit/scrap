@@ -1,0 +1,69 @@
+# Publishes a GitHub release for a version tag.
+#
+# The tag is where the version comes from (see cmake/ProjectVersion.cmake), so
+# a release is cut by pushing one. The build and the tests run again here
+# rather than trusting the branch checks: a tag can point at any commit, and
+# the version the binary carries only exists once the tag does.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]*'
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    uses: ./.github/workflows/build-and-test.yml
+    with:
+      build-system: 'cmake'
+
+  release:
+    needs: build-and-test
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write  # creating the release
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          # The version is derived from git tags, which a shallow checkout
+          # does not carry: without the history the build reports 0.0.0.
+          fetch-depth: 0
+
+      - name: Build
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF
+          cmake --build build -j"$(nproc)"
+
+      # A tag that does not reach the binary is the failure this guards: a
+      # shallow checkout, a tag outside the pattern, or a rename would each
+      # leave the binary reporting 0.0.0 while the release says otherwise.
+      - name: Check the built version against the tag
+        run: |
+          expected="${GITHUB_REF_NAME#v}"
+          expected="${expected%%-*}"
+          banner="$(./build/bin/scrap version)"
+          case "$banner" in
+            "scrap $expected"|"scrap $expected ("*)
+              echo "version matches $GITHUB_REF_NAME: $banner"
+              ;;
+            *)
+              echo "::error::the binary reports '$banner', the tag says $expected"
+              exit 1
+              ;;
+          esac
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          flags=(--generate-notes)
+          case "$GITHUB_REF_NAME" in
+            *-*) flags+=(--prerelease) ;;
+          esac
+          gh release create "$GITHUB_REF_NAME" "${flags[@]}"
