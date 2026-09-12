@@ -50,6 +50,7 @@ expect_version("v10.20.30" "10.20.30")
 # description reported alongside it.
 expect_version("v0.2.0-rc1" "0.2.0")
 expect_version("v1.0.0-0" "1.0.0")
+expect_version("v1.0.0+build7" "1.0.0")
 
 # Anything that is not a release tag leaves the tree unreleased. Without the
 # terminating delimiter these would be truncated into versions they are not.
@@ -59,11 +60,6 @@ expect_version("v1.2.3.4" "0.0.0")
 expect_version("v0.1.0junk" "0.0.0")
 expect_version("nightly" "0.0.0")
 expect_version("" "0.0.0")
-
-# Build metadata is not accepted. The release workflow strips a - suffix and
-# nothing else, so admitting + here would mean two encodings of one rule,
-# disagreeing on exactly this shape.
-expect_version("v1.0.0+build7" "0.0.0")
 
 # Leading zeros are not accepted: CMake keeps them, so v01.2.3 would install
 # as SOVERSION 01 and write "Version: 01.2.3" into dross.pc.
@@ -106,7 +102,7 @@ find_program(GIT_FOR_TEST NAMES git)
 if(NOT GIT_FOR_TEST)
     message(STATUS "ProjectVersion: git not found, skipping the detection cases")
 else()
-    math(EXPR MINIMUM_CHECKS "${MINIMUM_CHECKS} + 18")
+    math(EXPR MINIMUM_CHECKS "${MINIMUM_CHECKS} + 20")
 
     function(run_git DIR)
         execute_process(
@@ -192,13 +188,43 @@ else()
     create_tag("${SCRATCH_DIR}/malformed" "v0.1.0junk")
     expect_detect("${SCRATCH_DIR}/malformed" "0.1.0" "^v0[.]1[.]0-1-g[0-9a-f]+$" "malformed tags ahead")
 
-    # A tag whose name carries a CMake list separator must not derail the
-    # selection: it is filtered out like any other non-release name.
+    # A name carrying a CMake list separator cannot be handed to git as one
+    # argument. The shape that bites is one whose leading fragment is itself
+    # release-shaped: split naively it yields a selector naming no tag, and
+    # the release behind it disappears.
     make_repo("${SCRATCH_DIR}/separator")
     create_tag("${SCRATCH_DIR}/separator" "v0.1.0")
     run_git("${SCRATCH_DIR}/separator" commit -q --allow-empty -m next)
-    create_tag("${SCRATCH_DIR}/separator" "v1;x.0.0")
-    expect_detect("${SCRATCH_DIR}/separator" "0.1.0" "^v0[.]1[.]0-1-g[0-9a-f]+$" "list separator in a tag name")
+    create_tag("${SCRATCH_DIR}/separator" "v1.0.0-a;b")
+    expect_detect("${SCRATCH_DIR}/separator" "0.1.0" "^v0[.]1[.]0-1-g[0-9a-f]+$" "release-shaped name with a list separator")
+
+    # A name that only git would allow reaches a C++ string literal through
+    # the generated version source. An unescaped quote would break the
+    # translation unit, or carry what follows it into the source.
+    make_repo("${SCRATCH_DIR}/quoted")
+    create_tag("${SCRATCH_DIR}/quoted" "v1.0.0-q\"x")
+    execute_process(
+        COMMAND ${CMAKE_COMMAND}
+            -D "SOURCE_DIR=${SCRATCH_DIR}/quoted"
+            -D "NAME=scrap"
+            -D "INPUT=${CMAKE_CURRENT_LIST_DIR}/../../src/shared/constants/version.cpp.in"
+            -D "OUTPUT=${SCRATCH_DIR}/quoted.cpp"
+            -P "${CMAKE_CURRENT_LIST_DIR}/../../cmake/GenerateVersionSource.cmake"
+        RESULT_VARIABLE generate_result
+        OUTPUT_QUIET
+        ERROR_QUIET
+    )
+    math(EXPR checks "${checks} + 1")
+    if(NOT generate_result EQUAL 0)
+        record_failure("generating the version source failed for a quoted tag name")
+    else()
+        file(READ "${SCRATCH_DIR}/quoted.cpp" generated)
+        math(EXPR checks "${checks} + 1")
+        # The quote has to arrive escaped, and the literal has to stay closed.
+        if(NOT generated MATCHES "return \"[^\n]*q\\\\\"x[^\n]*\";")
+            record_failure("the generated source does not escape the quote: ${generated}")
+        endif()
+    endif()
 
     # Tags that are not releases at all leave the tree unreleased, described
     # by its commit id rather than by one of them.

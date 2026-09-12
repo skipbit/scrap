@@ -6,10 +6,10 @@
 #   project(<name> VERSION ${<version-var>} ...)
 #
 # A release tag is v<major>.<minor>.<patch>, optionally followed by a
-# pre-release suffix (v1.0.0-rc1). Components carry no leading zeros, and
-# nothing may follow the triple but that suffix: v0.2, v1.2.3.4, v01.2.3 and
-# nightly-2026 are not releases, and do not become releases by sitting closer
-# to HEAD than one.
+# pre-release suffix (v1.0.0-rc1) or build metadata (v1.0.0+build7).
+# Components carry no leading zeros, and nothing may follow the triple but
+# those: v0.2, v1.2.3.4, v01.2.3 and nightly-2026 are not releases, and do not
+# become releases by sitting closer to HEAD than one.
 #
 # The tags git is asked about are chosen by this pattern, not by a glob. A
 # glob cannot express "digits only", so anything narrow enough to run inside
@@ -33,11 +33,45 @@
 # visible in the description. Anything else is 0.0.0.
 function(scrap_version_from_tag OUT_VERSION TAG)
     set(component "(0|[1-9][0-9]*)")
-    if(TAG MATCHES "^v${component}\\.${component}\\.${component}($|-)")
+    if(TAG MATCHES "^v${component}\\.${component}\\.${component}($|[-+])")
         set(${OUT_VERSION} "${CMAKE_MATCH_1}.${CMAKE_MATCH_2}.${CMAKE_MATCH_3}" PARENT_SCOPE)
     else()
         set(${OUT_VERSION} "0.0.0" PARENT_SCOPE)
     endif()
+endfunction()
+
+# Describe a tree that has no release tag: the short commit id, marked when
+# the working tree carries uncommitted changes. This is what `describe
+# --always --dirty` reports for such a tree, without asking it to consider
+# tags that are not releases.
+function(scrap_describe_commit SOURCE_DIR OUT_DESCRIPTION)
+    set(${OUT_DESCRIPTION} "" PARENT_SCOPE)
+
+    execute_process(
+        COMMAND ${SCRAP_GIT_EXECUTABLE} rev-parse --short HEAD
+        WORKING_DIRECTORY ${SOURCE_DIR}
+        OUTPUT_VARIABLE commit
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+        RESULT_VARIABLE commit_result
+    )
+    if(NOT commit_result EQUAL 0 OR NOT commit)
+        return()
+    endif()
+
+    execute_process(
+        COMMAND ${SCRAP_GIT_EXECUTABLE} status --porcelain --untracked-files=no
+        WORKING_DIRECTORY ${SOURCE_DIR}
+        OUTPUT_VARIABLE changes
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+        RESULT_VARIABLE status_result
+    )
+    if(status_result EQUAL 0 AND changes)
+        set(commit "${commit}-dirty")
+    endif()
+
+    set(${OUT_DESCRIPTION} "${commit}" PARENT_SCOPE)
 endfunction()
 
 # Resolve the numeric version and the full git description of SOURCE_DIR.
@@ -73,9 +107,7 @@ function(scrap_version_detect OUT_VERSION OUT_DESCRIBE SOURCE_DIR)
         return()
     endif()
 
-    # Every tag, filtered by the pattern. Names carrying a CMake list
-    # separator split here, and both halves fail the pattern, which is the
-    # right answer: such a name is not a release tag.
+    # Every tag, filtered by the pattern.
     execute_process(
         COMMAND ${SCRAP_GIT_EXECUTABLE} tag --list
         WORKING_DIRECTORY ${SOURCE_DIR}
@@ -88,38 +120,56 @@ function(scrap_version_detect OUT_VERSION OUT_DESCRIBE SOURCE_DIR)
         return()
     endif()
 
+    # git separates names by newline, but a name may itself contain the CMake
+    # list separator. Escaping it first keeps such a name in one piece: split
+    # naively, v1.0.0-a;b becomes v1.0.0-a, which the pattern accepts and
+    # which names no tag at all -- the release would vanish behind a selector
+    # matching nothing.
+    string(REPLACE ";" "\\;" all_tags "${all_tags}")
     string(REPLACE "\n" ";" all_tags "${all_tags}")
     set(selectors "")
     foreach(tag IN LISTS all_tags)
+        # A name carrying the CMake list separator cannot be handed to git as
+        # one argument, so it cannot be selected. git permits the character;
+        # a release tag has no reason to use it, and passing such a name
+        # through would split into a selector naming no tag at all.
+        if(tag MATCHES ";")
+            continue()
+        endif()
+
         scrap_version_from_tag(candidate "${tag}")
         if(NOT candidate STREQUAL "0.0.0")
             list(APPEND selectors "--match=${tag}")
         endif()
     endforeach()
 
-    # With no release tag the version stays 0.0.0, and the description falls
-    # back to the commit id so the build can still say where it came from.
-    set(describe_selectors ${selectors})
     if(NOT selectors)
-        set(describe_selectors "--match=")
-    else()
-        execute_process(
-            COMMAND ${SCRAP_GIT_EXECUTABLE} describe --tags --abbrev=0 ${selectors}
-            WORKING_DIRECTORY ${SOURCE_DIR}
-            OUTPUT_VARIABLE tag
-            OUTPUT_STRIP_TRAILING_WHITESPACE
-            ERROR_QUIET
-            RESULT_VARIABLE tag_result
-        )
-        if(tag_result EQUAL 0)
-            scrap_version_from_tag(version "${tag}")
-            set(${OUT_VERSION} "${version}" PARENT_SCOPE)
+        # No release tag: the commit id is all there is to report. Asking
+        # describe with no selector would let an unrelated tag answer, and an
+        # empty --match is not documented behaviour to lean on.
+        scrap_describe_commit("${SOURCE_DIR}" commit_description)
+        if(commit_description)
+            set(${OUT_DESCRIBE} "${commit_description}" PARENT_SCOPE)
         endif()
+        return()
+    endif()
+
+    execute_process(
+        COMMAND ${SCRAP_GIT_EXECUTABLE} describe --tags --abbrev=0 ${selectors}
+        WORKING_DIRECTORY ${SOURCE_DIR}
+        OUTPUT_VARIABLE tag
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+        RESULT_VARIABLE tag_result
+    )
+    if(tag_result EQUAL 0)
+        scrap_version_from_tag(version "${tag}")
+        set(${OUT_VERSION} "${version}" PARENT_SCOPE)
     endif()
 
     # The same set of tags, so both halves describe the same one.
     execute_process(
-        COMMAND ${SCRAP_GIT_EXECUTABLE} describe --tags --always --dirty ${describe_selectors}
+        COMMAND ${SCRAP_GIT_EXECUTABLE} describe --tags --always --dirty ${selectors}
         WORKING_DIRECTORY ${SOURCE_DIR}
         OUTPUT_VARIABLE describe
         OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -128,6 +178,11 @@ function(scrap_version_detect OUT_VERSION OUT_DESCRIBE SOURCE_DIR)
     )
     if(describe_result EQUAL 0 AND describe)
         set(${OUT_DESCRIBE} "${describe}" PARENT_SCOPE)
+    else()
+        scrap_describe_commit("${SOURCE_DIR}" commit_description)
+        if(commit_description)
+            set(${OUT_DESCRIBE} "${commit_description}" PARENT_SCOPE)
+        endif()
     endif()
 endfunction()
 

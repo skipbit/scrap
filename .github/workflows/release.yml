@@ -25,68 +25,118 @@ on:
 permissions:
   contents: read
 
+# Tags pushed together would otherwise race through the matrix and collide at
+# the release step, the loser failing after a full run. They are not
+# cancelled: each one is a release someone asked for.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   # Ahead of the matrix, so a tag that cannot produce a version costs one
   # build rather than three.
   check-version:
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v7
         with:
+          # By commit rather than by tag: a tag force-pushed while this runs
+          # would otherwise move the ground under the later jobs, which each
+          # resolve the ref again.
+          ref: ${{ github.sha }}
           # The version is derived from git tags, which a shallow checkout
           # does not carry: without the history the build reports 0.0.0.
           fetch-depth: 0
 
-      - name: Build
+      # Before the build, because this needs no compiler and a tag that
+      # cannot produce a version should not spend one.
+      #
+      # The build has to describe itself by the tag being released. It will
+      # not when the tag is outside the release pattern, when the history is
+      # too shallow to carry it, or when the commit holds a second release
+      # tag that git prefers -- and in that last case there is no answer to
+      # give, so saying so beats publishing one of them at random.
+      - name: Check the tag the build describes itself by
         run: |
-          cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF
+          cmake -D "SOURCE_DIR=$PWD" -D "NAME=scrap" \
+                -D "OUTPUT=$RUNNER_TEMP/version" -P cmake/PrintVersion.cmake
+          described="$(sed -n 1p "$RUNNER_TEMP/version")"
+          if [ "$described" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::the build describes itself as '$described', not $GITHUB_REF_NAME"
+            exit 1
+          fi
+          echo "the build describes itself as $described"
+
+      # The matrix builds this configuration too; sharing its cache keeps the
+      # second build from paying for the dependencies again.
+      - name: Restore ccache
+        uses: actions/cache@v6
+        with:
+          path: ~/.ccache
+          key: ccache-ubuntu-24.04-gcc-Release-${{ github.run_id }}
+          restore-keys: |
+            ccache-ubuntu-24.04-gcc-Release-
+
+      - name: Build
+        env:
+          CCACHE_DIR: ~/.ccache
+          CCACHE_BASEDIR: ${{ github.workspace }}
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ccache
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
           cmake --build build -j"$(nproc)"
 
-      # A tag that does not reach the binary is the failure this guards: a
-      # shallow checkout, a tag the release pattern rejects, or a second tag
-      # on the same commit would each leave the binary naming something other
-      # than the release being published, and nothing else would notice.
-      #
-      # The comparison is exact. A tag with no suffix produces the bare
-      # banner; anything else carries the tag itself, because that is what
-      # git describe reports when standing on it.
-      - name: Check the built version against the tag
+      # That the binary carries what the module computed. The expected text
+      # comes from the module too, so nothing here re-derives the banner.
+      - name: Check the binary against it
         run: |
-          version="${GITHUB_REF_NAME#v}"
-          version="${version%%-*}"
-          if [ "$GITHUB_REF_NAME" = "v$version" ]; then
-            expected="scrap $version"
-          else
-            expected="scrap $version ($GITHUB_REF_NAME)"
-          fi
-
+          expected="$(sed -n 2p "$RUNNER_TEMP/version")"
           banner="$(./build/bin/scrap version)"
           if [ "$banner" != "$expected" ]; then
             echo "::error::the binary reports '$banner', expected '$expected'"
             exit 1
           fi
-          echo "version matches $GITHUB_REF_NAME: $banner"
+          echo "the binary reports $banner"
 
   build-and-test:
     needs: check-version
     uses: ./.github/workflows/build-and-test.yml
     with:
       build-system: 'cmake'
+      ref: ${{ github.sha }}
 
   release:
     needs: build-and-test
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     permissions:
       contents: write  # creating the release
 
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      # Everything above was built from github.sha. If the tag has since been
+      # moved, publishing it would ship a commit nothing here tested.
+      - name: Check the tag still points at what was built
+        run: |
+          tagged="$(git rev-parse "refs/tags/$GITHUB_REF_NAME^{commit}")"
+          if [ "$tagged" != "$GITHUB_SHA" ]; then
+            echo "::error::$GITHUB_REF_NAME now points at $tagged, not the commit that was built ($GITHUB_SHA)"
+            exit 1
+          fi
 
       # An existing release is an error rather than a no-op: a tag that was
       # moved and re-pushed would otherwise pass every check above and leave
-      # the stale release in place, reported as success.
+      # the stale release in place, reported as success. A lookup that fails
+      # for any other reason is an error too -- treating it as "no release
+      # exists" would disable the guard exactly when the API is unreliable.
       #
       # --verify-tag: without it gh creates the tag when it is missing, at the
       # default branch's head, publishing a release for a commit that was
@@ -95,8 +145,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+          if lookup="$(gh release view "$GITHUB_REF_NAME" 2>&1)"; then
             echo "::error::a release for $GITHUB_REF_NAME already exists; delete it before re-running"
+            exit 1
+          elif ! printf '%s' "$lookup" | grep -qi "release not found"; then
+            echo "::error::could not determine whether $GITHUB_REF_NAME is released: $lookup"
             exit 1
           fi
 

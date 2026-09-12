@@ -41,10 +41,10 @@ clean:
 
 # Test targets
 test: build
-	ctest --test-dir build/debug --output-on-failure
+	ctest --test-dir build/debug --output-on-failure --no-tests=error
 
 test-verbose: build
-	ctest --test-dir build/debug --output-on-failure --verbose
+	ctest --test-dir build/debug --output-on-failure --no-tests=error --verbose
 
 # Code quality targets
 format:
