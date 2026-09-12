@@ -16,4 +16,11 @@ include("${CMAKE_CURRENT_LIST_DIR}/ProjectVersion.cmake")
 scrap_version_detect(version describe "${SOURCE_DIR}")
 scrap_version_banner(SCRAP_VERSION_BANNER "${NAME}" "${version}" "${describe}")
 
+# The banner lands inside a C++ string literal, and a tag name reaches it
+# verbatim. git permits " and \ in a name, and an unescaped one would break
+# the translation unit or carry whatever follows it into the source. The
+# backslash goes first, or it would double the escapes added after it.
+string(REPLACE "\\" "\\\\" SCRAP_VERSION_BANNER "${SCRAP_VERSION_BANNER}")
+string(REPLACE "\"" "\\\"" SCRAP_VERSION_BANNER "${SCRAP_VERSION_BANNER}")
+
 configure_file("${INPUT}" "${OUTPUT}" @ONLY)

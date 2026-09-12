@@ -42,7 +42,10 @@ jobs:
           cmake --build build --parallel
 
       - name: Run tests
-        run: ctest --test-dir build --output-on-failure --parallel
+        # --no-tests=error: an empty test set exits 0 by default. The
+        # gtest placeholder covers an unbuilt binary, this covers a
+        # tree that registered nothing at all.
+        run: ctest --test-dir build --output-on-failure --parallel --no-tests=error
 
       - name: Generate coverage report
         run: |

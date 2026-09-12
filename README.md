@@ -231,7 +231,7 @@ cmake --build build/debug --parallel
 cmake --build build/debug --target test
 
 # Or run tests directly with ctest
-ctest --test-dir build/debug --output-on-failure
+ctest --test-dir build/debug --output-on-failure --no-tests=error
 ```
 
 ### Testing
@@ -243,7 +243,7 @@ The project uses GoogleTest for unit and end-to-end testing, run through ctest. 
 cmake --build build/debug --target test
 
 # Run tests with verbose output
-ctest --test-dir build/debug --output-on-failure --verbose
+ctest --test-dir build/debug --output-on-failure --no-tests=error --verbose
 
 # Run a specific test executable directly
 ./build/debug/test/scrap_gtest
