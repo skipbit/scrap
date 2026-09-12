@@ -35,13 +35,14 @@ jobs:
             -DCMAKE_CXX_FLAGS="-stdlib=libc++" \
             -DBUILD_TESTS=OFF
 
-      # Lint is scoped to the new command architecture for now. Legacy modules
-      # predate the strict check set and are migrated or removed incrementally;
-      # the scope widens as that migration progresses. Findings in any src/
+      # Lint is scoped to the modules written against the strict check set.
+      # Legacy modules predate it and are migrated or removed incrementally;
+      # the scope widens as that migration progresses, and a module added here
+      # is expected to stay clean from its first commit. Findings in any src/
       # header pulled in by these TUs (see HeaderFilterRegex) also fail the gate.
       - name: Run clang-tidy
         run: |
-          find src/command -type f -name '*.cpp' -print0 \
+          find src/command src/project -type f -name '*.cpp' -print0 \
             | xargs -0 -r clang-tidy -p build --warnings-as-errors='*'
 
   format-check:

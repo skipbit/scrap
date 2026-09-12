@@ -29,6 +29,11 @@ target_sources(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/command/StubScriptsReader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/VersionRenderer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/driver/CLI11ParserAdapter.cpp
+    # Project configuration (scrap.toml)
+    ${CMAKE_CURRENT_SOURCE_DIR}/project/ManifestError.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/project/ManifestParser.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/project/ProjectLocator.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/project/TargetResolver.cpp
     # Composition root helpers
     ${CMAKE_CURRENT_SOURCE_DIR}/command/RuntimeEnvironmentFactory.cpp
 )
@@ -53,7 +58,9 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 )
 
 find_package(CLI11 REQUIRED)
+find_package(TomlPlusPlus REQUIRED)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
     CLI11::CLI11
+    tomlplusplus::tomlplusplus
 )

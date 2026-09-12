@@ -87,6 +87,43 @@ set_target_properties(scrap_gtest_cli11 PROPERTIES
 
 gtest_discover_tests(scrap_gtest_cli11)
 
+# --- Project configuration tests (requires toml++ linkage) ---
+find_package(TomlPlusPlus REQUIRED)
+
+add_executable(scrap_gtest_project
+    unit/project/ManifestParserTest.cpp
+    unit/project/ProjectLocatorTest.cpp
+    unit/project/TargetResolverTest.cpp
+    ${CMAKE_SOURCE_DIR}/src/project/ManifestError.cpp
+    ${CMAKE_SOURCE_DIR}/src/project/ManifestParser.cpp
+    ${CMAKE_SOURCE_DIR}/src/project/ProjectLocator.cpp
+    ${CMAKE_SOURCE_DIR}/src/project/TargetResolver.cpp
+)
+
+target_include_directories(scrap_gtest_project PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(scrap_gtest_project PRIVATE
+    GTest::gtest_main
+    tomlplusplus::tomlplusplus
+)
+
+target_compile_features(scrap_gtest_project PUBLIC cxx_std_23)
+
+target_compile_options(scrap_gtest_project PRIVATE
+    -Wall -Wextra -Wpedantic
+    $<$<CONFIG:Debug>:-O0 -g3>
+    $<$<CONFIG:Release>:-O3>
+)
+
+set_target_properties(scrap_gtest_project PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/test
+    CXX_EXTENSIONS OFF
+)
+
+gtest_discover_tests(scrap_gtest_project)
+
 # --- CLI end-to-end tests (spawns the built scrap binary as a subprocess) ---
 add_executable(scrap_e2e
     e2e/CliE2ETest.cpp
