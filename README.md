@@ -68,7 +68,6 @@ Projects are configured with a simple `scrap.toml` file:
 [package]
 name = "my-app"
 version = "0.1.0"
-type = "app"
 std = "23"
 
 [[bin]]

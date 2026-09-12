@@ -160,8 +160,11 @@ CheckOptions:
   # Misc options
   # clang-tidy 18 cannot map std::expected/std::unexpected to <expected>;
   # ignore libc++ detail headers so include-cleaner does not require them.
+  # toml++ is consumed through its umbrella header <toml++/toml.hpp>, which is
+  # the only entry point it supports; include-cleaner would instead demand the
+  # private impl headers behind it, so ignore those as well.
   - key: misc-include-cleaner.IgnoreHeaders
-    value: '.*__expected/.*'
+    value: '.*__expected/.*;.*toml\+\+/.*'
   - key: misc-throw-by-value-catch-by-reference.CheckThrowTemporaries
     value: 'true'
   # Headers should contain declarations only - enforce strict separation
