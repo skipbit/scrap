@@ -23,7 +23,14 @@ namespace scrap::TestSupport {
  */
 TempDirectory::TempDirectory()
 {
-    std::string dirTemplate = (std::filesystem::temp_directory_path() / "scrap_project_test_XXXXXX").string();
+    std::error_code ec;
+    const std::filesystem::path base = std::filesystem::temp_directory_path(ec);
+    if (ec) {
+        ADD_FAILURE() << "no usable temp directory: " << ec.message();
+        return;
+    }
+
+    std::string dirTemplate = (base / "scrap_project_test_XXXXXX").string();
     const char* created = ::mkdtemp(dirTemplate.data());
     if (created == nullptr) {
         ADD_FAILURE() << "mkdtemp failed: " << std::strerror(errno);
@@ -39,6 +46,9 @@ TempDirectory::~TempDirectory()
     }
     std::error_code ec;
     std::filesystem::remove_all(path_, ec);
+    if (ec) {
+        ADD_FAILURE() << "cannot remove " << path_ << ": " << ec.message();
+    }
 }
 
 const std::filesystem::path& TempDirectory::path() const
