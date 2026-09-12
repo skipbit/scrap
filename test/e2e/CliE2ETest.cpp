@@ -26,6 +26,10 @@
 #error "SCRAP_BINARY_PATH must be defined by the build (path to the scrap executable)"
 #endif
 
+#ifndef SCRAP_EXPECTED_VERSION
+#error "SCRAP_EXPECTED_VERSION must be defined by the build (version banner the binary should print)"
+#endif
+
 namespace {
 
 constexpr std::chrono::milliseconds HarnessTimeout{5000};
@@ -337,7 +341,7 @@ TEST_F(CliE2ETest, BuiltinResolveExecute)
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
-    EXPECT_EQ(trim(result.stdoutText), "scrap 0.0.1");
+    EXPECT_EQ(trim(result.stdoutText), SCRAP_EXPECTED_VERSION);
     EXPECT_TRUE(result.stderrText.empty());
 }
 
@@ -466,6 +470,6 @@ TEST_F(CliE2ETest, VersionForms)
 
         ASSERT_TRUE(result.exitedNormally);
         EXPECT_EQ(result.exitCode, 0);
-        EXPECT_EQ(trim(result.stdoutText), "scrap 0.0.1");
+        EXPECT_EQ(trim(result.stdoutText), SCRAP_EXPECTED_VERSION);
     }
 }
