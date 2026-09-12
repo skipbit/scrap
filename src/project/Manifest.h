@@ -39,13 +39,27 @@ struct Package {
 /**
  * @brief The parsed contents of a scrap.toml file.
  *
- * Holds only what the manifest itself states. Targets are empty when the
- * manifest declares neither [[bin]] nor [[lib]]; filling them in from the
- * default layout is the job of resolveTargets().
+ * Holds only what the manifest itself states. Filling in targets from the
+ * default layout is the job of resolveTargets(), which needs to tell a
+ * manifest that declared nothing from one that declared an empty list, so
+ * declaresTargets records which of the two it was.
  */
 struct Manifest {
     Package package;
+
+    /**
+     * Targets the manifest declares, in no particular order: executables come
+     * before libraries whatever order they were written in. Build order is
+     * derived from what targets depend on, never from this sequence.
+     */
     std::vector<Target> targets;
+
+    /**
+     * Whether the manifest wrote a [[bin]] or [[lib]] declaration at all.
+     * An empty declaration (bin = []) says the project builds nothing, which
+     * is a different statement from declaring no targets.
+     */
+    bool declaresTargets = false;
 };
 
 }  // namespace scrap::Project

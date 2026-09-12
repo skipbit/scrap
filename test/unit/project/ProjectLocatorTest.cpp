@@ -5,7 +5,9 @@
 #include "TempDirectory.h"
 
 #include <filesystem>
+#include <optional>
 #include <string_view>
+#include <system_error>
 
 using namespace scrap::Project;
 using scrap::TestSupport::TempDirectory;
@@ -15,20 +17,26 @@ namespace {
 constexpr std::string_view EmptyManifest = "[package]\nname = \"a\"\nversion = \"0.1.0\"\n";
 
 /**
- * True when no directory at or above @p directory holds a manifest.
+ * The first directory at or above @p directory that holds a manifest.
  *
  * The "no project anywhere above" tests depend on the machine's temp location
  * not sitting inside a scrap project. Checking it makes an unusual machine
- * skip the test instead of reporting a failure that is not about the code.
+ * skip the test, naming the directory responsible, instead of reporting a
+ * failure that is not about the code.
+ *
+ * The predicate has to be the one findProjectRoot uses. Testing existence
+ * instead would treat a *directory* named scrap.toml as a project and skip
+ * the very test that exists to show it is not one.
  */
-bool hasNoManifestAbove(const std::filesystem::path& directory)
+std::optional<std::filesystem::path> manifestAbove(const std::filesystem::path& directory)
 {
+    std::error_code ec;
     for (std::filesystem::path current = directory;; current = current.parent_path()) {
-        if (std::filesystem::exists(current / ManifestFileName)) {
-            return false;
+        if (std::filesystem::is_regular_file(current / ManifestFileName, ec)) {
+            return current;
         }
         if (current.parent_path() == current) {
-            return true;
+            return std::nullopt;
         }
     }
 }
@@ -88,8 +96,8 @@ TEST(ProjectLocatorTest, ReturnsNothingWhenNoManifestExistsAbove)
 {
     const TempDirectory temp;
     const auto nested = temp.makeDirectory("a/b");
-    if (! hasNoManifestAbove(temp.path())) {
-        GTEST_SKIP() << "the temp location is inside a project; nothing to assert";
+    if (const auto owner = manifestAbove(temp.path()); owner.has_value()) {
+        GTEST_SKIP() << "the temp location is inside the project at " << *owner;
     }
 
     EXPECT_FALSE(findProjectRoot(nested).has_value());
@@ -103,8 +111,8 @@ TEST(ProjectLocatorTest, IgnoresADirectoryNamedLikeTheManifest)
     const TempDirectory temp;
     const auto decoy = temp.makeDirectory("decoy");
     temp.makeDirectory("decoy/scrap.toml");
-    if (! hasNoManifestAbove(temp.path())) {
-        GTEST_SKIP() << "the temp location is inside a project; nothing to assert";
+    if (const auto owner = manifestAbove(temp.path()); owner.has_value()) {
+        GTEST_SKIP() << "the temp location is inside the project at " << *owner;
     }
 
     EXPECT_FALSE(findProjectRoot(decoy).has_value());

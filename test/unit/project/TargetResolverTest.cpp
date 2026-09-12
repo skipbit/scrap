@@ -33,6 +33,7 @@ TEST(TargetResolverTest, ReturnsDeclaredTargetsUnchanged)
     temp.writeFile("src/main.cpp", "int main() { return 0; }\n");
 
     Manifest manifest = manifestNamed("my-app");
+    manifest.declaresTargets = true;
     manifest.targets.push_back(
         Target{.kind = TargetKind::Library, .name = "declared", .entryPoint = "other/entry.cpp"});
 
@@ -81,4 +82,39 @@ TEST(TargetResolverTest, IgnoresADirectoryNamedLikeTheEntryPoint)
     temp.makeDirectory("src/main.cpp");
 
     EXPECT_TRUE(resolveTargets(temp.path(), manifestNamed("my-app")).empty());
+}
+
+/**
+ * A manifest that declares an empty list of targets builds nothing, and the
+ * default layout is not consulted to contradict it.
+ */
+TEST(TargetResolverTest, DoesNotInferWhenTheDeclarationIsEmpty)
+{
+    const TempDirectory temp;
+    temp.writeFile("src/main.cpp", "int main() { return 0; }\n");
+
+    Manifest manifest = manifestNamed("my-app");
+    manifest.declaresTargets = true;
+
+    EXPECT_TRUE(resolveTargets(temp.path(), manifest).empty());
+}
+
+/**
+ * A declared entry point is returned whether or not the file is there.
+ * Inference asks the layout whether a target exists at all, which is a
+ * different question from whether a declared source is present; the missing
+ * file is the build's to report.
+ */
+TEST(TargetResolverTest, ReturnsADeclaredEntryPointThatIsNotOnDisk)
+{
+    const TempDirectory temp;
+
+    Manifest manifest = manifestNamed("my-app");
+    manifest.declaresTargets = true;
+    manifest.targets.push_back(Target{.kind = TargetKind::Executable, .name = "my-app", .entryPoint = "src/typo.cpp"});
+
+    const auto targets = resolveTargets(temp.path(), manifest);
+
+    ASSERT_EQ(targets.size(), 1);
+    EXPECT_EQ(targets[0].entryPoint, "src/typo.cpp");
 }

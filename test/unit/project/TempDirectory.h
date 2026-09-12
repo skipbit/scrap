@@ -1,12 +1,7 @@
 #pragma once
 
-#include <atomic>
 #include <filesystem>
-#include <fstream>
-#include <random>
-#include <string>
 #include <string_view>
-#include <system_error>
 
 namespace scrap::TestSupport {
 
@@ -18,49 +13,30 @@ namespace scrap::TestSupport {
  */
 class TempDirectory {
 public:
-    TempDirectory()
-    {
-        static std::atomic<unsigned> counter{0};
-        std::random_device device;
-        const std::string unique = std::to_string(device()) + "-" + std::to_string(counter.fetch_add(1));
-        path_ = std::filesystem::temp_directory_path() / ("scrap-project-test-" + unique);
-        std::filesystem::create_directories(path_);
-    }
+    TempDirectory();
+    ~TempDirectory();
 
     TempDirectory(const TempDirectory&) = delete;
     TempDirectory& operator=(const TempDirectory&) = delete;
     TempDirectory(TempDirectory&&) = delete;
     TempDirectory& operator=(TempDirectory&&) = delete;
 
-    ~TempDirectory()
-    {
-        std::error_code ec;
-        std::filesystem::remove_all(path_, ec);
-    }
-
     /**
      * @brief Path of the directory itself.
      */
-    [[nodiscard]] const std::filesystem::path& path() const
-    {
-        return path_;
-    }
+    [[nodiscard]] const std::filesystem::path& path() const;
 
     /**
      * @brief Write a file below the directory, creating parent directories.
+     *
+     * Reports a test failure if the file cannot be written, so a broken
+     * fixture is not mistaken for a failure of the code under test.
      *
      * @param relative Path relative to this directory.
      * @param content Bytes to write.
      * @return Full path of the written file.
      */
-    std::filesystem::path writeFile(std::string_view relative, std::string_view content) const
-    {
-        const std::filesystem::path target = path_ / relative;
-        std::filesystem::create_directories(target.parent_path());
-        std::ofstream output(target, std::ios::binary);
-        output << content;
-        return target;
-    }
+    std::filesystem::path writeFile(std::string_view relative, std::string_view content) const;
 
     /**
      * @brief Create a directory below this one.
@@ -68,12 +44,7 @@ public:
      * @param relative Path relative to this directory.
      * @return Full path of the created directory.
      */
-    std::filesystem::path makeDirectory(std::string_view relative) const
-    {
-        const std::filesystem::path target = path_ / relative;
-        std::filesystem::create_directories(target);
-        return target;
-    }
+    std::filesystem::path makeDirectory(std::string_view relative) const;
 
 private:
     std::filesystem::path path_;

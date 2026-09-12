@@ -21,7 +21,7 @@ constexpr std::string_view DefaultEntryPoint = "src/main.cpp";
  */
 auto resolveTargets(const std::filesystem::path& projectRoot, const Manifest& manifest) -> std::vector<Target>
 {
-    if (! manifest.targets.empty()) {
+    if (manifest.declaresTargets) {
         return manifest.targets;
     }
 

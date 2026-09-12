@@ -5,15 +5,19 @@
 
 #include <toml++/toml.hpp>
 
+#include <algorithm>
+#include <array>
+#include <cstddef>
 #include <cstdint>
 #include <expected>  // NOLINT(misc-include-cleaner) — provides std::expected return type
 #include <filesystem>
 #include <fstream>
 #include <ios>
 #include <optional>
-#include <sstream>
+#include <span>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <utility>
 #include <vector>
 
@@ -23,6 +27,29 @@ namespace {
 
 /// Language standard assumed when [package] does not state one.
 constexpr std::string_view DefaultStandard = "23";
+
+/// Top-level keys this version recognises.
+constexpr std::array<std::string_view, 6> KnownTopLevelKeys{"package",
+                                                            "bin",
+                                                            "lib",
+                                                            "dependencies",
+                                                            "toolchain",
+                                                            "scripts"};
+
+/// Keys the [package] table recognises.
+constexpr std::array<std::string_view, 3> KnownPackageKeys{"name", "version", "std"};
+
+/// Keys one [[bin]] or [[lib]] entry recognises.
+constexpr std::array<std::string_view, 2> KnownTargetKeys{"name", "src"};
+
+/**
+ * A string read out of the manifest, kept with the node it came from so a
+ * later check can point at where the user wrote it.
+ */
+struct StringField {
+    std::string value;
+    const toml::node* node = nullptr;
+};
 
 /**
  * Convert a toml++ source position to the one reported to the user.
@@ -67,25 +94,35 @@ auto errorWithoutPosition(const std::filesystem::path& file, std::string key, st
 }
 
 /**
- * Read a string key that must be present and non-empty.
+ * Read @p node as a non-empty string.
+ */
+auto readString(const std::filesystem::path& file,
+                const toml::node& node,
+                std::string key) -> std::expected<StringField, ManifestError>
+{
+    const auto value = node.value<std::string>();
+    if (! value.has_value()) {
+        return std::unexpected(errorAt(file, node, std::move(key), "must be a string"));
+    }
+    if (value->empty()) {
+        return std::unexpected(errorAt(file, node, std::move(key), "must not be empty"));
+    }
+    return StringField{.value = *value, .node = &node};
+}
+
+/**
+ * Read a string key that must be present.
  */
 auto requireString(const std::filesystem::path& file,
                    const toml::table& table,
                    std::string_view tableName,
-                   std::string_view key) -> std::expected<std::string, ManifestError>
+                   std::string_view key) -> std::expected<StringField, ManifestError>
 {
     const toml::node* node = table.get(key);
     if (node == nullptr) {
         return std::unexpected(errorAt(file, table, dotted(tableName, key), "required key is missing"));
     }
-    const auto value = node->value<std::string>();
-    if (! value.has_value()) {
-        return std::unexpected(errorAt(file, *node, dotted(tableName, key), "must be a string"));
-    }
-    if (value->empty()) {
-        return std::unexpected(errorAt(file, *node, dotted(tableName, key), "must not be empty"));
-    }
-    return *value;
+    return readString(file, *node, dotted(tableName, key));
 }
 
 /**
@@ -95,12 +132,106 @@ auto optionalString(const std::filesystem::path& file,
                     const toml::table& table,
                     std::string_view tableName,
                     std::string_view key,
-                    std::string_view fallback) -> std::expected<std::string, ManifestError>
+                    std::string_view fallback) -> std::expected<StringField, ManifestError>
 {
-    if (table.get(key) == nullptr) {
-        return std::string{fallback};
+    const toml::node* node = table.get(key);
+    if (node == nullptr) {
+        return StringField{.value = std::string{fallback}, .node = nullptr};
     }
-    return requireString(file, table, tableName, key);
+    return readString(file, *node, dotted(tableName, key));
+}
+
+/**
+ * True when @p text holds a character that has no place in a file name.
+ */
+auto hasControlCharacter(std::string_view text) -> bool
+{
+    return std::ranges::any_of(text, [](const char ch) {
+        return static_cast<unsigned char>(ch) < 0x20;
+    });
+}
+
+/**
+ * Reject a name that cannot stand as an artifact name on disk.
+ *
+ * A name reaches the filesystem as the last component of an output path, so
+ * one carrying a separator or a parent-directory reference would place the
+ * artifact outside the directory the caller chose.
+ */
+auto validateName(const std::filesystem::path& file,
+                  const StringField& field,
+                  std::string key) -> std::expected<void, ManifestError>
+{
+    if (field.node == nullptr) {
+        return {};
+    }
+    if (field.value == "." || field.value == "..") {
+        return std::unexpected(errorAt(file, *field.node, std::move(key), "must not be '.' or '..'"));
+    }
+    if (field.value.find('/') != std::string::npos || field.value.find('\\') != std::string::npos) {
+        return std::unexpected(errorAt(file, *field.node, std::move(key), "must not contain a path separator"));
+    }
+    if (hasControlCharacter(field.value)) {
+        return std::unexpected(errorAt(file, *field.node, std::move(key), "must not contain a control character"));
+    }
+    return {};
+}
+
+/**
+ * Reject an entry point that does not stay inside the project.
+ */
+auto validateEntryPoint(const std::filesystem::path& file,
+                        const StringField& field,
+                        std::string key) -> std::expected<void, ManifestError>
+{
+    const std::filesystem::path entryPoint{field.value};
+    if (entryPoint.is_absolute() || entryPoint.has_root_name() || entryPoint.has_root_directory()) {
+        return std::unexpected(errorAt(file, *field.node, std::move(key), "must be relative to the project root"));
+    }
+    for (const std::filesystem::path& part : entryPoint) {
+        if (part == "..") {
+            return std::unexpected(errorAt(file, *field.node, std::move(key), "must not leave the project root"));
+        }
+    }
+    if (hasControlCharacter(field.value)) {
+        return std::unexpected(errorAt(file, *field.node, std::move(key), "must not contain a control character"));
+    }
+    return {};
+}
+
+/**
+ * Reject a key this version does not recognise.
+ *
+ * Ignoring it would turn a typo into silence: a manifest that says [[bins]],
+ * or that writes bin = [] below the [package] header so the key lands inside
+ * that table, would load as though the declaration had never been written and
+ * be built from the default layout without a word.
+ *
+ * @param file Path reported in errors.
+ * @param table Table to check.
+ * @param prefix Dotted prefix for reported keys; empty at the top level.
+ * @param known Keys this version reads or reserves.
+ */
+auto rejectUnknownKeys(const std::filesystem::path& file,
+                       const toml::table& table,
+                       std::string_view prefix,
+                       std::span<const std::string_view> known) -> std::expected<void, ManifestError>
+{
+    for (const auto& [key, value] : table) {
+        const std::string_view name = key.str();
+        if (std::ranges::find(known, name) != known.end()) {
+            continue;
+        }
+
+        std::string message = "unknown key; expected one of";
+        for (const std::string_view candidate : known) {
+            message += ' ';
+            message += candidate;
+        }
+        std::string reported = prefix.empty() ? std::string{name} : dotted(prefix, name);
+        return std::unexpected(errorAt(file, value, std::move(reported), std::move(message)));
+    }
+    return {};
 }
 
 /**
@@ -117,9 +248,18 @@ auto parsePackage(const std::filesystem::path& file, const toml::table& root) ->
         return std::unexpected(errorAt(file, *node, "package", "must be a table"));
     }
 
+    if (auto known = rejectUnknownKeys(file, *table, "package", KnownPackageKeys); ! known.has_value()) {
+        return std::unexpected(known.error());
+    }
+
     auto name = requireString(file, *table, "package", "name");
     if (! name.has_value()) {
         return std::unexpected(name.error());
+    }
+    // The package name becomes an artifact name when no target is declared,
+    // so it is held to the same rule as a declared target name.
+    if (auto valid = validateName(file, *name, "package.name"); ! valid.has_value()) {
+        return std::unexpected(valid.error());
     }
     auto version = requireString(file, *table, "package", "version");
     if (! version.has_value()) {
@@ -130,7 +270,8 @@ auto parsePackage(const std::filesystem::path& file, const toml::table& root) ->
         return std::unexpected(standard.error());
     }
 
-    return Package{.name = std::move(*name), .version = std::move(*version), .standard = std::move(*standard)};
+    return Package{
+        .name = std::move(name->value), .version = std::move(version->value), .standard = std::move(standard->value)};
 }
 
 /**
@@ -142,15 +283,32 @@ auto parseTargetEntry(const std::filesystem::path& file,
                       TargetKind kind,
                       std::vector<Target>& targets) -> std::expected<void, ManifestError>
 {
+    if (auto known = rejectUnknownKeys(file, table, key, KnownTargetKeys); ! known.has_value()) {
+        return std::unexpected(known.error());
+    }
+
     auto name = requireString(file, table, key, "name");
     if (! name.has_value()) {
         return std::unexpected(name.error());
     }
+    if (auto valid = validateName(file, *name, dotted(key, "name")); ! valid.has_value()) {
+        return std::unexpected(valid.error());
+    }
+    for (const Target& existing : targets) {
+        if (existing.name == name->value) {
+            return std::unexpected(errorAt(file, *name->node, dotted(key, "name"), "duplicate target name"));
+        }
+    }
+
     auto source = requireString(file, table, key, "src");
     if (! source.has_value()) {
         return std::unexpected(source.error());
     }
-    targets.push_back(Target{.kind = kind, .name = std::move(*name), .entryPoint = std::move(*source)});
+    if (auto valid = validateEntryPoint(file, *source, dotted(key, "src")); ! valid.has_value()) {
+        return std::unexpected(valid.error());
+    }
+
+    targets.push_back(Target{.kind = kind, .name = std::move(name->value), .entryPoint = source->value});
     return {};
 }
 
@@ -185,6 +343,42 @@ auto parseTargetArray(const std::filesystem::path& file,
     return {};
 }
 
+/**
+ * Read the whole of @p file, distinguishing a failure to read from an empty
+ * file.
+ *
+ * Streaming through a stringstream cannot tell those apart: inserting from a
+ * streambuf reports on the destination, never on the source, so a directory
+ * opened as a manifest and a zero-byte manifest both arrive as empty text.
+ * Reading a known length and comparing what arrived keeps them apart.
+ */
+auto readWholeFile(const std::filesystem::path& file) -> std::expected<std::string, ManifestError>
+{
+    std::error_code ec;
+    if (! std::filesystem::is_regular_file(file, ec)) {
+        return std::unexpected(errorWithoutPosition(file, {}, "cannot open the manifest"));
+    }
+    const std::uintmax_t size = std::filesystem::file_size(file, ec);
+    if (ec) {
+        return std::unexpected(errorWithoutPosition(file, {}, "cannot read the manifest"));
+    }
+
+    std::ifstream input(file, std::ios::binary);
+    if (! input.is_open()) {
+        return std::unexpected(errorWithoutPosition(file, {}, "cannot open the manifest"));
+    }
+    if (size == 0) {
+        return std::string{};
+    }
+
+    std::string text(static_cast<std::size_t>(size), '\0');
+    input.read(text.data(), static_cast<std::streamsize>(size));
+    if (static_cast<std::uintmax_t>(input.gcount()) != size) {
+        return std::unexpected(errorWithoutPosition(file, {}, "cannot read the manifest"));
+    }
+    return text;
+}
+
 }  // anonymous namespace
 
 /**
@@ -201,6 +395,10 @@ auto parseManifest(std::string_view text, const std::filesystem::path& file) -> 
                                              .message = std::string{error.description()}});
     }
 
+    if (auto known = rejectUnknownKeys(file, parsed.table(), {}, KnownTopLevelKeys); ! known.has_value()) {
+        return std::unexpected(known.error());
+    }
+
     auto package = parsePackage(file, parsed.table());
     if (! package.has_value()) {
         return std::unexpected(package.error());
@@ -208,6 +406,7 @@ auto parseManifest(std::string_view text, const std::filesystem::path& file) -> 
 
     Manifest manifest;
     manifest.package = std::move(*package);
+    manifest.declaresTargets = parsed.table().get("bin") != nullptr || parsed.table().get("lib") != nullptr;
 
     auto executables = parseTargetArray(file, parsed.table(), "bin", TargetKind::Executable, manifest.targets);
     if (! executables.has_value()) {
@@ -226,19 +425,11 @@ auto parseManifest(std::string_view text, const std::filesystem::path& file) -> 
  */
 auto loadManifest(const std::filesystem::path& file) -> std::expected<Manifest, ManifestError>
 {
-    const std::ifstream input(file, std::ios::binary);
-    if (! input.is_open()) {
-        return std::unexpected(errorWithoutPosition(file, {}, "cannot open the manifest"));
+    const auto text = readWholeFile(file);
+    if (! text.has_value()) {
+        return std::unexpected(text.error());
     }
-
-    std::ostringstream buffer;
-    buffer << input.rdbuf();
-    if (input.bad()) {
-        return std::unexpected(errorWithoutPosition(file, {}, "cannot read the manifest"));
-    }
-
-    const std::string text = buffer.str();
-    return parseManifest(text, file);
+    return parseManifest(*text, file);
 }
 
 }  // namespace scrap::Project

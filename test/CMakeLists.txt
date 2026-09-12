@@ -94,6 +94,7 @@ add_executable(scrap_gtest_project
     unit/project/ManifestParserTest.cpp
     unit/project/ProjectLocatorTest.cpp
     unit/project/TargetResolverTest.cpp
+    unit/project/TempDirectory.cpp
     ${CMAKE_SOURCE_DIR}/src/project/ManifestError.cpp
     ${CMAKE_SOURCE_DIR}/src/project/ManifestParser.cpp
     ${CMAKE_SOURCE_DIR}/src/project/ProjectLocator.cpp
