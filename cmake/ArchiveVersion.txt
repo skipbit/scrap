@@ -1,6 +1,3 @@
-# Filled in by git archive (export-subst in .gitattributes). In a checkout the
-# placeholders stay as written, which is how an archive is told apart. Only
-# placeholders whose output does not move when branches do belong here; see
-# cmake/ProjectVersion.cmake.
+# Filled in by git archive through export-subst; see cmake/ProjectVersion.cmake.
 commit=$Format:%H$
 describe=$Format:%(describe:tags=true,abbrev=12,match=v[0-9]*.[0-9]*.[0-9]*,exclude=*;*)$
