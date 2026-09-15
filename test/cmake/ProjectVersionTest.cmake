@@ -94,7 +94,32 @@ expect_banner("scrap" "0.0.0" "unknown" "scrap 0.0.0 (unknown)")
 # A pre-release is not the release tag it leads to, so it stays visible.
 expect_banner("scrap" "0.2.0" "v0.2.0-rc1" "scrap 0.2.0 (v0.2.0-rc1)")
 
-set(MINIMUM_CHECKS 22)
+macro(expect_preferred EXPECTED)
+    scrap_version_preferred_tag(actual ${ARGN})
+    math(EXPR checks "${checks} + 1")
+    if(NOT actual STREQUAL "${EXPECTED}")
+        record_failure("preferred among '${ARGN}': expected '${EXPECTED}', got '${actual}'")
+    endif()
+endmacro()
+
+# --- which of several release tags on one commit names it --------------------
+
+expect_preferred("v0.1.0" v0.1.0)
+expect_preferred("" )
+
+# The release beats its own pre-release and build metadata, in either order.
+expect_preferred("v0.1.0" v0.1.0-rc1 v0.1.0)
+expect_preferred("v0.1.0" v0.1.0 v0.1.0-rc1)
+expect_preferred("v1.0.0" v1.0.0+build7 v1.0.0)
+
+# The triple is compared as numbers: a name comparison would put 0.9 above 0.10.
+expect_preferred("v0.10.0" v0.9.0 v0.10.0)
+
+# Between two suffixed names the choice only has to be the same everywhere.
+expect_preferred("v1.0.0-rc2" v1.0.0-rc1 v1.0.0-rc2)
+expect_preferred("v1.0.0-rc2" v1.0.0-rc2 v1.0.0-rc1)
+
+set(MINIMUM_CHECKS 30)
 
 # --- detection against real repositories -------------------------------------
 
@@ -102,7 +127,7 @@ find_program(GIT_FOR_TEST NAMES git)
 if(NOT GIT_FOR_TEST)
     message(STATUS "ProjectVersion: git not found, skipping the detection cases")
 else()
-    math(EXPR MINIMUM_CHECKS "${MINIMUM_CHECKS} + 20")
+    math(EXPR MINIMUM_CHECKS "${MINIMUM_CHECKS} + 30")
 
     function(run_git DIR)
         execute_process(
@@ -129,6 +154,46 @@ else()
         )
         if(NOT code EQUAL 0)
             message(FATAL_ERROR "git tag '${TAG}' failed in ${DIR}")
+        endif()
+    endfunction()
+
+    function(create_annotated_tag DIR TAG)
+        execute_process(
+            COMMAND ${GIT_FOR_TEST} -c user.email=t@example.invalid -c user.name=t tag -a "${TAG}" -m "${TAG}"
+            WORKING_DIRECTORY "${DIR}"
+            RESULT_VARIABLE code
+            OUTPUT_QUIET
+            ERROR_QUIET
+        )
+        if(NOT code EQUAL 0)
+            message(FATAL_ERROR "git tag -a '${TAG}' failed in ${DIR}")
+        endif()
+    endfunction()
+
+    # The project's own .gitattributes and ArchiveVersion.txt, so what is
+    # exercised is the attribute and the file that ship, not a copy of their
+    # intent.
+    set(PROJECT_ROOT "${CMAKE_CURRENT_LIST_DIR}/../..")
+    function(make_archivable_repo DIR)
+        make_repo("${DIR}")
+        file(COPY "${PROJECT_ROOT}/.gitattributes" DESTINATION "${DIR}")
+        file(COPY "${PROJECT_ROOT}/cmake/ArchiveVersion.txt" DESTINATION "${DIR}/cmake")
+        run_git("${DIR}" add .gitattributes cmake/ArchiveVersion.txt)
+        run_git("${DIR}" commit -q -m archive)
+    endfunction()
+
+    # What GitHub attaches to a release: git archive of REF, unpacked.
+    function(unpack_archive DIR REF DEST)
+        file(REMOVE_RECURSE "${DEST}")
+        file(MAKE_DIRECTORY "${DEST}")
+        run_git("${DIR}" archive --format=tar "--output=${DEST}.tar" "${REF}")
+        execute_process(
+            COMMAND ${CMAKE_COMMAND} -E tar xf "${DEST}.tar"
+            WORKING_DIRECTORY "${DEST}"
+            RESULT_VARIABLE code
+        )
+        if(NOT code EQUAL 0)
+            message(FATAL_ERROR "unpacking ${DEST}.tar failed")
         endif()
     endfunction()
 
@@ -239,6 +304,32 @@ else()
     create_tag("${SCRATCH_DIR}/colocated" "v0.1.0")
     create_tag("${SCRATCH_DIR}/colocated" "nightly-2026")
     expect_detect("${SCRATCH_DIR}/colocated" "0.1.0" "^v0[.]1[.]0$" "non-release tag on the same commit")
+
+    # A pre-release promoted to its release on the same commit. git names the
+    # commit by the annotated tag; the rule names it by the release, and the
+    # archive below has to agree.
+    make_archivable_repo("${SCRATCH_DIR}/promoted")
+    create_annotated_tag("${SCRATCH_DIR}/promoted" "v0.2.0-rc1")
+    create_tag("${SCRATCH_DIR}/promoted" "v0.2.0")
+    create_tag("${SCRATCH_DIR}/promoted" "nightly-2026")
+    create_tag("${SCRATCH_DIR}/promoted" "v1.2.3.4")
+    expect_detect("${SCRATCH_DIR}/promoted" "0.2.0" "^v0[.]2[.]0$" "promoted pre-release, checkout")
+
+    # The release tarball: no repository, only what git archive filled in.
+    unpack_archive("${SCRATCH_DIR}/promoted" "v0.2.0" "${SCRATCH_DIR}/promoted-archive")
+    expect_detect("${SCRATCH_DIR}/promoted-archive" "0.2.0" "^v0[.]2[.]0$" "release archive")
+
+    # An archive made between releases knows only its own commit.
+    run_git("${SCRATCH_DIR}/promoted" commit -q --allow-empty -m next)
+    expect_detect("${SCRATCH_DIR}/promoted" "0.2.0" "^v0[.]2[.]0-1-g[0-9a-f]+$" "promoted pre-release, one commit past")
+    unpack_archive("${SCRATCH_DIR}/promoted" "HEAD" "${SCRATCH_DIR}/between-archive")
+    expect_detect("${SCRATCH_DIR}/between-archive" "0.0.0" "^[0-9a-f]+$" "archive between releases")
+
+    # The file as it sits in a checkout, copied without git: its placeholders
+    # were never filled in, and must not be read as a commit or a tag.
+    file(MAKE_DIRECTORY "${SCRATCH_DIR}/unsubstituted/cmake")
+    file(COPY "${PROJECT_ROOT}/cmake/ArchiveVersion.txt" DESTINATION "${SCRATCH_DIR}/unsubstituted/cmake")
+    expect_detect("${SCRATCH_DIR}/unsubstituted" "0.0.0" "^unknown$" "unsubstituted archive file")
 
     # Sources unpacked inside another project: git finds that project's
     # repository, whose tags say nothing about this one.

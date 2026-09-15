@@ -1,0 +1,5 @@
+# git archive fills in cmake/ArchiveVersion.txt, so a source archive -- the
+# tarball GitHub attaches to a release among them -- can still name the
+# release it was made from without a repository to ask. See
+# cmake/ProjectVersion.cmake.
+cmake/ArchiveVersion.txt export-subst

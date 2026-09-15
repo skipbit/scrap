@@ -1,0 +1,4 @@
+# Filled in by git archive (export-subst in .gitattributes). In a checkout the
+# placeholders stay as written, which is how an archive is told apart.
+commit=$Format:%h$
+refs=$Format:%D$

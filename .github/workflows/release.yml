@@ -55,9 +55,9 @@ jobs:
       #
       # The build has to describe itself by the tag being released. It will
       # not when the tag is outside the release pattern, when the history is
-      # too shallow to carry it, or when the commit holds a second release
-      # tag that git prefers -- and in that last case there is no answer to
-      # give, so saying so beats publishing one of them at random.
+      # too shallow to carry it, or when the commit also carries a release tag
+      # that outranks it -- releasing v1.0.0-rc1 from a commit already tagged
+      # v1.0.0 -- in which case the build names that one instead.
       - name: Check the tag the build describes itself by
         run: |
           cmake -D "SOURCE_DIR=$PWD" -D "NAME=scrap" \
@@ -68,6 +68,24 @@ jobs:
             exit 1
           fi
           echo "the build describes itself as $described"
+
+      # GitHub attaches a source archive to every release, and that tree has
+      # no repository to ask: it names the release only through what git
+      # archive fills in (see .gitattributes). This runs the runner's git
+      # archive, not the one GitHub uses to build the attachment, so it checks
+      # the mechanism rather than that exact file.
+      - name: Check a source archive describes itself the same way
+        run: |
+          mkdir -p "$RUNNER_TEMP/archive"
+          git archive --format=tar "$GITHUB_SHA" | tar -x -C "$RUNNER_TEMP/archive"
+          cmake -D "SOURCE_DIR=$RUNNER_TEMP/archive" -D "NAME=scrap" \
+                -D "OUTPUT=$RUNNER_TEMP/archive-version" -P cmake/PrintVersion.cmake
+          described="$(sed -n 1p "$RUNNER_TEMP/archive-version")"
+          if [ "$described" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::a source archive describes itself as '$described', not $GITHUB_REF_NAME"
+            exit 1
+          fi
+          echo "a source archive describes itself as $described"
 
       # The matrix builds this configuration too; sharing its cache keeps the
       # second build from paying for the dependencies again.
