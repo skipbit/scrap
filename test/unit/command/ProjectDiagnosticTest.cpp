@@ -5,6 +5,7 @@
 #include "project/ProjectLoader.h"
 
 #include <optional>
+#include <system_error>
 
 using scrap::Command::renderProjectError;
 using scrap::Project::ManifestError;
@@ -171,14 +172,67 @@ TEST(ProjectDiagnosticTest, RendersAnExistingPath)
 }
 
 /**
- * A path that cannot be created carries the system's reason.
+ * A path refused for lack of permission carries the system's reason and points
+ * at the permissions.
  */
 TEST(ProjectDiagnosticTest, RendersAPathThatCannotBeCreated)
 {
     const scrap::Project::CreateProjectError error =
-        scrap::Project::CannotCreate{.path = "/home/me/work/hello", .reason = "Permission denied"};
+        scrap::Project::CannotCreate{.path = "/home/me/work/hello",
+                                     .reason = "Permission denied",
+                                     .code = std::make_error_code(std::errc::permission_denied)};
 
     EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
               "error: cannot create '/home/me/work/hello': Permission denied\n"
               "hint: check the permissions of the path\n");
+}
+
+/**
+ * A full disk points at freeing space.
+ */
+TEST(ProjectDiagnosticTest, RendersAFullDiskWithItsOwnHint)
+{
+    const scrap::Project::CreateProjectError error =
+        scrap::Project::CannotCreate{.path = "/home/me/work/hello",
+                                     .reason = "No space left on device",
+                                     .code = std::make_error_code(std::errc::no_space_on_device)};
+
+    EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
+              "error: cannot create '/home/me/work/hello': No space left on device\n"
+              "hint: free some disk space and run the command again\n");
+}
+
+/**
+ * A read-only file system points at a writable directory.
+ */
+TEST(ProjectDiagnosticTest, RendersAReadOnlyFileSystemWithItsOwnHint)
+{
+    const scrap::Project::CreateProjectError error =
+        scrap::Project::CannotCreate{.path = "/mnt/cdrom/hello",
+                                     .reason = "Read-only file system",
+                                     .code = std::make_error_code(std::errc::read_only_file_system)};
+
+    EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
+              "error: cannot create '/mnt/cdrom/hello': Read-only file system\n"
+              "hint: run the command in a writable directory\n");
+}
+
+/**
+ * Any other failure, including one with no code, gets the general hint.
+ */
+TEST(ProjectDiagnosticTest, RendersAnyOtherFailureWithTheGeneralHint)
+{
+    const scrap::Project::CreateProjectError missing =
+        scrap::Project::CannotCreate{.path = "/home/me/gone/hello",
+                                     .reason = "No such file or directory",
+                                     .code = std::make_error_code(std::errc::no_such_file_or_directory)};
+    const scrap::Project::CreateProjectError uncoded = scrap::Project::CannotCreate{
+        .path = "/home/me/work/hello/scrap.toml", .reason = "the file could not be written", .code = {}};
+
+    EXPECT_EQ(scrap::Command::renderCreateProjectError(missing),
+              "error: cannot create '/home/me/gone/hello': No such file or directory\n"
+              "hint: check that the directory exists and can be written\n");
+    EXPECT_EQ(scrap::Command::renderCreateProjectError(uncoded),
+              "error: cannot create '/home/me/work/hello/scrap.toml': the file could not be written\n"
+              "hint: check that the directory exists and can be written\n");
 }

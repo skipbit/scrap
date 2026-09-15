@@ -7,6 +7,7 @@
 
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <variant>
 
 namespace scrap::Command {
@@ -127,6 +128,24 @@ auto render(const Project::PathExists& error) -> std::string
     return text;
 }
 
+/**
+ * The next step for a directory or file that could not be created, chosen by
+ * what the operating system reported.
+ */
+auto cannotCreateHint(const std::error_code& code) -> std::string_view
+{
+    if (code == std::errc::permission_denied || code == std::errc::operation_not_permitted) {
+        return PermissionHint;
+    }
+    if (code == std::errc::no_space_on_device) {
+        return "hint: free some disk space and run the command again\n";
+    }
+    if (code == std::errc::read_only_file_system) {
+        return "hint: run the command in a writable directory\n";
+    }
+    return "hint: check that the directory exists and can be written\n";
+}
+
 auto render(const Project::CannotCreate& error) -> std::string
 {
     std::string text = "error: cannot create '";
@@ -134,7 +153,7 @@ auto render(const Project::CannotCreate& error) -> std::string
     text += "': ";
     text += error.reason;
     text += '\n';
-    text += PermissionHint;
+    text += cannotCreateHint(error.code);
     return text;
 }
 

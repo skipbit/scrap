@@ -15,6 +15,7 @@
 #include <iterator>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <variant>
 #include <vector>
 
@@ -206,6 +207,7 @@ TEST(ProjectCreatorTest, RemovesThePartialProjectWhenAFileCannotBeWritten)
     const auto* error = std::get_if<CannotCreate>(&root.error());
     ASSERT_NE(error, nullptr);
     EXPECT_FALSE(error->reason.empty());
+    EXPECT_TRUE(static_cast<bool>(error->code));
     EXPECT_FALSE(std::filesystem::exists(temp.path() / "hello"));
 }
 
@@ -224,4 +226,5 @@ TEST(ProjectCreatorTest, ReportsAMissingParentAsCannotCreate)
     ASSERT_NE(error, nullptr);
     EXPECT_EQ(error->path, temp.path() / "missing/hello");
     EXPECT_FALSE(error->reason.empty());
+    EXPECT_EQ(error->code, std::errc::no_such_file_or_directory);
 }

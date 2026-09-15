@@ -28,16 +28,18 @@ auto isAsciiDigit(const char ch) -> bool
 }
 
 /**
- * Why a stream operation failed. The standard streams report a cause only
- * through errno, and only when a system call set it, so callers clear errno
- * before the operation and a failure that leaves it clear gets a fixed reason.
+ * Why a stream operation on @p file failed. The standard streams report a
+ * cause only through errno, and only when a system call set it, so callers
+ * clear errno before the operation and a failure that leaves it clear gets a
+ * fixed reason and no error code.
  */
-auto streamFailureReason() -> std::string
+auto streamFailure(const std::filesystem::path& file) -> CannotCreate
 {
     if (errno == 0) {
-        return "the file could not be written";
+        return CannotCreate{.path = file, .reason = "the file could not be written", .code = {}};
     }
-    return std::error_code(errno, std::generic_category()).message();
+    const std::error_code code(errno, std::generic_category());
+    return CannotCreate{.path = file, .reason = code.message(), .code = code};
 }
 
 /**
@@ -48,19 +50,19 @@ auto writeFile(const std::filesystem::path& file, std::string_view content) -> s
     std::error_code ec;
     std::filesystem::create_directories(file.parent_path(), ec);
     if (ec) {
-        return std::unexpected(CreateProjectError{CannotCreate{.path = file.parent_path(), .reason = ec.message()}});
+        return std::unexpected(CreateProjectError{CannotCreate{.path = file.parent_path(), .reason = ec.message(), .code = ec}});
     }
 
     errno = 0;
     std::ofstream output(file, std::ios::binary);
     if (! output.is_open()) {
-        return std::unexpected(CreateProjectError{CannotCreate{.path = file, .reason = streamFailureReason()}});
+        return std::unexpected(CreateProjectError{streamFailure(file)});
     }
     errno = 0;
     output.write(content.data(), static_cast<std::streamsize>(content.size()));
     output.close();
     if (! output) {
-        return std::unexpected(CreateProjectError{CannotCreate{.path = file, .reason = streamFailureReason()}});
+        return std::unexpected(CreateProjectError{streamFailure(file)});
     }
     return {};
 }
@@ -89,7 +91,7 @@ auto createProject(const std::filesystem::path& parentDir,
     std::error_code ec;
     std::filesystem::path root = std::filesystem::absolute(parentDir, ec);
     if (ec) {
-        return std::unexpected(CreateProjectError{CannotCreate{.path = parentDir / name, .reason = ec.message()}});
+        return std::unexpected(CreateProjectError{CannotCreate{.path = parentDir / name, .reason = ec.message(), .code = ec}});
     }
     root /= name;
 
@@ -100,7 +102,7 @@ auto createProject(const std::filesystem::path& parentDir,
         return std::unexpected(CreateProjectError{PathExists{.path = root}});
     }
     if (ec) {
-        return std::unexpected(CreateProjectError{CannotCreate{.path = root, .reason = ec.message()}});
+        return std::unexpected(CreateProjectError{CannotCreate{.path = root, .reason = ec.message(), .code = ec}});
     }
 
     for (const TemplateFile& file : files) {
