@@ -28,11 +28,15 @@ auto isAsciiDigit(const char ch) -> bool
 }
 
 /**
- * The failure a stream left in errno, which the standard streams report no
- * other way.
+ * Why a stream operation failed. The standard streams report a cause only
+ * through errno, and only when a system call set it, so callers clear errno
+ * before the operation and a failure that leaves it clear gets a fixed reason.
  */
-auto lastSystemError() -> std::string
+auto streamFailureReason() -> std::string
 {
+    if (errno == 0) {
+        return "the file could not be written";
+    }
     return std::error_code(errno, std::generic_category()).message();
 }
 
@@ -47,14 +51,16 @@ auto writeFile(const std::filesystem::path& file, std::string_view content) -> s
         return std::unexpected(CreateProjectError{CannotCreate{.path = file.parent_path(), .reason = ec.message()}});
     }
 
+    errno = 0;
     std::ofstream output(file, std::ios::binary);
     if (! output.is_open()) {
-        return std::unexpected(CreateProjectError{CannotCreate{.path = file, .reason = lastSystemError()}});
+        return std::unexpected(CreateProjectError{CannotCreate{.path = file, .reason = streamFailureReason()}});
     }
+    errno = 0;
     output.write(content.data(), static_cast<std::streamsize>(content.size()));
     output.close();
     if (! output) {
-        return std::unexpected(CreateProjectError{CannotCreate{.path = file, .reason = lastSystemError()}});
+        return std::unexpected(CreateProjectError{CannotCreate{.path = file, .reason = streamFailureReason()}});
     }
     return {};
 }
