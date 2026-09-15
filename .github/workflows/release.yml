@@ -69,6 +69,24 @@ jobs:
           fi
           echo "the build describes itself as $described"
 
+      # GitHub attaches a source archive to each release. The archive is made
+      # with the runner's git and checked with its own copy of the module.
+      - name: Check a source archive describes itself the same way
+        run: |
+          mkdir -p "$RUNNER_TEMP/archive"
+          git archive --format=tar --output="$RUNNER_TEMP/archive.tar" "$GITHUB_SHA"
+          tar -xf "$RUNNER_TEMP/archive.tar" -C "$RUNNER_TEMP/archive"
+          cmake -D "SOURCE_DIR=$RUNNER_TEMP/archive" -D "NAME=scrap" \
+                -D "OUTPUT=$RUNNER_TEMP/archive-version" -P "$RUNNER_TEMP/archive/cmake/PrintVersion.cmake"
+          described="$(sed -n 1p "$RUNNER_TEMP/archive-version")"
+          if [ "$described" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::a source archive describes itself as '$described', not $GITHUB_REF_NAME"
+            echo "Tags on this commit: $(git tag --points-at "$GITHUB_SHA" | tr '\n' ' ')"
+            echo "git prefers an annotated tag; a malformed one such as v1.2.3.4 on this commit leaves the archive without a version."
+            exit 1
+          fi
+          echo "a source archive describes itself as $described"
+
       # The matrix builds this configuration too; sharing its cache keeps the
       # second build from paying for the dependencies again.
       - name: Restore ccache

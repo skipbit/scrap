@@ -1,0 +1,3 @@
+# Filled in by git archive through export-subst; see cmake/ProjectVersion.cmake.
+commit=$Format:%H$
+describe=$Format:%(describe:tags=true,abbrev=12,match=v[0-9]*.[0-9]*.[0-9]*,exclude=*;*)$

@@ -5,7 +5,7 @@
 # build a file to compile.
 set(SCRAP_VERSION_SOURCE "${CMAKE_CURRENT_BINARY_DIR}/shared/constants/version.cpp")
 set(SCRAP_VERSION_GENERATOR_ARGS
-    -D "SOURCE_DIR=${CMAKE_SOURCE_DIR}"
+    -D "SOURCE_DIR=${PROJECT_SOURCE_DIR}"
     -D "NAME=${PROJECT_NAME}"
     -D "INPUT=${CMAKE_CURRENT_SOURCE_DIR}/shared/constants/version.cpp.in"
     -D "OUTPUT=${SCRAP_VERSION_SOURCE}"

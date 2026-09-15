@@ -1,0 +1,2 @@
+# git archive fills in the version of a source archive.
+cmake/ArchiveVersion.txt export-subst
