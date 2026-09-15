@@ -1,5 +1,6 @@
 # --- Google Test integration ---
 find_package(GoogleTest REQUIRED)
+find_package(TomlPlusPlus REQUIRED)
 
 add_executable(scrap_gtest
     unit/command/CommonTypesTest.cpp
@@ -10,6 +11,7 @@ add_executable(scrap_gtest
     unit/command/ExternalCommandResolverTest.cpp
     unit/command/MetadataProtocolProviderTest.cpp
     unit/command/ProjectCommandResolverTest.cpp
+    unit/command/ProjectDiagnosticTest.cpp
     unit/command/RuntimeEnvironmentFactoryTest.cpp
     unit/command/ApplicationTest.cpp
     ${CMAKE_SOURCE_DIR}/src/command/Application.cpp
@@ -22,14 +24,20 @@ add_executable(scrap_gtest
     ${CMAKE_SOURCE_DIR}/src/command/DefaultHelpRenderer.cpp
     ${CMAKE_SOURCE_DIR}/src/command/DefaultVersionRenderer.cpp
     ${CMAKE_BINARY_DIR}/src/shared/constants/version.cpp
+    ${CMAKE_SOURCE_DIR}/src/command/BuildCommandHandler.cpp
     ${CMAKE_SOURCE_DIR}/src/command/BuiltinCommandResolver.cpp
     ${CMAKE_SOURCE_DIR}/src/command/ExternalCommandResolver.cpp
     ${CMAKE_SOURCE_DIR}/src/command/ExternalMetadataProvider.cpp
     ${CMAKE_SOURCE_DIR}/src/command/MetadataProtocolProvider.cpp
     ${CMAKE_SOURCE_DIR}/src/command/ProjectCommandResolver.cpp
+    ${CMAKE_SOURCE_DIR}/src/command/ProjectDiagnostic.cpp
     ${CMAKE_SOURCE_DIR}/src/command/ScriptsReader.cpp
     ${CMAKE_SOURCE_DIR}/src/command/StubScriptsReader.cpp
     ${CMAKE_SOURCE_DIR}/src/command/RuntimeEnvironmentFactory.cpp
+    ${CMAKE_SOURCE_DIR}/src/project/ManifestError.cpp
+    ${CMAKE_SOURCE_DIR}/src/project/ManifestParser.cpp
+    ${CMAKE_SOURCE_DIR}/src/project/ProjectLoader.cpp
+    ${CMAKE_SOURCE_DIR}/src/project/ProjectLocator.cpp
 )
 
 target_include_directories(scrap_gtest PRIVATE
@@ -37,7 +45,10 @@ target_include_directories(scrap_gtest PRIVATE
     ${CMAKE_BINARY_DIR}/src
 )
 
-target_link_libraries(scrap_gtest PRIVATE GTest::gtest_main)
+target_link_libraries(scrap_gtest PRIVATE
+    GTest::gtest_main
+    tomlplusplus::tomlplusplus
+)
 target_compile_features(scrap_gtest PUBLIC cxx_std_23)
 
 target_compile_options(scrap_gtest PRIVATE
@@ -88,15 +99,16 @@ set_target_properties(scrap_gtest_cli11 PROPERTIES
 gtest_discover_tests(scrap_gtest_cli11)
 
 # --- Project configuration tests (requires toml++ linkage) ---
-find_package(TomlPlusPlus REQUIRED)
-
 add_executable(scrap_gtest_project
     unit/project/ManifestParserTest.cpp
+    unit/project/ManifestSearch.cpp
+    unit/project/ProjectLoaderTest.cpp
     unit/project/ProjectLocatorTest.cpp
     unit/project/TargetResolverTest.cpp
     unit/project/TempDirectory.cpp
     ${CMAKE_SOURCE_DIR}/src/project/ManifestError.cpp
     ${CMAKE_SOURCE_DIR}/src/project/ManifestParser.cpp
+    ${CMAKE_SOURCE_DIR}/src/project/ProjectLoader.cpp
     ${CMAKE_SOURCE_DIR}/src/project/ProjectLocator.cpp
     ${CMAKE_SOURCE_DIR}/src/project/TargetResolver.cpp
 )

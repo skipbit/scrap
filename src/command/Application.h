@@ -60,7 +60,7 @@ public:
      * @brief Execute the four-phase CLI pipeline.
      *
      * @param argv Raw argument vector (argv[0] is the program name).
-     * @param env  Runtime environment with project root and search paths.
+     * @param env  Runtime environment with working directory and search paths.
      * @return Exit code (0 for success, non-zero for failure).
      */
     auto run(std::span<const char* const> argv, const RuntimeEnvironment& env) -> int;

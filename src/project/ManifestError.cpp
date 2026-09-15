@@ -5,7 +5,7 @@
 namespace scrap::Project {
 
 /**
- * Render an error as "<file>[:<line>:<column>]: [<key>: ]<message>".
+ * Render an error as "<file>[:<line>:<column>]: error: [<key>: ]<message>".
  */
 auto describe(const ManifestError& error) -> std::string
 {
@@ -16,7 +16,7 @@ auto describe(const ManifestError& error) -> std::string
         line += ':';
         line += std::to_string(error.position->column);
     }
-    line += ": ";
+    line += ": error: ";
     if (! error.key.empty()) {
         line += error.key;
         line += ": ";

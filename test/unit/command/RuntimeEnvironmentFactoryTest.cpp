@@ -65,12 +65,12 @@ TEST(RuntimeEnvironmentFactoryTest, EmptyInputsYieldEmptySearchPaths)
 }
 
 /**
- * projectRoot is set directly from the cwd argument.
+ * workingDirectory is set directly from the cwd argument.
  */
-TEST(RuntimeEnvironmentFactoryTest, ProjectRootMatchesCwd)
+TEST(RuntimeEnvironmentFactoryTest, WorkingDirectoryMatchesCwd)
 {
     const std::filesystem::path cwd = "/some/project/root";
     auto env = makeRuntimeEnvironment(cwd, "", "");
 
-    EXPECT_EQ(env.projectRoot, cwd);
+    EXPECT_EQ(env.workingDirectory, cwd);
 }

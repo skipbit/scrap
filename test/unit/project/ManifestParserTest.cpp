@@ -142,7 +142,7 @@ TEST(ManifestParserTest, ReportsMissingPackageTable)
     ASSERT_FALSE(manifest.has_value());
     EXPECT_EQ(manifest.error().key, "package");
     EXPECT_FALSE(manifest.error().position.has_value());
-    EXPECT_EQ(describe(manifest.error()), "scrap.toml: package: required table is missing");
+    EXPECT_EQ(describe(manifest.error()), "scrap.toml: error: package: required table is missing");
 }
 
 /**
@@ -159,7 +159,7 @@ TEST(ManifestParserTest, ReportsMissingRequiredKeyAtItsTable)
     ASSERT_TRUE(manifest.error().position.has_value());
     EXPECT_EQ(manifest.error().position->line, 1);
     EXPECT_EQ(manifest.error().position->column, 1);
-    EXPECT_EQ(describe(manifest.error()), "scrap.toml:1:1: package.name: required key is missing");
+    EXPECT_EQ(describe(manifest.error()), "scrap.toml:1:1: error: package.name: required key is missing");
 }
 
 /**
@@ -176,7 +176,7 @@ TEST(ManifestParserTest, ReportsWrongTypeAtTheValue)
     ASSERT_TRUE(manifest.error().position.has_value());
     EXPECT_EQ(manifest.error().position->line, 3);
     EXPECT_EQ(manifest.error().position->column, 11);
-    EXPECT_EQ(describe(manifest.error()), "scrap.toml:3:11: package.version: must be a string");
+    EXPECT_EQ(describe(manifest.error()), "scrap.toml:3:11: error: package.version: must be a string");
 }
 
 /**
@@ -284,11 +284,12 @@ TEST(ManifestParserTest, ReportsManifestThatCannotBeOpened)
     EXPECT_FALSE(manifest.error().position.has_value());
     EXPECT_TRUE(manifest.error().key.empty());
     EXPECT_EQ(manifest.error().message, "cannot open the manifest");
+    EXPECT_EQ(manifest.error().kind, ManifestErrorKind::Unreadable);
     EXPECT_EQ(manifest.error().file, missing);
 }
 
 /**
- * describe() renders the file, the position when known, and the key.
+ * describe() renders the file, the position when known, the severity, and the key.
  */
 TEST(ManifestParserTest, DescribeRendersWhatIsKnown)
 {
@@ -296,17 +297,17 @@ TEST(ManifestParserTest, DescribeRendersWhatIsKnown)
                                        .position = SourcePosition{.line = 4, .column = 9},
                                        .key = "bin.name",
                                        .message = "must be a string"};
-    EXPECT_EQ(describe(withEverything), "scrap.toml:4:9: bin.name: must be a string");
+    EXPECT_EQ(describe(withEverything), "scrap.toml:4:9: error: bin.name: must be a string");
 
     const ManifestError withoutKey{.file = "scrap.toml",
                                    .position = SourcePosition{.line = 2, .column = 1},
                                    .key = {},
                                    .message = "unexpected token"};
-    EXPECT_EQ(describe(withoutKey), "scrap.toml:2:1: unexpected token");
+    EXPECT_EQ(describe(withoutKey), "scrap.toml:2:1: error: unexpected token");
 
     const ManifestError fileOnly{
         .file = "a/scrap.toml", .position = std::nullopt, .key = {}, .message = "cannot open the manifest"};
-    EXPECT_EQ(describe(fileOnly), "a/scrap.toml: cannot open the manifest");
+    EXPECT_EQ(describe(fileOnly), "a/scrap.toml: error: cannot open the manifest");
 }
 
 /**
@@ -531,6 +532,7 @@ TEST(ManifestParserTest, LoadsAnEmptyManifestAsAMissingPackage)
     ASSERT_FALSE(manifest.has_value());
     EXPECT_EQ(manifest.error().key, "package");
     EXPECT_EQ(manifest.error().message, "required table is missing");
+    EXPECT_EQ(manifest.error().kind, ManifestErrorKind::Invalid);
 }
 
 /**
@@ -547,6 +549,7 @@ TEST(ManifestParserTest, ReportsAManifestThatIsADirectory)
 
     ASSERT_FALSE(manifest.has_value());
     EXPECT_EQ(manifest.error().message, "cannot open the manifest");
+    EXPECT_EQ(manifest.error().kind, ManifestErrorKind::Unreadable);
     EXPECT_FALSE(manifest.error().position.has_value());
 }
 

@@ -16,7 +16,7 @@ auto makeRuntimeEnvironment(const std::filesystem::path& cwd,
                             const std::string& pathEnv) -> RuntimeEnvironment
 {
     RuntimeEnvironment env;
-    env.projectRoot = cwd;
+    env.workingDirectory = cwd;
 
     if (! scrapHome.empty()) {
         env.searchPaths.emplace_back(std::filesystem::path(scrapHome) / "bin");

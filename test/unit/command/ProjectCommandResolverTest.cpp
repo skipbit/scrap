@@ -45,7 +45,7 @@ TEST(ProjectCommandResolverTest, StubReaderReturnsEmpty)
     ProjectCommandResolver resolver(std::move(reader));
 
     RuntimeEnvironment env;
-    env.projectRoot = "/tmp/nonexistent";
+    env.workingDirectory = "/tmp/nonexistent";
     auto entries = resolver.resolve(env);
 
     EXPECT_TRUE(entries.empty());
@@ -60,7 +60,7 @@ TEST(ProjectCommandResolverTest, ErrorReaderReturnsEmpty)
     ProjectCommandResolver resolver(std::move(reader));
 
     RuntimeEnvironment env;
-    env.projectRoot = "/tmp/nonexistent";
+    env.workingDirectory = "/tmp/nonexistent";
     auto entries = resolver.resolve(env);
 
     EXPECT_TRUE(entries.empty());

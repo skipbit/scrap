@@ -135,10 +135,10 @@ TEST(ParsedOptionsTest, NamedAndPositional)
 TEST(RuntimeEnvironmentTest, PathConstruction)
 {
     RuntimeEnvironment env;
-    env.projectRoot = "/tmp/project";
+    env.workingDirectory = "/tmp/project";
     env.searchPaths = {"/usr/local/bin", "/usr/bin"};
 
-    EXPECT_EQ(env.projectRoot, "/tmp/project");
+    EXPECT_EQ(env.workingDirectory, "/tmp/project");
     EXPECT_EQ(env.searchPaths.size(), 2);
 }
 

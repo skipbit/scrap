@@ -149,3 +149,22 @@ TEST(BuiltinCommandResolverTest, AllEntriesAreBuiltinSource)
         EXPECT_EQ(entry.source, CommandSource::Builtin);
     }
 }
+
+/**
+ * Verify that build takes an optional path to the project.
+ */
+TEST(BuiltinCommandResolverTest, BuildTakesAnOptionalPath)
+{
+    MockHelpRenderer helpRenderer;
+    MockVersionRenderer versionRenderer;
+    BuiltinCommandResolver resolver(helpRenderer, versionRenderer);
+
+    RuntimeEnvironment env;
+    auto entries = resolver.resolve(env);
+
+    const auto* build = findByName(entries, "build");
+    ASSERT_NE(build, nullptr);
+    ASSERT_EQ(build->spec.options.positional.size(), 1);
+    EXPECT_EQ(build->spec.options.positional[0].name, "path");
+    EXPECT_FALSE(build->spec.options.positional[0].required);
+}

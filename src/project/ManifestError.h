@@ -16,6 +16,14 @@ struct SourcePosition {
 };
 
 /**
+ * @brief What kind of failure a ManifestError reports.
+ */
+enum class ManifestErrorKind : std::uint8_t {
+    Invalid,    ///< The contents break the manifest's syntax or rules.
+    Unreadable  ///< The file could not be opened or read.
+};
+
+/**
  * @brief Why a manifest could not be turned into a Manifest.
  *
  * Carries enough to point the user at the offending spot: the file, the
@@ -28,13 +36,14 @@ struct ManifestError {
     std::optional<SourcePosition> position;
     std::string key;  ///< Dotted key path, e.g. "package.name". Empty when not tied to one key.
     std::string message;
+    ManifestErrorKind kind = ManifestErrorKind::Invalid;
 };
 
 /**
  * @brief Render an error as a single diagnostic line.
  *
- * The shape is "<file>[:<line>:<column>]: [<key>: ]<message>", which matches
- * what compilers emit and what editors know how to jump to.
+ * The shape is "<file>[:<line>:<column>]: error: [<key>: ]<message>", which
+ * matches what compilers emit and what editors know how to jump to.
  *
  * @param error Error to render.
  * @return Diagnostic line, without a trailing newline.

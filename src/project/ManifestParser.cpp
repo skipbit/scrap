@@ -82,7 +82,8 @@ auto errorAt(const std::filesystem::path& file,
     return ManifestError{.file = file,
                          .position = toPosition(node.source().begin),
                          .key = std::move(key),
-                         .message = std::move(message)};
+                         .message = std::move(message),
+                         .kind = ManifestErrorKind::Invalid};
 }
 
 /**
@@ -90,7 +91,23 @@ auto errorAt(const std::filesystem::path& file,
  */
 auto errorWithoutPosition(const std::filesystem::path& file, std::string key, std::string message) -> ManifestError
 {
-    return ManifestError{.file = file, .position = std::nullopt, .key = std::move(key), .message = std::move(message)};
+    return ManifestError{.file = file,
+                         .position = std::nullopt,
+                         .key = std::move(key),
+                         .message = std::move(message),
+                         .kind = ManifestErrorKind::Invalid};
+}
+
+/**
+ * Build an error for a manifest file that could not be opened or read.
+ */
+auto unreadable(const std::filesystem::path& file, std::string message) -> ManifestError
+{
+    return ManifestError{.file = file,
+                         .position = std::nullopt,
+                         .key = {},
+                         .message = std::move(message),
+                         .kind = ManifestErrorKind::Unreadable};
 }
 
 /**
@@ -356,16 +373,16 @@ auto readWholeFile(const std::filesystem::path& file) -> std::expected<std::stri
 {
     std::error_code ec;
     if (! std::filesystem::is_regular_file(file, ec)) {
-        return std::unexpected(errorWithoutPosition(file, {}, "cannot open the manifest"));
+        return std::unexpected(unreadable(file, "cannot open the manifest"));
     }
     const std::uintmax_t size = std::filesystem::file_size(file, ec);
     if (ec) {
-        return std::unexpected(errorWithoutPosition(file, {}, "cannot read the manifest"));
+        return std::unexpected(unreadable(file, "cannot read the manifest"));
     }
 
     std::ifstream input(file, std::ios::binary);
     if (! input.is_open()) {
-        return std::unexpected(errorWithoutPosition(file, {}, "cannot open the manifest"));
+        return std::unexpected(unreadable(file, "cannot open the manifest"));
     }
     if (size == 0) {
         return std::string{};
@@ -374,7 +391,7 @@ auto readWholeFile(const std::filesystem::path& file) -> std::expected<std::stri
     std::string text(static_cast<std::size_t>(size), '\0');
     input.read(text.data(), static_cast<std::streamsize>(size));
     if (static_cast<std::uintmax_t>(input.gcount()) != size) {
-        return std::unexpected(errorWithoutPosition(file, {}, "cannot read the manifest"));
+        return std::unexpected(unreadable(file, "cannot read the manifest"));
     }
     return text;
 }
@@ -392,7 +409,8 @@ auto parseManifest(std::string_view text, const std::filesystem::path& file) -> 
         return std::unexpected(ManifestError{.file = file,
                                              .position = toPosition(error.source().begin),
                                              .key = {},
-                                             .message = std::string{error.description()}});
+                                             .message = std::string{error.description()},
+                                             .kind = ManifestErrorKind::Invalid});
     }
 
     if (auto known = rejectUnknownKeys(file, parsed.table(), {}, KnownTopLevelKeys); ! known.has_value()) {
