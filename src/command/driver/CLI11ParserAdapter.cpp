@@ -25,6 +25,18 @@ namespace scrap::Command {
 // =============================================================================
 
 /**
+ * One positional's value and the option CLI11 registered for it, whose
+ * count tells a given argument from an omitted one.
+ *
+ * The option belongs to the CLI::App built in parse(), so a slot is read
+ * only while that app is alive.
+ */
+struct PositionalSlot {
+    std::string value;
+    const CLI::Option* option = nullptr;
+};
+
+/**
  * Holds mutable value slots that CLI11 writes into during parsing.
  *
  * One instance is created per CommandSpec node in the spec tree.
@@ -39,7 +51,7 @@ struct OptionStorage {
     std::unordered_map<std::string, std::int64_t> ints;
     std::unordered_map<std::string, std::string> strings;
     std::unordered_map<std::string, std::vector<std::string>> stringLists;
-    std::deque<std::string> positionals;
+    std::deque<PositionalSlot> positionals;
 };
 
 // =============================================================================
@@ -122,10 +134,11 @@ void addPositional(CLI::App& app, const PositionalDef& def, OptionStorage& stora
 {
     storage.positionals.emplace_back();
     auto& slot = storage.positionals.back();
-    auto* opt = app.add_option(def.name, slot, def.description);
+    auto* opt = app.add_option(def.name, slot.value, def.description);
     if (def.required) {
         opt->required();
     }
+    slot.option = opt;
 }
 
 /**
@@ -209,6 +222,10 @@ auto buildCommandPath(const CLI::App& app) -> std::string
 
 /**
  * Harvest parsed values from OptionStorage into ParsedOptions.
+ *
+ * Only positionals given on the command line are harvested. CLI11 fills
+ * positionals in order, so the omitted ones are the trailing ones and
+ * each harvested value keeps its index.
  */
 auto harvestOptions(const OptionStorage& storage) -> ParsedOptions
 {
@@ -231,7 +248,11 @@ auto harvestOptions(const OptionStorage& storage) -> ParsedOptions
         }
     }
 
-    opts.positional.assign(storage.positionals.begin(), storage.positionals.end());
+    for (const PositionalSlot& slot : storage.positionals) {
+        if (slot.option->count() > 0) {
+            opts.positional.push_back(slot.value);
+        }
+    }
     return opts;
 }
 

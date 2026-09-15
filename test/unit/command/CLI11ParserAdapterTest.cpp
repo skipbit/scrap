@@ -240,6 +240,73 @@ TEST(CLI11ParserAdapterTest, Parse_MultiplePositionals)
     EXPECT_EQ(result->options.positional[1], "/tmp/dest");
 }
 
+TEST(CLI11ParserAdapterTest, Parse_OmittedOptionalPositionalIsAbsent)
+{
+    CLI11ParserAdapter adapter;
+
+    CommandSpec spec = makeSpec("help");
+    spec.options.positional.push_back(PositionalDef{
+        .name = "command",
+        .description = "Command to get help for",
+        .required = false,
+    });
+
+    adapter.configure(std::vector{spec});
+
+    ArgvBuilder argv{"scrap", "help"};
+    auto result = adapter.parse(argv.span());
+
+    ASSERT_TRUE(result.has_value());
+    EXPECT_TRUE(result->options.positional.empty());
+}
+
+TEST(CLI11ParserAdapterTest, Parse_OmittedTrailingPositionalKeepsTheGivenOnes)
+{
+    CLI11ParserAdapter adapter;
+
+    CommandSpec spec = makeSpec("new");
+    spec.options.positional.push_back(PositionalDef{
+        .name = "project-name",
+        .description = "Name of the new project",
+        .required = true,
+    });
+    spec.options.positional.push_back(PositionalDef{
+        .name = "directory",
+        .description = "Target directory",
+        .required = false,
+    });
+
+    adapter.configure(std::vector{spec});
+
+    ArgvBuilder argv{"scrap", "new", "myproject"};
+    auto result = adapter.parse(argv.span());
+
+    ASSERT_TRUE(result.has_value());
+    ASSERT_EQ(result->options.positional.size(), 1);
+    EXPECT_EQ(result->options.positional[0], "myproject");
+}
+
+TEST(CLI11ParserAdapterTest, Parse_ExplicitEmptyPositionalIsKept)
+{
+    CLI11ParserAdapter adapter;
+
+    CommandSpec spec = makeSpec("build");
+    spec.options.positional.push_back(PositionalDef{
+        .name = "path",
+        .description = "Directory inside the project",
+        .required = false,
+    });
+
+    adapter.configure(std::vector{spec});
+
+    ArgvBuilder argv{"scrap", "build", ""};
+    auto result = adapter.parse(argv.span());
+
+    ASSERT_TRUE(result.has_value());
+    ASSERT_EQ(result->options.positional.size(), 1);
+    EXPECT_EQ(result->options.positional[0], "");
+}
+
 // =============================================================================
 // No subcommand (error)
 // =============================================================================

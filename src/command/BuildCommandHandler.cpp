@@ -14,11 +14,11 @@ namespace {
 
 /**
  * The path argument taken against the working directory, or the working
- * directory itself. An omitted positional arrives as an empty string.
+ * directory itself.
  */
 auto startDirectory(const InvocationContext& ctx) -> std::filesystem::path
 {
-    if (ctx.options.positional.empty() || ctx.options.positional.front().empty()) {
+    if (ctx.options.positional.empty()) {
         return ctx.env->workingDirectory;
     }
     return ctx.env->workingDirectory / ctx.options.positional.front();
@@ -28,6 +28,13 @@ auto startDirectory(const InvocationContext& ctx) -> std::filesystem::path
 
 auto BuildCommandHandler::execute(const InvocationContext& ctx) -> int
 {
+    // An explicitly empty argument is usually an unset variable, so it is
+    // reported as an error instead of standing for the working directory.
+    if (! ctx.options.positional.empty() && ctx.options.positional.front().empty()) {
+        std::cerr << renderEmptyPathArgument();
+        return 1;
+    }
+
     const auto project = Project::loadProject(startDirectory(ctx));
     if (! project.has_value()) {
         std::cerr << renderProjectError(project.error());
