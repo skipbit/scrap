@@ -180,7 +180,8 @@ TEST(ProjectDiagnosticTest, RendersAPathThatCannotBeCreated)
     const scrap::Project::CreateProjectError error =
         scrap::Project::CannotCreate{.path = "/home/me/work/hello",
                                      .reason = "Permission denied",
-                                     .code = std::make_error_code(std::errc::permission_denied)};
+                                     .code = std::make_error_code(std::errc::permission_denied),
+                                     .leftBehind = std::nullopt};
 
     EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
               "error: cannot create '/home/me/work/hello': Permission denied\n"
@@ -195,7 +196,8 @@ TEST(ProjectDiagnosticTest, RendersAFullDiskWithItsOwnHint)
     const scrap::Project::CreateProjectError error =
         scrap::Project::CannotCreate{.path = "/home/me/work/hello",
                                      .reason = "No space left on device",
-                                     .code = std::make_error_code(std::errc::no_space_on_device)};
+                                     .code = std::make_error_code(std::errc::no_space_on_device),
+                                     .leftBehind = std::nullopt};
 
     EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
               "error: cannot create '/home/me/work/hello': No space left on device\n"
@@ -210,11 +212,29 @@ TEST(ProjectDiagnosticTest, RendersAReadOnlyFileSystemWithItsOwnHint)
     const scrap::Project::CreateProjectError error =
         scrap::Project::CannotCreate{.path = "/mnt/cdrom/hello",
                                      .reason = "Read-only file system",
-                                     .code = std::make_error_code(std::errc::read_only_file_system)};
+                                     .code = std::make_error_code(std::errc::read_only_file_system),
+                                     .leftBehind = std::nullopt};
 
     EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
               "error: cannot create '/mnt/cdrom/hello': Read-only file system\n"
               "hint: run the command in a writable directory\n");
+}
+
+/**
+ * A partly created project that could not be removed is named in the hint, so
+ * the next attempt does not stop at a directory the user did not make.
+ */
+TEST(ProjectDiagnosticTest, RendersAPartlyCreatedProjectLeftBehind)
+{
+    const scrap::Project::CreateProjectError error =
+        scrap::Project::CannotCreate{.path = "/home/me/work/hello/src/main.cpp",
+                                     .reason = "No space left on device",
+                                     .code = std::make_error_code(std::errc::no_space_on_device),
+                                     .leftBehind = "/home/me/work/hello"};
+
+    EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
+              "error: cannot create '/home/me/work/hello/src/main.cpp': No space left on device\n"
+              "hint: remove the partly created '/home/me/work/hello' before trying again\n");
 }
 
 /**
@@ -225,9 +245,13 @@ TEST(ProjectDiagnosticTest, RendersAnyOtherFailureWithTheGeneralHint)
     const scrap::Project::CreateProjectError missing =
         scrap::Project::CannotCreate{.path = "/home/me/gone/hello",
                                      .reason = "No such file or directory",
-                                     .code = std::make_error_code(std::errc::no_such_file_or_directory)};
-    const scrap::Project::CreateProjectError uncoded = scrap::Project::CannotCreate{
-        .path = "/home/me/work/hello/scrap.toml", .reason = "the file could not be written", .code = {}};
+                                     .code = std::make_error_code(std::errc::no_such_file_or_directory),
+                                     .leftBehind = std::nullopt};
+    const scrap::Project::CreateProjectError uncoded =
+        scrap::Project::CannotCreate{.path = "/home/me/work/hello/scrap.toml",
+                                     .reason = "the file could not be written",
+                                     .code = {},
+                                     .leftBehind = std::nullopt};
 
     EXPECT_EQ(scrap::Command::renderCreateProjectError(missing),
               "error: cannot create '/home/me/gone/hello': No such file or directory\n"

@@ -208,6 +208,7 @@ TEST(ProjectCreatorTest, RemovesThePartialProjectWhenAFileCannotBeWritten)
     ASSERT_NE(error, nullptr);
     EXPECT_FALSE(error->reason.empty());
     EXPECT_TRUE(static_cast<bool>(error->code));
+    EXPECT_FALSE(error->leftBehind.has_value());
     EXPECT_FALSE(std::filesystem::exists(temp.path() / "hello"));
 }
 

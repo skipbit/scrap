@@ -153,7 +153,13 @@ auto render(const Project::CannotCreate& error) -> std::string
     text += "': ";
     text += error.reason;
     text += '\n';
-    text += cannotCreateHint(error.code);
+    if (error.leftBehind.has_value()) {
+        text += "hint: remove the partly created '";
+        text += error.leftBehind->string();
+        text += "' before trying again\n";
+    } else {
+        text += cannotCreateHint(error.code);
+    }
     return text;
 }
 

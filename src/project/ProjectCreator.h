@@ -6,6 +6,7 @@
 #include <expected>
 #include <filesystem>
 #include <functional>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -35,6 +36,8 @@ struct CannotCreate {
     std::filesystem::path path;
     std::string reason;    ///< The operating system's description of the failure.
     std::error_code code;  ///< The failure as reported, or empty when the system reported none.
+    /// The partly created project directory, set when removing it failed as well.
+    std::optional<std::filesystem::path> leftBehind;
 };
 
 /**
