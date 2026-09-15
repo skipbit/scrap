@@ -105,7 +105,7 @@ find_program(GIT_FOR_TEST NAMES git)
 if(NOT GIT_FOR_TEST)
     message(STATUS "ProjectVersion: git not found, skipping the detection cases")
 else()
-    math(EXPR MINIMUM_CHECKS "${MINIMUM_CHECKS} + 43")
+    math(EXPR MINIMUM_CHECKS "${MINIMUM_CHECKS} + 60")
 
     function(run_git DIR)
         execute_process(
@@ -121,10 +121,11 @@ else()
     endfunction()
 
     # Tag names go through their own entry point: run_git passes ARGN, which
-    # splits a name carrying a CMake list separator into two arguments.
+    # splits a name carrying a CMake list separator into two arguments. Extra
+    # arguments (-a -m ...) go before the name.
     function(create_tag DIR TAG)
         execute_process(
-            COMMAND ${GIT_FOR_TEST} -c user.email=t@example.invalid -c user.name=t tag "${TAG}"
+            COMMAND ${GIT_FOR_TEST} -c user.email=t@example.invalid -c user.name=t tag ${ARGN} "${TAG}"
             WORKING_DIRECTORY "${DIR}"
             RESULT_VARIABLE code
             OUTPUT_QUIET
@@ -132,19 +133,6 @@ else()
         )
         if(NOT code EQUAL 0)
             message(FATAL_ERROR "git tag '${TAG}' failed in ${DIR}")
-        endif()
-    endfunction()
-
-    function(create_annotated_tag DIR TAG)
-        execute_process(
-            COMMAND ${GIT_FOR_TEST} -c user.email=t@example.invalid -c user.name=t tag -a "${TAG}" -m "${TAG}"
-            WORKING_DIRECTORY "${DIR}"
-            RESULT_VARIABLE code
-            OUTPUT_QUIET
-            ERROR_QUIET
-        )
-        if(NOT code EQUAL 0)
-            message(FATAL_ERROR "git tag -a '${TAG}' failed in ${DIR}")
         endif()
     endfunction()
 
@@ -156,7 +144,7 @@ else()
     # cmake/ArchiveVersion.txt is already filled in and has none left. Run from
     # a checkout, the restatement is checked against the shipped file, so the
     # two cannot drift apart unnoticed.
-    set(ARCHIVE_TEMPLATE "commit=$Format:%H$\ndescribe=$Format:%(describe:tags=true,abbrev=12,match=v[0-9]*.[0-9]*.[0-9]*)$\n")
+    set(ARCHIVE_TEMPLATE "commit=$Format:%H$\ndescribe=$Format:%(describe:tags=true,abbrev=12,match=v[0-9]*.[0-9]*.[0-9]*,exclude=*;*)$\n")
     file(READ "${PROJECT_ROOT}/cmake/ArchiveVersion.txt" shipped_archive_file)
     string(REGEX MATCHALL "(commit|describe)=[^\n]*" shipped_lines "${shipped_archive_file}")
     string(REGEX MATCHALL "(commit|describe)=[^\n]*" template_lines "${ARCHIVE_TEMPLATE}")
@@ -165,7 +153,7 @@ else()
         if(NOT shipped_lines STREQUAL template_lines)
             record_failure("the placeholders restated in this test differ from cmake/ArchiveVersion.txt")
         endif()
-    elseif(NOT shipped_archive_file MATCHES "(^|\n)commit=[0-9a-f]+")
+    elseif(NOT (shipped_archive_file MATCHES "(^|\n)commit=[0-9a-f]+" AND shipped_archive_file MATCHES "(^|\n)describe="))
         record_failure("cmake/ArchiveVersion.txt is neither a template nor filled in: ${shipped_archive_file}")
     endif()
 
@@ -306,7 +294,7 @@ else()
     # lightweight tag that is not a release sits on the same commit and must
     # not name it.
     make_archivable_repo("${SCRATCH_DIR}/archived")
-    create_annotated_tag("${SCRATCH_DIR}/archived" "v0.1.0")
+    create_tag("${SCRATCH_DIR}/archived" "v0.1.0" -a -m "v0.1.0")
     create_tag("${SCRATCH_DIR}/archived" "nightly-2026")
     unpack_archive("${SCRATCH_DIR}/archived" "v0.1.0" "${SCRATCH_DIR}/release-archive")
     expect_detect("${SCRATCH_DIR}/release-archive" "0.1.0" "^v0[.]1[.]0$" "release archive")
@@ -321,6 +309,10 @@ else()
     if(NOT got_describe STREQUAL checkout_describe)
         record_failure("between releases the archive says '${got_describe}', the checkout '${checkout_describe}'")
     endif()
+    math(EXPR checks "${checks} + 1")
+    if(NOT got_version STREQUAL checkout_version)
+        record_failure("between releases the archive says ${got_version}, the checkout ${checkout_version}")
+    endif()
 
     # An archive of a commit no release reaches: the commit id alone.
     make_archivable_repo("${SCRATCH_DIR}/unreleased")
@@ -331,9 +323,9 @@ else()
     # tag. Nearer than the release, it must leave the archive with no version
     # rather than a wrong one.
     make_archivable_repo("${SCRATCH_DIR}/archive-malformed")
-    create_annotated_tag("${SCRATCH_DIR}/archive-malformed" "v0.1.0")
+    create_tag("${SCRATCH_DIR}/archive-malformed" "v0.1.0" -a -m "v0.1.0")
     run_git("${SCRATCH_DIR}/archive-malformed" commit -q --allow-empty -m next)
-    create_annotated_tag("${SCRATCH_DIR}/archive-malformed" "v1.2.3.4")
+    create_tag("${SCRATCH_DIR}/archive-malformed" "v1.2.3.4" -a -m "v1.2.3.4")
     unpack_archive("${SCRATCH_DIR}/archive-malformed" "HEAD" "${SCRATCH_DIR}/archive-malformed-archive")
     expect_detect("${SCRATCH_DIR}/archive-malformed-archive" "0.0.0" "^${HEX12}$" "archive with a malformed tag nearest")
 
@@ -341,7 +333,7 @@ else()
     # picks is git's choice; that the checkout and the archive pick the same
     # one is this module's.
     make_archivable_repo("${SCRATCH_DIR}/promoted")
-    create_annotated_tag("${SCRATCH_DIR}/promoted" "v0.2.0-rc1")
+    create_tag("${SCRATCH_DIR}/promoted" "v0.2.0-rc1" -a -m "v0.2.0-rc1")
     create_tag("${SCRATCH_DIR}/promoted" "v0.2.0")
     scrap_version_detect(promoted_version promoted_describe "${SCRATCH_DIR}/promoted")
     unpack_archive("${SCRATCH_DIR}/promoted" "v0.2.0" "${SCRATCH_DIR}/promoted-archive")
@@ -349,6 +341,10 @@ else()
     math(EXPR checks "${checks} + 1")
     if(NOT got_describe STREQUAL promoted_describe)
         record_failure("a promoted pre-release: the archive says '${got_describe}', the checkout '${promoted_describe}'")
+    endif()
+    math(EXPR checks "${checks} + 1")
+    if(NOT got_version STREQUAL promoted_version)
+        record_failure("a promoted pre-release: the archive says ${got_version}, the checkout ${promoted_version}")
     endif()
 
     # An archive someone has since made into a repository of its own: the
@@ -358,6 +354,11 @@ else()
     run_git("${SCRATCH_DIR}/reinitialised" add -A)
     run_git("${SCRATCH_DIR}/reinitialised" commit -q -m import)
     expect_detect("${SCRATCH_DIR}/reinitialised" "0.1.0" "^v0[.]1[.]0$" "archive made into a repository")
+
+    # Once that repository tags a release of its own, the repository answers.
+    run_git("${SCRATCH_DIR}/reinitialised" commit -q --allow-empty -m work)
+    create_tag("${SCRATCH_DIR}/reinitialised" "v0.2.0" -a -m "v0.2.0")
+    expect_detect("${SCRATCH_DIR}/reinitialised" "0.2.0" "^v0[.]2[.]0$" "archive made into a repository, released since")
 
     # A git that leaves the describe placeholder unexpanded: the archive still
     # names its commit.
@@ -376,6 +377,43 @@ else()
     expect_detect("${SCRATCH_DIR}/notfound" "1.0.0" "^v1[.]0[.]0-NOTFOUND$" "tag ending in -NOTFOUND, checkout")
     unpack_archive("${SCRATCH_DIR}/notfound" "v1.0.0-NOTFOUND" "${SCRATCH_DIR}/notfound-archive")
     expect_detect("${SCRATCH_DIR}/notfound-archive" "1.0.0" "^v1[.]0[.]0-NOTFOUND$" "tag ending in -NOTFOUND, archive")
+
+    # A release-shaped name carrying the list separator, nearer than the
+    # release: a checkout skips it, and the archive must too rather than name
+    # a version the checkout never reports.
+    make_archivable_repo("${SCRATCH_DIR}/archive-separator")
+    create_tag("${SCRATCH_DIR}/archive-separator" "v0.1.0" -a -m "v0.1.0")
+    run_git("${SCRATCH_DIR}/archive-separator" commit -q --allow-empty -m next)
+    create_tag("${SCRATCH_DIR}/archive-separator" "v1.0.0-a;b")
+    expect_detect("${SCRATCH_DIR}/archive-separator" "0.1.0" "^v0[.]1[.]0-1-g${HEX12}$" "list separator nearer than the release, checkout")
+    set(separator_version "${got_version}")
+    set(separator_describe "${got_describe}")
+    unpack_archive("${SCRATCH_DIR}/archive-separator" "HEAD" "${SCRATCH_DIR}/archive-separator-archive")
+    expect_detect("${SCRATCH_DIR}/archive-separator-archive" "0.1.0" "^v0[.]1[.]0-1-g${HEX12}$" "list separator nearer than the release, archive")
+    math(EXPR checks "${checks} + 1")
+    if(NOT got_describe STREQUAL separator_describe OR NOT got_version STREQUAL separator_version)
+        record_failure("list separator: the archive says ${got_version} '${got_describe}', the checkout ${separator_version} '${separator_describe}'")
+    endif()
+
+    # The same name in a file filled in without the exclusion: still rejected.
+    file(WRITE "${SCRATCH_DIR}/separator-file/cmake/ArchiveVersion.txt"
+        "commit=0123456789abcdef0123456789abcdef01234567\ndescribe=v1.0.0-a;b\n")
+    expect_detect("${SCRATCH_DIR}/separator-file" "0.0.0" "^0123456789ab$" "list separator in a filled-in description")
+
+    # A commit value that is not all hexadecimal is not a filled-in file.
+    file(WRITE "${SCRATCH_DIR}/damaged/cmake/ArchiveVersion.txt"
+        "commit=0123456789abZZZ\ndescribe=v1.0.0\n")
+    expect_detect("${SCRATCH_DIR}/damaged" "0.0.0" "^unknown$" "damaged commit value")
+
+    # A limit, pinned so that changing it is a decision: a malformed tag git
+    # prefers on the release commit leaves the archive without a version,
+    # though a checkout of that commit finds the release.
+    make_archivable_repo("${SCRATCH_DIR}/colocated-malformed")
+    create_tag("${SCRATCH_DIR}/colocated-malformed" "v1.2.3")
+    create_tag("${SCRATCH_DIR}/colocated-malformed" "v1.2.3.1" -a -m "v1.2.3.1")
+    expect_detect("${SCRATCH_DIR}/colocated-malformed" "1.2.3" "^v1[.]2[.]3$" "malformed tag on the release commit, checkout")
+    unpack_archive("${SCRATCH_DIR}/colocated-malformed" "v1.2.3" "${SCRATCH_DIR}/colocated-malformed-archive")
+    expect_detect("${SCRATCH_DIR}/colocated-malformed-archive" "0.0.0" "^${HEX12}$" "malformed tag on the release commit, archive")
 
     # Sources unpacked inside another project: git finds that project's
     # repository, whose tags say nothing about this one.

@@ -76,13 +76,18 @@ jobs:
       # the mechanism rather than that exact file.
       - name: Check a source archive describes itself the same way
         run: |
+          # Written to a file before unpacking: in a pipe, a failing git
+          # archive would surface only as a confusing mismatch below.
           mkdir -p "$RUNNER_TEMP/archive"
-          git archive --format=tar "$GITHUB_SHA" | tar -x -C "$RUNNER_TEMP/archive"
+          git archive --format=tar --output="$RUNNER_TEMP/archive.tar" "$GITHUB_SHA"
+          tar -xf "$RUNNER_TEMP/archive.tar" -C "$RUNNER_TEMP/archive"
           cmake -D "SOURCE_DIR=$RUNNER_TEMP/archive" -D "NAME=scrap" \
                 -D "OUTPUT=$RUNNER_TEMP/archive-version" -P cmake/PrintVersion.cmake
           described="$(sed -n 1p "$RUNNER_TEMP/archive-version")"
           if [ "$described" != "$GITHUB_REF_NAME" ]; then
             echo "::error::a source archive describes itself as '$described', not $GITHUB_REF_NAME"
+            echo "Tags on this commit: $(git tag --points-at "$GITHUB_SHA" | tr '\n' ' ')"
+            echo "A malformed tag such as v1.2.3.4, on this commit or nearer than the release, leaves an archive without a version."
             exit 1
           fi
           echo "a source archive describes itself as $described"

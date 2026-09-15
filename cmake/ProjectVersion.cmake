@@ -32,13 +32,25 @@
 # changes if another matching tag is later put on the same commit.
 #
 # That description is chosen by a glob, because nothing else runs inside git
-# archive. A malformed tag nearer than the last release therefore makes an
-# archive report 0.0.0, where a checkout of the same commit finds the release
-# behind it: no version, rather than a wrong one.
+# archive, and a glob cannot express "digits only". A malformed tag the glob
+# admits -- nearer than the last release, or on the release commit and
+# preferred by git -- makes an archive report 0.0.0 where a checkout finds the
+# release: no version, rather than a wrong one. Excluding such shapes in the
+# glob would exclude pre-releases like v1.0.0-rc.1 along with them. Names
+# carrying the CMake list separator are excluded in the glob and rejected
+# here, as in a checkout; the pattern alone would accept v1.0.0-a;b.
 #
-# Commit ids are abbreviated to a fixed 12 characters in both paths. git's
-# automatic length grows with the repository, which would change an old
-# archive's bytes and let a checkout and its archive disagree.
+# The repository answers when it knows a release, and a filled-in archive file
+# answers otherwise. That covers a repository someone started on top of an
+# unpacked archive: until it tags a release of its own, the file still says
+# where the tree came from. Such a repository's own archives are not covered --
+# the file it committed is already filled in, so they carry the original
+# description.
+#
+# Commit ids are abbreviated to 12 characters in both paths rather than to
+# git's automatic length, which grows with the repository and would change an
+# old archive's bytes. git lengthens 12 when a shorter prefix is ambiguous; an
+# archive's bare commit id, cut from the full id, cannot follow it there.
 #
 # Both values are read at configure time, which is the only point where
 # project(VERSION) can take them. The generated version source is refreshed
@@ -106,7 +118,7 @@ function(scrap_version_from_archive SOURCE_DIR OUT_FOUND OUT_VERSION OUT_DESCRIB
         return()
     endif()
     file(READ "${archive_file}" content)
-    if(NOT content MATCHES "(^|\n)commit=([0-9a-f]+)")
+    if(NOT content MATCHES "(^|\n)commit=([0-9a-f]+)(\r|\n|$)")
         return()
     endif()
     set(commit "${CMAKE_MATCH_2}")
@@ -124,6 +136,13 @@ function(scrap_version_from_archive SOURCE_DIR OUT_FOUND OUT_VERSION OUT_DESCRIB
     set(${OUT_FOUND} TRUE PARENT_SCOPE)
     set(${OUT_VERSION} "0.0.0" PARENT_SCOPE)
     set(${OUT_DESCRIBE} "${commit}" PARENT_SCOPE)
+
+    # A name carrying the list separator is rejected as in a checkout. The
+    # glob excludes it already; this holds for a file filled in by an older
+    # template or by hand.
+    if(description MATCHES ";")
+        return()
+    endif()
 
     # The description is the release pattern's to judge, with no parsing
     # first: the pattern already accepts what follows a tag in a description
@@ -187,28 +206,32 @@ function(scrap_version_from_repository SOURCE_DIR OUT_FOUND OUT_VERSION OUT_DESC
         RESULT_VARIABLE list_result
     )
 
-    set(selectors "")
-    if(list_result EQUAL 0)
-        # git separates names by newline, but a name may itself contain the
-        # CMake list separator. Escaping it first keeps such a name in one
-        # piece: split naively, v1.0.0-a;b becomes v1.0.0-a, which the pattern
-        # accepts and which names no tag at all.
-        string(REPLACE ";" "\;" all_tags "${all_tags}")
-        string(REPLACE "\n" ";" all_tags "${all_tags}")
-        foreach(tag IN LISTS all_tags)
-            # A name carrying the list separator cannot be handed to git as one
-            # argument, so it cannot be selected. git permits the character; a
-            # release tag has no reason to use it.
-            if(tag MATCHES ";")
-                continue()
-            endif()
-
-            scrap_version_from_tag(candidate "${tag}")
-            if(NOT candidate STREQUAL "0.0.0")
-                list(APPEND selectors "--match=${tag}")
-            endif()
-        endforeach()
+    # Tags that cannot be read leave the description unknown, rather than a
+    # commit id that would pass for an unreleased tree.
+    if(NOT list_result EQUAL 0)
+        return()
     endif()
+
+    # git separates names by newline, but a name may itself contain the CMake
+    # list separator. Escaping it first keeps such a name in one piece: split
+    # naively, v1.0.0-a;b becomes v1.0.0-a, which the pattern accepts and which
+    # names no tag at all.
+    string(REPLACE ";" "\;" all_tags "${all_tags}")
+    string(REPLACE "\n" ";" all_tags "${all_tags}")
+    set(selectors "")
+    foreach(tag IN LISTS all_tags)
+        # A name carrying the list separator cannot be handed to git as one
+        # argument, so it cannot be selected. git permits the character; a
+        # release tag has no reason to use it.
+        if(tag MATCHES ";")
+            continue()
+        endif()
+
+        scrap_version_from_tag(candidate "${tag}")
+        if(NOT candidate STREQUAL "0.0.0")
+            list(APPEND selectors "--match=${tag}")
+        endif()
+    endforeach()
 
     list(LENGTH selectors selector_count)
     if(selector_count EQUAL 0)
@@ -254,18 +277,24 @@ function(scrap_version_from_repository SOURCE_DIR OUT_FOUND OUT_VERSION OUT_DESC
     endif()
 endfunction()
 
-# Resolve the numeric version and the full git description of SOURCE_DIR.
-#
-# A filled-in archive file is read first. A checkout never carries one, so
-# finding one means the tree came from git archive -- even if a repository has
-# since been started on top of it, which would otherwise report its own first
-# commit and no release.
+# Resolve the numeric version and the full git description of SOURCE_DIR: from
+# the repository when it knows a release, from a filled-in archive file
+# otherwise, and 0.0.0 with the repository's own description or an unknown one
+# when neither knows more.
 function(scrap_version_detect OUT_VERSION OUT_DESCRIBE SOURCE_DIR)
-    scrap_version_from_archive("${SOURCE_DIR}" found detected_version detected_describe)
-    if(NOT found)
-        scrap_version_from_repository("${SOURCE_DIR}" found detected_version detected_describe)
-    endif()
-    if(NOT found)
+    scrap_version_from_repository("${SOURCE_DIR}" repository_found repository_version repository_describe)
+    scrap_version_from_archive("${SOURCE_DIR}" archive_found archive_version archive_describe)
+
+    if(repository_found AND NOT repository_version STREQUAL "0.0.0")
+        set(detected_version "${repository_version}")
+        set(detected_describe "${repository_describe}")
+    elseif(archive_found)
+        set(detected_version "${archive_version}")
+        set(detected_describe "${archive_describe}")
+    elseif(repository_found)
+        set(detected_version "${repository_version}")
+        set(detected_describe "${repository_describe}")
+    else()
         set(detected_version "0.0.0")
         set(detected_describe "unknown")
     endif()

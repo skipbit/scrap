@@ -3,4 +3,4 @@
 # placeholders whose output does not move when branches do belong here; see
 # cmake/ProjectVersion.cmake.
 commit=$Format:%H$
-describe=$Format:%(describe:tags=true,abbrev=12,match=v[0-9]*.[0-9]*.[0-9]*)$
+describe=$Format:%(describe:tags=true,abbrev=12,match=v[0-9]*.[0-9]*.[0-9]*,exclude=*;*)$
