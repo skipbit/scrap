@@ -15,7 +15,7 @@ auto NewCommandHandler::execute(const InvocationContext& ctx) -> int
 {
     const std::string name = ctx.options.positional.empty() ? std::string{} : ctx.options.positional.front();
 
-    const auto root = Project::createProject(ctx.env->workingDirectory, name, Project::defaultTemplateFiles(name));
+    const auto root = Project::createProject(ctx.env->workingDirectory, name, Project::defaultTemplateFiles);
     if (! root.has_value()) {
         std::cerr << renderCreateProjectError(root.error());
         return 1;

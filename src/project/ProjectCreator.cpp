@@ -73,11 +73,12 @@ auto isValidProjectName(std::string_view name) -> bool
 
 auto createProject(const std::filesystem::path& parentDir,
                    std::string_view name,
-                   const std::vector<TemplateFile>& files) -> std::expected<std::filesystem::path, CreateProjectError>
+                   const TemplateFiles& templateFiles) -> std::expected<std::filesystem::path, CreateProjectError>
 {
     if (! isValidProjectName(name)) {
         return std::unexpected(CreateProjectError{InvalidProjectName{.name = std::string{name}}});
     }
+    const std::vector<TemplateFile> files = templateFiles(name);
 
     std::error_code ec;
     std::filesystem::path root = std::filesystem::absolute(parentDir, ec);
