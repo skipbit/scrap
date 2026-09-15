@@ -135,6 +135,30 @@ TEST(ProjectDiagnosticTest, RendersAnInvalidProjectName)
 }
 
 /**
+ * Bytes a terminal would act on are shown as \xNN instead of being written raw.
+ */
+TEST(ProjectDiagnosticTest, EscapesControlCharactersInAProjectName)
+{
+    const scrap::Project::CreateProjectError error = scrap::Project::InvalidProjectName{.name = "a\nb\x1b[2J"};
+
+    EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
+              "error: 'a\\x0Ab\\x1B[2J' is not a valid project name\n"
+              "hint: use letters, digits, '-' and '_', starting with a letter\n");
+}
+
+/**
+ * Bytes outside ASCII are shown as \xNN as well.
+ */
+TEST(ProjectDiagnosticTest, EscapesNonAsciiBytesInAProjectName)
+{
+    const scrap::Project::CreateProjectError error = scrap::Project::InvalidProjectName{.name = "caf\xc3\xa9"};
+
+    EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
+              "error: 'caf\\xC3\\xA9' is not a valid project name\n"
+              "hint: use letters, digits, '-' and '_', starting with a letter\n");
+}
+
+/**
  * An existing path is named, with a next step that keeps it intact.
  */
 TEST(ProjectDiagnosticTest, RendersAnExistingPath)

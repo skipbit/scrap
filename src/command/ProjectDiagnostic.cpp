@@ -73,6 +73,28 @@ auto render(const Project::ManifestError& error) -> std::string
     return text;
 }
 
+/**
+ * Text the user typed, made safe to print: printable ASCII stays as it is and
+ * every other byte becomes \xNN, so control characters and escape sequences
+ * reach the terminal as text rather than as instructions.
+ */
+auto printable(std::string_view text) -> std::string
+{
+    static constexpr std::string_view HexDigits = "0123456789ABCDEF";
+    std::string result;
+    for (const char ch : text) {
+        const unsigned byte = static_cast<unsigned char>(ch);
+        if (byte >= 0x20U && byte < 0x7FU) {
+            result += ch;
+        } else {
+            result += "\\x";
+            result += HexDigits[byte >> 4U];
+            result += HexDigits[byte & 0x0FU];
+        }
+    }
+    return result;
+}
+
 auto render(const Project::InvalidProjectName& error) -> std::string
 {
     std::string text;
@@ -80,7 +102,7 @@ auto render(const Project::InvalidProjectName& error) -> std::string
         text = "error: the project name is empty\n";
     } else {
         text = "error: '";
-        text += error.name;
+        text += printable(error.name);
         text += "' is not a valid project name\n";
     }
     text += ProjectNameHint;
