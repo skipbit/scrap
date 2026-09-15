@@ -99,3 +99,13 @@ TEST(ProjectDiagnosticTest, RendersAMissingTableAsAContentsError)
               "/home/me/app/scrap.toml: error: package: required table is missing\n"
               "hint: correct scrap.toml and run the command again\n");
 }
+
+/**
+ * An explicitly empty path argument is named as such, with the path hint.
+ */
+TEST(ProjectDiagnosticTest, RendersAnEmptyPathArgument)
+{
+    EXPECT_EQ(scrap::Command::renderEmptyPathArgument(),
+              "error: the path argument is empty\n"
+              "hint: pass a directory inside a project, or omit the path to use the current directory\n");
+}

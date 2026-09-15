@@ -5,18 +5,23 @@
 #include "project/ProjectLocator.h"
 
 #include <string>
+#include <string_view>
 #include <variant>
 
 namespace scrap::Command {
 
 namespace {
 
+/// Next step for a path argument that cannot be searched from.
+constexpr std::string_view PathHint =
+    "hint: pass a directory inside a project, or omit the path to use the current directory\n";
+
 auto render(const Project::NotADirectory& error) -> std::string
 {
     std::string text = "error: '";
     text += error.path.string();
     text += "' is not a directory\n";
-    text += "hint: pass a directory inside a project, or omit the path to use the current directory\n";
+    text += PathHint;
     return text;
 }
 
@@ -69,6 +74,13 @@ auto renderProjectError(const Project::ProjectError& error) -> std::string
             return render(alternative);
         },
         error);
+}
+
+auto renderEmptyPathArgument() -> std::string
+{
+    std::string text = "error: the path argument is empty\n";
+    text += PathHint;
+    return text;
 }
 
 }  // namespace scrap::Command

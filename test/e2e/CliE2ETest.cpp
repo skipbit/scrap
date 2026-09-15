@@ -474,13 +474,31 @@ TEST_F(CliE2ETest, HelpIntegration)
 TEST_F(CliE2ETest, HelpWithoutArgumentListsCommands)
 {
     auto result = runScrap({"help"}, {}, root_);
+    auto flag = runScrap({"--help"}, {}, root_);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
     EXPECT_TRUE(result.stderrText.empty()) << result.stderrText;
-    for (const auto* expected : {"USAGE: scrap", "Built-in Commands", "Project Commands"}) {
-        EXPECT_NE(result.stdoutText.find(expected), std::string::npos) << "missing: " << expected;
-    }
+    EXPECT_NE(result.stdoutText.find("USAGE: scrap"), std::string::npos) << result.stdoutText;
+    EXPECT_EQ(result.stdoutText, flag.stdoutText);
+}
+
+TEST_F(CliE2ETest, HelpForACommandShowsItsUsage)
+{
+    auto result = runScrap({"help", "build"}, {}, root_);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 0);
+    EXPECT_NE(result.stdoutText.find("USAGE: scrap build [path]"), std::string::npos) << result.stdoutText;
+}
+
+TEST_F(CliE2ETest, HelpForAnUnknownCommandFails)
+{
+    auto result = runScrap({"help", "nosuch"}, {}, root_);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_NE(result.stderrText.find("Unknown command: nosuch"), std::string::npos) << result.stderrText;
 }
 
 // --- TS-06: unknown command -------------------------------------------------------
@@ -649,4 +667,17 @@ TEST_F(CliE2ETest, BuildReportsAPathItCannotAccess)
     EXPECT_NE(result.stderrText.find("error: cannot access '" + loop + "': "), std::string::npos) << result.stderrText;
     EXPECT_NE(result.stderrText.find("\nhint: check the permissions of the path\n"), std::string::npos)
         << result.stderrText;
+}
+
+TEST_F(CliE2ETest, BuildRejectsAnEmptyPath)
+{
+    // Inside a project, so reading the empty path as the working directory would succeed.
+    writeFile("scrap.toml", ValidManifest);
+
+    auto result = runScrap({"build", ""}, {}, root_);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    EXPECT_NE(result.stderrText.find("error: the path argument is empty\n"), std::string::npos) << result.stderrText;
 }

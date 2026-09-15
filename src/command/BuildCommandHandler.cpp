@@ -28,6 +28,13 @@ auto startDirectory(const InvocationContext& ctx) -> std::filesystem::path
 
 auto BuildCommandHandler::execute(const InvocationContext& ctx) -> int
 {
+    // An explicitly empty argument is usually an unset variable, so it is
+    // reported as an error instead of standing for the working directory.
+    if (! ctx.options.positional.empty() && ctx.options.positional.front().empty()) {
+        std::cerr << renderEmptyPathArgument();
+        return 1;
+    }
+
     const auto project = Project::loadProject(startDirectory(ctx));
     if (! project.has_value()) {
         std::cerr << renderProjectError(project.error());
