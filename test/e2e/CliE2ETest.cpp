@@ -20,6 +20,7 @@
 #include <string>
 #include <string_view>
 #include <sys/wait.h>
+#include <system_error>
 #include <unistd.h>
 #include <vector>
 
@@ -41,6 +42,28 @@ auto isVersionBanner(const std::string& text) -> bool
 {
     static const std::regex Pattern{R"(^scrap [0-9]+\.[0-9]+\.[0-9]+( \(.+\))?$)"};
     return std::regex_match(text, Pattern);
+}
+
+/// A manifest that loads without error.
+constexpr std::string_view ValidManifest = "[package]\nname = \"app\"\nversion = \"0.1.0\"\n";
+
+/**
+ * Whether @p directory or one of its parents holds a scrap.toml.
+ *
+ * The tests that expect no project depend on the temp location not sitting
+ * inside one, and skip instead of failing on a machine where it does.
+ */
+auto insideAProject(const std::filesystem::path& directory) -> bool
+{
+    std::error_code ec;
+    for (std::filesystem::path current = directory;; current = current.parent_path()) {
+        if (std::filesystem::is_regular_file(current / "scrap.toml", ec)) {
+            return true;
+        }
+        if (current.parent_path() == current) {
+            return false;
+        }
+    }
 }
 
 constexpr std::chrono::milliseconds HarnessTimeout{5000};
@@ -239,6 +262,18 @@ protected:
     }
 
     /**
+     * Write @p content to @p relative below the fixture directory, creating
+     * parent directories.
+     */
+    void writeFile(const std::filesystem::path& relative, std::string_view content) const
+    {
+        const auto path = root_ / relative;
+        std::filesystem::create_directories(path.parent_path());
+        std::ofstream out(path);
+        out << content;
+    }
+
+    /**
      * Run the built scrap binary with @p args, a minimal controlled
      * environment (SCRAP_HOME=root_, plus any @p envOverrides), and the
      * given @p cwd. Captures stdout/stderr separately.
@@ -396,14 +431,14 @@ TEST_F(CliE2ETest, ProjectScopeNoConfig)
 TEST_F(CliE2ETest, Priority)
 {
     makeDummy("scrap-greet", "echo \"greet called\"");
-    makeDummy("scrap-build", "echo \"external build\"");
+    makeDummy("scrap-clean", "echo \"external clean\"");
 
-    auto result = runScrap({"build"}, {}, root_);
+    auto result = runScrap({"clean"}, {}, root_);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
-    EXPECT_NE(result.stdoutText.find("build: not yet implemented"), std::string::npos);
-    EXPECT_NE(result.stderrText.find("warning: command 'build' already registered; ignoring duplicate"),
+    EXPECT_NE(result.stdoutText.find("clean: not yet implemented"), std::string::npos);
+    EXPECT_NE(result.stderrText.find("warning: command 'clean' already registered; ignoring duplicate"),
               std::string::npos);
 }
 
@@ -492,4 +527,86 @@ TEST_F(CliE2ETest, VersionForms)
     ASSERT_EQ(banners.size(), 3U);
     EXPECT_EQ(banners[0], banners[1]);
     EXPECT_EQ(banners[1], banners[2]);
+}
+
+// --- build: locating the project and reading its manifest ----------------------
+
+TEST_F(CliE2ETest, BuildOutsideAProject)
+{
+    if (insideAProject(root_)) {
+        GTEST_SKIP() << "the temp location is inside a scrap project";
+    }
+    const std::string searched = std::filesystem::canonical(root_).string();
+
+    auto result = runScrap({"build"}, {}, root_);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    EXPECT_NE(
+        result.stderrText.find("error: could not find scrap.toml in '" + searched + "' or any parent directory\n"),
+        std::string::npos)
+        << result.stderrText;
+    EXPECT_NE(result.stderrText.find("\nhint: "), std::string::npos) << result.stderrText;
+}
+
+TEST_F(CliE2ETest, BuildReportsAManifestErrorWithItsLocation)
+{
+    writeFile("scrap.toml", "[package]\nversion = \"0.1.0\"\n");
+    const std::string manifest = (std::filesystem::canonical(root_) / "scrap.toml").string();
+
+    auto result = runScrap({"build"}, {}, root_);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    EXPECT_NE(result.stderrText.find(manifest + ":1:1: error: package.name: required key is missing\n"),
+              std::string::npos)
+        << result.stderrText;
+    EXPECT_NE(result.stderrText.find("\nhint: "), std::string::npos) << result.stderrText;
+}
+
+TEST_F(CliE2ETest, BuildFindsTheProjectAboveTheWorkingDirectory)
+{
+    writeFile("scrap.toml", ValidManifest);
+    std::filesystem::create_directories(root_ / "src" / "detail");
+
+    auto result = runScrap({"build"}, {}, root_ / "src" / "detail");
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 0);
+    EXPECT_TRUE(result.stderrText.empty()) << result.stderrText;
+    EXPECT_NE(result.stdoutText.find("build: not yet implemented"), std::string::npos);
+}
+
+TEST_F(CliE2ETest, BuildTakesAPathRelativeToTheWorkingDirectory)
+{
+    // Run from outside any project, so success can only come from the path.
+    if (insideAProject(root_)) {
+        GTEST_SKIP() << "the temp location is inside a scrap project";
+    }
+    writeFile("app/scrap.toml", ValidManifest);
+    std::filesystem::create_directories(root_ / "elsewhere");
+
+    auto result = runScrap({"build", "../app"}, {}, root_ / "elsewhere");
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 0);
+    EXPECT_TRUE(result.stderrText.empty()) << result.stderrText;
+    EXPECT_NE(result.stdoutText.find("build: not yet implemented"), std::string::npos);
+}
+
+TEST_F(CliE2ETest, BuildRejectsAPathThatIsNotADirectory)
+{
+    // Inside a project, so a search from the missing path would have found one.
+    writeFile("scrap.toml", ValidManifest);
+    const std::string missing = (std::filesystem::canonical(root_) / "missing").string();
+
+    auto result = runScrap({"build", "missing"}, {}, root_);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    EXPECT_NE(result.stderrText.find("error: '" + missing + "' is not a directory\n"), std::string::npos)
+        << result.stderrText;
 }

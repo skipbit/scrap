@@ -33,8 +33,8 @@ struct ManifestError {
 /**
  * @brief Render an error as a single diagnostic line.
  *
- * The shape is "<file>[:<line>:<column>]: [<key>: ]<message>", which matches
- * what compilers emit and what editors know how to jump to.
+ * The shape is "<file>[:<line>:<column>]: error: [<key>: ]<message>", which
+ * matches what compilers emit and what editors know how to jump to.
  *
  * @param error Error to render.
  * @return Diagnostic line, without a trailing newline.

@@ -1,5 +1,6 @@
 #include "command/BuiltinCommandResolver.h"
 
+#include "command/BuildCommandHandler.h"
 #include "command/CommandCatalog.h"
 #include "command/CommandEntry.h"
 #include "command/CommandHandler.h"
@@ -180,9 +181,23 @@ auto BuiltinCommandResolver::resolve([[maybe_unused]] const RuntimeEnvironment& 
         entries.push_back(std::move(entry));
     }
 
-    // Project commands (placeholders)
+    // Project commands
     entries.push_back(makePlaceholder("new", "Create a new C++ project", "Project Commands"));
-    entries.push_back(makePlaceholder("build", "Compile the current project", "Project Commands"));
+    {
+        CommandEntry entry;
+        entry.spec.name = "build";
+        entry.spec.description = "Compile the project";
+        entry.spec.category = "Project Commands";
+        entry.spec.options.positional.push_back(
+            PositionalDef{.name = "path",
+                          .description = "Directory inside the project (default: the current directory)",
+                          .required = false});
+        entry.source = CommandSource::Builtin;
+        entry.createHandler = [](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
+            return std::make_unique<BuildCommandHandler>();
+        };
+        entries.push_back(std::move(entry));
+    }
     entries.push_back(makePlaceholder("run", "Run the current project executable", "Project Commands"));
     entries.push_back(makePlaceholder("clean", "Remove build artifacts and cached files", "Project Commands"));
 
