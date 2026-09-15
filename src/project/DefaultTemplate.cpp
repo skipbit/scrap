@@ -1,6 +1,7 @@
 #include "project/DefaultTemplate.h"
 
 #include "project/ProjectLocator.h"
+#include "project/TemplateFile.h"
 
 #include <filesystem>
 #include <string>

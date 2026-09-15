@@ -1,19 +1,11 @@
 #pragma once
 
-#include <filesystem>
-#include <string>
+#include "project/TemplateFile.h"
+
 #include <string_view>
 #include <vector>
 
 namespace scrap::Project {
-
-/**
- * @brief One file a project template places in a new project.
- */
-struct TemplateFile {
-    std::filesystem::path path;  ///< Relative to the project root.
-    std::string content;
-};
 
 /**
  * @brief The files of the template built into scrap.

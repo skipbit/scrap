@@ -6,6 +6,7 @@
 #include "project/ProjectLoader.h"
 #include "project/ProjectLocator.h"
 #include "project/TargetResolver.h"
+#include "project/TemplateFile.h"
 
 #include "TempDirectory.h"
 

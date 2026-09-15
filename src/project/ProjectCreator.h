@@ -1,6 +1,6 @@
 #pragma once
 
-#include "project/DefaultTemplate.h"
+#include "project/TemplateFile.h"
 
 #include <expected>
 #include <filesystem>

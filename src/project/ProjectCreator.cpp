@@ -1,6 +1,6 @@
 #include "project/ProjectCreator.h"
 
-#include "project/DefaultTemplate.h"
+#include "project/TemplateFile.h"
 
 #include <algorithm>
 #include <cerrno>
