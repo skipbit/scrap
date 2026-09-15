@@ -7,6 +7,7 @@
 #include "command/CommandSource.h"
 #include "command/HelpRenderer.h"
 #include "command/InvocationContext.h"
+#include "command/NewCommandHandler.h"
 #include "command/OptionSchema.h"
 #include "command/ParsedOptions.h"
 #include "command/RuntimeEnvironment.h"
@@ -134,6 +135,44 @@ auto makePlaceholder(const std::string& name,
     return entry;
 }
 
+/**
+ * Create the entry for "new", which takes the name of the project to create.
+ */
+auto makeNewEntry() -> CommandEntry
+{
+    CommandEntry entry;
+    entry.spec.name = "new";
+    entry.spec.description = "Create a new C++ project";
+    entry.spec.category = "Project Commands";
+    entry.spec.options.positional.push_back(PositionalDef{
+        .name = "project-name", .description = "Name of the project directory to create", .required = true});
+    entry.source = CommandSource::Builtin;
+    entry.createHandler = [](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
+        return std::make_unique<NewCommandHandler>();
+    };
+    return entry;
+}
+
+/**
+ * Create the entry for "build", which takes an optional path into the project.
+ */
+auto makeBuildEntry() -> CommandEntry
+{
+    CommandEntry entry;
+    entry.spec.name = "build";
+    entry.spec.description = "Compile the project";
+    entry.spec.category = "Project Commands";
+    entry.spec.options.positional.push_back(
+        PositionalDef{.name = "path",
+                      .description = "Directory inside the project (default: the current directory)",
+                      .required = false});
+    entry.source = CommandSource::Builtin;
+    entry.createHandler = [](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
+        return std::make_unique<BuildCommandHandler>();
+    };
+    return entry;
+}
+
 }  // anonymous namespace
 
 /**
@@ -182,22 +221,8 @@ auto BuiltinCommandResolver::resolve([[maybe_unused]] const RuntimeEnvironment& 
     }
 
     // Project commands
-    entries.push_back(makePlaceholder("new", "Create a new C++ project", "Project Commands"));
-    {
-        CommandEntry entry;
-        entry.spec.name = "build";
-        entry.spec.description = "Compile the project";
-        entry.spec.category = "Project Commands";
-        entry.spec.options.positional.push_back(
-            PositionalDef{.name = "path",
-                          .description = "Directory inside the project (default: the current directory)",
-                          .required = false});
-        entry.source = CommandSource::Builtin;
-        entry.createHandler = [](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
-            return std::make_unique<BuildCommandHandler>();
-        };
-        entries.push_back(std::move(entry));
-    }
+    entries.push_back(makeNewEntry());
+    entries.push_back(makeBuildEntry());
     entries.push_back(makePlaceholder("run", "Run the current project executable", "Project Commands"));
     entries.push_back(makePlaceholder("clean", "Remove build artifacts and cached files", "Project Commands"));
 

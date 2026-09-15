@@ -1,5 +1,6 @@
 #pragma once
 
+#include "project/ProjectCreator.h"
 #include "project/ProjectLoader.h"
 
 #include <string>
@@ -24,5 +25,13 @@ namespace scrap::Command {
  * @return Text for standard error, each line ending in a newline.
  */
 [[nodiscard]] auto renderEmptyPathArgument() -> std::string;
+
+/**
+ * @brief Describe why a project could not be created, and what to do next.
+ *
+ * @param error Error returned by scrap::Project::createProject().
+ * @return Text for standard error, each line ending in a newline.
+ */
+[[nodiscard]] auto renderCreateProjectError(const Project::CreateProjectError& error) -> std::string;
 
 }  // namespace scrap::Command

@@ -168,3 +168,22 @@ TEST(BuiltinCommandResolverTest, BuildTakesAnOptionalPath)
     EXPECT_EQ(build->spec.options.positional[0].name, "path");
     EXPECT_FALSE(build->spec.options.positional[0].required);
 }
+
+/**
+ * Verify that new takes the project name as a required positional.
+ */
+TEST(BuiltinCommandResolverTest, NewTakesARequiredProjectName)
+{
+    MockHelpRenderer helpRenderer;
+    MockVersionRenderer versionRenderer;
+    BuiltinCommandResolver resolver(helpRenderer, versionRenderer);
+
+    RuntimeEnvironment env;
+    auto entries = resolver.resolve(env);
+
+    const auto* create = findByName(entries, "new");
+    ASSERT_NE(create, nullptr);
+    ASSERT_EQ(create->spec.options.positional.size(), 1);
+    EXPECT_EQ(create->spec.options.positional[0].name, "project-name");
+    EXPECT_TRUE(create->spec.options.positional[0].required);
+}

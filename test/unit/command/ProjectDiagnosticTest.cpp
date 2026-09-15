@@ -109,3 +109,52 @@ TEST(ProjectDiagnosticTest, RendersAnEmptyPathArgument)
               "error: the path argument is empty\n"
               "hint: pass a directory inside a project, or omit the path to use the current directory\n");
 }
+
+/**
+ * An empty project name is named as such, with the naming rule.
+ */
+TEST(ProjectDiagnosticTest, RendersAnEmptyProjectName)
+{
+    const scrap::Project::CreateProjectError error = scrap::Project::InvalidProjectName{.name = ""};
+
+    EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
+              "error: the project name is empty\n"
+              "hint: use letters, digits, '-' and '_', starting with a letter\n");
+}
+
+/**
+ * An invalid project name is quoted, with the naming rule.
+ */
+TEST(ProjectDiagnosticTest, RendersAnInvalidProjectName)
+{
+    const scrap::Project::CreateProjectError error = scrap::Project::InvalidProjectName{.name = "a/b"};
+
+    EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
+              "error: 'a/b' is not a valid project name\n"
+              "hint: use letters, digits, '-' and '_', starting with a letter\n");
+}
+
+/**
+ * An existing path is named, with a next step that keeps it intact.
+ */
+TEST(ProjectDiagnosticTest, RendersAnExistingPath)
+{
+    const scrap::Project::CreateProjectError error = scrap::Project::PathExists{.path = "/home/me/work/hello"};
+
+    EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
+              "error: '/home/me/work/hello' already exists\n"
+              "hint: choose another name, or run the command in another directory\n");
+}
+
+/**
+ * A path that cannot be created carries the system's reason.
+ */
+TEST(ProjectDiagnosticTest, RendersAPathThatCannotBeCreated)
+{
+    const scrap::Project::CreateProjectError error =
+        scrap::Project::CannotCreate{.path = "/home/me/work/hello", .reason = "Permission denied"};
+
+    EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
+              "error: cannot create '/home/me/work/hello': Permission denied\n"
+              "hint: check the permissions of the path\n");
+}

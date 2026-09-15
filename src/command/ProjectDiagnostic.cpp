@@ -1,6 +1,7 @@
 #include "command/ProjectDiagnostic.h"
 
 #include "project/ManifestError.h"
+#include "project/ProjectCreator.h"
 #include "project/ProjectLoader.h"
 #include "project/ProjectLocator.h"
 
@@ -15,6 +16,12 @@ namespace {
 /// Next step for a path argument that cannot be searched from.
 constexpr std::string_view PathHint =
     "hint: pass a directory inside a project, or omit the path to use the current directory\n";
+
+/// Next step for a path the operating system refused.
+constexpr std::string_view PermissionHint = "hint: check the permissions of the path\n";
+
+/// The rule a new project name follows, as scrap::Project::isValidProjectName() checks it.
+constexpr std::string_view ProjectNameHint = "hint: use letters, digits, '-' and '_', starting with a letter\n";
 
 auto render(const Project::NotADirectory& error) -> std::string
 {
@@ -31,7 +38,8 @@ auto render(const Project::PathInaccessible& error) -> std::string
     text += error.path.string();
     text += "': ";
     text += error.reason;
-    text += "\nhint: check the permissions of the path\n";
+    text += '\n';
+    text += PermissionHint;
     return text;
 }
 
@@ -65,6 +73,40 @@ auto render(const Project::ManifestError& error) -> std::string
     return text;
 }
 
+auto render(const Project::InvalidProjectName& error) -> std::string
+{
+    std::string text;
+    if (error.name.empty()) {
+        text = "error: the project name is empty\n";
+    } else {
+        text = "error: '";
+        text += error.name;
+        text += "' is not a valid project name\n";
+    }
+    text += ProjectNameHint;
+    return text;
+}
+
+auto render(const Project::PathExists& error) -> std::string
+{
+    std::string text = "error: '";
+    text += error.path.string();
+    text += "' already exists\n";
+    text += "hint: choose another name, or run the command in another directory\n";
+    return text;
+}
+
+auto render(const Project::CannotCreate& error) -> std::string
+{
+    std::string text = "error: cannot create '";
+    text += error.path.string();
+    text += "': ";
+    text += error.reason;
+    text += '\n';
+    text += PermissionHint;
+    return text;
+}
+
 }  // anonymous namespace
 
 auto renderProjectError(const Project::ProjectError& error) -> std::string
@@ -81,6 +123,15 @@ auto renderEmptyPathArgument() -> std::string
     std::string text = "error: the path argument is empty\n";
     text += PathHint;
     return text;
+}
+
+auto renderCreateProjectError(const Project::CreateProjectError& error) -> std::string
+{
+    return std::visit(
+        [](const auto& alternative) -> std::string {
+            return render(alternative);
+        },
+        error);
 }
 
 }  // namespace scrap::Command
