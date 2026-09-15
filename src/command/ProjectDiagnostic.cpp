@@ -20,8 +20,17 @@ constexpr std::string_view PathHint =
 /// Next step for a path the operating system refused.
 constexpr std::string_view PermissionHint = "hint: check the permissions of the path\n";
 
-/// The rule a new project name follows, as scrap::Project::isValidProjectName() checks it.
-constexpr std::string_view ProjectNameHint = "hint: use letters, digits, '-' and '_', starting with a letter\n";
+/**
+ * The rule a new project name follows, as scrap::Project::isValidProjectName()
+ * checks it.
+ */
+auto projectNameHint() -> std::string
+{
+    std::string text = "hint: use up to ";
+    text += std::to_string(Project::MaxProjectNameLength);
+    text += " letters, digits, '-' and '_', starting with a letter\n";
+    return text;
+}
 
 auto render(const Project::NotADirectory& error) -> std::string
 {
@@ -105,7 +114,7 @@ auto render(const Project::InvalidProjectName& error) -> std::string
         text += printable(error.name);
         text += "' is not a valid project name\n";
     }
-    text += ProjectNameHint;
+    text += projectNameHint();
     return text;
 }
 

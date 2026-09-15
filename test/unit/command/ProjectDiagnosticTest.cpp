@@ -119,7 +119,7 @@ TEST(ProjectDiagnosticTest, RendersAnEmptyProjectName)
 
     EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
               "error: the project name is empty\n"
-              "hint: use letters, digits, '-' and '_', starting with a letter\n");
+              "hint: use up to 64 letters, digits, '-' and '_', starting with a letter\n");
 }
 
 /**
@@ -131,7 +131,7 @@ TEST(ProjectDiagnosticTest, RendersAnInvalidProjectName)
 
     EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
               "error: 'a/b' is not a valid project name\n"
-              "hint: use letters, digits, '-' and '_', starting with a letter\n");
+              "hint: use up to 64 letters, digits, '-' and '_', starting with a letter\n");
 }
 
 /**
@@ -143,7 +143,7 @@ TEST(ProjectDiagnosticTest, EscapesControlCharactersInAProjectName)
 
     EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
               "error: 'a\\x0Ab\\x1B[2J' is not a valid project name\n"
-              "hint: use letters, digits, '-' and '_', starting with a letter\n");
+              "hint: use up to 64 letters, digits, '-' and '_', starting with a letter\n");
 }
 
 /**
@@ -155,7 +155,7 @@ TEST(ProjectDiagnosticTest, EscapesNonAsciiBytesInAProjectName)
 
     EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
               "error: 'caf\\xC3\\xA9' is not a valid project name\n"
-              "hint: use letters, digits, '-' and '_', starting with a letter\n");
+              "hint: use up to 64 letters, digits, '-' and '_', starting with a letter\n");
 }
 
 /**

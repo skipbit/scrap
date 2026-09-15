@@ -69,7 +69,7 @@ auto writeFile(const std::filesystem::path& file, std::string_view content) -> s
 
 auto isValidProjectName(std::string_view name) -> bool
 {
-    if (name.empty() || ! isAsciiLetter(name.front())) {
+    if (name.empty() || name.size() > MaxProjectNameLength || ! isAsciiLetter(name.front())) {
         return false;
     }
     return std::ranges::all_of(name, [](const char ch) {

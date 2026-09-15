@@ -741,7 +741,7 @@ TEST_F(CliE2ETest, NewRejectsNamesItCannotUse)
         EXPECT_EQ(result.exitCode, 1) << name;
         EXPECT_TRUE(result.stdoutText.empty()) << name << ": " << result.stdoutText;
         EXPECT_NE(result.stderrText.find("error: "), std::string::npos) << name << ": " << result.stderrText;
-        EXPECT_NE(result.stderrText.find("\nhint: use letters, digits, '-' and '_', starting with a letter\n"),
+        EXPECT_NE(result.stderrText.find("\nhint: use up to 64 letters, digits, '-' and '_', starting with a letter\n"),
                   std::string::npos)
             << name << ": " << result.stderrText;
     }

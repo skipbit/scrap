@@ -65,6 +65,18 @@ TEST(ProjectCreatorTest, RejectsNamesOutsideTheRule)
 }
 
 /**
+ * A name may be exactly as long as the limit, and no longer.
+ */
+TEST(ProjectCreatorTest, LimitsTheNameTo64Characters)
+{
+    EXPECT_EQ(MaxProjectNameLength, 64U);
+    const std::string longest = "a" + std::string(MaxProjectNameLength - 1, 'b');
+
+    EXPECT_TRUE(isValidProjectName(longest));
+    EXPECT_FALSE(isValidProjectName(longest + "c"));
+}
+
+/**
  * The project directory is created with every template file in it.
  */
 TEST(ProjectCreatorTest, CreatesTheProjectWithItsFiles)

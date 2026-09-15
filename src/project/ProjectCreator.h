@@ -2,6 +2,7 @@
 
 #include "project/TemplateFile.h"
 
+#include <cstddef>
 #include <expected>
 #include <filesystem>
 #include <functional>
@@ -44,12 +45,17 @@ using CreateProjectError = std::variant<InvalidProjectName, PathExists, CannotCr
  */
 using TemplateFiles = std::function<std::vector<TemplateFile>(std::string_view projectName)>;
 
+/// The longest project name, in characters, isValidProjectName() accepts.
+inline constexpr std::size_t MaxProjectNameLength = 64;
+
 /**
  * @brief Whether @p name can name a new project.
  *
  * A valid name is an ASCII letter followed by ASCII letters, digits, '-' and
- * '_'. The name becomes a directory, the package name and the executable
- * name, so it is held to what a shell and a file system take without quoting.
+ * '_', at most MaxProjectNameLength characters long. The name becomes a
+ * directory, the package name and the executable name, so it is held to what
+ * a shell and a file system take without quoting, well within any file name
+ * length limit.
  * The rule is stricter than what scrap.toml accepts, and loosening it later
  * keeps every project created under it valid.
  */
