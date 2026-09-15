@@ -284,6 +284,7 @@ TEST(ManifestParserTest, ReportsManifestThatCannotBeOpened)
     EXPECT_FALSE(manifest.error().position.has_value());
     EXPECT_TRUE(manifest.error().key.empty());
     EXPECT_EQ(manifest.error().message, "cannot open the manifest");
+    EXPECT_EQ(manifest.error().kind, ManifestErrorKind::Unreadable);
     EXPECT_EQ(manifest.error().file, missing);
 }
 
@@ -531,6 +532,7 @@ TEST(ManifestParserTest, LoadsAnEmptyManifestAsAMissingPackage)
     ASSERT_FALSE(manifest.has_value());
     EXPECT_EQ(manifest.error().key, "package");
     EXPECT_EQ(manifest.error().message, "required table is missing");
+    EXPECT_EQ(manifest.error().kind, ManifestErrorKind::Invalid);
 }
 
 /**
@@ -547,6 +549,7 @@ TEST(ManifestParserTest, ReportsAManifestThatIsADirectory)
 
     ASSERT_FALSE(manifest.has_value());
     EXPECT_EQ(manifest.error().message, "cannot open the manifest");
+    EXPECT_EQ(manifest.error().kind, ManifestErrorKind::Unreadable);
     EXPECT_FALSE(manifest.error().position.has_value());
 }
 

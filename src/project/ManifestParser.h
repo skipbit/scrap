@@ -13,8 +13,8 @@ namespace scrap::Project {
  * @brief Parse manifest text into a Manifest.
  *
  * Validates the [package] table and any [[bin]] / [[lib]] tables. A key the
- * current version does not know is an error rather than ignored, so a
- * misspelt declaration is not taken for an absent one.
+ * current version does not know is reported as an error, which keeps a
+ * misspelt declaration distinguishable from an absent one.
  *
  * @param text TOML text of the manifest.
  * @param file Path reported in errors. Not read from.

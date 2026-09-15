@@ -92,3 +92,17 @@ TEST(ProjectLocatorTest, IgnoresADirectoryNamedLikeTheManifest)
 
     EXPECT_FALSE(findProjectRoot(decoy).has_value());
 }
+
+/**
+ * A trailing separator names the same directory, so the root carries none.
+ */
+TEST(ProjectLocatorTest, ReturnsTheRootWithoutATrailingSeparator)
+{
+    const TempDirectory temp;
+    temp.writeFile(ManifestFileName, EmptyManifest);
+
+    const auto root = findProjectRoot(temp.path() / "");
+
+    ASSERT_TRUE(root.has_value());
+    EXPECT_EQ(*root, temp.path());
+}

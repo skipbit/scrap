@@ -9,9 +9,9 @@ namespace scrap::Command {
 /**
  * @brief Describe why a project could not be loaded, and what to do next.
  *
- * The first line states the cause: "error: ..." for a missing project or
- * directory, and the compiler-style line from scrap::Project::describe() for
- * a manifest error. A "hint: ..." line with the next step follows.
+ * The first line states the cause: "error: ..." for a path or a missing
+ * project, and the compiler-style line from scrap::Project::describe() for a
+ * manifest. A "hint: ..." line with the next step follows.
  *
  * @param error Error returned by scrap::Project::loadProject().
  * @return Text for standard error, each line ending in a newline.

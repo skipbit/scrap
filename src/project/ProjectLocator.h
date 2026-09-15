@@ -16,9 +16,13 @@ inline constexpr std::string_view ManifestFileName = "scrap.toml";
  * directory that has one. A directory below the project root therefore still
  * resolves to the project, the same way version control tools behave.
  *
+ * The path is normalised lexically. Commands go through loadProject(), which
+ * resolves the start through the filesystem first.
+ *
  * @param startDir Directory to start the search at.
- * @return The project root, or nothing if the search reached the filesystem
- *         root without finding a manifest.
+ * @return The project root, absolute and without a trailing separator, or
+ *         nothing if the search reached the filesystem root without finding
+ *         a manifest.
  */
 [[nodiscard]] auto findProjectRoot(const std::filesystem::path& startDir) -> std::optional<std::filesystem::path>;
 

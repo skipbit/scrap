@@ -17,6 +17,9 @@ auto findProjectRoot(const std::filesystem::path& startDir) -> std::optional<std
         directory = startDir;
     }
     directory = directory.lexically_normal();
+    if (! directory.has_filename() && directory != directory.root_path()) {
+        directory = directory.parent_path();
+    }
 
     while (! directory.empty()) {
         if (std::filesystem::is_regular_file(directory / ManifestFileName, ec)) {

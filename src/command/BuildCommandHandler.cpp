@@ -13,10 +13,8 @@ namespace scrap::Command {
 namespace {
 
 /**
- * The directory the project search starts at: the path argument taken
- * against the working directory, or the working directory itself.
- *
- * An omitted positional reaches the handler as an empty string.
+ * The path argument taken against the working directory, or the working
+ * directory itself. An omitted positional arrives as an empty string.
  */
 auto startDirectory(const InvocationContext& ctx) -> std::filesystem::path
 {
@@ -28,9 +26,6 @@ auto startDirectory(const InvocationContext& ctx) -> std::filesystem::path
 
 }  // anonymous namespace
 
-/**
- * Load the project and build it.
- */
 auto BuildCommandHandler::execute(const InvocationContext& ctx) -> int
 {
     const auto project = Project::loadProject(startDirectory(ctx));
@@ -39,7 +34,7 @@ auto BuildCommandHandler::execute(const InvocationContext& ctx) -> int
         return 1;
     }
 
-    // Compiling the project is not implemented yet.
+    // Placeholder output until the build compiles the project.
     std::cout << "build: not yet implemented\n";
     return 0;
 }

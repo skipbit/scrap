@@ -7,9 +7,9 @@ namespace scrap::Command {
 
 struct RuntimeEnvironment {
     /**
-     * The directory the command was invoked in. A project command starts its
-     * search for the project here; the project root is what
-     * scrap::Project::findProjectRoot() returns.
+     * The directory the command was invoked in. A project command loads its
+     * project by passing this directory, or a path taken against it, to
+     * scrap::Project::loadProject().
      */
     std::filesystem::path workingDirectory;
     std::vector<std::filesystem::path> searchPaths;

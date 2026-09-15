@@ -268,9 +268,18 @@ protected:
     void writeFile(const std::filesystem::path& relative, std::string_view content) const
     {
         const auto path = root_ / relative;
-        std::filesystem::create_directories(path.parent_path());
-        std::ofstream out(path);
+        std::error_code ec;
+        std::filesystem::create_directories(path.parent_path(), ec);
+        if (ec) {
+            ADD_FAILURE() << "cannot create " << path.parent_path() << ": " << ec.message();
+            return;
+        }
+        std::ofstream out(path, std::ios::binary);
         out << content;
+        out.close();
+        if (! out) {
+            ADD_FAILURE() << "cannot write " << path;
+        }
     }
 
     /**
@@ -431,14 +440,14 @@ TEST_F(CliE2ETest, ProjectScopeNoConfig)
 TEST_F(CliE2ETest, Priority)
 {
     makeDummy("scrap-greet", "echo \"greet called\"");
-    makeDummy("scrap-clean", "echo \"external clean\"");
+    makeDummy("scrap-version", "echo \"external version\"");
 
-    auto result = runScrap({"clean"}, {}, root_);
+    auto result = runScrap({"version"}, {}, root_);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
-    EXPECT_NE(result.stdoutText.find("clean: not yet implemented"), std::string::npos);
-    EXPECT_NE(result.stderrText.find("warning: command 'clean' already registered; ignoring duplicate"),
+    EXPECT_TRUE(isVersionBanner(trim(result.stdoutText))) << "stdout: " << result.stdoutText;
+    EXPECT_NE(result.stderrText.find("warning: command 'version' already registered; ignoring duplicate"),
               std::string::npos);
 }
 
@@ -533,7 +542,7 @@ TEST_F(CliE2ETest, VersionForms)
 
 TEST_F(CliE2ETest, BuildOutsideAProject)
 {
-    if (insideAProject(root_)) {
+    if (insideAProject(std::filesystem::canonical(root_))) {
         GTEST_SKIP() << "the temp location is inside a scrap project";
     }
     const std::string searched = std::filesystem::canonical(root_).string();
@@ -582,7 +591,7 @@ TEST_F(CliE2ETest, BuildFindsTheProjectAboveTheWorkingDirectory)
 TEST_F(CliE2ETest, BuildTakesAPathRelativeToTheWorkingDirectory)
 {
     // Run from outside any project, so success can only come from the path.
-    if (insideAProject(root_)) {
+    if (insideAProject(std::filesystem::canonical(root_))) {
         GTEST_SKIP() << "the temp location is inside a scrap project";
     }
     writeFile("app/scrap.toml", ValidManifest);
@@ -608,5 +617,22 @@ TEST_F(CliE2ETest, BuildRejectsAPathThatIsNotADirectory)
     EXPECT_EQ(result.exitCode, 1);
     EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
     EXPECT_NE(result.stderrText.find("error: '" + missing + "' is not a directory\n"), std::string::npos)
+        << result.stderrText;
+}
+
+TEST_F(CliE2ETest, BuildReportsAPathItCannotAccess)
+{
+    writeFile("scrap.toml", ValidManifest);
+    std::filesystem::create_symlink("loop-b", root_ / "loop-a");
+    std::filesystem::create_symlink("loop-a", root_ / "loop-b");
+    const std::string loop = (std::filesystem::canonical(root_) / "loop-a").string();
+
+    auto result = runScrap({"build", "loop-a"}, {}, root_);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    EXPECT_NE(result.stderrText.find("error: cannot access '" + loop + "': "), std::string::npos) << result.stderrText;
+    EXPECT_NE(result.stderrText.find("\nhint: check the permissions of the path\n"), std::string::npos)
         << result.stderrText;
 }

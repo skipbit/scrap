@@ -11,9 +11,6 @@ namespace scrap::Command {
 
 namespace {
 
-/**
- * Render a start path that is not a directory.
- */
 auto render(const Project::NotADirectory& error) -> std::string
 {
     std::string text = "error: '";
@@ -23,9 +20,16 @@ auto render(const Project::NotADirectory& error) -> std::string
     return text;
 }
 
-/**
- * Render a search that found no manifest.
- */
+auto render(const Project::PathInaccessible& error) -> std::string
+{
+    std::string text = "error: cannot access '";
+    text += error.path.string();
+    text += "': ";
+    text += error.reason;
+    text += "\nhint: check the permissions of the path\n";
+    return text;
+}
+
 auto render(const Project::ProjectNotFound& error) -> std::string
 {
     std::string text = "error: could not find ";
@@ -38,22 +42,26 @@ auto render(const Project::ProjectNotFound& error) -> std::string
 }
 
 /**
- * Render a manifest that could not be read or parsed.
+ * A manifest that could not be read points at the file itself; one whose
+ * contents are wrong points at editing it.
  */
 auto render(const Project::ManifestError& error) -> std::string
 {
     std::string text = Project::describe(error);
-    text += "\nhint: correct ";
-    text += Project::ManifestFileName;
-    text += " and run the command again\n";
+    if (error.kind == Project::ManifestErrorKind::Unreadable) {
+        text += "\nhint: check that ";
+        text += Project::ManifestFileName;
+        text += " is a readable file\n";
+    } else {
+        text += "\nhint: correct ";
+        text += Project::ManifestFileName;
+        text += " and run the command again\n";
+    }
     return text;
 }
 
 }  // anonymous namespace
 
-/**
- * Render whichever error the project loader returned.
- */
 auto renderProjectError(const Project::ProjectError& error) -> std::string
 {
     return std::visit(
