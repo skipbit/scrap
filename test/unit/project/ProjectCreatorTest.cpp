@@ -43,8 +43,20 @@ TEST(ProjectCreatorTest, AcceptsLettersDigitsHyphensAndUnderscores)
  */
 TEST(ProjectCreatorTest, RejectsNamesOutsideTheRule)
 {
-    for (const char* name :
-         {"", "../x", "a/b", "a\\b", ".", "..", ".hidden", "1app", "-app", "_app", "my app", "a.b", "a\"b", "caf\u00e9"}) {
+    for (const char* name : {"",
+                             "../x",
+                             "a/b",
+                             "a\\b",
+                             ".",
+                             "..",
+                             ".hidden",
+                             "1app",
+                             "-app",
+                             "_app",
+                             "my app",
+                             "a.b",
+                             "a\"b",
+                             "caf\u00e9"}) {
         EXPECT_FALSE(isValidProjectName(name)) << name;
     }
 }
