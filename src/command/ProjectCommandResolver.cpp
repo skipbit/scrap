@@ -27,7 +27,7 @@ ProjectCommandResolver::ProjectCommandResolver(std::unique_ptr<ScriptsReader> sc
  */
 auto ProjectCommandResolver::resolve(const RuntimeEnvironment& env) -> std::vector<CommandEntry>
 {
-    auto result = scriptsReader_->read(env.projectRoot);
+    auto result = scriptsReader_->read(env.workingDirectory);
     if (! result.has_value()) {
         return {};
     }

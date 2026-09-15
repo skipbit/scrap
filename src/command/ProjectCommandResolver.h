@@ -29,7 +29,7 @@ public:
      * Returns an empty vector if the project has no configuration
      * or if reading fails (graceful degradation).
      *
-     * @param env Runtime environment containing the project root path.
+     * @param env Runtime environment; scripts are read from its working directory.
      * @return CommandEntry list for project-scoped script commands.
      */
     auto resolve(const RuntimeEnvironment& env) -> std::vector<CommandEntry> override;
