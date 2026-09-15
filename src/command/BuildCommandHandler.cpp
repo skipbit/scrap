@@ -14,11 +14,11 @@ namespace {
 
 /**
  * The path argument taken against the working directory, or the working
- * directory itself. An omitted positional arrives as an empty string.
+ * directory itself.
  */
 auto startDirectory(const InvocationContext& ctx) -> std::filesystem::path
 {
-    if (ctx.options.positional.empty() || ctx.options.positional.front().empty()) {
+    if (ctx.options.positional.empty()) {
         return ctx.env->workingDirectory;
     }
     return ctx.env->workingDirectory / ctx.options.positional.front();

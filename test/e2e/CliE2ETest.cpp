@@ -469,6 +469,20 @@ TEST_F(CliE2ETest, HelpIntegration)
     }
 }
 
+// --- help command without an argument -------------------------------------------
+
+TEST_F(CliE2ETest, HelpWithoutArgumentListsCommands)
+{
+    auto result = runScrap({"help"}, {}, root_);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 0);
+    EXPECT_TRUE(result.stderrText.empty()) << result.stderrText;
+    for (const auto* expected : {"USAGE: scrap", "Built-in Commands", "Project Commands"}) {
+        EXPECT_NE(result.stdoutText.find(expected), std::string::npos) << "missing: " << expected;
+    }
+}
+
 // --- TS-06: unknown command -------------------------------------------------------
 
 TEST_F(CliE2ETest, UnknownCommand)

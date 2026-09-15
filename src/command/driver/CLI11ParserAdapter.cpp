@@ -6,6 +6,7 @@
 #include "command/ParsedOptions.h"
 
 #include <CLI/CLI.hpp>
+#include <cstddef>
 #include <cstdint>
 #include <deque>
 #include <exception>
@@ -32,7 +33,9 @@ namespace scrap::Command {
  * ParsedOptions struct.
  *
  * Positionals use std::deque so that push_back never invalidates
- * the references that CLI11 holds to earlier elements.
+ * the references that CLI11 holds to earlier elements. Each slot keeps
+ * the option CLI11 registered for it, whose count tells a given argument
+ * from an omitted one.
  */
 struct OptionStorage {
     std::unordered_map<std::string, bool> bools;
@@ -40,6 +43,7 @@ struct OptionStorage {
     std::unordered_map<std::string, std::string> strings;
     std::unordered_map<std::string, std::vector<std::string>> stringLists;
     std::deque<std::string> positionals;
+    std::vector<const CLI::Option*> positionalOptions;
 };
 
 // =============================================================================
@@ -126,6 +130,7 @@ void addPositional(CLI::App& app, const PositionalDef& def, OptionStorage& stora
     if (def.required) {
         opt->required();
     }
+    storage.positionalOptions.push_back(opt);
 }
 
 /**
@@ -209,6 +214,10 @@ auto buildCommandPath(const CLI::App& app) -> std::string
 
 /**
  * Harvest parsed values from OptionStorage into ParsedOptions.
+ *
+ * Only positionals given on the command line are harvested. CLI11 fills
+ * positionals in order, so the omitted ones are the trailing ones and
+ * each harvested value keeps its index.
  */
 auto harvestOptions(const OptionStorage& storage) -> ParsedOptions
 {
@@ -231,7 +240,11 @@ auto harvestOptions(const OptionStorage& storage) -> ParsedOptions
         }
     }
 
-    opts.positional.assign(storage.positionals.begin(), storage.positionals.end());
+    for (std::size_t index = 0; index < storage.positionals.size(); ++index) {
+        if (storage.positionalOptions[index]->count() > 0) {
+            opts.positional.push_back(storage.positionals[index]);
+        }
+    }
     return opts;
 }
 
