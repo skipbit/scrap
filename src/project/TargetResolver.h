@@ -3,9 +3,13 @@
 #include "project/Manifest.h"
 
 #include <filesystem>
+#include <string_view>
 #include <vector>
 
 namespace scrap::Project {
+
+/// Entry point assumed when the manifest declares no targets.
+inline constexpr std::string_view DefaultEntryPoint = "src/main.cpp";
 
 /**
  * @brief Decide which targets a project builds.

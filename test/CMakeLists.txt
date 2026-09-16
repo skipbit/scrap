@@ -42,6 +42,7 @@ add_executable(scrap_gtest
     ${CMAKE_SOURCE_DIR}/src/project/ProjectFileSystem.cpp
     ${CMAKE_SOURCE_DIR}/src/project/ProjectLoader.cpp
     ${CMAKE_SOURCE_DIR}/src/project/ProjectLocator.cpp
+    ${CMAKE_SOURCE_DIR}/src/project/TargetResolver.cpp
     ${CMAKE_SOURCE_DIR}/src/project/driver/DiskProjectFileSystem.cpp
 )
 
