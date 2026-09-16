@@ -29,15 +29,20 @@ add_executable(scrap_gtest
     ${CMAKE_SOURCE_DIR}/src/command/ExternalCommandResolver.cpp
     ${CMAKE_SOURCE_DIR}/src/command/ExternalMetadataProvider.cpp
     ${CMAKE_SOURCE_DIR}/src/command/MetadataProtocolProvider.cpp
+    ${CMAKE_SOURCE_DIR}/src/command/NewCommandHandler.cpp
     ${CMAKE_SOURCE_DIR}/src/command/ProjectCommandResolver.cpp
     ${CMAKE_SOURCE_DIR}/src/command/ProjectDiagnostic.cpp
     ${CMAKE_SOURCE_DIR}/src/command/ScriptsReader.cpp
     ${CMAKE_SOURCE_DIR}/src/command/StubScriptsReader.cpp
     ${CMAKE_SOURCE_DIR}/src/command/RuntimeEnvironmentFactory.cpp
+    ${CMAKE_SOURCE_DIR}/src/project/DefaultTemplate.cpp
     ${CMAKE_SOURCE_DIR}/src/project/ManifestError.cpp
     ${CMAKE_SOURCE_DIR}/src/project/ManifestParser.cpp
+    ${CMAKE_SOURCE_DIR}/src/project/ProjectCreator.cpp
+    ${CMAKE_SOURCE_DIR}/src/project/ProjectFileSystem.cpp
     ${CMAKE_SOURCE_DIR}/src/project/ProjectLoader.cpp
     ${CMAKE_SOURCE_DIR}/src/project/ProjectLocator.cpp
+    ${CMAKE_SOURCE_DIR}/src/project/driver/DiskProjectFileSystem.cpp
 )
 
 target_include_directories(scrap_gtest PRIVATE
@@ -100,17 +105,23 @@ gtest_discover_tests(scrap_gtest_cli11)
 
 # --- Project configuration tests (requires toml++ linkage) ---
 add_executable(scrap_gtest_project
+    unit/project/DiskProjectFileSystemTest.cpp
     unit/project/ManifestParserTest.cpp
     unit/project/ManifestSearch.cpp
+    unit/project/ProjectCreatorTest.cpp
     unit/project/ProjectLoaderTest.cpp
     unit/project/ProjectLocatorTest.cpp
     unit/project/TargetResolverTest.cpp
     unit/project/TempDirectory.cpp
+    ${CMAKE_SOURCE_DIR}/src/project/DefaultTemplate.cpp
     ${CMAKE_SOURCE_DIR}/src/project/ManifestError.cpp
     ${CMAKE_SOURCE_DIR}/src/project/ManifestParser.cpp
+    ${CMAKE_SOURCE_DIR}/src/project/ProjectCreator.cpp
+    ${CMAKE_SOURCE_DIR}/src/project/ProjectFileSystem.cpp
     ${CMAKE_SOURCE_DIR}/src/project/ProjectLoader.cpp
     ${CMAKE_SOURCE_DIR}/src/project/ProjectLocator.cpp
     ${CMAKE_SOURCE_DIR}/src/project/TargetResolver.cpp
+    ${CMAKE_SOURCE_DIR}/src/project/driver/DiskProjectFileSystem.cpp
 )
 
 target_include_directories(scrap_gtest_project PRIVATE

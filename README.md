@@ -42,9 +42,6 @@ scrap solves these problems by providing:
 # Create a new C++ application
 scrap new my-app
 
-# Create a new C++ library
-scrap new my-lib --type=lib
-
 # Build your project
 cd my-app
 scrap build
@@ -81,18 +78,14 @@ boost = { version = "1.84.0", features = ["filesystem", "asio"] }
 
 ### 🎨 Project Templates
 
-Get started quickly with built-in templates:
+Get started quickly with the built-in template:
 
 ```bash
-# Use the default app template
+# Create a project from the default app template
 scrap new my-project
-
-# Use a specific template
-scrap new my-game --template=game-engine
-
-# Use a GitHub template
-scrap new my-tool --template=github:user/template-repo
 ```
+
+Choosing another template with `--template` is coming soon.
 
 ### 🔧 Integrated Toolchain Management (Coming Soon)
 
@@ -126,13 +119,13 @@ scrap is in early alpha development. Currently implemented:
 
 ✅ **Core Features**
 - CLI command framework (help, version, command discovery)
+- Project creation (`scrap new`) from the built-in template
 - External command metadata fetching - `scrap-*` executables are probed via
   `--scrap-metadata` (falling back to `--help`) for a plain first-line
   description shown in `scrap --help`; structured JSON/options metadata is
   not yet part of the protocol
 
 🚧 **In Progress**
-- Project creation (`scrap new`) - currently a placeholder command
 - Template system with variable substitution
 - Basic command structure (build, run, clean) - currently placeholder commands
 - Configuration file parsing (`scrap.toml`)

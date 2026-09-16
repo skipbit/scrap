@@ -7,10 +7,12 @@
 #include "command/CommandSource.h"
 #include "command/HelpRenderer.h"
 #include "command/InvocationContext.h"
+#include "command/NewCommandHandler.h"
 #include "command/OptionSchema.h"
 #include "command/ParsedOptions.h"
 #include "command/RuntimeEnvironment.h"
 #include "command/VersionRenderer.h"
+#include "project/ProjectFileSystem.h"
 
 #include <iostream>
 #include <memory>
@@ -134,13 +136,65 @@ auto makePlaceholder(const std::string& name,
     return entry;
 }
 
+/**
+ * Create a project command that takes one positional argument.
+ */
+auto makeProjectEntry(std::string name,
+                      std::string description,
+                      PositionalDef positional,
+                      CommandEntry::HandlerFactory createHandler) -> CommandEntry
+{
+    CommandEntry entry;
+    entry.spec.name = std::move(name);
+    entry.spec.description = std::move(description);
+    entry.spec.category = "Project Commands";
+    entry.spec.options.positional.push_back(std::move(positional));
+    entry.source = CommandSource::Builtin;
+    entry.createHandler = std::move(createHandler);
+    return entry;
+}
+
+/**
+ * Create the entry for "new", which takes the name of the project to create.
+ */
+auto makeNewEntry(Project::ProjectFileSystem& fileSystem) -> CommandEntry
+{
+    auto* files = &fileSystem;
+    return makeProjectEntry(
+        "new",
+        "Create a new C++ project",
+        PositionalDef{
+            .name = "project-name", .description = "Name of the project directory to create", .required = true},
+        [files](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
+            return std::make_unique<NewCommandHandler>(*files);
+        });
+}
+
+/**
+ * Create the entry for "build", which takes an optional path into the project.
+ */
+auto makeBuildEntry() -> CommandEntry
+{
+    return makeProjectEntry(
+        "build",
+        "Compile the project",
+        PositionalDef{.name = "path",
+                      .description = "Directory inside the project (default: the current directory)",
+                      .required = false},
+        [](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
+            return std::make_unique<BuildCommandHandler>();
+        });
+}
+
 }  // anonymous namespace
 
 /**
  * Construct with renderer pointers for help/version commands.
  */
-BuiltinCommandResolver::BuiltinCommandResolver(HelpRenderer& helpRenderer, VersionRenderer& versionRenderer)
-    : helpRenderer_(&helpRenderer), versionRenderer_(&versionRenderer)
+BuiltinCommandResolver::BuiltinCommandResolver(HelpRenderer& helpRenderer,
+                                               VersionRenderer& versionRenderer,
+                                               Project::ProjectFileSystem& fileSystem)
+    : helpRenderer_(&helpRenderer), versionRenderer_(&versionRenderer), fileSystem_(&fileSystem)
 {
 }
 
@@ -182,22 +236,8 @@ auto BuiltinCommandResolver::resolve([[maybe_unused]] const RuntimeEnvironment& 
     }
 
     // Project commands
-    entries.push_back(makePlaceholder("new", "Create a new C++ project", "Project Commands"));
-    {
-        CommandEntry entry;
-        entry.spec.name = "build";
-        entry.spec.description = "Compile the project";
-        entry.spec.category = "Project Commands";
-        entry.spec.options.positional.push_back(
-            PositionalDef{.name = "path",
-                          .description = "Directory inside the project (default: the current directory)",
-                          .required = false});
-        entry.source = CommandSource::Builtin;
-        entry.createHandler = [](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
-            return std::make_unique<BuildCommandHandler>();
-        };
-        entries.push_back(std::move(entry));
-    }
+    entries.push_back(makeNewEntry(*fileSystem_));
+    entries.push_back(makeBuildEntry());
     entries.push_back(makePlaceholder("run", "Run the current project executable", "Project Commands"));
     entries.push_back(makePlaceholder("clean", "Remove build artifacts and cached files", "Project Commands"));
 

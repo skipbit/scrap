@@ -2,12 +2,20 @@
 
 #include "command/BuiltinCommandResolver.h"
 #include "command/CommandCatalog.h"
+#include "project/driver/DiskProjectFileSystem.h"
 
 #include <algorithm>
 
 using namespace scrap::Command;
 
 namespace {
+
+/// File system the resolver hands to the new command handler.
+auto diskFileSystem() -> scrap::Project::DiskProjectFileSystem&
+{
+    static scrap::Project::DiskProjectFileSystem files;
+    return files;
+}
 
 /**
  * Minimal HelpRenderer mock for BuiltinCommandResolver DI.
@@ -65,7 +73,7 @@ TEST(BuiltinCommandResolverTest, ReturnsHelpAndVersion)
 {
     MockHelpRenderer helpRenderer;
     MockVersionRenderer versionRenderer;
-    BuiltinCommandResolver resolver(helpRenderer, versionRenderer);
+    BuiltinCommandResolver resolver(helpRenderer, versionRenderer, diskFileSystem());
 
     RuntimeEnvironment env;
     auto entries = resolver.resolve(env);
@@ -81,7 +89,7 @@ TEST(BuiltinCommandResolverTest, ReturnsPlaceholderCommands)
 {
     MockHelpRenderer helpRenderer;
     MockVersionRenderer versionRenderer;
-    BuiltinCommandResolver resolver(helpRenderer, versionRenderer);
+    BuiltinCommandResolver resolver(helpRenderer, versionRenderer, diskFileSystem());
 
     RuntimeEnvironment env;
     auto entries = resolver.resolve(env);
@@ -101,7 +109,7 @@ TEST(BuiltinCommandResolverTest, ToolchainHasSubcommands)
 {
     MockHelpRenderer helpRenderer;
     MockVersionRenderer versionRenderer;
-    BuiltinCommandResolver resolver(helpRenderer, versionRenderer);
+    BuiltinCommandResolver resolver(helpRenderer, versionRenderer, diskFileSystem());
 
     RuntimeEnvironment env;
     auto entries = resolver.resolve(env);
@@ -121,7 +129,7 @@ TEST(BuiltinCommandResolverTest, TemplateHasSubcommands)
 {
     MockHelpRenderer helpRenderer;
     MockVersionRenderer versionRenderer;
-    BuiltinCommandResolver resolver(helpRenderer, versionRenderer);
+    BuiltinCommandResolver resolver(helpRenderer, versionRenderer, diskFileSystem());
 
     RuntimeEnvironment env;
     auto entries = resolver.resolve(env);
@@ -140,7 +148,7 @@ TEST(BuiltinCommandResolverTest, AllEntriesAreBuiltinSource)
 {
     MockHelpRenderer helpRenderer;
     MockVersionRenderer versionRenderer;
-    BuiltinCommandResolver resolver(helpRenderer, versionRenderer);
+    BuiltinCommandResolver resolver(helpRenderer, versionRenderer, diskFileSystem());
 
     RuntimeEnvironment env;
     auto entries = resolver.resolve(env);
@@ -157,7 +165,7 @@ TEST(BuiltinCommandResolverTest, BuildTakesAnOptionalPath)
 {
     MockHelpRenderer helpRenderer;
     MockVersionRenderer versionRenderer;
-    BuiltinCommandResolver resolver(helpRenderer, versionRenderer);
+    BuiltinCommandResolver resolver(helpRenderer, versionRenderer, diskFileSystem());
 
     RuntimeEnvironment env;
     auto entries = resolver.resolve(env);
@@ -167,4 +175,23 @@ TEST(BuiltinCommandResolverTest, BuildTakesAnOptionalPath)
     ASSERT_EQ(build->spec.options.positional.size(), 1);
     EXPECT_EQ(build->spec.options.positional[0].name, "path");
     EXPECT_FALSE(build->spec.options.positional[0].required);
+}
+
+/**
+ * Verify that new takes the project name as a required positional.
+ */
+TEST(BuiltinCommandResolverTest, NewTakesARequiredProjectName)
+{
+    MockHelpRenderer helpRenderer;
+    MockVersionRenderer versionRenderer;
+    BuiltinCommandResolver resolver(helpRenderer, versionRenderer, diskFileSystem());
+
+    RuntimeEnvironment env;
+    auto entries = resolver.resolve(env);
+
+    const auto* create = findByName(entries, "new");
+    ASSERT_NE(create, nullptr);
+    ASSERT_EQ(create->spec.options.positional.size(), 1);
+    EXPECT_EQ(create->spec.options.positional[0].name, "project-name");
+    EXPECT_TRUE(create->spec.options.positional[0].required);
 }

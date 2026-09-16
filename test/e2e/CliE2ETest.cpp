@@ -15,6 +15,7 @@
 #include <fcntl.h>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <poll.h>
 #include <regex>
 #include <string>
@@ -680,4 +681,70 @@ TEST_F(CliE2ETest, BuildRejectsAnEmptyPath)
     EXPECT_EQ(result.exitCode, 1);
     EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
     EXPECT_NE(result.stderrText.find("error: the path argument is empty\n"), std::string::npos) << result.stderrText;
+}
+
+// --- new: creating a project ---------------------------------------------------
+
+TEST_F(CliE2ETest, NewCreatesAProject)
+{
+    std::filesystem::create_directories(root_ / "work");
+    const std::string project = (std::filesystem::canonical(root_ / "work") / "hello").string();
+
+    auto result = runScrap({"new", "hello"}, {}, root_ / "work");
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 0);
+    EXPECT_TRUE(result.stderrText.empty()) << result.stderrText;
+    EXPECT_EQ(result.stdoutText, "Created project 'hello' at '" + project + "'\n");
+    EXPECT_TRUE(std::filesystem::is_regular_file(root_ / "work" / "hello" / "scrap.toml"));
+    EXPECT_TRUE(std::filesystem::is_regular_file(root_ / "work" / "hello" / "src" / "main.cpp"));
+}
+
+TEST_F(CliE2ETest, NewProjectLoadsInBuild)
+{
+    std::filesystem::create_directories(root_ / "work");
+    auto created = runScrap({"new", "hello"}, {}, root_ / "work");
+    ASSERT_EQ(created.exitCode, 0) << created.stderrText;
+
+    auto result = runScrap({"build"}, {}, root_ / "work" / "hello");
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 0);
+    EXPECT_TRUE(result.stderrText.empty()) << result.stderrText;
+}
+
+TEST_F(CliE2ETest, NewLeavesAnExistingDirectoryUntouched)
+{
+    writeFile("work/hello/marker.txt", "keep me\n");
+    const std::string project = (std::filesystem::canonical(root_ / "work") / "hello").string();
+
+    auto result = runScrap({"new", "hello"}, {}, root_ / "work");
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    EXPECT_NE(result.stderrText.find("error: '" + project + "' already exists\n"), std::string::npos)
+        << result.stderrText;
+    std::ifstream marker(root_ / "work" / "hello" / "marker.txt", std::ios::binary);
+    EXPECT_EQ(std::string(std::istreambuf_iterator<char>(marker), std::istreambuf_iterator<char>()), "keep me\n");
+    EXPECT_FALSE(std::filesystem::exists(root_ / "work" / "hello" / "scrap.toml"));
+}
+
+TEST_F(CliE2ETest, NewRejectsNamesItCannotUse)
+{
+    std::filesystem::create_directories(root_ / "work");
+
+    for (const char* name : {"", "../x", "a/b"}) {
+        auto result = runScrap({"new", name}, {}, root_ / "work");
+
+        ASSERT_TRUE(result.exitedNormally) << name;
+        EXPECT_EQ(result.exitCode, 1) << name;
+        EXPECT_TRUE(result.stdoutText.empty()) << name << ": " << result.stdoutText;
+        EXPECT_NE(result.stderrText.find("error: "), std::string::npos) << name << ": " << result.stderrText;
+        EXPECT_NE(result.stderrText.find("\nhint: use up to 64 letters, digits, '-' and '_', starting with a letter\n"),
+                  std::string::npos)
+            << name << ": " << result.stderrText;
+    }
+    EXPECT_TRUE(std::filesystem::is_empty(root_ / "work"));
+    EXPECT_FALSE(std::filesystem::exists(root_ / "x"));
 }

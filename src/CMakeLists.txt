@@ -39,6 +39,7 @@ target_sources(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ExternalMetadataProvider.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/HelpRenderer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/MetadataProtocolProvider.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/NewCommandHandler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ParserAdapter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ProjectCommandResolver.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ProjectDiagnostic.cpp
@@ -47,11 +48,15 @@ target_sources(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/command/VersionRenderer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/driver/CLI11ParserAdapter.cpp
     # Project configuration (scrap.toml)
+    ${CMAKE_CURRENT_SOURCE_DIR}/project/DefaultTemplate.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/project/ManifestError.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/project/ManifestParser.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/project/ProjectCreator.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/project/ProjectFileSystem.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/project/ProjectLoader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/project/ProjectLocator.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/project/TargetResolver.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/project/driver/DiskProjectFileSystem.cpp
     # Composition root helpers
     ${CMAKE_CURRENT_SOURCE_DIR}/command/RuntimeEnvironmentFactory.cpp
 )

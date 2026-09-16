@@ -11,6 +11,7 @@
 #include "command/StubScriptsReader.h"
 #include "command/VersionRenderer.h"
 #include "command/driver/CLI11ParserAdapter.h"
+#include "project/driver/DiskProjectFileSystem.h"
 
 #include <cstddef>
 #include <cstdlib>
@@ -49,8 +50,10 @@ int main(int argc, char* argv[])
         HelpRenderer& helpRef = *helpRenderer;
         VersionRenderer& versionRef = *versionRenderer;
 
+        scrap::Project::DiskProjectFileSystem fileSystem;
+
         Application app(std::make_unique<CLI11ParserAdapter>(), std::move(helpRenderer), std::move(versionRenderer));
-        app.addResolver(std::make_unique<BuiltinCommandResolver>(helpRef, versionRef));
+        app.addResolver(std::make_unique<BuiltinCommandResolver>(helpRef, versionRef, fileSystem));
         app.addResolver(std::make_unique<ExternalCommandResolver>(std::make_unique<MetadataProtocolProvider>()));
         app.addResolver(std::make_unique<ProjectCommandResolver>(std::make_unique<StubScriptsReader>()));
 
