@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <string>
 #include <string_view>
 
 namespace scrap::TestSupport {
@@ -45,6 +46,14 @@ public:
      * @return Full path of the created directory.
      */
     std::filesystem::path makeDirectory(std::string_view relative) const;
+
+    /**
+     * @brief Read a file back, wherever it is.
+     *
+     * @param file Path of the file, absolute or relative to this directory.
+     * @return The bytes of the file, empty when it cannot be read.
+     */
+    std::string readFile(const std::filesystem::path& file) const;
 
 private:
     std::filesystem::path path_;

@@ -13,8 +13,6 @@
 #include "TempDirectory.h"
 
 #include <filesystem>
-#include <fstream>
-#include <iterator>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -27,7 +25,11 @@ using scrap::TestSupport::TempDirectory;
 namespace {
 
 /// The real file system, which these tests create projects on.
-DiskProjectFileSystem diskFiles;  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
+auto diskFileSystem() -> DiskProjectFileSystem&
+{
+    static DiskProjectFileSystem files;
+    return files;
+}
 
 /**
  * A file system that answers with the failures a test asks for, so the paths
@@ -73,12 +75,6 @@ public:
         return removeError;
     }
 };
-
-auto readFile(const std::filesystem::path& file) -> std::string
-{
-    std::ifstream input(file, std::ios::binary);
-    return std::string{std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>()};
-}
 
 }  // namespace
 
@@ -134,11 +130,12 @@ TEST(ProjectCreatorTest, CreatesTheProjectWithItsFiles)
 {
     const TempDirectory temp;
 
-    const auto root = createProject(diskFiles, temp.path(), "hello", defaultTemplateFiles);
+    const auto root = createProject(diskFileSystem(),temp.path(), "hello", defaultTemplateFiles);
 
     ASSERT_TRUE(root.has_value());
     EXPECT_EQ(*root, temp.path() / "hello");
-    EXPECT_EQ(readFile(*root / "scrap.toml"), "[package]\nname = \"hello\"\nversion = \"0.1.0\"\nstd = \"23\"\n");
+    EXPECT_EQ(temp.readFile(*root / "scrap.toml"),
+              "[package]\nname = \"hello\"\nversion = \"0.1.0\"\nstd = \"23\"\n");
     EXPECT_TRUE(std::filesystem::is_regular_file(*root / "src/main.cpp"));
 }
 
@@ -149,7 +146,7 @@ TEST(ProjectCreatorTest, CreatesTheProjectWithItsFiles)
 TEST(ProjectCreatorTest, DefaultTemplateLoadsAsAProject)
 {
     const TempDirectory temp;
-    const auto root = createProject(diskFiles, temp.path(), "hello", defaultTemplateFiles);
+    const auto root = createProject(diskFileSystem(),temp.path(), "hello", defaultTemplateFiles);
     ASSERT_TRUE(root.has_value());
 
     const auto project = loadProject(*root);
@@ -173,13 +170,13 @@ TEST(ProjectCreatorTest, LeavesAnExistingDirectoryUntouched)
     const TempDirectory temp;
     temp.writeFile("hello/marker.txt", "keep me\n");
 
-    const auto root = createProject(diskFiles, temp.path(), "hello", defaultTemplateFiles);
+    const auto root = createProject(diskFileSystem(),temp.path(), "hello", defaultTemplateFiles);
 
     ASSERT_FALSE(root.has_value());
     const auto* error = std::get_if<PathExists>(&root.error());
     ASSERT_NE(error, nullptr);
     EXPECT_EQ(error->path, temp.path() / "hello");
-    EXPECT_EQ(readFile(temp.path() / "hello/marker.txt"), "keep me\n");
+    EXPECT_EQ(temp.readFile("hello/marker.txt"), "keep me\n");
     EXPECT_FALSE(std::filesystem::exists(temp.path() / "hello" / ManifestFileName));
 }
 
@@ -191,11 +188,11 @@ TEST(ProjectCreatorTest, ReportsAnExistingFileAsExisting)
     const TempDirectory temp;
     temp.writeFile("hello", "a file\n");
 
-    const auto root = createProject(diskFiles, temp.path(), "hello", defaultTemplateFiles);
+    const auto root = createProject(diskFileSystem(),temp.path(), "hello", defaultTemplateFiles);
 
     ASSERT_FALSE(root.has_value());
     EXPECT_NE(std::get_if<PathExists>(&root.error()), nullptr);
-    EXPECT_EQ(readFile(temp.path() / "hello"), "a file\n");
+    EXPECT_EQ(temp.readFile("hello"), "a file\n");
 }
 
 /**
@@ -207,7 +204,7 @@ TEST(ProjectCreatorTest, RejectsAnInvalidNameWithoutCreatingAnything)
     const TempDirectory temp;
     temp.makeDirectory("work");
 
-    const auto root = createProject(diskFiles, temp.path() / "work", "../x", defaultTemplateFiles);
+    const auto root = createProject(diskFileSystem(),temp.path() / "work", "../x", defaultTemplateFiles);
 
     ASSERT_FALSE(root.has_value());
     const auto* error = std::get_if<InvalidProjectName>(&root.error());
@@ -230,12 +227,12 @@ TEST(ProjectCreatorTest, BuildsTemplateFilesOnlyForAValidName)
         return std::vector<TemplateFile>{};
     };
 
-    const auto rejected = createProject(diskFiles, temp.path(), "a\"b", recordCall);
+    const auto rejected = createProject(diskFileSystem(),temp.path(), "a\"b", recordCall);
 
     EXPECT_FALSE(rejected.has_value());
     EXPECT_FALSE(called);
 
-    const auto created = createProject(diskFiles, temp.path(), "hello", recordCall);
+    const auto created = createProject(diskFileSystem(),temp.path(), "hello", recordCall);
 
     EXPECT_TRUE(created.has_value());
     EXPECT_TRUE(called);
@@ -250,7 +247,7 @@ TEST(ProjectCreatorTest, RemovesThePartialProjectWhenAFileCannotBeWritten)
     const std::vector<TemplateFile> files{TemplateFile{.path = "a", .content = "a file\n"},
                                           TemplateFile{.path = "a/b", .content = "under a file\n"}};
 
-    const auto root = createProject(diskFiles, temp.path(), "hello", [&files](std::string_view) {
+    const auto root = createProject(diskFileSystem(),temp.path(), "hello", [&files](std::string_view) {
         return files;
     });
 
@@ -405,7 +402,7 @@ TEST(ProjectCreatorTest, ReportsAMissingParentAsCannotCreate)
 {
     const TempDirectory temp;
 
-    const auto root = createProject(diskFiles, temp.path() / "missing", "hello", defaultTemplateFiles);
+    const auto root = createProject(diskFileSystem(),temp.path() / "missing", "hello", defaultTemplateFiles);
 
     ASSERT_FALSE(root.has_value());
     const auto* error = std::get_if<CannotCreate>(&root.error());

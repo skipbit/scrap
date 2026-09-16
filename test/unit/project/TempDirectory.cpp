@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <fstream>
 #include <ios>
+#include <iterator>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -78,6 +79,13 @@ std::filesystem::path TempDirectory::writeFile(std::string_view relative, std::s
         ADD_FAILURE() << "cannot write " << target;
     }
     return target;
+}
+
+std::string TempDirectory::readFile(const std::filesystem::path& file) const
+{
+    const std::filesystem::path target = file.is_absolute() ? file : path_ / file;
+    std::ifstream input(target, std::ios::binary);
+    return std::string{std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>()};
 }
 
 std::filesystem::path TempDirectory::makeDirectory(std::string_view relative) const

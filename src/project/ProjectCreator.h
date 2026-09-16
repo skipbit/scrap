@@ -36,7 +36,9 @@ struct PathExists {
 struct CannotCreate {
     std::filesystem::path path;
     std::string reason;    ///< The operating system's description of the failure.
-    std::error_code code;  ///< The failure as reported, or empty when the system reported none.
+    /// The failure as the file system reported it. An implementation that
+    /// reports none leaves this empty, and the hint falls back to a general one.
+    std::error_code code;
     /// The partly created project directory, set when removing it failed as well.
     std::optional<std::filesystem::path> leftBehind;
 };

@@ -23,7 +23,11 @@ public:
     ProjectFileSystem& operator=(ProjectFileSystem&&) = default;
 
     /**
-     * @brief Resolve @p path against the current directory.
+     * @brief Resolve @p path against the process's current directory.
+     *
+     * A caller that carries a working directory of its own passes an absolute
+     * path, which this returns unchanged; the process's directory is the base
+     * for anything relative.
      *
      * @param path Path to resolve.
      * @return The absolute path, or the failure the system reported.

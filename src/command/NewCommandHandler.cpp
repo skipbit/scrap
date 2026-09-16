@@ -19,6 +19,9 @@ NewCommandHandler::NewCommandHandler(Project::ProjectFileSystem& fileSystem)
 
 auto NewCommandHandler::execute(const InvocationContext& ctx) -> int
 {
+    // The parser requires the name, so the first positional is there. Reading
+    // an empty list as an empty name keeps a caller that skips the parser from
+    // reading past the end.
     const std::string name = ctx.options.positional.empty() ? std::string{} : ctx.options.positional.front();
 
     const auto root =

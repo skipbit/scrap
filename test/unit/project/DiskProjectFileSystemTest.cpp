@@ -5,23 +5,10 @@
 #include "TempDirectory.h"
 
 #include <filesystem>
-#include <fstream>
-#include <iterator>
-#include <string>
 #include <system_error>
 
 using scrap::Project::DiskProjectFileSystem;
 using scrap::TestSupport::TempDirectory;
-
-namespace {
-
-auto readFile(const std::filesystem::path& file) -> std::string
-{
-    std::ifstream input(file, std::ios::binary);
-    return std::string{std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>()};
-}
-
-}  // namespace
 
 /**
  * A new file is created with the content it was given.
@@ -34,7 +21,7 @@ TEST(DiskProjectFileSystemTest, WritesANewFile)
     const std::error_code code = files.writeNewFile(temp.path() / "note.txt", "hello\n");
 
     EXPECT_FALSE(static_cast<bool>(code)) << code.message();
-    EXPECT_EQ(readFile(temp.path() / "note.txt"), "hello\n");
+    EXPECT_EQ(temp.readFile("note.txt"), "hello\n");
 }
 
 /**
@@ -49,7 +36,7 @@ TEST(DiskProjectFileSystemTest, KeepsAnExistingFile)
     const std::error_code code = files.writeNewFile(file, "overwritten\n");
 
     EXPECT_EQ(code, std::errc::file_exists);
-    EXPECT_EQ(readFile(file), "keep me\n");
+    EXPECT_EQ(temp.readFile(file), "keep me\n");
 }
 
 /**
@@ -66,7 +53,7 @@ TEST(DiskProjectFileSystemTest, WritesThroughNoSymbolicLink)
     const std::error_code code = files.writeNewFile(temp.path() / "link.txt", "overwritten\n");
 
     EXPECT_TRUE(static_cast<bool>(code));
-    EXPECT_EQ(readFile(target), "keep me\n");
+    EXPECT_EQ(temp.readFile(target), "keep me\n");
 }
 
 /**
