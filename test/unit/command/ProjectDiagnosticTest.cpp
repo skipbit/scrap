@@ -50,7 +50,7 @@ TEST(ProjectDiagnosticTest, RendersAMissingProject)
 
     EXPECT_EQ(renderProjectError(error),
               "error: could not find scrap.toml in '/home/me/work' or any parent directory\n"
-              "hint: run 'scrap new <name>' to create a project\n");
+              "hint: run 'scrap new <project-name>' to create a project\n");
 }
 
 /**

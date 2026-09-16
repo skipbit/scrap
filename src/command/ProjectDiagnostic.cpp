@@ -63,7 +63,7 @@ auto render(const Project::ProjectNotFound& error) -> std::string
     text += " in '";
     text += error.startDir.string();
     text += "' or any parent directory\n";
-    text += "hint: run 'scrap new <name>' to create a project\n";
+    text += "hint: run 'scrap new <project-name>' to create a project\n";
     return text;
 }
 
