@@ -7,6 +7,7 @@
 #include "project/ProjectLocator.h"
 #include "project/TargetResolver.h"
 #include "project/TemplateFile.h"
+#include "project/driver/DiskProjectFileSystem.h"
 
 #include "TempDirectory.h"
 
@@ -23,6 +24,9 @@ using namespace scrap::Project;
 using scrap::TestSupport::TempDirectory;
 
 namespace {
+
+/// The real file system, which these tests create projects on.
+DiskProjectFileSystem diskFiles;  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
 
 auto readFile(const std::filesystem::path& file) -> std::string
 {
@@ -84,7 +88,7 @@ TEST(ProjectCreatorTest, CreatesTheProjectWithItsFiles)
 {
     const TempDirectory temp;
 
-    const auto root = createProject(temp.path(), "hello", defaultTemplateFiles);
+    const auto root = createProject(diskFiles, temp.path(), "hello", defaultTemplateFiles);
 
     ASSERT_TRUE(root.has_value());
     EXPECT_EQ(*root, temp.path() / "hello");
@@ -99,7 +103,7 @@ TEST(ProjectCreatorTest, CreatesTheProjectWithItsFiles)
 TEST(ProjectCreatorTest, DefaultTemplateLoadsAsAProject)
 {
     const TempDirectory temp;
-    const auto root = createProject(temp.path(), "hello", defaultTemplateFiles);
+    const auto root = createProject(diskFiles, temp.path(), "hello", defaultTemplateFiles);
     ASSERT_TRUE(root.has_value());
 
     const auto project = loadProject(*root);
@@ -123,7 +127,7 @@ TEST(ProjectCreatorTest, LeavesAnExistingDirectoryUntouched)
     const TempDirectory temp;
     temp.writeFile("hello/marker.txt", "keep me\n");
 
-    const auto root = createProject(temp.path(), "hello", defaultTemplateFiles);
+    const auto root = createProject(diskFiles, temp.path(), "hello", defaultTemplateFiles);
 
     ASSERT_FALSE(root.has_value());
     const auto* error = std::get_if<PathExists>(&root.error());
@@ -141,7 +145,7 @@ TEST(ProjectCreatorTest, ReportsAnExistingFileAsExisting)
     const TempDirectory temp;
     temp.writeFile("hello", "a file\n");
 
-    const auto root = createProject(temp.path(), "hello", defaultTemplateFiles);
+    const auto root = createProject(diskFiles, temp.path(), "hello", defaultTemplateFiles);
 
     ASSERT_FALSE(root.has_value());
     EXPECT_NE(std::get_if<PathExists>(&root.error()), nullptr);
@@ -156,7 +160,7 @@ TEST(ProjectCreatorTest, RejectsAnInvalidNameWithoutCreatingAnything)
     const TempDirectory temp;
     temp.makeDirectory("work");
 
-    const auto root = createProject(temp.path() / "work", "../x", defaultTemplateFiles);
+    const auto root = createProject(diskFiles, temp.path() / "work", "../x", defaultTemplateFiles);
 
     ASSERT_FALSE(root.has_value());
     const auto* error = std::get_if<InvalidProjectName>(&root.error());
@@ -179,12 +183,12 @@ TEST(ProjectCreatorTest, BuildsTemplateFilesOnlyForAValidName)
         return std::vector<TemplateFile>{};
     };
 
-    const auto rejected = createProject(temp.path(), "a\"b", recordCall);
+    const auto rejected = createProject(diskFiles, temp.path(), "a\"b", recordCall);
 
     EXPECT_FALSE(rejected.has_value());
     EXPECT_FALSE(called);
 
-    const auto created = createProject(temp.path(), "hello", recordCall);
+    const auto created = createProject(diskFiles, temp.path(), "hello", recordCall);
 
     EXPECT_TRUE(created.has_value());
     EXPECT_TRUE(called);
@@ -199,7 +203,7 @@ TEST(ProjectCreatorTest, RemovesThePartialProjectWhenAFileCannotBeWritten)
     const std::vector<TemplateFile> files{TemplateFile{.path = "a", .content = "a file\n"},
                                           TemplateFile{.path = "a/b", .content = "under a file\n"}};
 
-    const auto root = createProject(temp.path(), "hello", [&files](std::string_view) {
+    const auto root = createProject(diskFiles, temp.path(), "hello", [&files](std::string_view) {
         return files;
     });
 
@@ -220,7 +224,7 @@ TEST(ProjectCreatorTest, ReportsAMissingParentAsCannotCreate)
 {
     const TempDirectory temp;
 
-    const auto root = createProject(temp.path() / "missing", "hello", defaultTemplateFiles);
+    const auto root = createProject(diskFiles, temp.path() / "missing", "hello", defaultTemplateFiles);
 
     ASSERT_FALSE(root.has_value());
     const auto* error = std::get_if<CannotCreate>(&root.error());

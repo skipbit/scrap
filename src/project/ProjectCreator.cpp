@@ -1,13 +1,11 @@
 #include "project/ProjectCreator.h"
 
+#include "project/ProjectFileSystem.h"
 #include "project/TemplateFile.h"
 
 #include <algorithm>
-#include <cerrno>
 #include <expected>  // NOLINT(misc-include-cleaner) — provides std::expected return type
 #include <filesystem>
-#include <fstream>
-#include <ios>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -30,45 +28,11 @@ auto isAsciiDigit(const char ch) -> bool
 }
 
 /**
- * Why a stream operation on @p file failed. The standard streams report a
- * cause only through errno, and only when a system call set it, so callers
- * clear errno before the operation and a failure that leaves it clear gets a
- * fixed reason and no error code.
+ * Build the error for a path the file system refused.
  */
-auto streamFailure(const std::filesystem::path& file) -> CannotCreate
+auto cannotCreate(const std::filesystem::path& path, const std::error_code& code) -> CannotCreate
 {
-    if (errno == 0) {
-        return CannotCreate{
-            .path = file, .reason = "the file could not be written", .code = {}, .leftBehind = std::nullopt};
-    }
-    const std::error_code code(errno, std::generic_category());
-    return CannotCreate{.path = file, .reason = code.message(), .code = code, .leftBehind = std::nullopt};
-}
-
-/**
- * Write @p content to @p file, creating its parent directories.
- */
-auto writeFile(const std::filesystem::path& file, std::string_view content) -> std::expected<void, CannotCreate>
-{
-    std::error_code ec;
-    std::filesystem::create_directories(file.parent_path(), ec);
-    if (ec) {
-        return std::unexpected(
-            CannotCreate{.path = file.parent_path(), .reason = ec.message(), .code = ec, .leftBehind = std::nullopt});
-    }
-
-    errno = 0;
-    std::ofstream output(file, std::ios::binary);
-    if (! output.is_open()) {
-        return std::unexpected(streamFailure(file));
-    }
-    errno = 0;
-    output.write(content.data(), static_cast<std::streamsize>(content.size()));
-    output.close();
-    if (! output) {
-        return std::unexpected(streamFailure(file));
-    }
-    return {};
+    return CannotCreate{.path = path, .reason = code.message(), .code = code, .leftBehind = std::nullopt};
 }
 
 }  // anonymous namespace
@@ -83,7 +47,8 @@ auto isValidProjectName(std::string_view name) -> bool
     });
 }
 
-auto createProject(const std::filesystem::path& parentDir,
+auto createProject(ProjectFileSystem& fileSystem,
+                   const std::filesystem::path& parentDir,
                    std::string_view name,
                    const TemplateFiles& templateFiles) -> std::expected<std::filesystem::path, CreateProjectError>
 {
@@ -92,32 +57,30 @@ auto createProject(const std::filesystem::path& parentDir,
     }
     const std::vector<TemplateFile> files = templateFiles(name);
 
-    std::error_code ec;
-    std::filesystem::path root = std::filesystem::absolute(parentDir, ec);
-    if (ec) {
-        return std::unexpected(CreateProjectError{
-            CannotCreate{.path = parentDir / name, .reason = ec.message(), .code = ec, .leftBehind = std::nullopt}});
+    const auto parent = fileSystem.absolute(parentDir);
+    if (! parent.has_value()) {
+        return std::unexpected(CreateProjectError{cannotCreate(parentDir / name, parent.error())});
     }
-    root /= name;
+    std::filesystem::path root = *parent / name;
 
-    // create_directory reports an existing directory by returning false, and
-    // any other existing entry through the error code.
-    const bool created = std::filesystem::create_directory(root, ec);
-    if (ec == std::errc::file_exists || (! ec && ! created)) {
-        return std::unexpected(CreateProjectError{PathExists{.path = root}});
-    }
-    if (ec) {
-        return std::unexpected(CreateProjectError{
-            CannotCreate{.path = root, .reason = ec.message(), .code = ec, .leftBehind = std::nullopt}});
+    if (const std::error_code code = fileSystem.createDirectory(root); code) {
+        if (code == std::errc::file_exists) {
+            return std::unexpected(CreateProjectError{PathExists{.path = root}});
+        }
+        return std::unexpected(CreateProjectError{cannotCreate(root, code)});
     }
 
     for (const TemplateFile& file : files) {
-        auto written = writeFile(root / file.path, file.content);
-        if (! written.has_value()) {
-            CannotCreate error = std::move(written.error());
-            std::error_code removeError;
-            std::filesystem::remove_all(root, removeError);
-            if (removeError) {
+        const std::filesystem::path target = root / file.path;
+        std::error_code code = fileSystem.createDirectories(target.parent_path());
+        std::filesystem::path failed = target.parent_path();
+        if (! code) {
+            code = fileSystem.writeNewFile(target, file.content);
+            failed = target;
+        }
+        if (code) {
+            CannotCreate error = cannotCreate(failed, code);
+            if (fileSystem.removeAll(root)) {
                 error.leftBehind = root;
             }
             return std::unexpected(CreateProjectError{std::move(error)});

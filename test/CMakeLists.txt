@@ -39,8 +39,10 @@ add_executable(scrap_gtest
     ${CMAKE_SOURCE_DIR}/src/project/ManifestError.cpp
     ${CMAKE_SOURCE_DIR}/src/project/ManifestParser.cpp
     ${CMAKE_SOURCE_DIR}/src/project/ProjectCreator.cpp
+    ${CMAKE_SOURCE_DIR}/src/project/ProjectFileSystem.cpp
     ${CMAKE_SOURCE_DIR}/src/project/ProjectLoader.cpp
     ${CMAKE_SOURCE_DIR}/src/project/ProjectLocator.cpp
+    ${CMAKE_SOURCE_DIR}/src/project/driver/DiskProjectFileSystem.cpp
 )
 
 target_include_directories(scrap_gtest PRIVATE
@@ -114,9 +116,11 @@ add_executable(scrap_gtest_project
     ${CMAKE_SOURCE_DIR}/src/project/ManifestError.cpp
     ${CMAKE_SOURCE_DIR}/src/project/ManifestParser.cpp
     ${CMAKE_SOURCE_DIR}/src/project/ProjectCreator.cpp
+    ${CMAKE_SOURCE_DIR}/src/project/ProjectFileSystem.cpp
     ${CMAKE_SOURCE_DIR}/src/project/ProjectLoader.cpp
     ${CMAKE_SOURCE_DIR}/src/project/ProjectLocator.cpp
     ${CMAKE_SOURCE_DIR}/src/project/TargetResolver.cpp
+    ${CMAKE_SOURCE_DIR}/src/project/driver/DiskProjectFileSystem.cpp
 )
 
 target_include_directories(scrap_gtest_project PRIVATE

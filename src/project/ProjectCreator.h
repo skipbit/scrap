@@ -1,5 +1,6 @@
 #pragma once
 
+#include "project/ProjectFileSystem.h"
 #include "project/TemplateFile.h"
 
 #include <cstddef>
@@ -73,6 +74,7 @@ inline constexpr std::size_t MaxProjectNameLength = 64;
  * exists at its path, so an existing directory stays untouched. When a later
  * step fails, the directory this call created is removed again.
  *
+ * @param fileSystem File operations to create the project with.
  * @param parentDir Directory to create the project in.
  * @param name Project name, checked with isValidProjectName().
  * @param templateFiles Called with @p name only once the name is valid; returns
@@ -80,7 +82,8 @@ inline constexpr std::size_t MaxProjectNameLength = 64;
  * @return The absolute project root, or why the project could not be created.
  */
 [[nodiscard]] auto
-createProject(const std::filesystem::path& parentDir,
+createProject(ProjectFileSystem& fileSystem,
+              const std::filesystem::path& parentDir,
               std::string_view name,
               const TemplateFiles& templateFiles) -> std::expected<std::filesystem::path, CreateProjectError>;
 

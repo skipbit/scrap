@@ -2,12 +2,16 @@
 
 #include "command/BuiltinCommandResolver.h"
 #include "command/CommandCatalog.h"
+#include "project/driver/DiskProjectFileSystem.h"
 
 #include <algorithm>
 
 using namespace scrap::Command;
 
 namespace {
+
+/// File system the resolver hands to the new command handler.
+scrap::Project::DiskProjectFileSystem diskFiles;  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
 
 /**
  * Minimal HelpRenderer mock for BuiltinCommandResolver DI.
@@ -65,7 +69,7 @@ TEST(BuiltinCommandResolverTest, ReturnsHelpAndVersion)
 {
     MockHelpRenderer helpRenderer;
     MockVersionRenderer versionRenderer;
-    BuiltinCommandResolver resolver(helpRenderer, versionRenderer);
+    BuiltinCommandResolver resolver(helpRenderer, versionRenderer, diskFiles);
 
     RuntimeEnvironment env;
     auto entries = resolver.resolve(env);
@@ -81,7 +85,7 @@ TEST(BuiltinCommandResolverTest, ReturnsPlaceholderCommands)
 {
     MockHelpRenderer helpRenderer;
     MockVersionRenderer versionRenderer;
-    BuiltinCommandResolver resolver(helpRenderer, versionRenderer);
+    BuiltinCommandResolver resolver(helpRenderer, versionRenderer, diskFiles);
 
     RuntimeEnvironment env;
     auto entries = resolver.resolve(env);
@@ -101,7 +105,7 @@ TEST(BuiltinCommandResolverTest, ToolchainHasSubcommands)
 {
     MockHelpRenderer helpRenderer;
     MockVersionRenderer versionRenderer;
-    BuiltinCommandResolver resolver(helpRenderer, versionRenderer);
+    BuiltinCommandResolver resolver(helpRenderer, versionRenderer, diskFiles);
 
     RuntimeEnvironment env;
     auto entries = resolver.resolve(env);
@@ -121,7 +125,7 @@ TEST(BuiltinCommandResolverTest, TemplateHasSubcommands)
 {
     MockHelpRenderer helpRenderer;
     MockVersionRenderer versionRenderer;
-    BuiltinCommandResolver resolver(helpRenderer, versionRenderer);
+    BuiltinCommandResolver resolver(helpRenderer, versionRenderer, diskFiles);
 
     RuntimeEnvironment env;
     auto entries = resolver.resolve(env);
@@ -140,7 +144,7 @@ TEST(BuiltinCommandResolverTest, AllEntriesAreBuiltinSource)
 {
     MockHelpRenderer helpRenderer;
     MockVersionRenderer versionRenderer;
-    BuiltinCommandResolver resolver(helpRenderer, versionRenderer);
+    BuiltinCommandResolver resolver(helpRenderer, versionRenderer, diskFiles);
 
     RuntimeEnvironment env;
     auto entries = resolver.resolve(env);
@@ -157,7 +161,7 @@ TEST(BuiltinCommandResolverTest, BuildTakesAnOptionalPath)
 {
     MockHelpRenderer helpRenderer;
     MockVersionRenderer versionRenderer;
-    BuiltinCommandResolver resolver(helpRenderer, versionRenderer);
+    BuiltinCommandResolver resolver(helpRenderer, versionRenderer, diskFiles);
 
     RuntimeEnvironment env;
     auto entries = resolver.resolve(env);
@@ -176,7 +180,7 @@ TEST(BuiltinCommandResolverTest, NewTakesARequiredProjectName)
 {
     MockHelpRenderer helpRenderer;
     MockVersionRenderer versionRenderer;
-    BuiltinCommandResolver resolver(helpRenderer, versionRenderer);
+    BuiltinCommandResolver resolver(helpRenderer, versionRenderer, diskFiles);
 
     RuntimeEnvironment env;
     auto entries = resolver.resolve(env);

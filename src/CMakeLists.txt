@@ -52,9 +52,11 @@ target_sources(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/project/ManifestError.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/project/ManifestParser.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/project/ProjectCreator.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/project/ProjectFileSystem.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/project/ProjectLoader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/project/ProjectLocator.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/project/TargetResolver.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/project/driver/DiskProjectFileSystem.cpp
     # Composition root helpers
     ${CMAKE_CURRENT_SOURCE_DIR}/command/RuntimeEnvironmentFactory.cpp
 )

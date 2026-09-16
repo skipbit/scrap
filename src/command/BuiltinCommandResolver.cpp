@@ -138,7 +138,7 @@ auto makePlaceholder(const std::string& name,
 /**
  * Create the entry for "new", which takes the name of the project to create.
  */
-auto makeNewEntry() -> CommandEntry
+auto makeNewEntry(Project::ProjectFileSystem& fileSystem) -> CommandEntry
 {
     CommandEntry entry;
     entry.spec.name = "new";
@@ -147,8 +147,9 @@ auto makeNewEntry() -> CommandEntry
     entry.spec.options.positional.push_back(PositionalDef{
         .name = "project-name", .description = "Name of the project directory to create", .required = true});
     entry.source = CommandSource::Builtin;
-    entry.createHandler = [](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
-        return std::make_unique<NewCommandHandler>();
+    auto* files = &fileSystem;
+    entry.createHandler = [files](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
+        return std::make_unique<NewCommandHandler>(*files);
     };
     return entry;
 }
@@ -178,8 +179,10 @@ auto makeBuildEntry() -> CommandEntry
 /**
  * Construct with renderer pointers for help/version commands.
  */
-BuiltinCommandResolver::BuiltinCommandResolver(HelpRenderer& helpRenderer, VersionRenderer& versionRenderer)
-    : helpRenderer_(&helpRenderer), versionRenderer_(&versionRenderer)
+BuiltinCommandResolver::BuiltinCommandResolver(HelpRenderer& helpRenderer,
+                                               VersionRenderer& versionRenderer,
+                                               Project::ProjectFileSystem& fileSystem)
+    : helpRenderer_(&helpRenderer), versionRenderer_(&versionRenderer), fileSystem_(&fileSystem)
 {
 }
 
@@ -221,7 +224,7 @@ auto BuiltinCommandResolver::resolve([[maybe_unused]] const RuntimeEnvironment& 
     }
 
     // Project commands
-    entries.push_back(makeNewEntry());
+    entries.push_back(makeNewEntry(*fileSystem_));
     entries.push_back(makeBuildEntry());
     entries.push_back(makePlaceholder("run", "Run the current project executable", "Project Commands"));
     entries.push_back(makePlaceholder("clean", "Remove build artifacts and cached files", "Project Commands"));

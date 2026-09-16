@@ -5,17 +5,24 @@
 #include "command/RuntimeEnvironment.h"
 #include "project/DefaultTemplate.h"
 #include "project/ProjectCreator.h"
+#include "project/ProjectFileSystem.h"
 
 #include <iostream>
 #include <string>
 
 namespace scrap::Command {
 
+NewCommandHandler::NewCommandHandler(Project::ProjectFileSystem& fileSystem)
+    : fileSystem_(&fileSystem)
+{
+}
+
 auto NewCommandHandler::execute(const InvocationContext& ctx) -> int
 {
     const std::string name = ctx.options.positional.empty() ? std::string{} : ctx.options.positional.front();
 
-    const auto root = Project::createProject(ctx.env->workingDirectory, name, Project::defaultTemplateFiles);
+    const auto root =
+        Project::createProject(*fileSystem_, ctx.env->workingDirectory, name, Project::defaultTemplateFiles);
     if (! root.has_value()) {
         std::cerr << renderCreateProjectError(root.error());
         return 1;

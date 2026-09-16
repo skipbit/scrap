@@ -3,6 +3,7 @@
 #include "command/CommandResolver.h"
 #include "command/HelpRenderer.h"
 #include "command/VersionRenderer.h"
+#include "project/ProjectFileSystem.h"
 
 namespace scrap::Command {
 
@@ -22,8 +23,11 @@ public:
      *
      * @param helpRenderer    Renderer used by the help command handler.
      * @param versionRenderer Renderer used by the version command handler.
+     * @param fileSystem      File operations used by the new command handler.
      */
-    BuiltinCommandResolver(HelpRenderer& helpRenderer, VersionRenderer& versionRenderer);
+    BuiltinCommandResolver(HelpRenderer& helpRenderer,
+                           VersionRenderer& versionRenderer,
+                           Project::ProjectFileSystem& fileSystem);
 
     /**
      * @brief Return the fixed set of built-in command entries.
@@ -38,6 +42,7 @@ public:
 private:
     HelpRenderer* helpRenderer_;
     VersionRenderer* versionRenderer_;
+    Project::ProjectFileSystem* fileSystem_;
 };
 
 }  // namespace scrap::Command
