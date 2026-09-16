@@ -199,6 +199,9 @@ auto cannotCreateHint(const std::error_code& code) -> std::string_view
     if (code == std::errc::invalid_argument) {
         return "hint: choose a template whose files stay inside the project\n";
     }
+    if (code == std::errc::file_exists) {
+        return "hint: check what is already at that path\n";
+    }
     return "hint: check that the directory exists and can be written\n";
 }
 

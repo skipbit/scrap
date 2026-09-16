@@ -310,6 +310,23 @@ TEST(ProjectDiagnosticTest, RendersAPartlyCreatedProjectLeftBehind)
 }
 
 /**
+ * A file already at the path, which creating it exclusively reports, points at
+ * what is there rather than at the directory.
+ */
+TEST(ProjectDiagnosticTest, RendersAFileAlreadyAtThePath)
+{
+    const scrap::Project::CreateProjectError error =
+        scrap::Project::CannotCreate{.path = "/home/me/work/hello/src/main.cpp",
+                                     .reason = "File exists",
+                                     .code = std::make_error_code(std::errc::file_exists),
+                                     .leftBehind = std::nullopt};
+
+    EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
+              "error: cannot create '/home/me/work/hello/src/main.cpp': File exists\n"
+              "hint: check what is already at that path\n");
+}
+
+/**
  * A template file that leaves the project points at the template.
  */
 TEST(ProjectDiagnosticTest, RendersATemplateFileOutsideTheProject)
