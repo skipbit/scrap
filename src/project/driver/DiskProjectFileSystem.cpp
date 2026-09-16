@@ -87,6 +87,12 @@ auto DiskProjectFileSystem::writeNewFile(const std::filesystem::path& file, std:
             ::close(descriptor);
             return failure;
         }
+        if (written == 0) {
+            // POSIX allows a write of zero bytes to report nothing written,
+            // which would leave the loop where it started.
+            ::close(descriptor);
+            return std::make_error_code(std::errc::io_error);
+        }
         data += written;
         remaining -= static_cast<std::size_t>(written);
     }
