@@ -216,15 +216,24 @@ auto render(const Project::CannotCreate& error) -> std::string
     return text;
 }
 
-}  // anonymous namespace
-
-auto renderProjectError(const Project::ProjectError& error) -> std::string
+/**
+ * Render whichever alternative @p error holds.
+ */
+template <typename... Alternatives>
+auto renderAlternative(const std::variant<Alternatives...>& error) -> std::string
 {
     return std::visit(
         [](const auto& alternative) -> std::string {
             return render(alternative);
         },
         error);
+}
+
+}  // anonymous namespace
+
+auto renderProjectError(const Project::ProjectError& error) -> std::string
+{
+    return renderAlternative(error);
 }
 
 auto renderEmptyPathArgument() -> std::string
@@ -236,11 +245,7 @@ auto renderEmptyPathArgument() -> std::string
 
 auto renderCreateProjectError(const Project::CreateProjectError& error) -> std::string
 {
-    return std::visit(
-        [](const auto& alternative) -> std::string {
-            return render(alternative);
-        },
-        error);
+    return renderAlternative(error);
 }
 
 }  // namespace scrap::Command

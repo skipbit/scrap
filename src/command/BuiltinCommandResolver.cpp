@@ -136,22 +136,37 @@ auto makePlaceholder(const std::string& name,
 }
 
 /**
+ * Create a project command that takes one positional argument.
+ */
+auto makeProjectEntry(std::string name,
+                      std::string description,
+                      PositionalDef positional,
+                      CommandEntry::HandlerFactory createHandler) -> CommandEntry
+{
+    CommandEntry entry;
+    entry.spec.name = std::move(name);
+    entry.spec.description = std::move(description);
+    entry.spec.category = "Project Commands";
+    entry.spec.options.positional.push_back(std::move(positional));
+    entry.source = CommandSource::Builtin;
+    entry.createHandler = std::move(createHandler);
+    return entry;
+}
+
+/**
  * Create the entry for "new", which takes the name of the project to create.
  */
 auto makeNewEntry(Project::ProjectFileSystem& fileSystem) -> CommandEntry
 {
-    CommandEntry entry;
-    entry.spec.name = "new";
-    entry.spec.description = "Create a new C++ project";
-    entry.spec.category = "Project Commands";
-    entry.spec.options.positional.push_back(PositionalDef{
-        .name = "project-name", .description = "Name of the project directory to create", .required = true});
-    entry.source = CommandSource::Builtin;
     auto* files = &fileSystem;
-    entry.createHandler = [files](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
-        return std::make_unique<NewCommandHandler>(*files);
-    };
-    return entry;
+    return makeProjectEntry("new",
+                            "Create a new C++ project",
+                            PositionalDef{.name = "project-name",
+                                          .description = "Name of the project directory to create",
+                                          .required = true},
+                            [files](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
+                                return std::make_unique<NewCommandHandler>(*files);
+                            });
 }
 
 /**
@@ -159,19 +174,14 @@ auto makeNewEntry(Project::ProjectFileSystem& fileSystem) -> CommandEntry
  */
 auto makeBuildEntry() -> CommandEntry
 {
-    CommandEntry entry;
-    entry.spec.name = "build";
-    entry.spec.description = "Compile the project";
-    entry.spec.category = "Project Commands";
-    entry.spec.options.positional.push_back(
-        PositionalDef{.name = "path",
-                      .description = "Directory inside the project (default: the current directory)",
-                      .required = false});
-    entry.source = CommandSource::Builtin;
-    entry.createHandler = [](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
-        return std::make_unique<BuildCommandHandler>();
-    };
-    return entry;
+    return makeProjectEntry("build",
+                            "Compile the project",
+                            PositionalDef{.name = "path",
+                                          .description = "Directory inside the project (default: the current directory)",
+                                          .required = false},
+                            [](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
+                                return std::make_unique<BuildCommandHandler>();
+                            });
 }
 
 }  // anonymous namespace
