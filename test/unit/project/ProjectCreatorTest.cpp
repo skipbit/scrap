@@ -3,6 +3,7 @@
 #include "project/DefaultTemplate.h"
 #include "project/Manifest.h"
 #include "project/ProjectCreator.h"
+#include "project/ProjectFileSystem.h"
 #include "project/ProjectLoader.h"
 #include "project/ProjectLocator.h"
 #include "project/TargetResolver.h"
@@ -27,6 +28,51 @@ namespace {
 
 /// The real file system, which these tests create projects on.
 DiskProjectFileSystem diskFiles;  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
+
+/**
+ * A file system that answers with the failures a test asks for, so the paths
+ * a real file system reaches only under a full disk or a lost permission can
+ * be exercised.
+ */
+class FailingFileSystem : public ProjectFileSystem {
+public:
+    std::error_code absoluteError;
+    std::error_code createDirectoryError;
+    std::error_code createDirectoriesError;
+    std::error_code writeError;
+    std::error_code removeError;
+    int removeCalls = 0;
+
+    [[nodiscard]] auto absolute(const std::filesystem::path& path) const
+        -> std::expected<std::filesystem::path, std::error_code> override
+    {
+        if (absoluteError) {
+            return std::unexpected(absoluteError);
+        }
+        return std::filesystem::path{"/absolute"} / path.filename();
+    }
+
+    [[nodiscard]] auto createDirectory(const std::filesystem::path&) -> std::error_code override
+    {
+        return createDirectoryError;
+    }
+
+    [[nodiscard]] auto createDirectories(const std::filesystem::path&) -> std::error_code override
+    {
+        return createDirectoriesError;
+    }
+
+    [[nodiscard]] auto writeNewFile(const std::filesystem::path&, std::string_view) -> std::error_code override
+    {
+        return writeError;
+    }
+
+    [[nodiscard]] auto removeAll(const std::filesystem::path&) -> std::error_code override
+    {
+        ++removeCalls;
+        return removeError;
+    }
+};
 
 auto readFile(const std::filesystem::path& file) -> std::string
 {
@@ -153,7 +199,8 @@ TEST(ProjectCreatorTest, ReportsAnExistingFileAsExisting)
 }
 
 /**
- * An invalid name creates nothing, not even a directory the name points at.
+ * An invalid name leaves the file system as it was, including the path the
+ * name points at.
  */
 TEST(ProjectCreatorTest, RejectsAnInvalidNameWithoutCreatingAnything)
 {
@@ -171,8 +218,8 @@ TEST(ProjectCreatorTest, RejectsAnInvalidNameWithoutCreatingAnything)
 }
 
 /**
- * The template is asked for its files only once the name is valid, so a
- * template never sees a name it would have to escape.
+ * The template is asked for its files only once the name is valid, so every
+ * name a template sees is one it can write as it is.
  */
 TEST(ProjectCreatorTest, BuildsTemplateFilesOnlyForAValidName)
 {
@@ -214,6 +261,86 @@ TEST(ProjectCreatorTest, RemovesThePartialProjectWhenAFileCannotBeWritten)
     EXPECT_TRUE(static_cast<bool>(error->code));
     EXPECT_FALSE(error->leftBehind.has_value());
     EXPECT_FALSE(std::filesystem::exists(temp.path() / "hello"));
+}
+
+/**
+ * A write the file system refuses removes the project directory created for
+ * it, and the error names the file and the cause.
+ */
+TEST(ProjectCreatorTest, RemovesTheProjectWhenTheFileSystemRefusesAWrite)
+{
+    FailingFileSystem files;
+    files.writeError = std::make_error_code(std::errc::no_space_on_device);
+
+    const auto root = createProject(files, "/work", "hello", defaultTemplateFiles);
+
+    ASSERT_FALSE(root.has_value());
+    const auto* error = std::get_if<CannotCreate>(&root.error());
+    ASSERT_NE(error, nullptr);
+    EXPECT_EQ(error->path, std::filesystem::path{"/absolute/work/hello/scrap.toml"});
+    EXPECT_EQ(error->code, std::errc::no_space_on_device);
+    EXPECT_FALSE(error->leftBehind.has_value());
+    EXPECT_EQ(files.removeCalls, 1);
+}
+
+/**
+ * A removal the file system refuses leaves the directory behind, and the error
+ * names it.
+ */
+TEST(ProjectCreatorTest, NamesTheDirectoryLeftBehindByAFailedRemoval)
+{
+    FailingFileSystem files;
+    files.writeError = std::make_error_code(std::errc::no_space_on_device);
+    files.removeError = std::make_error_code(std::errc::permission_denied);
+
+    const auto root = createProject(files, "/work", "hello", defaultTemplateFiles);
+
+    ASSERT_FALSE(root.has_value());
+    const auto* error = std::get_if<CannotCreate>(&root.error());
+    ASSERT_NE(error, nullptr);
+    ASSERT_TRUE(error->leftBehind.has_value());
+    EXPECT_EQ(*error->leftBehind, std::filesystem::path{"/absolute/work/hello"});
+}
+
+/**
+ * A directory the file system refuses to create carries its cause, while an
+ * existing one is reported as an existing path.
+ */
+TEST(ProjectCreatorTest, ReportsWhatTheFileSystemSaysAboutTheDirectory)
+{
+    FailingFileSystem refused;
+    refused.createDirectoryError = std::make_error_code(std::errc::permission_denied);
+    FailingFileSystem taken;
+    taken.createDirectoryError = std::make_error_code(std::errc::file_exists);
+
+    const auto refusedRoot = createProject(refused, "/work", "hello", defaultTemplateFiles);
+    const auto takenRoot = createProject(taken, "/work", "hello", defaultTemplateFiles);
+
+    ASSERT_FALSE(refusedRoot.has_value());
+    const auto* error = std::get_if<CannotCreate>(&refusedRoot.error());
+    ASSERT_NE(error, nullptr);
+    EXPECT_EQ(error->code, std::errc::permission_denied);
+    EXPECT_EQ(refused.removeCalls, 0);
+    ASSERT_FALSE(takenRoot.has_value());
+    EXPECT_NE(std::get_if<PathExists>(&takenRoot.error()), nullptr);
+}
+
+/**
+ * A working directory the file system cannot resolve is reported with the path
+ * the project would have taken.
+ */
+TEST(ProjectCreatorTest, ReportsAWorkingDirectoryThatCannotBeResolved)
+{
+    FailingFileSystem files;
+    files.absoluteError = std::make_error_code(std::errc::no_such_file_or_directory);
+
+    const auto root = createProject(files, "/gone", "hello", defaultTemplateFiles);
+
+    ASSERT_FALSE(root.has_value());
+    const auto* error = std::get_if<CannotCreate>(&root.error());
+    ASSERT_NE(error, nullptr);
+    EXPECT_EQ(error->path, std::filesystem::path{"/gone/hello"});
+    EXPECT_EQ(error->code, std::errc::no_such_file_or_directory);
 }
 
 /**

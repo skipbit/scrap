@@ -105,6 +105,7 @@ gtest_discover_tests(scrap_gtest_cli11)
 
 # --- Project configuration tests (requires toml++ linkage) ---
 add_executable(scrap_gtest_project
+    unit/project/DiskProjectFileSystemTest.cpp
     unit/project/ManifestParserTest.cpp
     unit/project/ManifestSearch.cpp
     unit/project/ProjectCreatorTest.cpp

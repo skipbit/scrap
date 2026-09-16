@@ -1,27 +1,27 @@
 #include "project/driver/DiskProjectFileSystem.h"
 
 #include <cerrno>
+#include <cstddef>
 #include <expected>  // NOLINT(misc-include-cleaner) — provides std::expected return type
+#include <fcntl.h>
 #include <filesystem>
-#include <fstream>
-#include <ios>
 #include <string_view>
+#include <sys/types.h>
 #include <system_error>
+#include <unistd.h>
 
 namespace scrap::Project {
 
 namespace {
 
+/// Permissions a new project file is created with, before the process umask.
+constexpr mode_t NewFileMode = 0644;
+
 /**
- * The failure a stream left in errno. A stream reports a cause no other way,
- * and sets errno only when a system call failed, so a failure that leaves it
- * clear is reported as an I/O error.
+ * The failure the last system call reported.
  */
-auto streamFailure() -> std::error_code
+auto lastFailure() -> std::error_code
 {
-    if (errno == 0) {
-        return std::make_error_code(std::errc::io_error);
-    }
     return {errno, std::generic_category()};
 }
 
@@ -59,19 +59,41 @@ auto DiskProjectFileSystem::createDirectories(const std::filesystem::path& direc
     return ec;
 }
 
+/**
+ * Create the file and write it in one pass over the content.
+ *
+ * O_EXCL makes the call fail when anything is at the path, which keeps an
+ * entry placed there after the project directory was created, symbolic link
+ * included, from being followed or truncated. O_NOFOLLOW states the same for
+ * the final component on systems where O_EXCL alone would follow it.
+ */
 auto DiskProjectFileSystem::writeNewFile(const std::filesystem::path& file,
                                          std::string_view content) -> std::error_code
 {
-    errno = 0;
-    std::ofstream output(file, std::ios::binary);
-    if (! output.is_open()) {
-        return streamFailure();
+    // NOLINTNEXTLINE(hicpp-signed-bitwise) — POSIX open() flag combination
+    const int descriptor = ::open(file.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, NewFileMode);
+    if (descriptor < 0) {
+        return lastFailure();
     }
-    errno = 0;
-    output.write(content.data(), static_cast<std::streamsize>(content.size()));
-    output.close();
-    if (! output) {
-        return streamFailure();
+
+    const char* data = content.data();
+    std::size_t remaining = content.size();
+    while (remaining > 0) {
+        const ssize_t written = ::write(descriptor, data, remaining);
+        if (written < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            const std::error_code failure = lastFailure();
+            ::close(descriptor);
+            return failure;
+        }
+        data += written;
+        remaining -= static_cast<std::size_t>(written);
+    }
+
+    if (::close(descriptor) != 0) {
+        return lastFailure();
     }
     return {};
 }
