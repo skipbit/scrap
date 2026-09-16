@@ -97,16 +97,24 @@ auto appendEscaped(const unsigned byte, std::string& text) -> void
     text += HexDigits[byte & 0x0FU];
 }
 
+/// The longest rejected name echoed back, counted before any escape expands it.
+constexpr std::size_t EchoedNameLimit = Project::MaxProjectNameLength;
+
 /**
  * Text the user typed, made safe to print: printable ASCII stays as it is and
  * every other byte becomes \xNN, so control characters and escape sequences
  * reach the terminal as text rather than as instructions. A backslash is
  * escaped as well, which leaves \xNN as the mark of an escaped byte alone.
+ *
+ * Every name long enough to be cut is already too long to be a project name,
+ * so the cut costs the reader nothing and keeps one screen enough for the
+ * message.
  */
 auto printable(std::string_view text) -> std::string
 {
+    const bool cut = text.size() > EchoedNameLimit;
     std::string result;
-    for (const char ch : text) {
+    for (const char ch : text.substr(0, EchoedNameLimit)) {
         const unsigned byte = static_cast<unsigned char>(ch);
         if (byte >= 0x20U && byte < 0x7FU && ch != '\\') {
             result += ch;
@@ -114,34 +122,36 @@ auto printable(std::string_view text) -> std::string
             appendEscaped(byte, result);
         }
     }
+    if (cut) {
+        result += "...";
+    }
     return result;
 }
 
 /**
- * A path made safe to print. A path carries the working directory, whose name
- * can hold any byte, so control characters and a backslash are escaped while
- * letters outside ASCII stay as they are and keep the path readable. The two
- * bytes of a C1 control character are escaped together, since a terminal acts
- * on them as one.
+ * The length of the well-formed UTF-8 sequence starting at @p index, or 0 when
+ * the bytes there do not form one.
  */
-auto printablePath(const std::filesystem::path& path) -> std::string
+auto utf8SequenceLength(std::string_view text, const std::size_t index) -> std::size_t
 {
-    const std::string text = path.string();
-    std::string result;
-    for (std::size_t index = 0; index < text.size(); ++index) {
-        const unsigned byte = static_cast<unsigned char>(text[index]);
-        const unsigned next = index + 1 < text.size() ? static_cast<unsigned char>(text[index + 1]) : 0U;
-        if (byte == 0xC2U && next >= 0x80U && next <= 0x9FU) {
-            appendEscaped(byte, result);
-            appendEscaped(next, result);
-            ++index;
-        } else if (byte < 0x20U || byte == 0x7FU || text[index] == '\\') {
-            appendEscaped(byte, result);
-        } else {
-            result += text[index];
+    const unsigned lead = static_cast<unsigned char>(text[index]);
+    std::size_t length = 0;
+    if ((lead & 0xE0U) == 0xC0U) {
+        length = 2;
+    } else if ((lead & 0xF0U) == 0xE0U) {
+        length = 3;
+    } else if ((lead & 0xF8U) == 0xF0U) {
+        length = 4;
+    }
+    if (length == 0 || index + length > text.size()) {
+        return 0;
+    }
+    for (std::size_t offset = 1; offset < length; ++offset) {
+        if ((static_cast<unsigned char>(text[index + offset]) & 0xC0U) != 0x80U) {
+            return 0;
         }
     }
-    return result;
+    return length;
 }
 
 auto render(const Project::InvalidProjectName& error) -> std::string
@@ -239,6 +249,45 @@ template <typename... Alternatives> auto renderAlternative(const std::variant<Al
 auto renderProjectError(const Project::ProjectError& error) -> std::string
 {
     return renderAlternative(error);
+}
+
+/**
+ * A byte outside ASCII is kept only as part of a well-formed UTF-8 sequence
+ * that is not a C1 control character. A lone byte in that range is escaped,
+ * since a terminal in an eight-bit locale acts on 0x80 to 0x9F as controls.
+ */
+auto printablePath(const std::filesystem::path& path) -> std::string
+{
+    const std::string text = path.string();
+    std::string result;
+    std::size_t index = 0;
+    while (index < text.size()) {
+        const unsigned byte = static_cast<unsigned char>(text[index]);
+        if (byte < 0x80U) {
+            if (byte < 0x20U || byte == 0x7FU || text[index] == '\\') {
+                appendEscaped(byte, result);
+            } else {
+                result += text[index];
+            }
+            ++index;
+            continue;
+        }
+
+        const std::size_t length = utf8SequenceLength(text, index);
+        const bool isC1 = length == 2 && byte == 0xC2U && static_cast<unsigned char>(text[index + 1]) <= 0x9FU;
+        if (length == 0) {
+            appendEscaped(byte, result);
+            ++index;
+        } else if (isC1) {
+            appendEscaped(byte, result);
+            appendEscaped(static_cast<unsigned char>(text[index + 1]), result);
+            index += 2;
+        } else {
+            result.append(text, index, length);
+            index += length;
+        }
+    }
+    return result;
 }
 
 auto renderEmptyPathArgument() -> std::string

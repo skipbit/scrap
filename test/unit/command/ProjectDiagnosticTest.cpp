@@ -199,6 +199,43 @@ TEST(ProjectDiagnosticTest, EscapesAC1ControlCharacterInAPath)
 }
 
 /**
+ * A byte in the C1 range on its own is escaped, since a terminal in an
+ * eight-bit locale acts on it as a control character.
+ */
+TEST(ProjectDiagnosticTest, EscapesALoneByteInTheC1Range)
+{
+    const scrap::Project::CreateProjectError error = scrap::Project::PathExists{.path = "/home/me/a\x9b" "b/hello"};
+
+    EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
+              "error: '/home/me/a\\x9Bb/hello' already exists\n"
+              "hint: choose another name, or run the command in another directory\n");
+}
+
+/**
+ * A byte that starts no well-formed sequence is escaped as well.
+ */
+TEST(ProjectDiagnosticTest, EscapesBytesThatFormNoUtf8Sequence)
+{
+    EXPECT_EQ(scrap::Command::printablePath("/home/me/\xe4\xbd/hello"), "/home/me/\\xE4\\xBD/hello");
+    EXPECT_EQ(scrap::Command::printablePath("/home/me/\xff/hello"), "/home/me/\\xFF/hello");
+}
+
+/**
+ * A name longer than a project name may be is cut where it stops mattering.
+ */
+TEST(ProjectDiagnosticTest, CutsALongNameInTheMessage)
+{
+    const std::string name(scrap::Project::MaxProjectNameLength + 20, 'a');
+    const scrap::Project::CreateProjectError error = scrap::Project::InvalidProjectName{.name = name};
+
+    const std::string message = scrap::Command::renderCreateProjectError(error);
+
+    EXPECT_NE(message.find("error: '" + std::string(scrap::Project::MaxProjectNameLength, 'a') + "...' is not a valid"),
+              std::string::npos)
+        << message;
+}
+
+/**
  * Letters outside ASCII stay as they are, so a path keeps its own language.
  */
 TEST(ProjectDiagnosticTest, KeepsLettersOutsideAsciiInAPath)

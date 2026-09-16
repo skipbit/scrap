@@ -28,7 +28,7 @@ auto NewCommandHandler::execute(const InvocationContext& ctx) -> int
         return 1;
     }
 
-    std::cout << "Created project '" << name << "' at '" << root->string() << "'\n";
+    std::cout << "Created project '" << name << "' at '" << printablePath(*root) << "'\n";
     return 0;
 }
 
