@@ -2,7 +2,7 @@
 
 #include <cerrno>
 #include <cstddef>
-#include <expected>  // NOLINT(misc-include-cleaner) — provides std::expected return type
+#include <expected>  // IWYU pragma: keep
 #include <fcntl.h>
 #include <filesystem>
 #include <string_view>
@@ -69,7 +69,7 @@ auto DiskProjectFileSystem::createDirectories(const std::filesystem::path& direc
  */
 auto DiskProjectFileSystem::writeNewFile(const std::filesystem::path& file, std::string_view content) -> std::error_code
 {
-    // NOLINTNEXTLINE(hicpp-signed-bitwise) — POSIX open() flag combination
+    // NOLINTNEXTLINE(hicpp-signed-bitwise) - POSIX open() flag combination
     const int descriptor = ::open(file.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, NewFileMode);
     if (descriptor < 0) {
         return lastFailure();

@@ -2,7 +2,7 @@
 
 #include "command/ScriptsReader.h"
 
-#include <expected>  // NOLINT(misc-include-cleaner) — provides std::expected return type
+#include <expected>  // IWYU pragma: keep
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -12,7 +12,7 @@ namespace scrap::Command {
 /**
  * Always return an empty script list (stub implementation).
  */
-// NOLINTNEXTLINE(readability-convert-member-functions-to-static) — virtual override
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static) - virtual override
 auto StubScriptsReader::read([[maybe_unused]] const std::filesystem::path& projectRoot)
     -> std::expected<std::vector<ScriptDef>, std::string>
 {

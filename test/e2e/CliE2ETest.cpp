@@ -425,7 +425,7 @@ TEST_F(CliE2ETest, ProjectScopeNoConfig)
 {
     // No scrap.toml is created in root_. StubScriptsReader always returns an
     // empty script list regardless of project contents, so this only proves
-    // a config-less project run does not crash and still lists builtins —
+    // a config-less project run does not crash and still lists builtins -
     // it does NOT exercise dynamic [scripts] parsing. That is covered by the
     // unit-level ProjectCommandResolverTest against a real ScriptsReader.
     auto result = runScrap({"--help"}, {}, root_);

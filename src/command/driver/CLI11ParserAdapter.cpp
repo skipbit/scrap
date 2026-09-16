@@ -9,7 +9,7 @@
 #include <cstdint>
 #include <deque>
 #include <exception>
-#include <expected>  // NOLINT(misc-include-cleaner) — provides std::unexpected
+#include <expected>  // IWYU pragma: keep
 #include <memory>
 #include <optional>
 #include <span>
@@ -21,7 +21,7 @@
 namespace scrap::Command {
 
 // =============================================================================
-// Storage helpers — allocated per parse() call so that parse() stays const.
+// Storage helpers - allocated per parse() call so that parse() stays const.
 // =============================================================================
 
 /**
@@ -144,7 +144,7 @@ void addPositional(CLI::App& app, const PositionalDef& def, OptionStorage& stora
 /**
  * Map a CommandSpec tree onto CLI11 subcommands iteratively (BFS).
  */
-// NOLINTNEXTLINE(readability-function-size) — iterative BFS requires local struct + loop state
+// NOLINTNEXTLINE(readability-function-size) - iterative BFS requires local struct + loop state
 void addSubcommands(CLI::App& root,
                     const std::vector<CommandSpec>& rootSpecs,
                     std::unordered_map<std::string, std::unique_ptr<OptionStorage>>& storageMap)
@@ -260,7 +260,7 @@ auto harvestOptions(const OptionStorage& storage) -> ParsedOptions
  * Determine the help target from the parsed subcommand chain.
  *
  * When CLI11 throws CallForHelp, we need to know which subcommand
- * the user asked help for (e.g. "scrap build --help" → target "build").
+ * the user asked help for (e.g. "scrap build --help" -> target "build").
  *
  * @return The command path if a subcommand was at least partially
  *         parsed, or nullopt for global help.
@@ -277,7 +277,7 @@ auto determineHelpTarget(const CLI::App& app) -> std::optional<std::string>
 }  // anonymous namespace
 
 // =============================================================================
-// CLI11ParserAdapter — public interface
+// CLI11ParserAdapter - public interface
 // =============================================================================
 
 CLI11ParserAdapter::CLI11ParserAdapter()
@@ -306,7 +306,7 @@ auto CLI11ParserAdapter::parse(std::span<const char* const> argv) const -> Parse
     app.set_version_flag("--version,-V", "");
     app.require_subcommand(1);
 
-    // Per-call storage map: dot-path → OptionStorage.
+    // Per-call storage map: dot-path -> OptionStorage.
     std::unordered_map<std::string, std::unique_ptr<OptionStorage>> storageMap;
 
     try {

@@ -111,8 +111,8 @@ auto setCloseOnExec(int fd) -> bool
 /**
  * RAII wrapper around a POSIX file descriptor. Move-only; closes a valid
  * (>= 0) descriptor in its destructor so every exit path out of runOnce()
- * — including one taken because of an exception thrown between pipe()
- * creation and the descriptor's last explicit use — closes it exactly once.
+ * - including one taken because of an exception thrown between pipe()
+ * creation and the descriptor's last explicit use - closes it exactly once.
  */
 class UniqueFd {
 public:
@@ -219,7 +219,7 @@ auto drainUntilEofOrDeadline(int readFd, std::chrono::steady_clock::time_point d
         auto bytesRead = ::read(readFd, buffer.data(), buffer.size());
         if (bytesRead == 0) {
             // EOF: the child closed its stdout. It may have exited already,
-            // or it may still be running (e.g. `exec 1>&-; sleep ...`) — the
+            // or it may still be running (e.g. `exec 1>&-; sleep ...`) - the
             // caller's deadline-bounded reap handles both uniformly.
             return;
         }
@@ -244,12 +244,12 @@ auto drainUntilEofOrDeadline(int readFd, std::chrono::steady_clock::time_point d
  * exited normally in time.
  *
  * EOF on the child's stdout (where draining stops) proves only that the write
- * end is closed, not that the child has exited — a valid probe can legitimately
+ * end is closed, not that the child has exited - a valid probe can legitimately
  * `echo ...; exec 1>&-; sleep 0.05; exit 0`, closing stdout while still doing
  * brief work. Killing unconditionally at that point would race a
  * still-alive-but-about-to-exit child and discard its real (already-captured)
  * output for a bogus WIFSIGNALED status. So the reap instead: (1) tries a
- * non-blocking waitpid() first — a child that has already exited (the common
+ * non-blocking waitpid() first - a child that has already exited (the common
  * case) is reaped at once with its real status; (2) if the child is still
  * running, keeps polling (bounded by @p deadline) so one that closed stdout
  * early but exits shortly after is still reaped with its real status; (3) a
@@ -257,7 +257,7 @@ auto drainUntilEofOrDeadline(int readFd, std::chrono::steady_clock::time_point d
  * then waited for, bounding the reap so it can never block for the child's full
  * lifetime. killpg (not kill) SIGKILLs the whole process group, including
  * grandchildren the probe spawned, but waitpid(childPid) only reaps the direct
- * child itself — any signalled grandchildren are reparented to init, which
+ * child itself - any signalled grandchildren are reparented to init, which
  * reaps them. Killing before the post-kill waitpid (not after) avoids a
  * pid/pgid-reuse race, since the still-unreaped group leader keeps pgid valid
  * and unique.
@@ -310,7 +310,7 @@ auto reapBounded(pid_t childPid, std::chrono::steady_clock::time_point deadline)
  * probe can never block the caller past @p timeout.
  *
  * Every path below closes any fds it opened (via UniqueFd's RAII) and, once
- * posix_spawn has created a child, reaps it — no fd leaks, no zombies.
+ * posix_spawn has created a child, reaps it - no fd leaks, no zombies.
  */
 auto runOnce(const std::filesystem::path& executable,
              const char* flag,

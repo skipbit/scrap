@@ -13,7 +13,7 @@ namespace scrap::Command {
  * @brief Fetches command metadata from an external executable via the
  * `--scrap-metadata` protocol, falling back to `--help`.
  *
- * The executable is invoked as a subprocess (no shell, no PATH search — the
+ * The executable is invoked as a subprocess (no shell, no PATH search - the
  * path is canonicalized and passed directly to posix_spawn). Only the first
  * non-empty line of stdout is used as a plain-text description; structured
  * (name/options) metadata is not yet part of the protocol.

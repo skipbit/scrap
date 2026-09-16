@@ -171,7 +171,7 @@ exit 1)");
  * killed and reaped promptly. Regression for a bug where the kill was
  * gated on "the drain timed out"; plain EOF is a distinct stop reason that
  * also skipped the kill, so a child that closes stdout and then keeps
- * running could hang waitpid() indefinitely — the security-flagged variant
+ * running could hang waitpid() indefinitely - the security-flagged variant
  * (a bad `scrap-*` plugin can be probed on every `scrap --help`).
  */
 TEST_F(MetadataProtocolProviderTest, ClosesStdoutThenHang)
