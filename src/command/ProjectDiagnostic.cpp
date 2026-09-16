@@ -5,6 +5,9 @@
 #include "project/ProjectLoader.h"
 #include "project/ProjectLocator.h"
 
+#include <cerrno>
+#include <cstddef>
+#include <filesystem>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -84,22 +87,58 @@ auto render(const Project::ManifestError& error) -> std::string
 }
 
 /**
+ * Append @p byte to @p text as \xNN.
+ */
+auto appendEscaped(const unsigned byte, std::string& text) -> void
+{
+    static constexpr std::string_view HexDigits = "0123456789ABCDEF";
+    text += "\\x";
+    text += HexDigits[byte >> 4U];
+    text += HexDigits[byte & 0x0FU];
+}
+
+/**
  * Text the user typed, made safe to print: printable ASCII stays as it is and
  * every other byte becomes \xNN, so control characters and escape sequences
- * reach the terminal as text rather than as instructions.
+ * reach the terminal as text rather than as instructions. A backslash is
+ * escaped as well, which leaves \xNN as the mark of an escaped byte alone.
  */
 auto printable(std::string_view text) -> std::string
 {
-    static constexpr std::string_view HexDigits = "0123456789ABCDEF";
     std::string result;
     for (const char ch : text) {
         const unsigned byte = static_cast<unsigned char>(ch);
-        if (byte >= 0x20U && byte < 0x7FU) {
+        if (byte >= 0x20U && byte < 0x7FU && ch != '\\') {
             result += ch;
         } else {
-            result += "\\x";
-            result += HexDigits[byte >> 4U];
-            result += HexDigits[byte & 0x0FU];
+            appendEscaped(byte, result);
+        }
+    }
+    return result;
+}
+
+/**
+ * A path made safe to print. A path carries the working directory, whose name
+ * can hold any byte, so control characters and a backslash are escaped while
+ * letters outside ASCII stay as they are and keep the path readable. The two
+ * bytes of a C1 control character are escaped together, since a terminal acts
+ * on them as one.
+ */
+auto printablePath(const std::filesystem::path& path) -> std::string
+{
+    const std::string text = path.string();
+    std::string result;
+    for (std::size_t index = 0; index < text.size(); ++index) {
+        const unsigned byte = static_cast<unsigned char>(text[index]);
+        const unsigned next = index + 1 < text.size() ? static_cast<unsigned char>(text[index + 1]) : 0U;
+        if (byte == 0xC2U && next >= 0x80U && next <= 0x9FU) {
+            appendEscaped(byte, result);
+            appendEscaped(next, result);
+            ++index;
+        } else if (byte < 0x20U || byte == 0x7FU || text[index] == '\\') {
+            appendEscaped(byte, result);
+        } else {
+            result += text[index];
         }
     }
     return result;
@@ -122,10 +161,24 @@ auto render(const Project::InvalidProjectName& error) -> std::string
 auto render(const Project::PathExists& error) -> std::string
 {
     std::string text = "error: '";
-    text += error.path.string();
+    text += printablePath(error.path);
     text += "' already exists\n";
     text += "hint: choose another name, or run the command in another directory\n";
     return text;
+}
+
+/**
+ * Whether @p code is the quota failure, which std::errc does not name.
+ */
+auto isQuotaExceeded(const std::error_code& code) -> bool
+{
+#ifdef EDQUOT
+    return code.value() == EDQUOT
+           && (code.category() == std::generic_category() || code.category() == std::system_category());
+#else
+    static_cast<void>(code);
+    return false;
+#endif
 }
 
 /**
@@ -137,7 +190,7 @@ auto cannotCreateHint(const std::error_code& code) -> std::string_view
     if (code == std::errc::permission_denied || code == std::errc::operation_not_permitted) {
         return PermissionHint;
     }
-    if (code == std::errc::no_space_on_device) {
+    if (code == std::errc::no_space_on_device || isQuotaExceeded(code)) {
         return "hint: free some disk space and run the command again\n";
     }
     if (code == std::errc::read_only_file_system) {
@@ -149,13 +202,13 @@ auto cannotCreateHint(const std::error_code& code) -> std::string_view
 auto render(const Project::CannotCreate& error) -> std::string
 {
     std::string text = "error: cannot create '";
-    text += error.path.string();
+    text += printablePath(error.path);
     text += "': ";
     text += error.reason;
     text += '\n';
     if (error.leftBehind.has_value()) {
         text += "hint: remove the partly created '";
-        text += error.leftBehind->string();
+        text += printablePath(*error.leftBehind);
         text += "' before trying again\n";
     } else {
         text += cannotCreateHint(error.code);

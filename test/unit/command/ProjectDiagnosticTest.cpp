@@ -4,6 +4,7 @@
 #include "project/ManifestError.h"
 #include "project/ProjectLoader.h"
 
+#include <cerrno>
 #include <optional>
 #include <system_error>
 
@@ -157,6 +158,76 @@ TEST(ProjectDiagnosticTest, EscapesNonAsciiBytesInAProjectName)
     EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
               "error: 'caf\\xC3\\xA9' is not a valid project name\n"
               "hint: use up to 64 letters, digits, '-' and '_', starting with a letter\n");
+}
+
+/**
+ * A backslash in a name is escaped too, so the escape marks an escaped byte
+ * alone.
+ */
+TEST(ProjectDiagnosticTest, EscapesABackslashInAProjectName)
+{
+    const scrap::Project::CreateProjectError error = scrap::Project::InvalidProjectName{.name = "a\\x0Ab"};
+
+    EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
+              "error: 'a\\x5Cx0Ab' is not a valid project name\n"
+              "hint: use up to 64 letters, digits, '-' and '_', starting with a letter\n");
+}
+
+/**
+ * A control character in a path is escaped, wherever the path came from.
+ */
+TEST(ProjectDiagnosticTest, EscapesControlCharactersInAPath)
+{
+    const scrap::Project::CreateProjectError error = scrap::Project::PathExists{.path = "/home/me/w\nork/hello"};
+
+    EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
+              "error: '/home/me/w\\x0Aork/hello' already exists\n"
+              "hint: choose another name, or run the command in another directory\n");
+}
+
+/**
+ * The two bytes of a C1 control character are escaped together.
+ */
+TEST(ProjectDiagnosticTest, EscapesAC1ControlCharacterInAPath)
+{
+    const scrap::Project::CreateProjectError error = scrap::Project::PathExists{.path = "/home/me/a\xc2\x9b" "b/hello"};
+
+    EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
+              "error: '/home/me/a\\xC2\\x9Bb/hello' already exists\n"
+              "hint: choose another name, or run the command in another directory\n");
+}
+
+/**
+ * Letters outside ASCII stay as they are, so a path keeps its own language.
+ */
+TEST(ProjectDiagnosticTest, KeepsLettersOutsideAsciiInAPath)
+{
+    const scrap::Project::CreateProjectError error =
+        scrap::Project::PathExists{.path = "/home/me/\xe4\xbd\x9c\xe6\xa5\xad/hello"};
+
+    EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
+              "error: '/home/me/\xe4\xbd\x9c\xe6\xa5\xad/hello' already exists\n"
+              "hint: choose another name, or run the command in another directory\n");
+}
+
+/**
+ * A quota that is used up points at freeing space, as a full disk does.
+ */
+TEST(ProjectDiagnosticTest, RendersAnExceededQuotaWithTheDiskSpaceHint)
+{
+#ifdef EDQUOT
+    const scrap::Project::CreateProjectError error =
+        scrap::Project::CannotCreate{.path = "/home/me/work/hello/src/main.cpp",
+                                     .reason = "Disk quota exceeded",
+                                     .code = std::error_code(EDQUOT, std::generic_category()),
+                                     .leftBehind = std::nullopt};
+
+    EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
+              "error: cannot create '/home/me/work/hello/src/main.cpp': Disk quota exceeded\n"
+              "hint: free some disk space and run the command again\n");
+#else
+    GTEST_SKIP() << "EDQUOT is not defined on this system";
+#endif
 }
 
 /**
