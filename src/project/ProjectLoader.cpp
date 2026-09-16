@@ -3,7 +3,7 @@
 #include "project/ManifestParser.h"
 #include "project/ProjectLocator.h"
 
-#include <expected>  // NOLINT(misc-include-cleaner) — provides std::expected return type
+#include <expected>  // NOLINT(misc-include-cleaner) - provides std::expected return type
 #include <filesystem>
 #include <optional>
 #include <system_error>

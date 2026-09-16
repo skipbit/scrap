@@ -4,7 +4,7 @@
 #include "project/TemplateFile.h"
 
 #include <algorithm>
-#include <expected>  // NOLINT(misc-include-cleaner) — provides std::expected return type
+#include <expected>  // NOLINT(misc-include-cleaner) - provides std::expected return type
 #include <filesystem>
 #include <optional>
 #include <string>

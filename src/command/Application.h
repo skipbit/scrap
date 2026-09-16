@@ -20,10 +20,10 @@ class CommandCatalog;
  * @brief Unified application class managing the CLI pipeline.
  *
  * Orchestrates the four-phase execution loop:
- * 1. Resolve  — collect CommandEntry trees from all registered Resolvers
- * 2. Configure — derive CommandSpec tree and configure the parser
- * 3. Parse    — parse argv into a ParseResult
- * 4. Execute  — dispatch to the matched handler, or handle directives/errors
+ * 1. Resolve  - collect CommandEntry trees from all registered Resolvers
+ * 2. Configure - derive CommandSpec tree and configure the parser
+ * 3. Parse    - parse argv into a ParseResult
+ * 4. Execute  - dispatch to the matched handler, or handle directives/errors
  *
  * Resolver registration order determines command priority (first wins).
  */

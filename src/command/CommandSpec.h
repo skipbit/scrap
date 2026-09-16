@@ -7,7 +7,7 @@
 
 namespace scrap::Command {
 
-struct CommandSpec {  // NOLINT(misc-no-recursion) — recursive tree structure
+struct CommandSpec {  // NOLINT(misc-no-recursion) - recursive tree structure
     std::string name;
     std::string description;
     std::string category;

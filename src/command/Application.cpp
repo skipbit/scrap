@@ -48,20 +48,20 @@ auto Application::addResolver(std::unique_ptr<CommandResolver> resolver) -> void
  */
 auto Application::run(std::span<const char* const> argv, const RuntimeEnvironment& env) -> int
 {
-    // Phase 1: Resolve — collect CommandEntry trees from all resolvers.
+    // Phase 1: Resolve - collect CommandEntry trees from all resolvers.
     CommandCatalog catalog;
     for (auto& resolver : resolvers_) {
         catalog.addEntries(resolver->resolve(env));
     }
 
-    // Phase 2: Configure — derive CommandSpec tree and feed to parser.
+    // Phase 2: Configure - derive CommandSpec tree and feed to parser.
     auto specTree = catalog.specs();
     parser_->configure(specTree);
 
-    // Phase 3: Parse — parse argv into a ParseResult.
+    // Phase 3: Parse - parse argv into a ParseResult.
     auto result = parser_->parse(argv);
 
-    // Phase 4: Execute — dispatch based on ParseResult.
+    // Phase 4: Execute - dispatch based on ParseResult.
     if (result.has_value()) {
         auto& invocation = *result;
         const auto* entry = catalog.find(invocation.commandPath);
