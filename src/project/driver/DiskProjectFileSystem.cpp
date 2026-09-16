@@ -67,8 +67,7 @@ auto DiskProjectFileSystem::createDirectories(const std::filesystem::path& direc
  * included, from being followed or truncated. O_NOFOLLOW states the same for
  * the final component on systems where O_EXCL alone would follow it.
  */
-auto DiskProjectFileSystem::writeNewFile(const std::filesystem::path& file,
-                                         std::string_view content) -> std::error_code
+auto DiskProjectFileSystem::writeNewFile(const std::filesystem::path& file, std::string_view content) -> std::error_code
 {
     // NOLINTNEXTLINE(hicpp-signed-bitwise) — POSIX open() flag combination
     const int descriptor = ::open(file.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, NewFileMode);

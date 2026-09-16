@@ -28,8 +28,8 @@ public:
      * @param path Path to resolve.
      * @return The absolute path, or the failure the system reported.
      */
-    [[nodiscard]] virtual auto absolute(const std::filesystem::path& path) const
-        -> std::expected<std::filesystem::path, std::error_code> = 0;
+    [[nodiscard]] virtual auto
+    absolute(const std::filesystem::path& path) const -> std::expected<std::filesystem::path, std::error_code> = 0;
 
     /**
      * @brief Create @p directory alone, and only where nothing exists yet.

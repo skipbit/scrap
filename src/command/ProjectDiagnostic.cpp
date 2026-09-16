@@ -173,8 +173,8 @@ auto render(const Project::PathExists& error) -> std::string
 auto isQuotaExceeded(const std::error_code& code) -> bool
 {
 #ifdef EDQUOT
-    return code.value() == EDQUOT
-           && (code.category() == std::generic_category() || code.category() == std::system_category());
+    return code.value() == EDQUOT &&
+        (code.category() == std::generic_category() || code.category() == std::system_category());
 #else
     static_cast<void>(code);
     return false;
@@ -219,8 +219,7 @@ auto render(const Project::CannotCreate& error) -> std::string
 /**
  * Render whichever alternative @p error holds.
  */
-template <typename... Alternatives>
-auto renderAlternative(const std::variant<Alternatives...>& error) -> std::string
+template <typename... Alternatives> auto renderAlternative(const std::variant<Alternatives...>& error) -> std::string
 {
     return std::visit(
         [](const auto& alternative) -> std::string {

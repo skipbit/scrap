@@ -12,6 +12,7 @@
 #include "command/ParsedOptions.h"
 #include "command/RuntimeEnvironment.h"
 #include "command/VersionRenderer.h"
+#include "project/ProjectFileSystem.h"
 
 #include <iostream>
 #include <memory>
@@ -159,14 +160,14 @@ auto makeProjectEntry(std::string name,
 auto makeNewEntry(Project::ProjectFileSystem& fileSystem) -> CommandEntry
 {
     auto* files = &fileSystem;
-    return makeProjectEntry("new",
-                            "Create a new C++ project",
-                            PositionalDef{.name = "project-name",
-                                          .description = "Name of the project directory to create",
-                                          .required = true},
-                            [files](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
-                                return std::make_unique<NewCommandHandler>(*files);
-                            });
+    return makeProjectEntry(
+        "new",
+        "Create a new C++ project",
+        PositionalDef{
+            .name = "project-name", .description = "Name of the project directory to create", .required = true},
+        [files](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
+            return std::make_unique<NewCommandHandler>(*files);
+        });
 }
 
 /**
@@ -174,14 +175,15 @@ auto makeNewEntry(Project::ProjectFileSystem& fileSystem) -> CommandEntry
  */
 auto makeBuildEntry() -> CommandEntry
 {
-    return makeProjectEntry("build",
-                            "Compile the project",
-                            PositionalDef{.name = "path",
-                                          .description = "Directory inside the project (default: the current directory)",
-                                          .required = false},
-                            [](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
-                                return std::make_unique<BuildCommandHandler>();
-                            });
+    return makeProjectEntry(
+        "build",
+        "Compile the project",
+        PositionalDef{.name = "path",
+                      .description = "Directory inside the project (default: the current directory)",
+                      .required = false},
+        [](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
+            return std::make_unique<BuildCommandHandler>();
+        });
 }
 
 }  // anonymous namespace

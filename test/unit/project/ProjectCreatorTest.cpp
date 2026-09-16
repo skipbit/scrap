@@ -43,8 +43,8 @@ public:
     std::error_code removeError;
     int removeCalls = 0;
 
-    [[nodiscard]] auto absolute(const std::filesystem::path& path) const
-        -> std::expected<std::filesystem::path, std::error_code> override
+    [[nodiscard]] auto
+    absolute(const std::filesystem::path& path) const -> std::expected<std::filesystem::path, std::error_code> override
     {
         if (absoluteError) {
             return std::unexpected(absoluteError);

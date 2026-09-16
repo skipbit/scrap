@@ -190,7 +190,8 @@ TEST(ProjectDiagnosticTest, EscapesControlCharactersInAPath)
  */
 TEST(ProjectDiagnosticTest, EscapesAC1ControlCharacterInAPath)
 {
-    const scrap::Project::CreateProjectError error = scrap::Project::PathExists{.path = "/home/me/a\xc2\x9b" "b/hello"};
+    const scrap::Project::CreateProjectError error = scrap::Project::PathExists{.path = "/home/me/a\xc2\x9b"
+                                                                                        "b/hello"};
 
     EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
               "error: '/home/me/a\\xC2\\x9Bb/hello' already exists\n"
