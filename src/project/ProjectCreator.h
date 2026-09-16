@@ -35,7 +35,7 @@ struct PathExists {
  */
 struct CannotCreate {
     std::filesystem::path path;
-    std::string reason;    ///< The operating system's description of the failure.
+    std::string reason;  ///< The operating system's description of the failure.
     /// The failure as the file system reported it. An implementation that
     /// reports none leaves this empty, and the hint falls back to a general one.
     std::error_code code;
