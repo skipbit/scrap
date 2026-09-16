@@ -5,7 +5,7 @@ FetchContent_Declare(libgit2
     GIT_TAG v1.9.2
 )
 
-# Disable nanosecond timestamp support — feature detection fails on
+# Disable nanosecond timestamp support - feature detection fails on
 # Ubuntu 24.04 with recent glibc (GIT_USE_NSEC / struct stat mismatch)
 set(USE_NSEC OFF CACHE BOOL "" FORCE)
 

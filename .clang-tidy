@@ -3,7 +3,7 @@
 # Comprehensive checks for modern C++23 development
 
 # Check configuration
-# Note: portability-avoid-pragma-once stays disabled — the project standard
+# Note: portability-avoid-pragma-once stays disabled - the project standard
 # is #pragma once (see CODINGSTYLE.md). The entry is kept for newer clang-tidy
 # versions that implement the check.
 # Careful: '#' inside the folded scalar below is literal text, not a comment.
