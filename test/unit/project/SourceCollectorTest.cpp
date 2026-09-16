@@ -6,6 +6,7 @@
 #include "TempDirectory.h"
 
 #include <filesystem>
+#include <system_error>
 #include <vector>
 
 using namespace scrap::Project;
@@ -18,11 +19,6 @@ constexpr const char* SourceText = "int value() { return 0; }\n";
 Target executableNamed(const char* name, const char* entryPoint)
 {
     return Target{.kind = TargetKind::Executable, .name = name, .entryPoint = entryPoint};
-}
-
-std::vector<std::filesystem::path> sourcesOf(const TargetSources& collected)
-{
-    return collected.sources;
 }
 
 }  // namespace
@@ -40,8 +36,9 @@ TEST(SourceCollectorTest, CollectsEverySourceBelowSrc)
 
     const auto collected = collectSources(temp.path(), {executableNamed("app", "src/main.cpp")});
 
-    ASSERT_EQ(collected.size(), 1);
-    EXPECT_EQ(sourcesOf(collected[0]),
+    ASSERT_TRUE(collected.has_value());
+    ASSERT_EQ(collected->size(), 1);
+    EXPECT_EQ((*collected)[0].sources,
               (std::vector<std::filesystem::path>{"src/detail/helper.cpp", "src/main.cpp", "src/util.cpp"}));
 }
 
@@ -59,8 +56,9 @@ TEST(SourceCollectorTest, RecognisesTheAcceptedExtensions)
 
     const auto collected = collectSources(temp.path(), {executableNamed("app", "src/main.cpp")});
 
-    ASSERT_EQ(collected.size(), 1);
-    EXPECT_EQ(sourcesOf(collected[0]),
+    ASSERT_TRUE(collected.has_value());
+    ASSERT_EQ(collected->size(), 1);
+    EXPECT_EQ((*collected)[0].sources,
               (std::vector<std::filesystem::path>{"src/legacy.cc", "src/main.cpp", "src/other.cxx"}));
 }
 
@@ -78,11 +76,48 @@ TEST(SourceCollectorTest, ExcludesTheEntryPointOfAnotherTarget)
     const auto collected =
         collectSources(temp.path(), {executableNamed("app", "src/main.cpp"), executableNamed("tool", "src/tool.cpp")});
 
-    ASSERT_EQ(collected.size(), 2);
-    EXPECT_EQ(collected[0].target.name, "app");
-    EXPECT_EQ(sourcesOf(collected[0]), (std::vector<std::filesystem::path>{"src/main.cpp", "src/shared.cpp"}));
-    EXPECT_EQ(collected[1].target.name, "tool");
-    EXPECT_EQ(sourcesOf(collected[1]), (std::vector<std::filesystem::path>{"src/shared.cpp", "src/tool.cpp"}));
+    ASSERT_TRUE(collected.has_value());
+    ASSERT_EQ(collected->size(), 2);
+    EXPECT_EQ((*collected)[0].target.name, "app");
+    EXPECT_EQ((*collected)[0].sources, (std::vector<std::filesystem::path>{"src/main.cpp", "src/shared.cpp"}));
+    EXPECT_EQ((*collected)[1].target.name, "tool");
+    EXPECT_EQ((*collected)[1].sources, (std::vector<std::filesystem::path>{"src/shared.cpp", "src/tool.cpp"}));
+}
+
+/**
+ * An entry point written with a "." component names the file the scan found,
+ * so it is compiled once rather than added a second time.
+ */
+TEST(SourceCollectorTest, MatchesAnEntryPointWrittenWithADotComponent)
+{
+    const TempDirectory temp;
+    temp.writeFile("src/main.cpp", SourceText);
+    temp.writeFile("src/util.cpp", SourceText);
+
+    const auto collected = collectSources(temp.path(), {executableNamed("app", "./src/main.cpp")});
+
+    ASSERT_TRUE(collected.has_value());
+    ASSERT_EQ(collected->size(), 1);
+    EXPECT_EQ((*collected)[0].sources, (std::vector<std::filesystem::path>{"src/main.cpp", "src/util.cpp"}));
+}
+
+/**
+ * The same spelling is recognised when another target declared it, so one
+ * executable's entry point stays out of the other's sources.
+ */
+TEST(SourceCollectorTest, ExcludesAnEntryPointWrittenWithADotComponent)
+{
+    const TempDirectory temp;
+    temp.writeFile("src/main.cpp", SourceText);
+    temp.writeFile("src/tool.cpp", SourceText);
+
+    const auto collected = collectSources(
+        temp.path(), {executableNamed("app", "./src/main.cpp"), executableNamed("tool", "src/tool.cpp")});
+
+    ASSERT_TRUE(collected.has_value());
+    ASSERT_EQ(collected->size(), 2);
+    EXPECT_EQ((*collected)[0].sources, (std::vector<std::filesystem::path>{"src/main.cpp"}));
+    EXPECT_EQ((*collected)[1].sources, (std::vector<std::filesystem::path>{"src/tool.cpp"}));
 }
 
 /**
@@ -97,8 +132,9 @@ TEST(SourceCollectorTest, KeepsAnEntryPointOutsideTheSourceDirectory)
 
     const auto collected = collectSources(temp.path(), {executableNamed("app", "app/start.cpp")});
 
-    ASSERT_EQ(collected.size(), 1);
-    EXPECT_EQ(sourcesOf(collected[0]), (std::vector<std::filesystem::path>{"app/start.cpp", "src/util.cpp"}));
+    ASSERT_TRUE(collected.has_value());
+    ASSERT_EQ(collected->size(), 1);
+    EXPECT_EQ((*collected)[0].sources, (std::vector<std::filesystem::path>{"app/start.cpp", "src/util.cpp"}));
 }
 
 /**
@@ -111,8 +147,42 @@ TEST(SourceCollectorTest, ReturnsTheEntryPointWhenThereIsNoSourceDirectory)
 
     const auto collected = collectSources(temp.path(), {executableNamed("app", "src/main.cpp")});
 
-    ASSERT_EQ(collected.size(), 1);
-    EXPECT_EQ(sourcesOf(collected[0]), (std::vector<std::filesystem::path>{"src/main.cpp"}));
+    ASSERT_TRUE(collected.has_value());
+    ASSERT_EQ(collected->size(), 1);
+    EXPECT_EQ((*collected)[0].sources, (std::vector<std::filesystem::path>{"src/main.cpp"}));
+}
+
+/**
+ * A directory that exists and cannot be read is reported. Leaving its sources
+ * out would link an artifact from fewer files than the project holds, and
+ * nothing later would name what went missing.
+ */
+TEST(SourceCollectorTest, ReportsASourceDirectoryItCannotRead)
+{
+    const TempDirectory temp;
+    temp.writeFile("src/main.cpp", SourceText);
+    const std::filesystem::path locked = temp.makeDirectory("src/locked");
+    temp.writeFile("src/locked/hidden.cpp", SourceText);
+
+    std::error_code ec;
+    std::filesystem::permissions(locked, std::filesystem::perms::none, ec);
+    ASSERT_FALSE(ec) << ec.message();
+
+    // A user who reads the directory anyway, root among them, cannot observe
+    // the failure; the fixture is restored before skipping so it can be removed.
+    const std::filesystem::directory_iterator probe(locked, ec);
+    if (! ec) {
+        std::filesystem::permissions(locked, std::filesystem::perms::owner_all, ec);
+        GTEST_SKIP() << "this user reads a directory with no permissions";
+    }
+
+    const auto collected = collectSources(temp.path(), {executableNamed("app", "src/main.cpp")});
+
+    std::filesystem::permissions(locked, std::filesystem::perms::owner_all, ec);
+
+    ASSERT_FALSE(collected.has_value());
+    EXPECT_EQ(collected.error().directory, temp.path() / "src");
+    EXPECT_FALSE(collected.error().reason.empty());
 }
 
 /**
@@ -123,5 +193,8 @@ TEST(SourceCollectorTest, CollectsNothingWithoutATarget)
     const TempDirectory temp;
     temp.writeFile("src/main.cpp", SourceText);
 
-    EXPECT_TRUE(collectSources(temp.path(), {}).empty());
+    const auto collected = collectSources(temp.path(), {});
+
+    ASSERT_TRUE(collected.has_value());
+    EXPECT_TRUE(collected->empty());
 }

@@ -718,6 +718,7 @@ TEST_F(CliE2ETest, BuildAcceptsAManifestThatDeclaresNothingToBuild)
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
     EXPECT_TRUE(result.stderrText.empty()) << result.stderrText;
+    EXPECT_NE(result.stdoutText.find("build: not yet implemented"), std::string::npos) << result.stdoutText;
 }
 
 // --- new: creating a project ---------------------------------------------------

@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <expected>  // IWYU pragma: keep
 #include <filesystem>
 #include <string>
 #include <string_view>
@@ -33,20 +34,37 @@ auto isSource(const std::filesystem::directory_entry& entry) -> bool
 }
 
 /**
- * Every source below src/, as paths relative to the project root.
+ * Every source below src/, as normalized paths relative to the project root.
  *
- * A directory that cannot be read yields what was found before it rather than
- * a failure: the build reports a source it cannot compile, which is where the
- * compiler's own diagnostic belongs.
+ * A project without the directory has nothing to scan, which is not a
+ * failure. A directory that exists and cannot be read is reported: leaving
+ * its sources out would link an artifact from fewer files than the project
+ * holds, and nothing later in the build would name what went missing.
  */
-auto scanSourceDirectory(const std::filesystem::path& projectRoot) -> std::vector<std::filesystem::path>
+auto scanSourceDirectory(const std::filesystem::path& projectRoot)
+    -> std::expected<std::vector<std::filesystem::path>, SourceScanFailure>
 {
-    std::vector<std::filesystem::path> sources;
-    std::error_code ec;
     const std::filesystem::path directory = projectRoot / SourceDirectory;
-    for (std::filesystem::recursive_directory_iterator it(directory, ec), end; ! ec && it != end; it.increment(ec)) {
+    std::error_code ec;
+    if (! std::filesystem::is_directory(directory, ec)) {
+        return std::vector<std::filesystem::path>{};
+    }
+
+    std::vector<std::filesystem::path> sources;
+    std::filesystem::recursive_directory_iterator it(directory, ec);
+    if (ec) {
+        return std::unexpected(SourceScanFailure{.directory = directory, .reason = ec.message()});
+    }
+    // The failure is read straight after the step that caused it: an increment
+    // that fails leaves the iterator at the end, so a check at the top of the
+    // loop would never run and the walk would stop as though it had finished.
+    for (const std::filesystem::recursive_directory_iterator end; it != end;) {
         if (isSource(*it)) {
-            sources.push_back(it->path().lexically_relative(projectRoot));
+            sources.push_back(it->path().lexically_relative(projectRoot).lexically_normal());
+        }
+        it.increment(ec);
+        if (ec) {
+            return std::unexpected(SourceScanFailure{.directory = directory, .reason = ec.message()});
         }
     }
     std::ranges::sort(sources);
@@ -54,14 +72,15 @@ auto scanSourceDirectory(const std::filesystem::path& projectRoot) -> std::vecto
 }
 
 /**
- * The entry points of every target other than the one at @p index.
+ * The entry points of every target other than the one at @p index, normalized
+ * so that a path written with a "." component matches the file it names.
  */
 auto otherEntryPoints(const std::vector<Target>& targets, const std::size_t index) -> std::vector<std::filesystem::path>
 {
     std::vector<std::filesystem::path> entryPoints;
     for (std::size_t other = 0; other < targets.size(); ++other) {
         if (other != index) {
-            entryPoints.push_back(targets[other].entryPoint);
+            entryPoints.push_back(targets[other].entryPoint.lexically_normal());
         }
     }
     return entryPoints;
@@ -70,24 +89,28 @@ auto otherEntryPoints(const std::vector<Target>& targets, const std::size_t inde
 }  // anonymous namespace
 
 auto collectSources(const std::filesystem::path& projectRoot,
-                    const std::vector<Target>& targets) -> std::vector<TargetSources>
+                    const std::vector<Target>& targets) -> std::expected<std::vector<TargetSources>, SourceScanFailure>
 {
-    const std::vector<std::filesystem::path> scanned = scanSourceDirectory(projectRoot);
+    const auto scanned = scanSourceDirectory(projectRoot);
+    if (! scanned.has_value()) {
+        return std::unexpected(scanned.error());
+    }
 
     std::vector<TargetSources> collected;
     collected.reserve(targets.size());
     for (std::size_t index = 0; index < targets.size(); ++index) {
         const Target& target = targets[index];
+        const std::filesystem::path entryPoint = target.entryPoint.lexically_normal();
         const std::vector<std::filesystem::path> excluded = otherEntryPoints(targets, index);
 
         std::vector<std::filesystem::path> sources;
-        for (const std::filesystem::path& source : scanned) {
+        for (const std::filesystem::path& source : *scanned) {
             if (std::ranges::find(excluded, source) == excluded.end()) {
                 sources.push_back(source);
             }
         }
-        if (std::ranges::find(sources, target.entryPoint) == sources.end()) {
-            sources.push_back(target.entryPoint);
+        if (std::ranges::find(sources, entryPoint) == sources.end()) {
+            sources.push_back(entryPoint);
             std::ranges::sort(sources);
         }
 
