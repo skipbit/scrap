@@ -9,7 +9,7 @@
 #include <cstdint>
 #include <deque>
 #include <exception>
-#include <expected>  // NOLINT(misc-include-cleaner) - provides std::unexpected
+#include <expected>  // IWYU pragma: keep
 #include <memory>
 #include <optional>
 #include <span>

@@ -9,7 +9,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
-#include <expected>  // NOLINT(misc-include-cleaner) - provides std::expected return type
+#include <expected>  // IWYU pragma: keep
 #include <filesystem>
 #include <fstream>
 #include <ios>

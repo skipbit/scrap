@@ -2,7 +2,7 @@
 
 #include <cerrno>
 #include <cstddef>
-#include <expected>  // NOLINT(misc-include-cleaner) - provides std::expected return type
+#include <expected>  // IWYU pragma: keep
 #include <fcntl.h>
 #include <filesystem>
 #include <string_view>
