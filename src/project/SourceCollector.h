@@ -40,8 +40,10 @@ struct SourceScanFailure {
  * whatever order the file system reports its entries in.
  *
  * A project without src/ is not a failure, since a target can declare an
- * entry point anywhere. A directory that cannot be read is reported, rather
- * than leaving sources out of an artifact without a word.
+ * entry point anywhere. A directory that exists and cannot be read, or whose
+ * state cannot be determined, is reported with the path that failed. A
+ * symbolic link to a directory is listed and not followed, so sources below
+ * it are left out; a link to a file is read as the file it names.
  *
  * Targets of different kinds are not separated yet: an executable beside a
  * library is given the library's sources except its entry point. Whether an

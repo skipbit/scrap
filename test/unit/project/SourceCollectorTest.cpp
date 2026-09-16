@@ -21,6 +21,11 @@ Target executableNamed(const char* name, const char* entryPoint)
     return Target{.kind = TargetKind::Executable, .name = name, .entryPoint = entryPoint};
 }
 
+Target libraryNamed(const char* name, const char* entryPoint)
+{
+    return Target{.kind = TargetKind::Library, .name = name, .entryPoint = entryPoint};
+}
+
 }  // namespace
 
 /**
@@ -181,8 +186,45 @@ TEST(SourceCollectorTest, ReportsASourceDirectoryItCannotRead)
     std::filesystem::permissions(locked, std::filesystem::perms::owner_all, ec);
 
     ASSERT_FALSE(collected.has_value());
+    EXPECT_EQ(collected.error().directory, locked);
+    EXPECT_FALSE(collected.error().reason.empty());
+}
+
+/**
+ * A directory whose state cannot be determined at all, here through a link
+ * that points at itself, is reported rather than read as one that is absent.
+ */
+TEST(SourceCollectorTest, ReportsASourceDirectoryItCannotExamine)
+{
+    const TempDirectory temp;
+    std::filesystem::create_directory_symlink("src", temp.path() / "src");
+
+    const auto collected = collectSources(temp.path(), {executableNamed("app", "src/main.cpp")});
+
+    ASSERT_FALSE(collected.has_value());
     EXPECT_EQ(collected.error().directory, temp.path() / "src");
     EXPECT_FALSE(collected.error().reason.empty());
+}
+
+/**
+ * Targets of different kinds are not separated yet: an executable beside a
+ * library is given the library's sources except its entry point. Pinned here
+ * so that separating them is a deliberate change rather than a silent one.
+ */
+TEST(SourceCollectorTest, GivesAnExecutableTheSourcesBesideALibrary)
+{
+    const TempDirectory temp;
+    temp.writeFile("src/main.cpp", SourceText);
+    temp.writeFile("src/core.cpp", SourceText);
+    temp.writeFile("src/detail.cpp", SourceText);
+
+    const auto collected =
+        collectSources(temp.path(), {executableNamed("app", "src/main.cpp"), libraryNamed("core", "src/core.cpp")});
+
+    ASSERT_TRUE(collected.has_value());
+    ASSERT_EQ(collected->size(), 2);
+    EXPECT_EQ((*collected)[0].sources, (std::vector<std::filesystem::path>{"src/detail.cpp", "src/main.cpp"}));
+    EXPECT_EQ((*collected)[1].sources, (std::vector<std::filesystem::path>{"src/core.cpp", "src/detail.cpp"}));
 }
 
 /**

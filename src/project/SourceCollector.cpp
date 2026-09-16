@@ -46,7 +46,11 @@ auto scanSourceDirectory(const std::filesystem::path& projectRoot)
 {
     const std::filesystem::path directory = projectRoot / SourceDirectory;
     std::error_code ec;
-    if (! std::filesystem::is_directory(directory, ec)) {
+    const std::filesystem::file_status status = std::filesystem::status(directory, ec);
+    if (! std::filesystem::status_known(status)) {
+        return std::unexpected(SourceScanFailure{.directory = directory, .reason = ec.message()});
+    }
+    if (! std::filesystem::is_directory(status)) {
         return std::vector<std::filesystem::path>{};
     }
 
@@ -59,12 +63,13 @@ auto scanSourceDirectory(const std::filesystem::path& projectRoot)
     // that fails leaves the iterator at the end, so a check at the top of the
     // loop would never run and the walk would stop as though it had finished.
     for (const std::filesystem::recursive_directory_iterator end; it != end;) {
+        const std::filesystem::path current = it->path();
         if (isSource(*it)) {
-            sources.push_back(it->path().lexically_relative(projectRoot).lexically_normal());
+            sources.push_back(current.lexically_relative(projectRoot).lexically_normal());
         }
         it.increment(ec);
         if (ec) {
-            return std::unexpected(SourceScanFailure{.directory = directory, .reason = ec.message()});
+            return std::unexpected(SourceScanFailure{.directory = current, .reason = ec.message()});
         }
     }
     std::ranges::sort(sources);
@@ -72,8 +77,8 @@ auto scanSourceDirectory(const std::filesystem::path& projectRoot)
 }
 
 /**
- * The entry points of every target other than the one at @p index, normalized
- * so that a path written with a "." component matches the file it names.
+ * The entry points of every target other than the one at the given index,
+ * normalized so a path written with a "." component matches the file it names.
  */
 auto otherEntryPoints(const std::vector<Target>& targets, const std::size_t index) -> std::vector<std::filesystem::path>
 {
