@@ -196,6 +196,9 @@ auto cannotCreateHint(const std::error_code& code) -> std::string_view
     if (code == std::errc::read_only_file_system) {
         return "hint: run the command in a writable directory\n";
     }
+    if (code == std::errc::invalid_argument) {
+        return "hint: choose a template whose files stay inside the project\n";
+    }
     return "hint: check that the directory exists and can be written\n";
 }
 

@@ -1,5 +1,6 @@
 #include "project/DefaultTemplate.h"
 
+#include "project/ProjectCreator.h"
 #include "project/ProjectLocator.h"
 #include "project/TemplateFile.h"
 
@@ -23,11 +24,17 @@ constexpr std::string_view MainSource = "#include <iostream>\n"
 }  // anonymous namespace
 
 /**
- * The name is written into the manifest as it is: a valid project name holds
- * only letters, digits, '-' and '_', none of which a TOML string escapes.
+ * The name is written into the manifest as it is, which holds because a valid
+ * project name carries only letters, digits, '-' and '_', none of which a TOML
+ * string escapes. A name that fails that rule gets no files, so the rule is
+ * kept where the manifest is written and not only by the caller's order.
  */
 auto defaultTemplateFiles(std::string_view projectName) -> std::vector<TemplateFile>
 {
+    if (! isValidProjectName(projectName)) {
+        return {};
+    }
+
     std::string manifest = "[package]\nname = \"";
     manifest += projectName;
     manifest += "\"\nversion = \"0.1.0\"\nstd = \"23\"\n";

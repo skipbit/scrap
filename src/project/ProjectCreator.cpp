@@ -35,6 +35,48 @@ auto cannotCreate(const std::filesystem::path& path, const std::error_code& code
     return CannotCreate{.path = path, .reason = code.message(), .code = code, .leftBehind = std::nullopt};
 }
 
+/**
+ * Whether @p path stays inside the project: relative, and climbing out of it
+ * at no point. The same rule holds an entry point in a manifest, and it is
+ * what keeps joining the path onto the project root from reaching past it.
+ */
+auto staysInsideProject(const std::filesystem::path& path) -> bool
+{
+    if (path.is_absolute() || path.has_root_name() || path.has_root_directory()) {
+        return false;
+    }
+    return std::ranges::none_of(path, [](const std::filesystem::path& part) {
+        return part == "..";
+    });
+}
+
+/**
+ * Write one file of the template into @p root, or say why it could not be
+ * written.
+ */
+auto writeTemplateFile(ProjectFileSystem& fileSystem,
+                       const std::filesystem::path& root,
+                       const TemplateFile& file) -> std::optional<CannotCreate>
+{
+    const std::filesystem::path target = root / file.path;
+    if (! staysInsideProject(file.path)) {
+        CannotCreate error = cannotCreate(target, std::make_error_code(std::errc::invalid_argument));
+        error.reason = "the template file path leaves the project directory";
+        return error;
+    }
+
+    const std::filesystem::path parent = target.parent_path();
+    if (parent != root) {
+        if (const std::error_code code = fileSystem.createDirectories(parent); code) {
+            return cannotCreate(parent, code);
+        }
+    }
+    if (const std::error_code code = fileSystem.writeNewFile(target, file.content); code) {
+        return cannotCreate(target, code);
+    }
+    return std::nullopt;
+}
+
 }  // anonymous namespace
 
 auto isValidProjectName(std::string_view name) -> bool
@@ -73,19 +115,12 @@ auto createProject(ProjectFileSystem& fileSystem,
     // that is taken costs it nothing.
     const std::vector<TemplateFile> files = templateFiles(name);
     for (const TemplateFile& file : files) {
-        const std::filesystem::path target = root / file.path;
-        std::error_code code = fileSystem.createDirectories(target.parent_path());
-        std::filesystem::path failed = target.parent_path();
-        if (! code) {
-            code = fileSystem.writeNewFile(target, file.content);
-            failed = target;
-        }
-        if (code) {
-            CannotCreate error = cannotCreate(failed, code);
+        std::optional<CannotCreate> failure = writeTemplateFile(fileSystem, root, file);
+        if (failure.has_value()) {
             if (fileSystem.removeAll(root)) {
-                error.leftBehind = root;
+                failure->leftBehind = root;
             }
-            return std::unexpected(CreateProjectError{std::move(error)});
+            return std::unexpected(CreateProjectError{std::move(*failure)});
         }
     }
     return root;

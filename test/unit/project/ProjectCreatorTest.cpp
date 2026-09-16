@@ -285,6 +285,39 @@ TEST(ProjectCreatorTest, AsksTheTemplateOnlyAfterTheDirectoryExists)
 }
 
 /**
+ * A template file that would land outside the project is refused, and the
+ * project directory created for it is removed again.
+ */
+TEST(ProjectCreatorTest, RefusesATemplateFileOutsideTheProject)
+{
+    for (const char* path : {"../outside.txt", "/tmp/outside.txt", "nested/../../outside.txt"}) {
+        FailingFileSystem files;
+        const std::vector<TemplateFile> escaping{TemplateFile{.path = path, .content = "outside\n"}};
+
+        const auto root = createProject(files, "/work", "hello", [&escaping](std::string_view) {
+            return escaping;
+        });
+
+        ASSERT_FALSE(root.has_value()) << path;
+        const auto* error = std::get_if<CannotCreate>(&root.error());
+        ASSERT_NE(error, nullptr) << path;
+        EXPECT_EQ(error->code, std::errc::invalid_argument) << path;
+        EXPECT_EQ(error->reason, "the template file path leaves the project directory") << path;
+        EXPECT_EQ(files.removeCalls, 1) << path;
+    }
+}
+
+/**
+ * The built-in template answers a name it cannot write with no files at all.
+ */
+TEST(ProjectCreatorTest, DefaultTemplateGivesNoFilesForAnInvalidName)
+{
+    EXPECT_TRUE(defaultTemplateFiles("a\"b").empty());
+    EXPECT_TRUE(defaultTemplateFiles("").empty());
+    EXPECT_EQ(defaultTemplateFiles("hello").size(), 2U);
+}
+
+/**
  * A write the file system refuses removes the project directory created for
  * it, and the error names the file and the cause.
  */

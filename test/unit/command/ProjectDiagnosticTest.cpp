@@ -310,6 +310,23 @@ TEST(ProjectDiagnosticTest, RendersAPartlyCreatedProjectLeftBehind)
 }
 
 /**
+ * A template file that leaves the project points at the template.
+ */
+TEST(ProjectDiagnosticTest, RendersATemplateFileOutsideTheProject)
+{
+    const scrap::Project::CreateProjectError error =
+        scrap::Project::CannotCreate{.path = "/home/me/work/hello/../outside.txt",
+                                     .reason = "the template file path leaves the project directory",
+                                     .code = std::make_error_code(std::errc::invalid_argument),
+                                     .leftBehind = std::nullopt};
+
+    EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
+              "error: cannot create '/home/me/work/hello/../outside.txt': the template file path leaves the project "
+              "directory\n"
+              "hint: choose a template whose files stay inside the project\n");
+}
+
+/**
  * Any other failure, including one with no code, gets the general hint.
  */
 TEST(ProjectDiagnosticTest, RendersAnyOtherFailureWithTheGeneralHint)
