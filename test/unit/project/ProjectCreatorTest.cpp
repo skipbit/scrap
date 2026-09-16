@@ -264,6 +264,27 @@ TEST(ProjectCreatorTest, RemovesThePartialProjectWhenAFileCannotBeWritten)
 }
 
 /**
+ * A name that is already taken leaves the template unasked, since its files
+ * would have nowhere to go.
+ */
+TEST(ProjectCreatorTest, AsksTheTemplateOnlyAfterTheDirectoryExists)
+{
+    FailingFileSystem files;
+    files.createDirectoryError = std::make_error_code(std::errc::file_exists);
+    bool called = false;
+    const auto recordCall = [&called](std::string_view) {
+        called = true;
+        return std::vector<TemplateFile>{};
+    };
+
+    const auto root = createProject(files, "/work", "hello", recordCall);
+
+    ASSERT_FALSE(root.has_value());
+    EXPECT_NE(std::get_if<PathExists>(&root.error()), nullptr);
+    EXPECT_FALSE(called);
+}
+
+/**
  * A write the file system refuses removes the project directory created for
  * it, and the error names the file and the cause.
  */

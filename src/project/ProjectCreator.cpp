@@ -55,7 +55,6 @@ auto createProject(ProjectFileSystem& fileSystem,
     if (! isValidProjectName(name)) {
         return std::unexpected(CreateProjectError{InvalidProjectName{.name = std::string{name}}});
     }
-    const std::vector<TemplateFile> files = templateFiles(name);
 
     const auto parent = fileSystem.absolute(parentDir);
     if (! parent.has_value()) {
@@ -70,6 +69,9 @@ auto createProject(ProjectFileSystem& fileSystem,
         return std::unexpected(CreateProjectError{cannotCreate(root, code)});
     }
 
+    // The template runs once the project has a directory of its own, so a name
+    // that is taken costs it nothing.
+    const std::vector<TemplateFile> files = templateFiles(name);
     for (const TemplateFile& file : files) {
         const std::filesystem::path target = root / file.path;
         std::error_code code = fileSystem.createDirectories(target.parent_path());

@@ -77,8 +77,9 @@ inline constexpr std::size_t MaxProjectNameLength = 64;
  * @param fileSystem File operations to create the project with.
  * @param parentDir Directory to create the project in.
  * @param name Project name, checked with isValidProjectName().
- * @param templateFiles Called with @p name only once the name is valid; returns
- *                      the files to write, relative to the project root.
+ * @param templateFiles Called with @p name once the name is valid and the
+ *                      project directory exists; returns the files to write,
+ *                      relative to the project root.
  * @return The absolute project root, or why the project could not be created.
  */
 [[nodiscard]] auto
