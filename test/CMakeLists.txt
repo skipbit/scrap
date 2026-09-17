@@ -42,6 +42,7 @@ add_executable(scrap_gtest
     ${CMAKE_SOURCE_DIR}/src/project/ProjectFileSystem.cpp
     ${CMAKE_SOURCE_DIR}/src/project/ProjectLoader.cpp
     ${CMAKE_SOURCE_DIR}/src/project/ProjectLocator.cpp
+    ${CMAKE_SOURCE_DIR}/src/project/TargetResolver.cpp
     ${CMAKE_SOURCE_DIR}/src/project/driver/DiskProjectFileSystem.cpp
 )
 
@@ -111,6 +112,7 @@ add_executable(scrap_gtest_project
     unit/project/ProjectCreatorTest.cpp
     unit/project/ProjectLoaderTest.cpp
     unit/project/ProjectLocatorTest.cpp
+    unit/project/SourceCollectorTest.cpp
     unit/project/TargetResolverTest.cpp
     unit/project/TempDirectory.cpp
     ${CMAKE_SOURCE_DIR}/src/project/DefaultTemplate.cpp
@@ -120,6 +122,7 @@ add_executable(scrap_gtest_project
     ${CMAKE_SOURCE_DIR}/src/project/ProjectFileSystem.cpp
     ${CMAKE_SOURCE_DIR}/src/project/ProjectLoader.cpp
     ${CMAKE_SOURCE_DIR}/src/project/ProjectLocator.cpp
+    ${CMAKE_SOURCE_DIR}/src/project/SourceCollector.cpp
     ${CMAKE_SOURCE_DIR}/src/project/TargetResolver.cpp
     ${CMAKE_SOURCE_DIR}/src/project/driver/DiskProjectFileSystem.cpp
 )

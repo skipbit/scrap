@@ -28,6 +28,14 @@ namespace scrap::Command {
 [[nodiscard]] auto renderEmptyPathArgument() -> std::string;
 
 /**
+ * @brief Describe a project that has nothing to build, and what to do next.
+ *
+ * @param projectRoot Directory the manifest was read from.
+ * @return Text for standard error, each line ending in a newline.
+ */
+[[nodiscard]] auto renderNoTargetToBuild(const std::filesystem::path& projectRoot) -> std::string;
+
+/**
  * @brief Describe why a project could not be created, and what to do next.
  *
  * @param error Error returned by scrap::Project::createProject().

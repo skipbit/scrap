@@ -3,18 +3,10 @@
 #include "project/Manifest.h"
 
 #include <filesystem>
-#include <string_view>
 #include <system_error>
 #include <vector>
 
 namespace scrap::Project {
-
-namespace {
-
-/// Entry point assumed when the manifest declares no targets.
-constexpr std::string_view DefaultEntryPoint = "src/main.cpp";
-
-}  // anonymous namespace
 
 /**
  * Return the manifest's targets, or the one inferred from the default layout.

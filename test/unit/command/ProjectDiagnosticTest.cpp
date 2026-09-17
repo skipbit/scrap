@@ -8,6 +8,7 @@
 #include <optional>
 #include <system_error>
 
+using scrap::Command::renderNoTargetToBuild;
 using scrap::Command::renderProjectError;
 using scrap::Project::ManifestError;
 using scrap::Project::ManifestErrorKind;
@@ -51,6 +52,17 @@ TEST(ProjectDiagnosticTest, RendersAMissingProject)
     EXPECT_EQ(renderProjectError(error),
               "error: could not find scrap.toml in '/home/me/work' or any parent directory\n"
               "hint: run 'scrap new <project-name>' to create a project\n");
+}
+
+/**
+ * A project with nothing to build names its root, and both ways to give it a
+ * target: declaring one, or placing the file the default layout expects.
+ */
+TEST(ProjectDiagnosticTest, RendersAProjectWithNoTargetToBuild)
+{
+    EXPECT_EQ(renderNoTargetToBuild("/home/me/work/hello"),
+              "error: no target to build in '/home/me/work/hello'\n"
+              "hint: add a [[bin]] or [[lib]] section to scrap.toml, or create src/main.cpp\n");
 }
 
 /**

@@ -4,6 +4,7 @@
 #include "project/ProjectCreator.h"
 #include "project/ProjectLoader.h"
 #include "project/ProjectLocator.h"
+#include "project/TargetResolver.h"
 
 #include <cerrno>
 #include <cstddef>
@@ -294,6 +295,18 @@ auto renderEmptyPathArgument() -> std::string
 {
     std::string text = "error: the path argument is empty\n";
     text += PathHint;
+    return text;
+}
+
+auto renderNoTargetToBuild(const std::filesystem::path& projectRoot) -> std::string
+{
+    std::string text = "error: no target to build in '";
+    text += printablePath(projectRoot);
+    text += "'\nhint: add a [[bin]] or [[lib]] section to ";
+    text += Project::ManifestFileName;
+    text += ", or create ";
+    text += Project::DefaultEntryPoint;
+    text += '\n';
     return text;
 }
 

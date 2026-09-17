@@ -48,6 +48,12 @@ auto isVersionBanner(const std::string& text) -> bool
 /// A manifest that loads without error.
 constexpr std::string_view ValidManifest = "[package]\nname = \"app\"\nversion = \"0.1.0\"\n";
 
+/// A manifest whose empty declaration states that the project builds nothing.
+constexpr std::string_view ManifestWithoutTargets = "bin = []\n\n[package]\nname = \"app\"\nversion = \"0.1.0\"\n";
+
+/// The source the default layout expects, which gives a project one target.
+constexpr std::string_view MainSource = "int main() { return 0; }\n";
+
 /**
  * Whether @p directory or one of its parents holds a scrap.toml.
  *
@@ -611,6 +617,7 @@ TEST_F(CliE2ETest, BuildReportsAManifestErrorWithItsLocation)
 TEST_F(CliE2ETest, BuildFindsTheProjectAboveTheWorkingDirectory)
 {
     writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp", MainSource);
     std::filesystem::create_directories(root_ / "src" / "detail");
 
     auto result = runScrap({"build"}, {}, root_ / "src" / "detail");
@@ -628,6 +635,7 @@ TEST_F(CliE2ETest, BuildTakesAPathRelativeToTheWorkingDirectory)
         GTEST_SKIP() << "the temp location is inside a scrap project";
     }
     writeFile("app/scrap.toml", ValidManifest);
+    writeFile("app/src/main.cpp", MainSource);
     std::filesystem::create_directories(root_ / "elsewhere");
 
     auto result = runScrap({"build", "../app"}, {}, root_ / "elsewhere");
@@ -681,6 +689,36 @@ TEST_F(CliE2ETest, BuildRejectsAnEmptyPath)
     EXPECT_EQ(result.exitCode, 1);
     EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
     EXPECT_NE(result.stderrText.find("error: the path argument is empty\n"), std::string::npos) << result.stderrText;
+}
+
+// --- build: deciding what to build ---------------------------------------------
+
+TEST_F(CliE2ETest, BuildReportsAProjectWithNothingToBuild)
+{
+    writeFile("scrap.toml", ValidManifest);
+    const std::string project = std::filesystem::canonical(root_).string();
+
+    auto result = runScrap({"build"}, {}, root_);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    EXPECT_NE(result.stderrText.find("error: no target to build in '" + project + "'\n"), std::string::npos)
+        << result.stderrText;
+    EXPECT_NE(result.stderrText.find("\nhint: "), std::string::npos) << result.stderrText;
+}
+
+TEST_F(CliE2ETest, BuildAcceptsAManifestThatDeclaresNothingToBuild)
+{
+    // An empty declaration is a statement, not an omission, so it is not an error.
+    writeFile("scrap.toml", ManifestWithoutTargets);
+
+    auto result = runScrap({"build"}, {}, root_);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 0);
+    EXPECT_TRUE(result.stderrText.empty()) << result.stderrText;
+    EXPECT_NE(result.stdoutText.find("build: not yet implemented"), std::string::npos) << result.stdoutText;
 }
 
 // --- new: creating a project ---------------------------------------------------
