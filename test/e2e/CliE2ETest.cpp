@@ -721,6 +721,54 @@ TEST_F(CliE2ETest, BuildAcceptsAManifestThatDeclaresNothingToBuild)
     EXPECT_NE(result.stdoutText.find("build: not yet implemented"), std::string::npos) << result.stdoutText;
 }
 
+// --- build: choosing the compiler ----------------------------------------------
+
+TEST_F(CliE2ETest, BuildReportsTheCompilerTheVariableNames)
+{
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp", MainSource);
+    makeDummy("my-compiler", "exit 0");
+    const std::string compiler = (std::filesystem::canonical(root_) / "bin" / "my-compiler").string();
+
+    auto result = runScrap({"build"}, {"CXX=" + compiler}, root_);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 0);
+    EXPECT_TRUE(result.stderrText.empty()) << result.stderrText;
+    EXPECT_NE(result.stdoutText.find("Using the system compiler '" + compiler + "' (from CXX)\n"), std::string::npos)
+        << result.stdoutText;
+}
+
+TEST_F(CliE2ETest, BuildReportsThatNoCompilerIsAvailable)
+{
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp", MainSource);
+    std::filesystem::create_directories(root_ / "empty");
+
+    auto result = runScrap({"build"}, {"PATH=" + (root_ / "empty").string()}, root_);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_NE(result.stderrText.find("error: no C++ compiler found\n"), std::string::npos) << result.stderrText;
+    EXPECT_NE(result.stderrText.find("\nhint: "), std::string::npos) << result.stderrText;
+}
+
+TEST_F(CliE2ETest, BuildDoesNotReadItsOwnDirectoryForTheSystemCompiler)
+{
+    // A compiler in scrap's own directory is not one the system provides, so
+    // the search must not find it there.
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp", MainSource);
+    makeDummy("c++", "exit 0");
+    std::filesystem::create_directories(root_ / "empty");
+
+    auto result = runScrap({"build"}, {"PATH=" + (root_ / "empty").string()}, root_);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_NE(result.stderrText.find("error: no C++ compiler found\n"), std::string::npos) << result.stderrText;
+}
+
 // --- new: creating a project ---------------------------------------------------
 
 TEST_F(CliE2ETest, NewCreatesAProject)

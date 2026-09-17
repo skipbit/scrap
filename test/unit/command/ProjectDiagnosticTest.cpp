@@ -8,6 +8,7 @@
 #include <optional>
 #include <system_error>
 
+using scrap::Command::renderNoCompilerFound;
 using scrap::Command::renderNoTargetToBuild;
 using scrap::Command::renderProjectError;
 using scrap::Project::ManifestError;
@@ -52,6 +53,17 @@ TEST(ProjectDiagnosticTest, RendersAMissingProject)
     EXPECT_EQ(renderProjectError(error),
               "error: could not find scrap.toml in '/home/me/work' or any parent directory\n"
               "hint: run 'scrap new <project-name>' to create a project\n");
+}
+
+/**
+ * A system with no compiler names both ways to give it one: installing a
+ * compiler, or pointing the environment at the one to use.
+ */
+TEST(ProjectDiagnosticTest, RendersASystemWithNoCompiler)
+{
+    EXPECT_EQ(renderNoCompilerFound(),
+              "error: no C++ compiler found\n"
+              "hint: install a C++ compiler, or set CXX to the one to use\n");
 }
 
 /**

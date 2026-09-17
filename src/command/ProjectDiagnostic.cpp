@@ -298,6 +298,12 @@ auto renderEmptyPathArgument() -> std::string
     return text;
 }
 
+auto renderNoCompilerFound() -> std::string
+{
+    return "error: no C++ compiler found\n"
+           "hint: install a C++ compiler, or set CXX to the one to use\n";
+}
+
 auto renderNoTargetToBuild(const std::filesystem::path& projectRoot) -> std::string
 {
     std::string text = "error: no target to build in '";
