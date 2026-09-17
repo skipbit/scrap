@@ -34,6 +34,7 @@ int main(int argc, char* argv[])
     try {
         const char* scrapHomeEnv = std::getenv("SCRAP_HOME");
         const char* pathEnv = std::getenv("PATH");
+        const char* compilerEnv = std::getenv("CXX");
 
         std::error_code ec;
         auto cwd = std::filesystem::current_path(ec);
@@ -43,7 +44,8 @@ int main(int argc, char* argv[])
 
         auto env = makeRuntimeEnvironment(cwd,
                                           scrapHomeEnv != nullptr ? std::string{scrapHomeEnv} : std::string{},
-                                          pathEnv != nullptr ? std::string{pathEnv} : std::string{});
+                                          pathEnv != nullptr ? std::string{pathEnv} : std::string{},
+                                          compilerEnv != nullptr ? std::string{compilerEnv} : std::string{});
 
         auto helpRenderer = std::make_unique<DefaultHelpRenderer>();
         auto versionRenderer = std::make_unique<DefaultVersionRenderer>();

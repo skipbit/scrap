@@ -14,6 +14,9 @@ add_executable(scrap_gtest
     unit/command/ProjectDiagnosticTest.cpp
     unit/command/RuntimeEnvironmentFactoryTest.cpp
     unit/command/ApplicationTest.cpp
+    unit/toolchain/SystemCompilerTest.cpp
+    unit/project/TempDirectory.cpp
+    ${CMAKE_SOURCE_DIR}/src/toolchain/SystemCompiler.cpp
     ${CMAKE_SOURCE_DIR}/src/command/Application.cpp
     ${CMAKE_SOURCE_DIR}/src/command/CommandCatalog.cpp
     ${CMAKE_SOURCE_DIR}/src/command/CommandHandler.cpp

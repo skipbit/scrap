@@ -5,13 +5,34 @@
 #include "command/RuntimeEnvironment.h"
 #include "project/ProjectLoader.h"
 #include "project/TargetResolver.h"
+#include "toolchain/SystemCompiler.h"
 
 #include <filesystem>
 #include <iostream>
+#include <string_view>
+#include <utility>
 
 namespace scrap::Command {
 
 namespace {
+
+/**
+ * How the compiler in use was arrived at, in the words the output uses.
+ */
+auto describeOrigin(const Toolchain::CompilerOrigin origin) -> std::string_view
+{
+    switch (origin) {
+        case Toolchain::CompilerOrigin::CompilerVariable:
+            return "from CXX";
+        case Toolchain::CompilerOrigin::DefaultOnPath:
+            return "found on PATH";
+        case Toolchain::CompilerOrigin::KnownName:
+            return "found on PATH as a known name";
+    }
+    // Every origin is answered above, so an origin added without a word here
+    // fails the build rather than being described as one of the others.
+    std::unreachable();
+}
 
 /**
  * The path argument taken against the working directory, or the working
@@ -49,6 +70,18 @@ auto BuildCommandHandler::execute(const InvocationContext& ctx) -> int
         std::cerr << renderNoTargetToBuild(project->root);
         return 1;
     }
+
+    const auto compiler = Toolchain::detectSystemCompiler(ctx.env->preferredCompiler, ctx.env->systemSearchPaths);
+    if (! compiler.has_value()) {
+        if (compiler.error().requested.empty()) {
+            std::cerr << renderNoCompilerFound();
+        } else {
+            std::cerr << renderUnusableCompilerRequest(compiler.error().requested);
+        }
+        return 1;
+    }
+    std::cout << "Using the system compiler '" << printablePath(compiler->path) << "' ("
+              << describeOrigin(compiler->origin) << ")\n";
 
     // Placeholder output until the build compiles the project.
     std::cout << "build: not yet implemented\n";
