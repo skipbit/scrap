@@ -5,6 +5,7 @@
 
 #include <filesystem>
 #include <string>
+#include <string_view>
 
 namespace scrap::Command {
 
@@ -33,6 +34,14 @@ namespace scrap::Command {
  * @return Text for standard error, each line ending in a newline.
  */
 [[nodiscard]] auto renderNoCompilerFound() -> std::string;
+
+/**
+ * @brief Describe a compiler the environment asked for and cannot be run.
+ *
+ * @param requested The value CXX gave.
+ * @return Text for standard error, each line ending in a newline.
+ */
+[[nodiscard]] auto renderUnusableCompilerRequest(std::string_view requested) -> std::string;
 
 /**
  * @brief Describe a project that has nothing to build, and what to do next.

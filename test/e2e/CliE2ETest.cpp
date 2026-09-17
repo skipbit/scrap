@@ -269,6 +269,18 @@ protected:
     }
 
     /**
+     * A CXX override naming a program that can be run.
+     *
+     * A test about something else should not depend on the host having a
+     * compiler in the fixed PATH the harness gives the child.
+     */
+    std::string dummyCompiler() const
+    {
+        makeDummy("dummy-c++", "exit 0");
+        return "CXX=" + (std::filesystem::canonical(root_) / "bin" / "dummy-c++").string();
+    }
+
+    /**
      * Write @p content to @p relative below the fixture directory, creating
      * parent directories.
      */
@@ -620,7 +632,7 @@ TEST_F(CliE2ETest, BuildFindsTheProjectAboveTheWorkingDirectory)
     writeFile("src/main.cpp", MainSource);
     std::filesystem::create_directories(root_ / "src" / "detail");
 
-    auto result = runScrap({"build"}, {}, root_ / "src" / "detail");
+    auto result = runScrap({"build"}, {dummyCompiler()}, root_ / "src" / "detail");
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
@@ -638,7 +650,7 @@ TEST_F(CliE2ETest, BuildTakesAPathRelativeToTheWorkingDirectory)
     writeFile("app/src/main.cpp", MainSource);
     std::filesystem::create_directories(root_ / "elsewhere");
 
-    auto result = runScrap({"build", "../app"}, {}, root_ / "elsewhere");
+    auto result = runScrap({"build", "../app"}, {dummyCompiler()}, root_ / "elsewhere");
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
@@ -713,7 +725,7 @@ TEST_F(CliE2ETest, BuildAcceptsAManifestThatDeclaresNothingToBuild)
     // An empty declaration is a statement, not an omission, so it is not an error.
     writeFile("scrap.toml", ManifestWithoutTargets);
 
-    auto result = runScrap({"build"}, {}, root_);
+    auto result = runScrap({"build"}, {dummyCompiler()}, root_);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
@@ -750,6 +762,23 @@ TEST_F(CliE2ETest, BuildReportsThatNoCompilerIsAvailable)
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 1);
     EXPECT_NE(result.stderrText.find("error: no C++ compiler found\n"), std::string::npos) << result.stderrText;
+    EXPECT_NE(result.stderrText.find("\nhint: "), std::string::npos) << result.stderrText;
+}
+
+TEST_F(CliE2ETest, BuildReportsACompilerRequestItCannotRun)
+{
+    // CXX is the path of one program, so a value carrying a launcher names no
+    // file, and the request is reported rather than passed over.
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp", MainSource);
+
+    auto result = runScrap({"build"}, {"CXX=ccache g++"}, root_);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    EXPECT_NE(result.stderrText.find("error: CXX names 'ccache g++', which cannot be run\n"), std::string::npos)
+        << result.stderrText;
     EXPECT_NE(result.stderrText.find("\nhint: "), std::string::npos) << result.stderrText;
 }
 
@@ -792,7 +821,7 @@ TEST_F(CliE2ETest, NewProjectLoadsInBuild)
     auto created = runScrap({"new", "hello"}, {}, root_ / "work");
     ASSERT_EQ(created.exitCode, 0) << created.stderrText;
 
-    auto result = runScrap({"build"}, {}, root_ / "work" / "hello");
+    auto result = runScrap({"build"}, {dummyCompiler()}, root_ / "work" / "hello");
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);

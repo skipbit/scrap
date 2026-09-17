@@ -304,6 +304,19 @@ auto renderNoCompilerFound() -> std::string
            "hint: install a C++ compiler, or set CXX to the one to use\n";
 }
 
+/**
+ * The value is echoed through printable(), since the environment can hold any
+ * byte and the answer is read in a terminal.
+ */
+auto renderUnusableCompilerRequest(const std::string_view requested) -> std::string
+{
+    std::string text = "error: CXX names '";
+    text += printable(requested);
+    text += "', which cannot be run\n";
+    text += "hint: set CXX to the path of a compiler, or unset it to search for one\n";
+    return text;
+}
+
 auto renderNoTargetToBuild(const std::filesystem::path& projectRoot) -> std::string
 {
     std::string text = "error: no target to build in '";

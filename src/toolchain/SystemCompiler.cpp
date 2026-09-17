@@ -1,11 +1,13 @@
 #include "toolchain/SystemCompiler.h"
 
 #include <array>
+#include <expected>  // IWYU pragma: keep
 #include <filesystem>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <unistd.h>
 #include <vector>
 
 namespace scrap::Toolchain {
@@ -15,24 +17,40 @@ namespace {
 /// The default C++ compiler a system is expected to provide.
 constexpr std::string_view DefaultCompilerName = "c++";
 
-/// Compilers looked for by name once neither CXX nor the default answers.
+/// Compilers looked for by name once the default does not answer.
 constexpr std::array<std::string_view, 2> KnownCompilerNames{"g++", "clang++"};
 
 /**
- * Whether the path names a file that can be run. The check matches the one
- * external commands are found by, so both read the same file the same way.
+ * Whether the path names a file this process can run.
+ *
+ * The permission bits do not carry that on their own: a file only its owner
+ * may run is not one another user can, and one whose owner bit is clear can
+ * still be reached through its group. The system is asked instead, which is
+ * the same question the build will ask when it runs the program.
  */
 auto isExecutableFile(const std::filesystem::path& path) -> bool
 {
     std::error_code ec;
-    if (! std::filesystem::is_regular_file(path, ec) || ec) {
-        return false;
-    }
     const std::filesystem::file_status status = std::filesystem::status(path, ec);
-    if (ec) {
+    if (ec || ! std::filesystem::is_regular_file(status)) {
         return false;
     }
-    return (status.permissions() & std::filesystem::perms::owner_exec) != std::filesystem::perms::none;
+    return ::access(path.c_str(), X_OK) == 0;
+}
+
+/**
+ * The path made independent of the directory the command ran in, so a later
+ * step running the program from elsewhere still names the same file. A path
+ * that cannot be resolved is kept as it was found.
+ */
+auto resolved(const std::filesystem::path& path) -> std::filesystem::path
+{
+    std::error_code ec;
+    std::filesystem::path absolute = std::filesystem::weakly_canonical(path, ec);
+    if (ec) {
+        return path;
+    }
+    return absolute;
 }
 
 /**
@@ -58,9 +76,6 @@ auto findOnSearchPaths(std::string_view name,
 auto findNamedCompiler(const std::string& preferredCompiler,
                        const std::vector<std::filesystem::path>& searchPaths) -> std::optional<std::filesystem::path>
 {
-    if (preferredCompiler.empty()) {
-        return std::nullopt;
-    }
     const std::filesystem::path named{preferredCompiler};
     if (named.has_parent_path()) {
         return isExecutableFile(named) ? std::optional{named} : std::nullopt;
@@ -71,20 +86,26 @@ auto findNamedCompiler(const std::string& preferredCompiler,
 }  // anonymous namespace
 
 auto detectSystemCompiler(const std::string& preferredCompiler,
-                          const std::vector<std::filesystem::path>& systemSearchPaths) -> std::optional<SystemCompiler>
+                          const std::vector<std::filesystem::path>& systemSearchPaths)
+    -> std::expected<SystemCompiler, NoCompiler>
 {
-    if (const auto named = findNamedCompiler(preferredCompiler, systemSearchPaths)) {
-        return SystemCompiler{.path = *named, .origin = CompilerOrigin::CompilerVariable};
+    if (! preferredCompiler.empty()) {
+        const auto named = findNamedCompiler(preferredCompiler, systemSearchPaths);
+        if (! named.has_value()) {
+            return std::unexpected(NoCompiler{.requested = preferredCompiler});
+        }
+        return SystemCompiler{.path = resolved(*named), .origin = CompilerOrigin::CompilerVariable};
     }
+
     if (const auto standard = findOnSearchPaths(DefaultCompilerName, systemSearchPaths)) {
-        return SystemCompiler{.path = *standard, .origin = CompilerOrigin::DefaultOnPath};
+        return SystemCompiler{.path = resolved(*standard), .origin = CompilerOrigin::DefaultOnPath};
     }
     for (const std::string_view name : KnownCompilerNames) {
         if (const auto known = findOnSearchPaths(name, systemSearchPaths)) {
-            return SystemCompiler{.path = *known, .origin = CompilerOrigin::KnownName};
+            return SystemCompiler{.path = resolved(*known), .origin = CompilerOrigin::KnownName};
         }
     }
-    return std::nullopt;
+    return std::unexpected(NoCompiler{});
 }
 
 }  // namespace scrap::Toolchain

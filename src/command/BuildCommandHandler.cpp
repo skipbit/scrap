@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <iostream>
 #include <string_view>
+#include <utility>
 
 namespace scrap::Command {
 
@@ -28,7 +29,9 @@ auto describeOrigin(const Toolchain::CompilerOrigin origin) -> std::string_view
         case Toolchain::CompilerOrigin::KnownName:
             return "found on PATH as a known name";
     }
-    return "found on PATH";
+    // Every origin is answered above, so an origin added without a word here
+    // fails the build rather than being described as one of the others.
+    std::unreachable();
 }
 
 /**
@@ -70,7 +73,11 @@ auto BuildCommandHandler::execute(const InvocationContext& ctx) -> int
 
     const auto compiler = Toolchain::detectSystemCompiler(ctx.env->preferredCompiler, ctx.env->systemSearchPaths);
     if (! compiler.has_value()) {
-        std::cerr << renderNoCompilerFound();
+        if (compiler.error().requested.empty()) {
+            std::cerr << renderNoCompilerFound();
+        } else {
+            std::cerr << renderUnusableCompilerRequest(compiler.error().requested);
+        }
         return 1;
     }
     std::cout << "Using the system compiler '" << printablePath(compiler->path) << "' ("
