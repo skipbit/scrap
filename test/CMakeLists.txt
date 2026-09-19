@@ -1,20 +1,7 @@
 # --- Google Test integration ---
 find_package(GoogleTest REQUIRED)
 
-# Every test target is compiled with the same settings. Tests report warnings
-# without failing the build; the targets under src/ treat them as errors.
-function(scrap_apply_test_settings target)
-    target_compile_features(${target} PUBLIC cxx_std_23)
-    target_compile_options(${target} PRIVATE
-        -Wall -Wextra -Wpedantic
-        $<$<CONFIG:Debug>:-O0 -g3>
-        $<$<CONFIG:Release>:-O3>
-    )
-    set_target_properties(${target} PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/test
-        CXX_EXTENSIONS OFF
-    )
-endfunction()
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/test)
 
 # Helpers shared by the tests of more than one module
 add_library(scrap_test_support STATIC
@@ -22,7 +9,7 @@ add_library(scrap_test_support STATIC
 )
 target_include_directories(scrap_test_support PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(scrap_test_support PRIVATE GTest::gtest)
-scrap_apply_test_settings(scrap_test_support)
+scrap_apply_compile_settings(scrap_test_support)
 
 add_executable(scrap_gtest
     unit/command/CommonTypesTest.cpp
@@ -45,7 +32,7 @@ target_link_libraries(scrap_gtest PRIVATE
     scrap_test_support
     GTest::gtest_main
 )
-scrap_apply_test_settings(scrap_gtest)
+scrap_apply_compile_settings(scrap_gtest)
 
 include(GoogleTest)
 gtest_discover_tests(scrap_gtest)
@@ -59,7 +46,7 @@ target_link_libraries(scrap_gtest_cli11 PRIVATE
     scrap_command
     GTest::gtest_main
 )
-scrap_apply_test_settings(scrap_gtest_cli11)
+scrap_apply_compile_settings(scrap_gtest_cli11)
 
 gtest_discover_tests(scrap_gtest_cli11)
 
@@ -80,7 +67,7 @@ target_link_libraries(scrap_gtest_project PRIVATE
     scrap_test_support
     GTest::gtest_main
 )
-scrap_apply_test_settings(scrap_gtest_project)
+scrap_apply_compile_settings(scrap_gtest_project)
 
 gtest_discover_tests(scrap_gtest_project)
 
@@ -92,7 +79,7 @@ add_executable(scrap_e2e
 target_compile_definitions(scrap_e2e PRIVATE SCRAP_BINARY_PATH="$<TARGET_FILE:scrap>")
 
 target_link_libraries(scrap_e2e PRIVATE GTest::gtest_main)
-scrap_apply_test_settings(scrap_e2e)
+scrap_apply_compile_settings(scrap_e2e)
 
 # The e2e tests spawn the scrap binary itself, so it must be built first.
 add_dependencies(scrap_e2e scrap)

@@ -241,6 +241,7 @@ ctest --test-dir build/debug --output-on-failure --no-tests=error --verbose
 # Run a specific test executable directly
 ./build/debug/test/scrap_gtest
 ./build/debug/test/scrap_gtest_cli11
+./build/debug/test/scrap_gtest_project
 ./build/debug/test/scrap_e2e
 
 # Release build testing
@@ -250,7 +251,11 @@ cmake --build build/release --target test
 
 **Test Structure:**
 - `test/unit/command/` - Unit tests for the command layer
+- `test/unit/project/` - Unit tests for project configuration (`scrap.toml`) and layout
+- `test/unit/toolchain/` - Unit tests for toolchain detection
+- `test/support/` - Helpers shared by the tests of more than one module
 - `test/e2e/` - End-to-end tests that spawn the built `scrap` binary as a subprocess
+- `test/cmake/` - Tests of the CMake modules, run in script mode
 
 ## 📊 Roadmap
 

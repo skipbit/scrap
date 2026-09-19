@@ -24,18 +24,6 @@ add_custom_target(scrap_version_source ALL
 find_package(CLI11 REQUIRED)
 find_package(TomlPlusPlus REQUIRED)
 
-# Every target built from src/ is compiled with the same settings, and treats
-# warnings as errors.
-function(scrap_apply_compile_settings target)
-    target_compile_features(${target} PUBLIC cxx_std_23)
-    target_compile_options(${target} PRIVATE
-        -Wall -Wextra -Wpedantic -Werror
-        $<$<CONFIG:Debug>:-O0 -g3>
-        $<$<CONFIG:Release>:-O3>
-    )
-    set_target_properties(${target} PROPERTIES CXX_EXTENSIONS OFF)
-endfunction()
-
 # Each module is built once as a library, and the binary and the tests link
 # against it.
 
@@ -54,14 +42,14 @@ add_library(scrap_project STATIC
 )
 target_include_directories(scrap_project PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(scrap_project PRIVATE tomlplusplus::tomlplusplus)
-scrap_apply_compile_settings(scrap_project)
+scrap_apply_compile_settings(scrap_project WARNINGS_AS_ERRORS)
 
 # Toolchain detection
 add_library(scrap_toolchain STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/SystemCompiler.cpp
 )
 target_include_directories(scrap_toolchain PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-scrap_apply_compile_settings(scrap_toolchain)
+scrap_apply_compile_settings(scrap_toolchain WARNINGS_AS_ERRORS)
 
 # Command architecture, with the version banner it prints
 add_library(scrap_command STATIC
@@ -95,12 +83,12 @@ target_link_libraries(scrap_command
     PRIVATE scrap_toolchain CLI11::CLI11
 )
 add_dependencies(scrap_command scrap_version_source)
-scrap_apply_compile_settings(scrap_command)
+scrap_apply_compile_settings(scrap_command WARNINGS_AS_ERRORS)
 
 # Composition root
 add_executable(${PROJECT_NAME} ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp)
 target_link_libraries(${PROJECT_NAME} PRIVATE scrap_command)
-scrap_apply_compile_settings(${PROJECT_NAME})
+scrap_apply_compile_settings(${PROJECT_NAME} WARNINGS_AS_ERRORS)
 set_target_properties(${PROJECT_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
     OUTPUT_NAME "scrap"
