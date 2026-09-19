@@ -19,6 +19,7 @@ using scrap::Project::TargetSources;
 namespace {
 
 const std::filesystem::path ProjectRoot = "/home/me/hello";
+const std::filesystem::path BuildDirectory = "build/debug";
 const std::filesystem::path Compiler = "/usr/bin/c++";
 
 Package packageWithStandard(const char* standard)
@@ -52,6 +53,7 @@ std::vector<std::filesystem::path> outputsOf(const std::vector<CompileCommand>& 
 TEST(CompilePlannerTest, CompilesASourceFromTheProjectRoot)
 {
     const auto commands = planCompileCommands(ProjectRoot,
+                                              BuildDirectory,
                                               packageWithStandard("23"),
                                               {executableWithSources("hello", "src/main.cpp", {"src/main.cpp"})},
                                               Compiler);
@@ -77,6 +79,7 @@ TEST(CompilePlannerTest, CompilesASourceFromTheProjectRoot)
 TEST(CompilePlannerTest, TakesTheStandardFromTheManifest)
 {
     const auto commands = planCompileCommands(ProjectRoot,
+                                              BuildDirectory,
                                               packageWithStandard("20"),
                                               {executableWithSources("hello", "src/main.cpp", {"src/main.cpp"})},
                                               Compiler);
@@ -94,6 +97,7 @@ TEST(CompilePlannerTest, CompilesASharedSourceOnceForEachTarget)
 {
     const auto commands =
         planCompileCommands(ProjectRoot,
+                            BuildDirectory,
                             packageWithStandard("23"),
                             {executableWithSources("app", "src/main.cpp", {"src/main.cpp", "src/shared.cpp"}),
                              executableWithSources("tool", "src/tool.cpp", {"src/shared.cpp", "src/tool.cpp"})},
@@ -114,6 +118,7 @@ TEST(CompilePlannerTest, KeepsSourcesThatShareAStemApart)
 {
     const auto commands = planCompileCommands(
         ProjectRoot,
+        BuildDirectory,
         packageWithStandard("23"),
         {executableWithSources("hello", "src/main.cpp", {"src/a/x.cpp", "src/b/x.cpp", "src/main.cpp", "src/x.cc"})},
         Compiler);
@@ -132,6 +137,7 @@ TEST(CompilePlannerTest, KeepsSourcesThatShareAStemApart)
 TEST(CompilePlannerTest, CompilesAnEntryPointOutsideTheSourceDirectory)
 {
     const auto commands = planCompileCommands(ProjectRoot,
+                                              BuildDirectory,
                                               packageWithStandard("23"),
                                               {executableWithSources("gen", "tools/gen.cpp", {"tools/gen.cpp"})},
                                               Compiler);
@@ -146,5 +152,48 @@ TEST(CompilePlannerTest, CompilesAnEntryPointOutsideTheSourceDirectory)
  */
 TEST(CompilePlannerTest, PlansNothingWithoutATarget)
 {
-    EXPECT_TRUE(planCompileCommands(ProjectRoot, packageWithStandard("23"), {}, Compiler).empty());
+    EXPECT_TRUE(planCompileCommands(ProjectRoot, BuildDirectory, packageWithStandard("23"), {}, Compiler).empty());
+}
+
+/**
+ * Object files go below the build directory the caller gives, so the database
+ * and the objects it names cannot point at different builds.
+ */
+TEST(CompilePlannerTest, PlacesObjectFilesInTheBuildDirectoryGiven)
+{
+    const auto commands = planCompileCommands(ProjectRoot,
+                                              "build/release",
+                                              packageWithStandard("23"),
+                                              {executableWithSources("hello", "src/main.cpp", {"src/main.cpp"})},
+                                              Compiler);
+
+    ASSERT_EQ(commands.size(), 1);
+    EXPECT_EQ(commands[0].output, "build/release/obj/hello/src/main.cpp.o");
+    EXPECT_EQ(commands[0].arguments.back(), "build/release/obj/hello/src/main.cpp.o");
+}
+
+/**
+ * A declared entry point that starts with '-' reaches the compiler as a file,
+ * never as an option.
+ */
+TEST(CompilePlannerTest, PassesASourceThatLooksLikeAnOptionAsAFile)
+{
+    const auto commands = planCompileCommands(ProjectRoot,
+                                              BuildDirectory,
+                                              packageWithStandard("23"),
+                                              {executableWithSources("x", "-fplugin=evil.so", {"-fplugin=evil.so"})},
+                                              Compiler);
+
+    ASSERT_EQ(commands.size(), 1);
+    EXPECT_EQ(commands[0].file, "./-fplugin=evil.so");
+    EXPECT_EQ(commands[0].output, "build/debug/obj/x/-fplugin=evil.so.o");
+    EXPECT_EQ(commands[0].arguments,
+              (std::vector<std::string>{"/usr/bin/c++",
+                                        "-std=c++23",
+                                        "-I",
+                                        "include",
+                                        "-c",
+                                        "./-fplugin=evil.so",
+                                        "-o",
+                                        "build/debug/obj/x/-fplugin=evil.so.o"}));
 }

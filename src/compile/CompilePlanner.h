@@ -24,15 +24,19 @@ inline constexpr std::string_view DebugBuildDirectory = "build/debug";
  *
  * The command carries the language standard the manifest states, spelled
  * -std=c++<std>, and include/ as a directory to search for headers. The
- * compiler passes over that directory when a project has none.
+ * compiler passes over that directory when a project has none. A source whose
+ * path starts with '-' is written as ./<path>, so the compiler reads it as a
+ * file rather than as an option.
  *
  * @param projectRoot Directory the manifest was read from, absolute.
+ * @param buildDirectory Directory the build writes to, relative to the project root.
  * @param package The manifest's [package] table.
  * @param targets Each target with its sources, as collectSources() returned them.
  * @param compiler The compiler to run, absolute.
  * @return One command per source of each target, targets in the order given.
  */
 [[nodiscard]] auto planCompileCommands(const std::filesystem::path& projectRoot,
+                                       const std::filesystem::path& buildDirectory,
                                        const Project::Package& package,
                                        const std::vector<Project::TargetSources>& targets,
                                        const std::filesystem::path& compiler) -> std::vector<CompileCommand>;
