@@ -1,17 +1,21 @@
 #include "command/ProjectDiagnostic.h"
 
+#include "compile/CompilationDatabase.h"
 #include "project/ManifestError.h"
 #include "project/ProjectCreator.h"
 #include "project/ProjectLoader.h"
 #include "project/ProjectLocator.h"
+#include "project/SourceCollector.h"
 #include "project/TargetResolver.h"
 
 #include <cerrno>
 #include <cstddef>
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <utility>
 #include <variant>
 
 namespace scrap::Command {
@@ -24,6 +28,12 @@ constexpr std::string_view PathHint =
 
 /// Next step for a path the operating system refused.
 constexpr std::string_view PermissionHint = "hint: check the permissions of the path\n";
+
+/// Next step for a disk or a quota that is full.
+constexpr std::string_view DiskSpaceHint = "hint: free some disk space and run the command again\n";
+
+/// Next step for a path taken by something else.
+constexpr std::string_view ExistingPathHint = "hint: check what is already at that path\n";
 
 /**
  * The rule a new project name follows, as scrap::Project::isValidProjectName()
@@ -193,16 +203,28 @@ auto isQuotaExceeded(const std::error_code& code) -> bool
 }
 
 /**
- * The next step for a directory or file that could not be created, chosen by
- * what the operating system reported.
+ * The next step every write failure shares: the permissions, or the space
+ * left. Any other reason is left to the caller.
  */
-auto cannotCreateHint(const std::error_code& code) -> std::string_view
+auto sharedWriteHint(const std::error_code& code) -> std::optional<std::string_view>
 {
     if (code == std::errc::permission_denied || code == std::errc::operation_not_permitted) {
         return PermissionHint;
     }
     if (code == std::errc::no_space_on_device || isQuotaExceeded(code)) {
-        return "hint: free some disk space and run the command again\n";
+        return DiskSpaceHint;
+    }
+    return std::nullopt;
+}
+
+/**
+ * The next step for a directory or file that could not be created, chosen by
+ * what the operating system reported.
+ */
+auto cannotCreateHint(const std::error_code& code) -> std::string_view
+{
+    if (const auto shared = sharedWriteHint(code)) {
+        return *shared;
     }
     if (code == std::errc::read_only_file_system) {
         return "hint: run the command in a writable directory\n";
@@ -211,9 +233,41 @@ auto cannotCreateHint(const std::error_code& code) -> std::string_view
         return "hint: choose a template whose files stay inside the project\n";
     }
     if (code == std::errc::file_exists) {
-        return "hint: check what is already at that path\n";
+        return ExistingPathHint;
     }
     return "hint: check that the directory exists and can be written\n";
+}
+
+/**
+ * The next step for a build output that could not be written, chosen by what
+ * the operating system reported. The output goes inside the project, so the
+ * last resort points at the project directory.
+ */
+auto cannotWriteBuildHint(const std::error_code& code) -> std::string_view
+{
+    if (const auto shared = sharedWriteHint(code)) {
+        return *shared;
+    }
+    if (code == std::errc::not_a_directory || code == std::errc::file_exists || code == std::errc::is_a_directory) {
+        return ExistingPathHint;
+    }
+    return "hint: check that the project directory can be written\n";
+}
+
+/**
+ * What the failed step was doing to its path, in the words the output uses.
+ */
+auto describeStep(const Compile::DatabaseWriteStep step) -> std::string_view
+{
+    switch (step) {
+        case Compile::DatabaseWriteStep::CreateDirectory:
+            return "create";
+        case Compile::DatabaseWriteStep::WriteFile:
+            return "write";
+    }
+    // Every step is answered above, so a step added without a word here fails
+    // the build rather than being described as one of the others.
+    std::unreachable();
 }
 
 auto render(const Project::CannotCreate& error) -> std::string
@@ -326,6 +380,30 @@ auto renderNoTargetToBuild(const std::filesystem::path& projectRoot) -> std::str
     text += ", or create ";
     text += Project::DefaultEntryPoint;
     text += '\n';
+    return text;
+}
+
+auto renderSourceScanFailure(const Project::SourceScanFailure& failure) -> std::string
+{
+    std::string text = "error: cannot read '";
+    text += printablePath(failure.directory);
+    text += "': ";
+    text += failure.reason;
+    text += '\n';
+    text += PermissionHint;
+    return text;
+}
+
+auto renderCompilationDatabaseFailure(const Compile::DatabaseWriteFailure& failure) -> std::string
+{
+    std::string text = "error: cannot ";
+    text += describeStep(failure.step);
+    text += " '";
+    text += printablePath(failure.path);
+    text += "': ";
+    text += failure.code.message();
+    text += '\n';
+    text += cannotWriteBuildHint(failure.code);
     return text;
 }
 

@@ -40,13 +40,15 @@ auto isExecutableFile(const std::filesystem::path& path) -> bool
 
 /**
  * The path made independent of the directory the command ran in, so a later
- * step running the program from elsewhere still names the same file. A path
- * that cannot be resolved is kept as it was found.
+ * step running the program from elsewhere still names the same file. A
+ * symbolic link stays as it was found, since a compiler reached through one,
+ * such as clang++ or a ccache link, acts on the name it is run by. A path
+ * that cannot be made absolute is kept as it was found.
  */
 auto resolved(const std::filesystem::path& path) -> std::filesystem::path
 {
     std::error_code ec;
-    std::filesystem::path absolute = std::filesystem::weakly_canonical(path, ec);
+    std::filesystem::path absolute = std::filesystem::absolute(path, ec);
     if (ec) {
         return path;
     }

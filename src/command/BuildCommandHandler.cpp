@@ -3,7 +3,10 @@
 #include "command/InvocationContext.h"
 #include "command/ProjectDiagnostic.h"
 #include "command/RuntimeEnvironment.h"
+#include "compile/CompilationDatabase.h"
+#include "compile/CompilePlanner.h"
 #include "project/ProjectLoader.h"
+#include "project/SourceCollector.h"
 #include "project/TargetResolver.h"
 #include "toolchain/SystemCompiler.h"
 
@@ -71,6 +74,12 @@ auto BuildCommandHandler::execute(const InvocationContext& ctx) -> int
         return 1;
     }
 
+    const auto sources = Project::collectSources(project->root, targets);
+    if (! sources.has_value()) {
+        std::cerr << renderSourceScanFailure(sources.error());
+        return 1;
+    }
+
     const auto compiler = Toolchain::detectSystemCompiler(ctx.env->preferredCompiler, ctx.env->systemSearchPaths);
     if (! compiler.has_value()) {
         if (compiler.error().requested.empty()) {
@@ -82,6 +91,17 @@ auto BuildCommandHandler::execute(const InvocationContext& ctx) -> int
     }
     std::cout << "Using the system compiler '" << printablePath(compiler->path) << "' ("
               << describeOrigin(compiler->origin) << ")\n";
+
+    // Written for a project that builds nothing as well, so an editor stops
+    // reading the commands of targets the project no longer has.
+    const std::filesystem::path buildDirectory{Compile::DebugBuildDirectory};
+    const auto commands = Compile::planCompileCommands(
+        project->root, buildDirectory, project->manifest.package, *sources, compiler->path);
+    const auto written = Compile::writeCompilationDatabase(project->root / buildDirectory, commands);
+    if (! written.has_value()) {
+        std::cerr << renderCompilationDatabaseFailure(written.error());
+        return 1;
+    }
 
     // Placeholder output until the build compiles the project.
     std::cout << "build: not yet implemented\n";

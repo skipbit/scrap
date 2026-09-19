@@ -302,6 +302,16 @@ protected:
     }
 
     /**
+     * The contents of @p relative below the fixture directory, empty when it
+     * cannot be read.
+     */
+    [[nodiscard]] auto readFile(const std::filesystem::path& relative) const -> std::string
+    {
+        std::ifstream in(root_ / relative, std::ios::binary);
+        return std::string{std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};
+    }
+
+    /**
      * Run the built scrap binary with @p args, a minimal controlled
      * environment (SCRAP_HOME=root_, plus any @p envOverrides), and the
      * given @p cwd. Captures stdout/stderr separately.
@@ -733,6 +743,40 @@ TEST_F(CliE2ETest, BuildAcceptsAManifestThatDeclaresNothingToBuild)
     EXPECT_NE(result.stdoutText.find("build: not yet implemented"), std::string::npos) << result.stdoutText;
 }
 
+TEST_F(CliE2ETest, BuildReportsASourceDirectoryItCannotRead)
+{
+    // The sources are read before the compiler is looked for, so nothing
+    // reaches standard output: a problem in the project comes first.
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp", MainSource);
+    writeFile("src/locked/hidden.cpp", MainSource);
+    const std::filesystem::path locked = root_ / "src" / "locked";
+    const std::string lockedPath = (std::filesystem::canonical(root_) / "src" / "locked").string();
+
+    std::error_code ec;
+    std::filesystem::permissions(locked, std::filesystem::perms::none, ec);
+    ASSERT_FALSE(ec) << ec.message();
+    // A user who reads the directory anyway, root among them, cannot observe
+    // the failure; the fixture is restored before skipping so it can be removed.
+    const std::filesystem::directory_iterator probe(locked, ec);
+    if (! ec) {
+        std::filesystem::permissions(locked, std::filesystem::perms::owner_all, ec);
+        GTEST_SKIP() << "this user reads a directory with no permissions";
+    }
+
+    auto result = runScrap({"build"}, {dummyCompiler()}, root_);
+
+    std::filesystem::permissions(locked, std::filesystem::perms::owner_all, ec);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    EXPECT_NE(result.stderrText.find("error: cannot read '" + lockedPath + "': "), std::string::npos)
+        << result.stderrText;
+    EXPECT_NE(result.stderrText.find("\nhint: check the permissions of the path\n"), std::string::npos)
+        << result.stderrText;
+}
+
 // --- build: choosing the compiler ----------------------------------------------
 
 TEST_F(CliE2ETest, BuildReportsTheCompilerTheVariableNames)
@@ -796,6 +840,103 @@ TEST_F(CliE2ETest, BuildDoesNotReadItsOwnDirectoryForTheSystemCompiler)
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 1);
     EXPECT_NE(result.stderrText.find("error: no C++ compiler found\n"), std::string::npos) << result.stderrText;
+}
+
+// --- build: the compilation database -------------------------------------------
+
+TEST_F(CliE2ETest, BuildWritesTheCommandForEachSource)
+{
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp", MainSource);
+    writeFile("src/util.cpp", MainSource);
+    const std::string compilerOverride = dummyCompiler();
+    const std::string compiler = (std::filesystem::canonical(root_) / "bin" / "dummy-c++").string();
+    const std::string project = std::filesystem::canonical(root_).string();
+
+    auto result = runScrap({"build"}, {compilerOverride}, root_);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 0);
+    EXPECT_TRUE(result.stderrText.empty()) << result.stderrText;
+    EXPECT_EQ(readFile("build/debug/compile_commands.json"),
+              "[\n"
+              "  {\n"
+              "    \"directory\": \"" +
+                  project +
+                  "\",\n"
+                  "    \"file\": \"src/main.cpp\",\n"
+                  "    \"arguments\": [\"" +
+                  compiler +
+                  "\", \"-std=c++23\", \"-I\", \"include\", \"-c\", \"src/main.cpp\", \"-o\", "
+                  "\"build/debug/obj/app/src/main.cpp.o\"],\n"
+                  "    \"output\": \"build/debug/obj/app/src/main.cpp.o\"\n"
+                  "  },\n"
+                  "  {\n"
+                  "    \"directory\": \"" +
+                  project +
+                  "\",\n"
+                  "    \"file\": \"src/util.cpp\",\n"
+                  "    \"arguments\": [\"" +
+                  compiler +
+                  "\", \"-std=c++23\", \"-I\", \"include\", \"-c\", \"src/util.cpp\", \"-o\", "
+                  "\"build/debug/obj/app/src/util.cpp.o\"],\n"
+                  "    \"output\": \"build/debug/obj/app/src/util.cpp.o\"\n"
+                  "  }\n"
+                  "]\n");
+}
+
+TEST_F(CliE2ETest, NewProjectBuildsWithACompilationDatabase)
+{
+    std::filesystem::create_directories(root_ / "work");
+    auto created = runScrap({"new", "hello"}, {}, root_ / "work");
+    ASSERT_EQ(created.exitCode, 0) << created.stderrText;
+
+    auto result = runScrap({"build"}, {dummyCompiler()}, root_ / "work" / "hello");
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 0);
+    const std::string database = readFile("work/hello/build/debug/compile_commands.json");
+    EXPECT_NE(database.find("\"file\": \"src/main.cpp\""), std::string::npos) << database;
+    EXPECT_NE(database.find("\"-std=c++23\""), std::string::npos) << database;
+    EXPECT_NE(database.find("\"output\": \"build/debug/obj/hello/src/main.cpp.o\""), std::string::npos) << database;
+}
+
+TEST_F(CliE2ETest, BuildEmptiesTheDatabaseOfAProjectThatNowBuildsNothing)
+{
+    // Commands left from an earlier build would keep an editor compiling
+    // sources the project no longer builds.
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp", MainSource);
+    const std::string compilerOverride = dummyCompiler();
+    auto first = runScrap({"build"}, {compilerOverride}, root_);
+    ASSERT_EQ(first.exitCode, 0) << first.stderrText;
+    ASSERT_NE(readFile("build/debug/compile_commands.json"), "[]\n");
+
+    writeFile("scrap.toml", ManifestWithoutTargets);
+    auto result = runScrap({"build"}, {compilerOverride}, root_);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 0);
+    EXPECT_TRUE(result.stderrText.empty()) << result.stderrText;
+    EXPECT_EQ(readFile("build/debug/compile_commands.json"), "[]\n");
+}
+
+TEST_F(CliE2ETest, BuildReportsABuildDirectoryItCannotCreate)
+{
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp", MainSource);
+    writeFile("build", "a file where the build directory belongs\n");
+    const std::string buildDirectory = (std::filesystem::canonical(root_) / "build" / "debug").string();
+
+    auto result = runScrap({"build"}, {dummyCompiler()}, root_);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_EQ(result.stdoutText.find("build: not yet implemented"), std::string::npos) << result.stdoutText;
+    EXPECT_NE(result.stderrText.find("error: cannot create '" + buildDirectory + "': "), std::string::npos)
+        << result.stderrText;
+    EXPECT_NE(result.stderrText.find("\nhint: check what is already at that path\n"), std::string::npos)
+        << result.stderrText;
 }
 
 // --- new: creating a project ---------------------------------------------------

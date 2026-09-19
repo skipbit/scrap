@@ -54,7 +54,8 @@ struct NoCompiler {
  * A path with a directory in it names one program and is read as it stands; a
  * bare name is looked for on the search paths. Whichever way it was found,
  * the answer is absolute, so a later step running it from another directory
- * still names the same program.
+ * still names the same program. A symbolic link keeps its own name, since a
+ * compiler reached through one acts on the name it is run by.
  *
  * Whether a file can be run is the system's answer to give, not one the
  * permission bits carry on their own.
