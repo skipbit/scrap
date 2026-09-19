@@ -49,8 +49,8 @@ struct DatabaseWriteFailure {
  * @brief Write the compilation database into a build directory.
  *
  * The directory is created when it is missing. The file is written under a
- * name of this process's own and then renamed into place, so a tool reading
- * it sees either the previous database or the new one whole, and two builds
+ * name no other file holds and then renamed into place, so a tool reading it
+ * sees either the previous database or the new one whole, and two builds
  * running at once each write a file of their own.
  *
  * @param buildDirectory Directory to write into, absolute.

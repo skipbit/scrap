@@ -11,6 +11,7 @@
 #include <cerrno>
 #include <cstddef>
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -202,16 +203,28 @@ auto isQuotaExceeded(const std::error_code& code) -> bool
 }
 
 /**
- * The next step for a directory or file that could not be created, chosen by
- * what the operating system reported.
+ * The next step every write failure shares: the permissions, or the space
+ * left. Any other reason is left to the caller.
  */
-auto cannotCreateHint(const std::error_code& code) -> std::string_view
+auto sharedWriteHint(const std::error_code& code) -> std::optional<std::string_view>
 {
     if (code == std::errc::permission_denied || code == std::errc::operation_not_permitted) {
         return PermissionHint;
     }
     if (code == std::errc::no_space_on_device || isQuotaExceeded(code)) {
         return DiskSpaceHint;
+    }
+    return std::nullopt;
+}
+
+/**
+ * The next step for a directory or file that could not be created, chosen by
+ * what the operating system reported.
+ */
+auto cannotCreateHint(const std::error_code& code) -> std::string_view
+{
+    if (const auto shared = sharedWriteHint(code)) {
+        return *shared;
     }
     if (code == std::errc::read_only_file_system) {
         return "hint: run the command in a writable directory\n";
@@ -232,11 +245,8 @@ auto cannotCreateHint(const std::error_code& code) -> std::string_view
  */
 auto cannotWriteBuildHint(const std::error_code& code) -> std::string_view
 {
-    if (code == std::errc::permission_denied || code == std::errc::operation_not_permitted) {
-        return PermissionHint;
-    }
-    if (code == std::errc::no_space_on_device || isQuotaExceeded(code)) {
-        return DiskSpaceHint;
+    if (const auto shared = sharedWriteHint(code)) {
+        return *shared;
     }
     if (code == std::errc::not_a_directory || code == std::errc::file_exists || code == std::errc::is_a_directory) {
         return ExistingPathHint;

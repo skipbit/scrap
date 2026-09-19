@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <string>
 #include <system_error>
+#include <unistd.h>
 #include <vector>
 
 using namespace scrap::Compile;
@@ -171,4 +172,23 @@ TEST(CompilationDatabaseTest, ReportsADatabaseItCannotWrite)
     EXPECT_EQ(written.error().path, buildDirectory / "compile_commands.json");
     EXPECT_TRUE(written.error().code);
     EXPECT_EQ(entriesOf(buildDirectory), std::vector<std::string>{"compile_commands.json"});
+}
+
+/**
+ * A staged file already at the name this process would use, left by another
+ * build with the same process id, is left alone, and the database is still
+ * written.
+ */
+TEST(CompilationDatabaseTest, LeavesTheStagedFileOfAnotherBuildAlone)
+{
+    const TempDirectory temp;
+    const std::filesystem::path buildDirectory = temp.path() / "build" / "debug";
+    const std::string staged = "build/debug/compile_commands.json." + std::to_string(::getpid()) + ".0.tmp";
+    temp.writeFile(staged, "another build\n");
+
+    const auto written = writeCompilationDatabase(buildDirectory, {});
+
+    ASSERT_TRUE(written.has_value()) << written.error().code.message();
+    EXPECT_EQ(temp.readFile(buildDirectory / "compile_commands.json"), "[]\n");
+    EXPECT_EQ(temp.readFile(staged), "another build\n");
 }

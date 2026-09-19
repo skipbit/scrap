@@ -22,6 +22,9 @@ namespace {
 /// Permissions the database is created with, before the process umask.
 constexpr mode_t DatabaseFileMode = 0644;
 
+/// How many staged names are tried when others are already taken.
+constexpr int StagingAttempts = 16;
+
 /**
  * Append @p text to @p out as a JSON string. A quote, a backslash and the
  * control characters are escaped; every other byte is copied as it is.
@@ -99,33 +102,40 @@ auto writeAll(const int descriptor, std::string_view content) -> std::error_code
 }
 
 /**
- * Put @p content at @p file by writing it beside the file under a name that
- * carries this process's id, then renaming it over the file. The staged file
- * is removed when any step fails.
+ * Put @p content at @p file by writing it beside the file under a name no
+ * other file holds, then renaming it over the file. The name carries this
+ * process's id and a count; creating it exclusively moves on to the next
+ * count when another build, one in another container with the same id among
+ * them, already holds it. The staged file is removed when a later step fails.
  */
 auto replaceFile(const std::filesystem::path& file, std::string_view content) -> std::error_code
 {
-    std::filesystem::path staged = file;
-    staged += "." + std::to_string(::getpid()) + ".tmp";
+    const std::string prefix = file.string() + "." + std::to_string(::getpid()) + ".";
+    for (int attempt = 0; attempt < StagingAttempts; ++attempt) {
+        const std::filesystem::path staged = prefix + std::to_string(attempt) + ".tmp";
+        // NOLINTNEXTLINE(hicpp-signed-bitwise) - POSIX open() flag combination
+        const int descriptor =
+            ::open(staged.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, DatabaseFileMode);
+        if (descriptor < 0) {
+            if (errno == EEXIST) {
+                continue;
+            }
+            return lastFailure();
+        }
 
-    // NOLINTNEXTLINE(hicpp-signed-bitwise) - POSIX open() flag combination
-    const int descriptor =
-        ::open(staged.c_str(), O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW | O_CLOEXEC, DatabaseFileMode);
-    if (descriptor < 0) {
-        return lastFailure();
+        std::error_code failure = writeAll(descriptor, content);
+        if (::close(descriptor) != 0 && ! failure) {
+            failure = lastFailure();
+        }
+        if (! failure && ::rename(staged.c_str(), file.c_str()) != 0) {
+            failure = lastFailure();
+        }
+        if (failure) {
+            ::unlink(staged.c_str());
+        }
+        return failure;
     }
-
-    std::error_code failure = writeAll(descriptor, content);
-    if (::close(descriptor) != 0 && ! failure) {
-        failure = lastFailure();
-    }
-    if (! failure && ::rename(staged.c_str(), file.c_str()) != 0) {
-        failure = lastFailure();
-    }
-    if (failure) {
-        ::unlink(staged.c_str());
-    }
-    return failure;
+    return std::make_error_code(std::errc::file_exists);
 }
 
 }  // anonymous namespace
