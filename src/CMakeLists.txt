@@ -45,11 +45,20 @@ target_include_directories(scrap_project PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(scrap_project PRIVATE tomlplusplus::tomlplusplus)
 scrap_apply_compile_settings(scrap_project WARNINGS_AS_ERRORS)
 
+# Running other programs
+add_library(scrap_process STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/process/Subprocess.cpp
+)
+target_include_directories(scrap_process PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+scrap_apply_compile_settings(scrap_process WARNINGS_AS_ERRORS)
+
 # Toolchain detection
 add_library(scrap_toolchain STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/CompilerIdentity.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/SystemCompiler.cpp
 )
 target_include_directories(scrap_toolchain PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(scrap_toolchain PRIVATE scrap_process)
 scrap_apply_compile_settings(scrap_toolchain WARNINGS_AS_ERRORS)
 
 # Compile commands

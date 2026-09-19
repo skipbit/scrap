@@ -253,6 +253,7 @@ cmake --build build/release --target test
 **Test Structure:**
 - `test/unit/command/` - Unit tests for the command layer
 - `test/unit/project/` - Unit tests for project configuration (`scrap.toml`) and layout
+- `test/unit/process/` - Unit tests for running other programs
 - `test/unit/toolchain/` - Unit tests for toolchain detection
 - `test/unit/compile/` - Unit tests for the compile commands and the compilation database
 - `test/support/` - Helpers shared by the tests of more than one module

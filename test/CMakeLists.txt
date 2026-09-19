@@ -23,11 +23,14 @@ add_executable(scrap_gtest
     unit/command/ProjectDiagnosticTest.cpp
     unit/command/RuntimeEnvironmentFactoryTest.cpp
     unit/command/ApplicationTest.cpp
+    unit/process/SubprocessTest.cpp
+    unit/toolchain/CompilerIdentityTest.cpp
     unit/toolchain/SystemCompilerTest.cpp
 )
 
 target_link_libraries(scrap_gtest PRIVATE
     scrap_command
+    scrap_process
     scrap_toolchain
     scrap_test_support
     GTest::gtest_main
