@@ -3,7 +3,7 @@
 #include "project/Manifest.h"
 #include "project/TargetResolver.h"
 
-#include "TempDirectory.h"
+#include "support/TempDirectory.h"
 
 using namespace scrap::Project;
 using scrap::TestSupport::TempDirectory;

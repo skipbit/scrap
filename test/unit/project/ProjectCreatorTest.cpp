@@ -10,7 +10,7 @@
 #include "project/TemplateFile.h"
 #include "project/driver/DiskProjectFileSystem.h"
 
-#include "TempDirectory.h"
+#include "support/TempDirectory.h"
 
 #include <filesystem>
 #include <string>

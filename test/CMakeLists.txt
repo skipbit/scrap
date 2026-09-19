@@ -16,6 +16,14 @@ function(scrap_apply_test_settings target)
     )
 endfunction()
 
+# Helpers shared by the tests of more than one module
+add_library(scrap_test_support STATIC
+    support/TempDirectory.cpp
+)
+target_include_directories(scrap_test_support PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(scrap_test_support PRIVATE GTest::gtest)
+scrap_apply_test_settings(scrap_test_support)
+
 add_executable(scrap_gtest
     unit/command/CommonTypesTest.cpp
     unit/command/CommandCatalogTest.cpp
@@ -29,12 +37,12 @@ add_executable(scrap_gtest
     unit/command/RuntimeEnvironmentFactoryTest.cpp
     unit/command/ApplicationTest.cpp
     unit/toolchain/SystemCompilerTest.cpp
-    unit/project/TempDirectory.cpp
 )
 
 target_link_libraries(scrap_gtest PRIVATE
     scrap_command
     scrap_toolchain
+    scrap_test_support
     GTest::gtest_main
 )
 scrap_apply_test_settings(scrap_gtest)
@@ -65,11 +73,11 @@ add_executable(scrap_gtest_project
     unit/project/ProjectLocatorTest.cpp
     unit/project/SourceCollectorTest.cpp
     unit/project/TargetResolverTest.cpp
-    unit/project/TempDirectory.cpp
 )
 
 target_link_libraries(scrap_gtest_project PRIVATE
     scrap_project
+    scrap_test_support
     GTest::gtest_main
 )
 scrap_apply_test_settings(scrap_gtest_project)
