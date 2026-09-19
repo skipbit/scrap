@@ -3,6 +3,7 @@
 #include "command/ProjectDiagnostic.h"
 #include "project/ManifestError.h"
 #include "project/ProjectLoader.h"
+#include "project/SourceCollector.h"
 
 #include <cerrno>
 #include <optional>
@@ -11,6 +12,7 @@
 using scrap::Command::renderNoCompilerFound;
 using scrap::Command::renderNoTargetToBuild;
 using scrap::Command::renderProjectError;
+using scrap::Command::renderSourceScanFailure;
 using scrap::Command::renderUnusableCompilerRequest;
 using scrap::Project::ManifestError;
 using scrap::Project::ManifestErrorKind;
@@ -19,6 +21,7 @@ using scrap::Project::PathInaccessible;
 using scrap::Project::ProjectError;
 using scrap::Project::ProjectNotFound;
 using scrap::Project::SourcePosition;
+using scrap::Project::SourceScanFailure;
 
 /**
  * A start path that is not a directory is named, with how to pass one.
@@ -98,6 +101,31 @@ TEST(ProjectDiagnosticTest, RendersAProjectWithNoTargetToBuild)
     EXPECT_EQ(renderNoTargetToBuild("/home/me/work/hello"),
               "error: no target to build in '/home/me/work/hello'\n"
               "hint: add a [[bin]] or [[lib]] section to scrap.toml, or create src/main.cpp\n");
+}
+
+/**
+ * A source directory that cannot be read is named with the system's reason,
+ * and points at the permissions.
+ */
+TEST(ProjectDiagnosticTest, RendersASourceDirectoryThatCannotBeRead)
+{
+    const SourceScanFailure failure{.directory = "/home/me/hello/src/private", .reason = "Permission denied"};
+
+    EXPECT_EQ(renderSourceScanFailure(failure),
+              "error: cannot read '/home/me/hello/src/private': Permission denied\n"
+              "hint: check the permissions of the path\n");
+}
+
+/**
+ * The directory is a path the user named, so it reaches the terminal as text.
+ */
+TEST(ProjectDiagnosticTest, EscapesAControlCharacterInASourceDirectory)
+{
+    const SourceScanFailure failure{.directory = "/home/me/hello/src/a\x1b[31m", .reason = "Permission denied"};
+
+    EXPECT_EQ(renderSourceScanFailure(failure),
+              "error: cannot read '/home/me/hello/src/a\\x1B[31m': Permission denied\n"
+              "hint: check the permissions of the path\n");
 }
 
 /**

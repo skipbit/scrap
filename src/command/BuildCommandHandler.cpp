@@ -4,6 +4,7 @@
 #include "command/ProjectDiagnostic.h"
 #include "command/RuntimeEnvironment.h"
 #include "project/ProjectLoader.h"
+#include "project/SourceCollector.h"
 #include "project/TargetResolver.h"
 #include "toolchain/SystemCompiler.h"
 
@@ -68,6 +69,12 @@ auto BuildCommandHandler::execute(const InvocationContext& ctx) -> int
     const auto targets = Project::resolveTargets(project->root, project->manifest);
     if (targets.empty() && ! project->manifest.declaresTargets) {
         std::cerr << renderNoTargetToBuild(project->root);
+        return 1;
+    }
+
+    const auto sources = Project::collectSources(project->root, targets);
+    if (! sources.has_value()) {
+        std::cerr << renderSourceScanFailure(sources.error());
         return 1;
     }
 

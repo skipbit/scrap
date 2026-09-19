@@ -733,6 +733,40 @@ TEST_F(CliE2ETest, BuildAcceptsAManifestThatDeclaresNothingToBuild)
     EXPECT_NE(result.stdoutText.find("build: not yet implemented"), std::string::npos) << result.stdoutText;
 }
 
+TEST_F(CliE2ETest, BuildReportsASourceDirectoryItCannotRead)
+{
+    // The sources are read before the compiler is looked for, so nothing
+    // reaches standard output: a problem in the project comes first.
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp", MainSource);
+    writeFile("src/locked/hidden.cpp", MainSource);
+    const std::filesystem::path locked = root_ / "src" / "locked";
+    const std::string lockedPath = (std::filesystem::canonical(root_) / "src" / "locked").string();
+
+    std::error_code ec;
+    std::filesystem::permissions(locked, std::filesystem::perms::none, ec);
+    ASSERT_FALSE(ec) << ec.message();
+    // A user who reads the directory anyway, root among them, cannot observe
+    // the failure; the fixture is restored before skipping so it can be removed.
+    const std::filesystem::directory_iterator probe(locked, ec);
+    if (! ec) {
+        std::filesystem::permissions(locked, std::filesystem::perms::owner_all, ec);
+        GTEST_SKIP() << "this user reads a directory with no permissions";
+    }
+
+    auto result = runScrap({"build"}, {dummyCompiler()}, root_);
+
+    std::filesystem::permissions(locked, std::filesystem::perms::owner_all, ec);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    EXPECT_NE(result.stderrText.find("error: cannot read '" + lockedPath + "': "), std::string::npos)
+        << result.stderrText;
+    EXPECT_NE(result.stderrText.find("\nhint: check the permissions of the path\n"), std::string::npos)
+        << result.stderrText;
+}
+
 // --- build: choosing the compiler ----------------------------------------------
 
 TEST_F(CliE2ETest, BuildReportsTheCompilerTheVariableNames)

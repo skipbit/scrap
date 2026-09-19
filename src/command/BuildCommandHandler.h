@@ -9,8 +9,8 @@ namespace scrap::Command {
  *
  * Loads the project that the path, or the working directory when no path is
  * given, belongs to, and decides what it builds. When there is no such
- * project, its manifest is wrong, or nothing was found to build, reports the
- * cause and the next step on standard error.
+ * project, its manifest is wrong, nothing was found to build, or its sources
+ * cannot be read, reports the cause and the next step on standard error.
  */
 class BuildCommandHandler : public CommandHandler {
 public:

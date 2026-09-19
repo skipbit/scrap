@@ -4,6 +4,7 @@
 #include "project/ProjectCreator.h"
 #include "project/ProjectLoader.h"
 #include "project/ProjectLocator.h"
+#include "project/SourceCollector.h"
 #include "project/TargetResolver.h"
 
 #include <cerrno>
@@ -326,6 +327,17 @@ auto renderNoTargetToBuild(const std::filesystem::path& projectRoot) -> std::str
     text += ", or create ";
     text += Project::DefaultEntryPoint;
     text += '\n';
+    return text;
+}
+
+auto renderSourceScanFailure(const Project::SourceScanFailure& failure) -> std::string
+{
+    std::string text = "error: cannot read '";
+    text += printablePath(failure.directory);
+    text += "': ";
+    text += failure.reason;
+    text += '\n';
+    text += PermissionHint;
     return text;
 }
 

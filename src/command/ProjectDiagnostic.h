@@ -2,6 +2,7 @@
 
 #include "project/ProjectCreator.h"
 #include "project/ProjectLoader.h"
+#include "project/SourceCollector.h"
 
 #include <filesystem>
 #include <string>
@@ -50,6 +51,14 @@ namespace scrap::Command {
  * @return Text for standard error, each line ending in a newline.
  */
 [[nodiscard]] auto renderNoTargetToBuild(const std::filesystem::path& projectRoot) -> std::string;
+
+/**
+ * @brief Describe a source directory that could not be read, and what to do next.
+ *
+ * @param failure Failure returned by scrap::Project::collectSources().
+ * @return Text for standard error, each line ending in a newline.
+ */
+[[nodiscard]] auto renderSourceScanFailure(const Project::SourceScanFailure& failure) -> std::string;
 
 /**
  * @brief Describe why a project could not be created, and what to do next.
