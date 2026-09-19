@@ -1,6 +1,8 @@
 #pragma once
 
+#include "build/SerialBuild.h"
 #include "compile/CompilationDatabase.h"
+#include "project/LanguageStandard.h"
 #include "project/ProjectCreator.h"
 #include "project/ProjectLoader.h"
 #include "project/SourceCollector.h"
@@ -71,6 +73,36 @@ namespace scrap::Command {
 [[nodiscard]] auto renderCompilationDatabaseFailure(const Compile::DatabaseWriteFailure& failure) -> std::string;
 
 /**
+ * @brief Describe a standard the compiler in use cannot build, and what to do
+ *        next.
+ *
+ * @param compiler The compiler that was asked for, absolute.
+ * @param standard The standard scrap.toml states.
+ * @return Text for standard error, each line ending in a newline.
+ */
+[[nodiscard]] auto renderUnsupportedStandard(const std::filesystem::path& compiler,
+                                             Project::LanguageStandard standard) -> std::string;
+
+/**
+ * @brief Describe a library this version does not build, and what to do next.
+ *
+ * @param name The library target the manifest declares.
+ * @return Text for standard error, each line ending in a newline.
+ */
+[[nodiscard]] auto renderLibraryNotBuilt(std::string_view name) -> std::string;
+
+/**
+ * @brief Describe a step of the build that failed, and what to do next.
+ *
+ * The compiler has already written its own diagnostics, which say what is
+ * wrong with the code; this says which file the build stopped at.
+ *
+ * @param failed The step returned by scrap::Build::runSerially().
+ * @return Text for standard error, each line ending in a newline.
+ */
+[[nodiscard]] auto renderStepFailure(const Build::FailedStep& failed) -> std::string;
+
+/**
  * @brief Describe why a project could not be created, and what to do next.
  *
  * @param error Error returned by scrap::Project::createProject().
@@ -89,5 +121,18 @@ namespace scrap::Command {
  * @return The path as text for a terminal.
  */
 [[nodiscard]] auto printablePath(const std::filesystem::path& path) -> std::string;
+
+/**
+ * @brief A name made safe to print.
+ *
+ * A name the user wrote can hold any byte, so printable ASCII stays as it is
+ * and every other byte becomes \xNN: control characters and escape sequences
+ * reach the terminal as text rather than as instructions. A name too long to
+ * be one is cut, which keeps one screen enough for the message.
+ *
+ * @param name Name to render.
+ * @return The name as text for a terminal.
+ */
+[[nodiscard]] auto printableName(std::string_view name) -> std::string;
 
 }  // namespace scrap::Command

@@ -646,8 +646,8 @@ TEST_F(CliE2ETest, BuildFindsTheProjectAboveTheWorkingDirectory)
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
-    EXPECT_TRUE(result.stderrText.empty()) << result.stderrText;
-    EXPECT_NE(result.stdoutText.find("build: not yet implemented"), std::string::npos);
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    EXPECT_NE(result.stderrText.find("Finished debug build\n"), std::string::npos) << result.stderrText;
 }
 
 TEST_F(CliE2ETest, BuildTakesAPathRelativeToTheWorkingDirectory)
@@ -664,8 +664,8 @@ TEST_F(CliE2ETest, BuildTakesAPathRelativeToTheWorkingDirectory)
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
-    EXPECT_TRUE(result.stderrText.empty()) << result.stderrText;
-    EXPECT_NE(result.stdoutText.find("build: not yet implemented"), std::string::npos);
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    EXPECT_NE(result.stderrText.find("Finished debug build\n"), std::string::npos) << result.stderrText;
 }
 
 TEST_F(CliE2ETest, BuildRejectsAPathThatIsNotADirectory)
@@ -732,15 +732,19 @@ TEST_F(CliE2ETest, BuildReportsAProjectWithNothingToBuild)
 
 TEST_F(CliE2ETest, BuildAcceptsAManifestThatDeclaresNothingToBuild)
 {
-    // An empty declaration is a statement, not an omission, so it is not an error.
+    // An empty declaration is a statement, not an omission, so it is not an
+    // error; a project that builds nothing needs no compiler to say so.
     writeFile("scrap.toml", ManifestWithoutTargets);
+    std::filesystem::create_directories(root_ / "empty");
 
-    auto result = runScrap({"build"}, {dummyCompiler()}, root_);
+    auto result = runScrap({"build"}, {"PATH=" + (root_ / "empty").string()}, root_);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
-    EXPECT_TRUE(result.stderrText.empty()) << result.stderrText;
-    EXPECT_NE(result.stdoutText.find("build: not yet implemented"), std::string::npos) << result.stdoutText;
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    EXPECT_EQ(result.stderrText.find("Using the system compiler"), std::string::npos) << result.stderrText;
+    EXPECT_NE(result.stderrText.find("Finished debug build\n"), std::string::npos) << result.stderrText;
+    EXPECT_EQ(readFile("build/debug/compile_commands.json"), "[]\n");
 }
 
 TEST_F(CliE2ETest, BuildReportsASourceDirectoryItCannotRead)
@@ -790,9 +794,9 @@ TEST_F(CliE2ETest, BuildReportsTheCompilerTheVariableNames)
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
-    EXPECT_TRUE(result.stderrText.empty()) << result.stderrText;
-    EXPECT_NE(result.stdoutText.find("Using the system compiler '" + compiler + "' (from CXX)\n"), std::string::npos)
-        << result.stdoutText;
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    EXPECT_NE(result.stderrText.find("Using the system compiler '" + compiler + "' (from CXX)\n"), std::string::npos)
+        << result.stderrText;
 }
 
 TEST_F(CliE2ETest, BuildReportsThatNoCompilerIsAvailable)
@@ -857,7 +861,7 @@ TEST_F(CliE2ETest, BuildWritesTheCommandForEachSource)
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
-    EXPECT_TRUE(result.stderrText.empty()) << result.stderrText;
+    EXPECT_NE(result.stderrText.find("Compiling app (src/main.cpp)\n"), std::string::npos) << result.stderrText;
     EXPECT_EQ(readFile("build/debug/compile_commands.json"),
               "[\n"
               "  {\n"
@@ -919,7 +923,6 @@ TEST_F(CliE2ETest, BuildEmptiesTheDatabaseOfAProjectThatNowBuildsNothing)
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
-    EXPECT_TRUE(result.stderrText.empty()) << result.stderrText;
     EXPECT_EQ(readFile("build/debug/compile_commands.json"), "[]\n");
 }
 
@@ -934,11 +937,114 @@ TEST_F(CliE2ETest, BuildReportsABuildDirectoryItCannotCreate)
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 1);
-    EXPECT_EQ(result.stdoutText.find("build: not yet implemented"), std::string::npos) << result.stdoutText;
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
     EXPECT_NE(result.stderrText.find("error: cannot create '" + buildDirectory + "': "), std::string::npos)
         << result.stderrText;
     EXPECT_NE(result.stderrText.find("\nhint: check what is already at that path\n"), std::string::npos)
         << result.stderrText;
+}
+
+// --- build: compiling and linking ----------------------------------------------
+
+TEST_F(CliE2ETest, BuildReportsASourceItCannotCompile)
+{
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp", MainSource);
+    makeDummy("failing-c++", "printf 'src/main.cpp:1:1: error: boom\\n' >&2\nexit 1");
+    const std::string compiler = (std::filesystem::canonical(root_) / "bin" / "failing-c++").string();
+    const std::string source = (std::filesystem::canonical(root_) / "src" / "main.cpp").string();
+
+    auto result = runScrap({"build"}, {"CXX=" + compiler}, root_);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    EXPECT_NE(result.stderrText.find("src/main.cpp:1:1: error: boom\n"), std::string::npos) << result.stderrText;
+    EXPECT_NE(result.stderrText.find("error: failed to compile '" + source + "' for 'app'\n"), std::string::npos)
+        << result.stderrText;
+    EXPECT_NE(result.stderrText.find("\nhint: fix the errors reported above and run the command again\n"),
+              std::string::npos)
+        << result.stderrText;
+    EXPECT_NE(readFile("build/debug/compile_commands.json"), "");
+}
+
+TEST_F(CliE2ETest, BuildStopsAtTheFirstSourceThatFails)
+{
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/a.cpp", MainSource);
+    writeFile("src/main.cpp", MainSource);
+    makeDummy("picky-c++",
+              "printf '%s\\n' \"$*\" >> calls.log\n"
+              "case \"$*\" in *src/a.cpp*) printf 'no\\n' >&2; exit 1;; esac\n"
+              "exit 0");
+    const std::string compiler = (std::filesystem::canonical(root_) / "bin" / "picky-c++").string();
+
+    auto result = runScrap({"build"}, {"CXX=" + compiler}, root_);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    const std::string calls = readFile("calls.log");
+    EXPECT_NE(calls.find("-c src/a.cpp"), std::string::npos) << calls;
+    EXPECT_EQ(calls.find("-c src/main.cpp"), std::string::npos) << calls;
+    EXPECT_EQ(calls.find("-o build/debug/bin/app"), std::string::npos) << calls;
+    EXPECT_FALSE(std::filesystem::exists(root_ / "build" / "debug" / "bin" / "app"));
+}
+
+TEST_F(CliE2ETest, BuildLeavesColorOutOfOutputThatIsNotATerminal)
+{
+    // The compiler is asked for colour, since a build usually runs in a
+    // terminal; captured output holds the diagnostic and not the sequences.
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp", MainSource);
+    makeDummy("colorful-c++", "printf '\\033[01;31mred\\033[m\\033[K\\n' >&2\nexit 1");
+    const std::string compiler = (std::filesystem::canonical(root_) / "bin" / "colorful-c++").string();
+
+    auto result = runScrap({"build"}, {"CXX=" + compiler}, root_);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_NE(result.stderrText.find("red\n"), std::string::npos) << result.stderrText;
+    EXPECT_EQ(result.stderrText.find('\033'), std::string::npos) << result.stderrText;
+}
+
+TEST_F(CliE2ETest, BuildReportsALibraryItCannotBuild)
+{
+    // The database is written first, so an editor still reads the library's
+    // sources while the build itself stops.
+    writeFile("scrap.toml",
+              "[package]\nname = \"app\"\nversion = \"0.1.0\"\n\n[[lib]]\nname = \"core\"\nsrc = \"src/core.cpp\"\n");
+    writeFile("src/core.cpp", "int answer() { return 42; }\n");
+
+    auto result = runScrap({"build"}, {dummyCompiler()}, root_);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    EXPECT_NE(result.stderrText.find("error: building the library 'core' is not supported yet\n"), std::string::npos)
+        << result.stderrText;
+    EXPECT_NE(readFile("build/debug/compile_commands.json").find("\"file\": \"src/core.cpp\""), std::string::npos);
+}
+
+TEST_F(CliE2ETest, BuildReportsAStandardTheCompilerCannotBuild)
+{
+    // The compiler answers as gcc 13, which has no C++26 to build against.
+    writeFile("scrap.toml", "[package]\nname = \"app\"\nversion = \"0.1.0\"\nstd = \"26\"\n");
+    writeFile("src/main.cpp", MainSource);
+    makeDummy("gcc13-c++",
+              "case \"$*\" in *-dM*) printf '#define __GNUC__ 13\\n#define __GNUC_MINOR__ 3\\n';; esac\n"
+              "exit 0");
+    const std::string compiler = (std::filesystem::canonical(root_) / "bin" / "gcc13-c++").string();
+
+    auto result = runScrap({"build"}, {"CXX=" + compiler}, root_);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_NE(result.stderrText.find("error: '" + compiler + "' does not support C++26\n"), std::string::npos)
+        << result.stderrText;
+    EXPECT_NE(result.stderrText.find("\nhint: use a newer compiler, or set std in scrap.toml to an older standard\n"),
+              std::string::npos)
+        << result.stderrText;
+    EXPECT_NE(readFile("build/debug/compile_commands.json").find("\"-std=c++26\""), std::string::npos);
 }
 
 // --- new: creating a project ---------------------------------------------------
@@ -967,8 +1073,7 @@ TEST_F(CliE2ETest, NewProjectLoadsInBuild)
     auto result = runScrap({"build"}, {dummyCompiler()}, root_ / "work" / "hello");
 
     ASSERT_TRUE(result.exitedNormally);
-    EXPECT_EQ(result.exitCode, 0);
-    EXPECT_TRUE(result.stderrText.empty()) << result.stderrText;
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
 }
 
 TEST_F(CliE2ETest, NewLeavesAnExistingDirectoryUntouched)

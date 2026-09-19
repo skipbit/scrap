@@ -88,6 +88,7 @@ add_library(scrap_command STATIC
     ${SCRAP_VERSION_SOURCE}
     ${CMAKE_CURRENT_SOURCE_DIR}/command/Application.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/BuildCommandHandler.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/BuildProgress.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/BuiltinCommandResolver.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/CommandCatalog.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/CommandHandler.cpp
@@ -109,10 +110,10 @@ add_library(scrap_command STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/command/driver/CLI11ParserAdapter.cpp
 )
 target_include_directories(scrap_command PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-# The command headers name project and compile types; the toolchain and CLI11
-# stay inside.
+# The command headers name project, compile and build types; the toolchain
+# and CLI11 stay inside.
 target_link_libraries(scrap_command
-    PUBLIC scrap_project scrap_compile
+    PUBLIC scrap_project scrap_compile scrap_build
     PRIVATE scrap_toolchain CLI11::CLI11
 )
 add_dependencies(scrap_command scrap_version_source)

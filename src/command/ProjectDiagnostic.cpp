@@ -1,6 +1,9 @@
 #include "command/ProjectDiagnostic.h"
 
+#include "build/BuildStep.h"
+#include "build/SerialBuild.h"
 #include "compile/CompilationDatabase.h"
+#include "project/LanguageStandard.h"
 #include "project/ManifestError.h"
 #include "project/ProjectCreator.h"
 #include "project/ProjectLoader.h"
@@ -34,6 +37,16 @@ constexpr std::string_view DiskSpaceHint = "hint: free some disk space and run t
 
 /// Next step for a path taken by something else.
 constexpr std::string_view ExistingPathHint = "hint: check what is already at that path\n";
+
+/// Next step after a compiler diagnostic, which already says what is wrong.
+constexpr std::string_view FixErrorsHint = "hint: fix the errors reported above and run the command again\n";
+
+/// Next step when a signal stopped the compiler, which running out of memory does.
+constexpr std::string_view CompilerMemoryHint =
+    "hint: check that the compiler has enough memory and run the command again\n";
+
+/// Next step when the compiler found earlier could not be started.
+constexpr std::string_view CompilerRunHint = "hint: check that the compiler can be run, or set CXX to another one\n";
 
 /**
  * The rule a new project name follows, as scrap::Project::isValidProjectName()
@@ -112,34 +125,6 @@ auto appendEscaped(const unsigned byte, std::string& text) -> void
 constexpr std::size_t EchoedNameLimit = Project::MaxProjectNameLength;
 
 /**
- * Text the user typed, made safe to print: printable ASCII stays as it is and
- * every other byte becomes \xNN, so control characters and escape sequences
- * reach the terminal as text rather than as instructions. A backslash is
- * escaped as well, which leaves \xNN as the mark of an escaped byte alone.
- *
- * Every name long enough to be cut is already too long to be a project name,
- * so the cut costs the reader nothing and keeps one screen enough for the
- * message.
- */
-auto printable(std::string_view text) -> std::string
-{
-    const bool cut = text.size() > EchoedNameLimit;
-    std::string result;
-    for (const char ch : text.substr(0, EchoedNameLimit)) {
-        const unsigned byte = static_cast<unsigned char>(ch);
-        if (byte >= 0x20U && byte < 0x7FU && ch != '\\') {
-            result += ch;
-        } else {
-            appendEscaped(byte, result);
-        }
-    }
-    if (cut) {
-        result += "...";
-    }
-    return result;
-}
-
-/**
  * The length of the well-formed UTF-8 sequence starting at @p index, or 0 when
  * the bytes there do not form one.
  */
@@ -172,7 +157,7 @@ auto render(const Project::InvalidProjectName& error) -> std::string
         text = "error: the project name is empty\n";
     } else {
         text = "error: '";
-        text += printable(error.name);
+        text += printableName(error.name);
         text += "' is not a valid project name\n";
     }
     text += projectNameHint();
@@ -345,6 +330,24 @@ auto printablePath(const std::filesystem::path& path) -> std::string
     return result;
 }
 
+auto printableName(const std::string_view name) -> std::string
+{
+    const bool cut = name.size() > EchoedNameLimit;
+    std::string result;
+    for (const char ch : name.substr(0, EchoedNameLimit)) {
+        const unsigned byte = static_cast<unsigned char>(ch);
+        if (byte >= 0x20U && byte < 0x7FU && ch != '\\') {
+            result += ch;
+        } else {
+            appendEscaped(byte, result);
+        }
+    }
+    if (cut) {
+        result += "...";
+    }
+    return result;
+}
+
 auto renderEmptyPathArgument() -> std::string
 {
     std::string text = "error: the path argument is empty\n";
@@ -359,13 +362,13 @@ auto renderNoCompilerFound() -> std::string
 }
 
 /**
- * The value is echoed through printable(), since the environment can hold any
+ * The value is echoed through printableName(), since the environment can hold any
  * byte and the answer is read in a terminal.
  */
 auto renderUnusableCompilerRequest(const std::string_view requested) -> std::string
 {
     std::string text = "error: CXX names '";
-    text += printable(requested);
+    text += printableName(requested);
     text += "', which cannot be run\n";
     text += "hint: set CXX to the path of a compiler, or unset it to search for one\n";
     return text;
@@ -405,6 +408,90 @@ auto renderCompilationDatabaseFailure(const Compile::DatabaseWriteFailure& failu
     text += '\n';
     text += cannotWriteBuildHint(failure.code);
     return text;
+}
+
+namespace {
+
+/**
+ * The first line of a step that failed: which file the build stopped at, and
+ * for a compilation, the target it was building.
+ */
+auto describeFailedStep(const Build::BuildStep& step) -> std::string
+{
+    if (step.kind == Build::StepKind::Link) {
+        std::string text = "error: failed to link '";
+        text += printablePath((step.directory / step.output).lexically_normal());
+        text += '\'';
+        return text;
+    }
+    std::string text = "error: failed to compile '";
+    text += printablePath((step.directory / step.subject).lexically_normal());
+    text += "' for '";
+    text += printableName(step.target);
+    text += '\'';
+    return text;
+}
+
+}  // anonymous namespace
+
+auto renderUnsupportedStandard(const std::filesystem::path& compiler,
+                               const Project::LanguageStandard standard) -> std::string
+{
+    std::string text = "error: '";
+    text += printablePath(compiler);
+    text += "' does not support C++";
+    text += Project::standardNumber(standard);
+    text += "\nhint: use a newer compiler, or set std in ";
+    text += Project::ManifestFileName;
+    text += " to an older standard\n";
+    return text;
+}
+
+auto renderLibraryNotBuilt(const std::string_view name) -> std::string
+{
+    std::string text = "error: building the library '";
+    text += printableName(name);
+    text += "' is not supported yet\nhint: remove the [[lib]] section from ";
+    text += Project::ManifestFileName;
+    text += " to build its sources into the executable\n";
+    return text;
+}
+
+auto renderStepFailure(const Build::FailedStep& failed) -> std::string
+{
+    switch (failed.failure.kind) {
+        case Build::StepFailureKind::CannotCreateDirectory: {
+            std::string text = "error: cannot create '";
+            text += printablePath(failed.failure.path);
+            text += "': ";
+            text += failed.failure.code.message();
+            text += '\n';
+            text += cannotWriteBuildHint(failed.failure.code);
+            return text;
+        }
+        case Build::StepFailureKind::CannotStart: {
+            std::string text = "error: cannot run '";
+            text += printablePath(failed.failure.path);
+            text += "': ";
+            text += failed.failure.code.message();
+            text += '\n';
+            text += CompilerRunHint;
+            return text;
+        }
+        case Build::StepFailureKind::Signalled: {
+            std::string text = describeFailedStep(failed.step);
+            text += ": the compiler was stopped by signal ";
+            text += std::to_string(failed.failure.status);
+            text += '\n';
+            text += CompilerMemoryHint;
+            return text;
+        }
+        case Build::StepFailureKind::Exited:
+            return describeFailedStep(failed.step) + '\n' + std::string{FixErrorsHint};
+    }
+    // Every kind is answered above, so a kind added without a message here
+    // fails the build rather than being reported as one of the others.
+    std::unreachable();
 }
 
 auto renderCreateProjectError(const Project::CreateProjectError& error) -> std::string
