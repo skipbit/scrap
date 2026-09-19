@@ -3,7 +3,7 @@
 #include "project/Manifest.h"
 #include "project/SourceCollector.h"
 
-#include "TempDirectory.h"
+#include "support/TempDirectory.h"
 
 #include <filesystem>
 #include <system_error>

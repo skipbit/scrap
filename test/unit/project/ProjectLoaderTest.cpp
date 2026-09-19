@@ -5,7 +5,7 @@
 #include "project/ProjectLocator.h"
 
 #include "ManifestSearch.h"
-#include "TempDirectory.h"
+#include "support/TempDirectory.h"
 
 #include <filesystem>
 #include <string_view>

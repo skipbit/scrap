@@ -1,4 +1,4 @@
-#include "TempDirectory.h"
+#include "support/TempDirectory.h"
 
 #include <gtest/gtest.h>
 
@@ -31,7 +31,7 @@ TempDirectory::TempDirectory()
         return;
     }
 
-    std::string dirTemplate = (base / "scrap_project_test_XXXXXX").string();
+    std::string dirTemplate = (base / "scrap_test_XXXXXX").string();
     const char* created = ::mkdtemp(dirTemplate.data());
     if (created == nullptr) {
         ADD_FAILURE() << "mkdtemp failed: " << std::strerror(errno);

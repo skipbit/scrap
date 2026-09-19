@@ -4,7 +4,7 @@
 #include "project/ManifestError.h"
 #include "project/ManifestParser.h"
 
-#include "TempDirectory.h"
+#include "support/TempDirectory.h"
 
 #include <string>
 #include <string_view>

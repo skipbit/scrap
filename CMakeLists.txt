@@ -15,6 +15,8 @@ message(STATUS "Version: ${SCRAP_VERSION_BANNER}")
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+include(CompileSettings)
+
 # Build options
 option(BUILD_TESTS "Build unit tests" ON)
 

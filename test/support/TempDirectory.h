@@ -9,8 +9,8 @@ namespace scrap::TestSupport {
 /**
  * @brief A uniquely named directory under the system temp location.
  *
- * Created on construction and removed on destruction, so a test can lay out a
- * real project tree on disk without leaving anything behind.
+ * Created on construction and removed on destruction, so a test can lay out
+ * real files on disk without leaving anything behind.
  */
 class TempDirectory {
 public:
