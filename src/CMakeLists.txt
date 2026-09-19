@@ -51,6 +51,15 @@ add_library(scrap_toolchain STATIC
 target_include_directories(scrap_toolchain PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 scrap_apply_compile_settings(scrap_toolchain WARNINGS_AS_ERRORS)
 
+# Compile commands
+add_library(scrap_compile STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/compile/CompilePlanner.cpp
+)
+target_include_directories(scrap_compile PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+# The compile headers name project types.
+target_link_libraries(scrap_compile PUBLIC scrap_project)
+scrap_apply_compile_settings(scrap_compile WARNINGS_AS_ERRORS)
+
 # Command architecture, with the version banner it prints
 add_library(scrap_command STATIC
     ${SCRAP_VERSION_SOURCE}
