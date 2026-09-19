@@ -243,6 +243,7 @@ ctest --test-dir build/debug --output-on-failure --no-tests=error --verbose
 ./build/debug/test/scrap_gtest_cli11
 ./build/debug/test/scrap_gtest_project
 ./build/debug/test/scrap_gtest_compile
+./build/debug/test/scrap_gtest_build
 ./build/debug/test/scrap_e2e
 
 # Release build testing
@@ -256,6 +257,7 @@ cmake --build build/release --target test
 - `test/unit/process/` - Unit tests for running other programs
 - `test/unit/toolchain/` - Unit tests for toolchain detection
 - `test/unit/compile/` - Unit tests for the compile and link commands, the compiler drivers and the compilation database
+- `test/unit/build/` - Unit tests for running the steps of a build
 - `test/support/` - Helpers shared by the tests of more than one module
 - `test/e2e/` - End-to-end tests that spawn the built `scrap` binary as a subprocess
 - `test/cmake/` - Tests of the CMake modules, run in script mode

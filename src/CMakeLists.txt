@@ -72,6 +72,17 @@ target_include_directories(scrap_compile PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(scrap_compile PUBLIC scrap_project scrap_toolchain)
 scrap_apply_compile_settings(scrap_compile WARNINGS_AS_ERRORS)
 
+# Running the steps of a build
+add_library(scrap_build STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/build/BuildReporter.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/build/SerialBuild.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/build/StepRunner.cpp
+)
+target_include_directories(scrap_build PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+# The build headers name compile types; running a program stays inside.
+target_link_libraries(scrap_build PUBLIC scrap_compile PRIVATE scrap_process)
+scrap_apply_compile_settings(scrap_build WARNINGS_AS_ERRORS)
+
 # Command architecture, with the version banner it prints
 add_library(scrap_command STATIC
     ${SCRAP_VERSION_SOURCE}

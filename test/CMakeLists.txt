@@ -90,6 +90,21 @@ scrap_apply_compile_settings(scrap_gtest_compile)
 
 gtest_discover_tests(scrap_gtest_compile)
 
+# --- Build step tests ---
+add_executable(scrap_gtest_build
+    unit/build/ProgramStepRunnerTest.cpp
+    unit/build/SerialBuildTest.cpp
+)
+
+target_link_libraries(scrap_gtest_build PRIVATE
+    scrap_build
+    scrap_test_support
+    GTest::gtest_main
+)
+scrap_apply_compile_settings(scrap_gtest_build)
+
+gtest_discover_tests(scrap_gtest_build)
+
 # --- CLI end-to-end tests (spawns the built scrap binary as a subprocess) ---
 add_executable(scrap_e2e
     e2e/CliE2ETest.cpp
