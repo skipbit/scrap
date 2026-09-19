@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "command/ProjectDiagnostic.h"
+#include "compile/CompilationDatabase.h"
 #include "project/ManifestError.h"
 #include "project/ProjectLoader.h"
 #include "project/SourceCollector.h"
@@ -9,11 +10,14 @@
 #include <optional>
 #include <system_error>
 
+using scrap::Command::renderCompilationDatabaseFailure;
 using scrap::Command::renderNoCompilerFound;
 using scrap::Command::renderNoTargetToBuild;
 using scrap::Command::renderProjectError;
 using scrap::Command::renderSourceScanFailure;
 using scrap::Command::renderUnusableCompilerRequest;
+using scrap::Compile::DatabaseWriteFailure;
+using scrap::Compile::DatabaseWriteStep;
 using scrap::Project::ManifestError;
 using scrap::Project::ManifestErrorKind;
 using scrap::Project::NotADirectory;
@@ -126,6 +130,79 @@ TEST(ProjectDiagnosticTest, EscapesAControlCharacterInASourceDirectory)
     EXPECT_EQ(renderSourceScanFailure(failure),
               "error: cannot read '/home/me/hello/src/a\\x1B[31m': Permission denied\n"
               "hint: check the permissions of the path\n");
+}
+
+/**
+ * A build directory that cannot be created is named with the system's reason.
+ * The reason is the platform's wording, so it is read back from the code.
+ */
+TEST(ProjectDiagnosticTest, RendersABuildDirectoryThatCannotBeCreated)
+{
+    const auto code = std::make_error_code(std::errc::permission_denied);
+    const DatabaseWriteFailure failure{
+        .step = DatabaseWriteStep::CreateDirectory, .path = "/home/me/hello/build/debug", .code = code};
+
+    EXPECT_EQ(renderCompilationDatabaseFailure(failure),
+              "error: cannot create '/home/me/hello/build/debug': " + code.message() +
+                  "\n"
+                  "hint: check the permissions of the path\n");
+}
+
+/**
+ * A database that cannot be written is named with the system's reason, and a
+ * full disk points at freeing space.
+ */
+TEST(ProjectDiagnosticTest, RendersADatabaseThatCannotBeWritten)
+{
+    const auto code = std::make_error_code(std::errc::no_space_on_device);
+    const DatabaseWriteFailure failure{
+        .step = DatabaseWriteStep::WriteFile, .path = "/home/me/hello/build/debug/compile_commands.json", .code = code};
+
+    EXPECT_EQ(renderCompilationDatabaseFailure(failure),
+              "error: cannot write '/home/me/hello/build/debug/compile_commands.json': " + code.message() +
+                  "\n"
+                  "hint: free some disk space and run the command again\n");
+}
+
+/**
+ * The hint follows what the system reported: something already in the way,
+ * a used-up quota, and anything else, a read-only file system among them.
+ */
+TEST(ProjectDiagnosticTest, ChoosesTheHintForABuildOutputByTheReason)
+{
+    const auto hintFor = [](const std::error_code& code) {
+        const std::string text = renderCompilationDatabaseFailure(
+            DatabaseWriteFailure{.step = DatabaseWriteStep::CreateDirectory, .path = "/p/build/debug", .code = code});
+        return text.substr(text.find("\nhint: ") + 1);
+    };
+
+    EXPECT_EQ(hintFor(std::make_error_code(std::errc::not_a_directory)), "hint: check what is already at that path\n");
+    EXPECT_EQ(hintFor(std::make_error_code(std::errc::file_exists)), "hint: check what is already at that path\n");
+    EXPECT_EQ(hintFor(std::make_error_code(std::errc::is_a_directory)), "hint: check what is already at that path\n");
+    EXPECT_EQ(hintFor(std::make_error_code(std::errc::operation_not_permitted)),
+              "hint: check the permissions of the path\n");
+    EXPECT_EQ(hintFor(std::make_error_code(std::errc::read_only_file_system)),
+              "hint: check that the project directory can be written\n");
+#ifdef EDQUOT
+    EXPECT_EQ(hintFor(std::error_code(EDQUOT, std::generic_category())),
+              "hint: free some disk space and run the command again\n");
+#endif
+}
+
+/**
+ * The path is one the user's project lives at, so it reaches the terminal as
+ * text.
+ */
+TEST(ProjectDiagnosticTest, EscapesAControlCharacterInABuildOutputPath)
+{
+    const auto code = std::make_error_code(std::errc::permission_denied);
+    const DatabaseWriteFailure failure{
+        .step = DatabaseWriteStep::CreateDirectory, .path = "/home/me/a\x1b[31m/build/debug", .code = code};
+
+    EXPECT_EQ(renderCompilationDatabaseFailure(failure),
+              "error: cannot create '/home/me/a\\x1B[31m/build/debug': " + code.message() +
+                  "\n"
+                  "hint: check the permissions of the path\n");
 }
 
 /**

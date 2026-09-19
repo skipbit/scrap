@@ -73,11 +73,13 @@ gtest_discover_tests(scrap_gtest_project)
 
 # --- Compile command tests ---
 add_executable(scrap_gtest_compile
+    unit/compile/CompilationDatabaseTest.cpp
     unit/compile/CompilePlannerTest.cpp
 )
 
 target_link_libraries(scrap_gtest_compile PRIVATE
     scrap_compile
+    scrap_test_support
     GTest::gtest_main
 )
 scrap_apply_compile_settings(scrap_gtest_compile)

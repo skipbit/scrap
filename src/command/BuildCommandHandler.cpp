@@ -3,6 +3,8 @@
 #include "command/InvocationContext.h"
 #include "command/ProjectDiagnostic.h"
 #include "command/RuntimeEnvironment.h"
+#include "compile/CompilationDatabase.h"
+#include "compile/CompilePlanner.h"
 #include "project/ProjectLoader.h"
 #include "project/SourceCollector.h"
 #include "project/TargetResolver.h"
@@ -89,6 +91,16 @@ auto BuildCommandHandler::execute(const InvocationContext& ctx) -> int
     }
     std::cout << "Using the system compiler '" << printablePath(compiler->path) << "' ("
               << describeOrigin(compiler->origin) << ")\n";
+
+    // Written for a project that builds nothing as well, so an editor stops
+    // reading the commands of targets the project no longer has.
+    const auto commands =
+        Compile::planCompileCommands(project->root, project->manifest.package, *sources, compiler->path);
+    const auto written = Compile::writeCompilationDatabase(project->root / Compile::DebugBuildDirectory, commands);
+    if (! written.has_value()) {
+        std::cerr << renderCompilationDatabaseFailure(written.error());
+        return 1;
+    }
 
     // Placeholder output until the build compiles the project.
     std::cout << "build: not yet implemented\n";

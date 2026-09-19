@@ -53,6 +53,7 @@ scrap_apply_compile_settings(scrap_toolchain WARNINGS_AS_ERRORS)
 
 # Compile commands
 add_library(scrap_compile STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/compile/CompilationDatabase.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/compile/CompilePlanner.cpp
 )
 target_include_directories(scrap_compile PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
@@ -86,9 +87,10 @@ add_library(scrap_command STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/command/driver/CLI11ParserAdapter.cpp
 )
 target_include_directories(scrap_command PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-# The command headers name project types; the toolchain and CLI11 stay inside.
+# The command headers name project and compile types; the toolchain and CLI11
+# stay inside.
 target_link_libraries(scrap_command
-    PUBLIC scrap_project
+    PUBLIC scrap_project scrap_compile
     PRIVATE scrap_toolchain CLI11::CLI11
 )
 add_dependencies(scrap_command scrap_version_source)
