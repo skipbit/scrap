@@ -28,13 +28,12 @@ auto createExecutable(const TempDirectory& temp, const std::string& relative) ->
 }
 
 /**
- * The path as the detection reports it, so a temp directory reached through a
- * symbolic link does not make an equal answer look different.
+ * The path as the detection reports it: absolute, with symbolic links kept.
  */
 auto asReported(const std::filesystem::path& path) -> std::filesystem::path
 {
     std::error_code ec;
-    std::filesystem::path absolute = std::filesystem::weakly_canonical(path, ec);
+    std::filesystem::path absolute = std::filesystem::absolute(path, ec);
     if (ec) {
         return path;
     }
@@ -106,6 +105,25 @@ TEST(SystemCompilerTest, UsesACompilerKnownByName)
     ASSERT_TRUE(detected.has_value());
     EXPECT_EQ(detected->path, asReported(known));
     EXPECT_EQ(detected->origin, CompilerOrigin::KnownName);
+}
+
+/**
+ * A compiler reached through a symbolic link is reported by the link, since
+ * clang++ or a ccache link acts on the name it is run by.
+ */
+TEST(SystemCompilerTest, KeepsTheNameOfASymbolicLink)
+{
+    const TempDirectory temp;
+    createExecutable(temp, "real/clang-22");
+    temp.makeDirectory("first");
+    const std::filesystem::path link = temp.path() / "first" / "clang++";
+    std::filesystem::create_symlink("../real/clang-22", link);
+
+    const auto detected = detectSystemCompiler("", {temp.path() / "first"});
+
+    ASSERT_TRUE(detected.has_value());
+    EXPECT_EQ(detected->path, asReported(link));
+    EXPECT_EQ(detected->path.filename(), "clang++");
 }
 
 /**
