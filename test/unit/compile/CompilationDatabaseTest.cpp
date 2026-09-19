@@ -18,7 +18,8 @@ namespace {
 
 CompileCommand commandFor(const char* source, const char* output)
 {
-    return CompileCommand{.directory = "/home/me/hello",
+    return CompileCommand{.target = "hello",
+                          .directory = "/home/me/hello",
                           .file = source,
                           .output = output,
                           .arguments = {"/usr/bin/c++", "-c", source, "-o", output}};
@@ -89,7 +90,8 @@ TEST(CompilationDatabaseTest, RendersCommandsInTheirOrder)
  */
 TEST(CompilationDatabaseTest, EscapesWhatJsonRequires)
 {
-    const CompileCommand command{.directory = "/home/me/\xe3\x81\x82 \"q\"",
+    const CompileCommand command{.target = "hello",
+                                 .directory = "/home/me/\xe3\x81\x82 \"q\"",
                                  .file = "src/back\\slash.cpp",
                                  .output = "o\nline\x01.o",
                                  .arguments = {}};

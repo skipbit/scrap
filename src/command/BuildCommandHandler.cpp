@@ -5,9 +5,11 @@
 #include "command/RuntimeEnvironment.h"
 #include "compile/CompilationDatabase.h"
 #include "compile/CompilePlanner.h"
+#include "compile/CompilerDriver.h"
 #include "project/ProjectLoader.h"
 #include "project/SourceCollector.h"
 #include "project/TargetResolver.h"
+#include "toolchain/CompilerIdentity.h"
 #include "toolchain/SystemCompiler.h"
 
 #include <filesystem>
@@ -94,10 +96,14 @@ auto BuildCommandHandler::execute(const InvocationContext& ctx) -> int
 
     // Written for a project that builds nothing as well, so an editor stops
     // reading the commands of targets the project no longer has.
-    const std::filesystem::path buildDirectory{Compile::DebugBuildDirectory};
-    const auto commands = Compile::planCompileCommands(
-        project->root, buildDirectory, project->manifest.package, *sources, compiler->path);
-    const auto written = Compile::writeCompilationDatabase(project->root / buildDirectory, commands);
+    const Compile::BuildSettings settings{
+        .projectRoot = project->root,
+        .buildDirectory = std::filesystem::path{Compile::DebugBuildDirectory},
+        .compiler = compiler->path,
+        .driver = Compile::CompilerDriver{Toolchain::identifyCompiler(compiler->path)},
+        .standard = project->manifest.package.standard};
+    const auto commands = Compile::planCompileCommands(settings, *sources);
+    const auto written = Compile::writeCompilationDatabase(project->root / settings.buildDirectory, commands);
     if (! written.has_value()) {
         std::cerr << renderCompilationDatabaseFailure(written.error());
         return 1;

@@ -867,7 +867,8 @@ TEST_F(CliE2ETest, BuildWritesTheCommandForEachSource)
                   "    \"file\": \"src/main.cpp\",\n"
                   "    \"arguments\": [\"" +
                   compiler +
-                  "\", \"-std=c++23\", \"-I\", \"include\", \"-c\", \"src/main.cpp\", \"-o\", "
+                  "\", \"-std=c++23\", \"-g\", \"-O0\", \"-Wall\", \"-Wextra\", \"-Wpedantic\", \"-I\", \"include\", "
+                  "\"-c\", \"src/main.cpp\", \"-o\", "
                   "\"build/debug/obj/app/src/main.cpp.o\"],\n"
                   "    \"output\": \"build/debug/obj/app/src/main.cpp.o\"\n"
                   "  },\n"
@@ -878,7 +879,8 @@ TEST_F(CliE2ETest, BuildWritesTheCommandForEachSource)
                   "    \"file\": \"src/util.cpp\",\n"
                   "    \"arguments\": [\"" +
                   compiler +
-                  "\", \"-std=c++23\", \"-I\", \"include\", \"-c\", \"src/util.cpp\", \"-o\", "
+                  "\", \"-std=c++23\", \"-g\", \"-O0\", \"-Wall\", \"-Wextra\", \"-Wpedantic\", \"-I\", \"include\", "
+                  "\"-c\", \"src/util.cpp\", \"-o\", "
                   "\"build/debug/obj/app/src/util.cpp.o\"],\n"
                   "    \"output\": \"build/debug/obj/app/src/util.cpp.o\"\n"
                   "  }\n"
