@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include "project/LanguageStandard.h"
 #include "project/Manifest.h"
 #include "project/ManifestError.h"
 #include "project/ManifestParser.h"
@@ -39,7 +40,7 @@ src = "src/main.cpp"
     ASSERT_TRUE(manifest.has_value());
     EXPECT_EQ(manifest->package.name, "my-app");
     EXPECT_EQ(manifest->package.version, "0.1.0");
-    EXPECT_EQ(manifest->package.standard, "20");
+    EXPECT_EQ(manifest->package.standard, LanguageStandard::Cxx20);
     ASSERT_EQ(manifest->targets.size(), 1);
     EXPECT_EQ(manifest->targets[0].kind, TargetKind::Executable);
     EXPECT_EQ(manifest->targets[0].name, "my-app");
@@ -60,7 +61,71 @@ version = "0.1.0"
     const auto manifest = parseManifest(text, ManifestName);
 
     ASSERT_TRUE(manifest.has_value());
-    EXPECT_EQ(manifest->package.standard, "23");
+    EXPECT_EQ(manifest->package.standard, LanguageStandard::Cxx23);
+}
+
+/**
+ * Each standard is written as its number.
+ */
+TEST(ManifestParserTest, ReadsEveryStandardByItsNumber)
+{
+    for (const LanguageStandard standard : supportedLanguageStandards()) {
+        std::string text = "[package]\nname = \"a\"\nversion = \"0.1.0\"\nstd = \"";
+        text += standardNumber(standard);
+        text += "\"\n";
+
+        const auto manifest = parseManifest(text, ManifestName);
+
+        ASSERT_TRUE(manifest.has_value()) << text;
+        EXPECT_EQ(manifest->package.standard, standard) << text;
+    }
+}
+
+/**
+ * A standard this version does not accept is reported at the value with the
+ * ones it does, so the compiler is never handed a spelling it would reject.
+ */
+TEST(ManifestParserTest, ReportsAStandardItDoesNotAccept)
+{
+    constexpr std::string_view text = "[package]\nname = \"a\"\nversion = \"0.1.0\"\nstd = \"gnu23\"\n";
+
+    const auto manifest = parseManifest(text, ManifestName);
+
+    ASSERT_FALSE(manifest.has_value());
+    EXPECT_EQ(describe(manifest.error()),
+              "scrap.toml:4:7: error: package.std: unsupported standard; "
+              "expected one of \"11\", \"14\", \"17\", \"20\", \"23\", \"26\"");
+}
+
+/**
+ * Only the number is read: a standard spelled as the compiler takes it, or a
+ * number no standard carries, is not guessed at.
+ */
+TEST(ManifestParserTest, ReadsOnlyTheNumberOfAStandard)
+{
+    for (const std::string_view value : {"c++23", "2b", "98", "24", " 23", "23 "}) {
+        std::string text = "[package]\nname = \"a\"\nversion = \"0.1.0\"\nstd = \"";
+        text += value;
+        text += "\"\n";
+
+        const auto manifest = parseManifest(text, ManifestName);
+
+        ASSERT_FALSE(manifest.has_value()) << value;
+        EXPECT_EQ(manifest.error().key, "package.std") << value;
+    }
+}
+
+/**
+ * The standard is written as a string, as the other package fields are.
+ */
+TEST(ManifestParserTest, ReportsAStandardWrittenAsANumber)
+{
+    constexpr std::string_view text = "[package]\nname = \"a\"\nversion = \"0.1.0\"\nstd = 23\n";
+
+    const auto manifest = parseManifest(text, ManifestName);
+
+    ASSERT_FALSE(manifest.has_value());
+    EXPECT_EQ(describe(manifest.error()), "scrap.toml:4:7: error: package.std: must be a string");
 }
 
 /**

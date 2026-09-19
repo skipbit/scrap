@@ -1,5 +1,6 @@
 #include "project/ManifestParser.h"
 
+#include "project/LanguageStandard.h"
 #include "project/Manifest.h"
 #include "project/ManifestError.h"
 
@@ -26,7 +27,7 @@ namespace scrap::Project {
 namespace {
 
 /// Language standard assumed when [package] does not state one.
-constexpr std::string_view DefaultStandard = "23";
+constexpr LanguageStandard DefaultStandard = LanguageStandard::Cxx23;
 
 /// Top-level keys this version recognises.
 constexpr std::array<std::string_view, 6> KnownTopLevelKeys{"package",
@@ -143,19 +144,37 @@ auto requireString(const std::filesystem::path& file,
 }
 
 /**
- * Read a string key that may be absent, falling back to @p fallback.
+ * Read package.std, falling back to the default standard when it is absent.
+ *
+ * A value naming no standard this version accepts, "gnu23" among them, is
+ * reported here: handed to the compiler, it would be rejected without saying
+ * what to write instead.
  */
-auto optionalString(const std::filesystem::path& file,
-                    const toml::table& table,
-                    std::string_view tableName,
-                    std::string_view key,
-                    std::string_view fallback) -> std::expected<StringField, ManifestError>
+auto parseStandard(const std::filesystem::path& file,
+                   const toml::table& package) -> std::expected<LanguageStandard, ManifestError>
 {
-    const toml::node* node = table.get(key);
+    const toml::node* node = package.get("std");
     if (node == nullptr) {
-        return StringField{.value = std::string{fallback}, .node = nullptr};
+        return DefaultStandard;
     }
-    return readString(file, *node, dotted(tableName, key));
+    auto field = readString(file, *node, "package.std");
+    if (! field.has_value()) {
+        return std::unexpected(field.error());
+    }
+    if (const auto standard = parseLanguageStandard(field->value); standard.has_value()) {
+        return *standard;
+    }
+
+    std::string message = "unsupported standard; expected one of";
+    std::string_view separator = " ";
+    for (const LanguageStandard candidate : supportedLanguageStandards()) {
+        message += separator;
+        message += '"';
+        message += standardNumber(candidate);
+        message += '"';
+        separator = ", ";
+    }
+    return std::unexpected(errorAt(file, *node, "package.std", std::move(message)));
 }
 
 /**
@@ -282,13 +301,12 @@ auto parsePackage(const std::filesystem::path& file, const toml::table& root) ->
     if (! version.has_value()) {
         return std::unexpected(version.error());
     }
-    auto standard = optionalString(file, *table, "package", "std", DefaultStandard);
+    auto standard = parseStandard(file, *table);
     if (! standard.has_value()) {
         return std::unexpected(standard.error());
     }
 
-    return Package{
-        .name = std::move(name->value), .version = std::move(version->value), .standard = std::move(standard->value)};
+    return Package{.name = std::move(name->value), .version = std::move(version->value), .standard = *standard};
 }
 
 /**

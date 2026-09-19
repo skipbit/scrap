@@ -1,6 +1,7 @@
 #include "compile/CompilePlanner.h"
 
 #include "compile/CompileCommand.h"
+#include "project/LanguageStandard.h"
 #include "project/Manifest.h"
 #include "project/SourceCollector.h"
 
@@ -41,8 +42,10 @@ auto planCompileCommands(const std::filesystem::path& projectRoot,
                          const std::filesystem::path& compiler) -> std::vector<CompileCommand>
 {
     const std::filesystem::path objectRoot = buildDirectory / ObjectDirectory;
-    const std::vector<std::string> shared{
-        compiler.string(), "-std=c++" + package.standard, "-I", std::string{HeaderDirectory}};
+    const std::vector<std::string> shared{compiler.string(),
+                                          "-std=c++" + std::string{Project::standardNumber(package.standard)},
+                                          "-I",
+                                          std::string{HeaderDirectory}};
 
     std::vector<CompileCommand> commands;
     for (const Project::TargetSources& entry : targets) {

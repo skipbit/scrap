@@ -1,5 +1,7 @@
 #pragma once
 
+#include "project/LanguageStandard.h"
+
 #include <cstdint>
 #include <filesystem>
 #include <string>
@@ -33,7 +35,7 @@ struct Target {
 struct Package {
     std::string name;
     std::string version;
-    std::string standard;  ///< C++ language standard, e.g. "23".
+    LanguageStandard standard = LanguageStandard::Cxx23;
 };
 
 /**

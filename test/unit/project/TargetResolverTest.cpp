@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include "project/LanguageStandard.h"
 #include "project/Manifest.h"
 #include "project/TargetResolver.h"
 
@@ -18,7 +19,7 @@ Manifest manifestNamed(const char* name)
     Manifest manifest;
     manifest.package.name = name;
     manifest.package.version = "0.1.0";
-    manifest.package.standard = "23";
+    manifest.package.standard = LanguageStandard::Cxx23;
     return manifest;
 }
 

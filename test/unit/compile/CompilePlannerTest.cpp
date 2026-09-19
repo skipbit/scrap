@@ -2,6 +2,7 @@
 
 #include "compile/CompileCommand.h"
 #include "compile/CompilePlanner.h"
+#include "project/LanguageStandard.h"
 #include "project/Manifest.h"
 #include "project/SourceCollector.h"
 
@@ -11,6 +12,7 @@
 #include <vector>
 
 using namespace scrap::Compile;
+using scrap::Project::LanguageStandard;
 using scrap::Project::Package;
 using scrap::Project::Target;
 using scrap::Project::TargetKind;
@@ -22,7 +24,7 @@ const std::filesystem::path ProjectRoot = "/home/me/hello";
 const std::filesystem::path BuildDirectory = "build/debug";
 const std::filesystem::path Compiler = "/usr/bin/c++";
 
-Package packageWithStandard(const char* standard)
+Package packageWithStandard(LanguageStandard standard)
 {
     return Package{.name = "hello", .version = "0.1.0", .standard = standard};
 }
@@ -54,7 +56,7 @@ TEST(CompilePlannerTest, CompilesASourceFromTheProjectRoot)
 {
     const auto commands = planCompileCommands(ProjectRoot,
                                               BuildDirectory,
-                                              packageWithStandard("23"),
+                                              packageWithStandard(LanguageStandard::Cxx23),
                                               {executableWithSources("hello", "src/main.cpp", {"src/main.cpp"})},
                                               Compiler);
 
@@ -80,7 +82,7 @@ TEST(CompilePlannerTest, TakesTheStandardFromTheManifest)
 {
     const auto commands = planCompileCommands(ProjectRoot,
                                               BuildDirectory,
-                                              packageWithStandard("20"),
+                                              packageWithStandard(LanguageStandard::Cxx20),
                                               {executableWithSources("hello", "src/main.cpp", {"src/main.cpp"})},
                                               Compiler);
 
@@ -98,7 +100,7 @@ TEST(CompilePlannerTest, CompilesASharedSourceOnceForEachTarget)
     const auto commands =
         planCompileCommands(ProjectRoot,
                             BuildDirectory,
-                            packageWithStandard("23"),
+                            packageWithStandard(LanguageStandard::Cxx23),
                             {executableWithSources("app", "src/main.cpp", {"src/main.cpp", "src/shared.cpp"}),
                              executableWithSources("tool", "src/tool.cpp", {"src/shared.cpp", "src/tool.cpp"})},
                             Compiler);
@@ -119,7 +121,7 @@ TEST(CompilePlannerTest, KeepsSourcesThatShareAStemApart)
     const auto commands = planCompileCommands(
         ProjectRoot,
         BuildDirectory,
-        packageWithStandard("23"),
+        packageWithStandard(LanguageStandard::Cxx23),
         {executableWithSources("hello", "src/main.cpp", {"src/a/x.cpp", "src/b/x.cpp", "src/main.cpp", "src/x.cc"})},
         Compiler);
 
@@ -138,7 +140,7 @@ TEST(CompilePlannerTest, CompilesAnEntryPointOutsideTheSourceDirectory)
 {
     const auto commands = planCompileCommands(ProjectRoot,
                                               BuildDirectory,
-                                              packageWithStandard("23"),
+                                              packageWithStandard(LanguageStandard::Cxx23),
                                               {executableWithSources("gen", "tools/gen.cpp", {"tools/gen.cpp"})},
                                               Compiler);
 
@@ -152,7 +154,9 @@ TEST(CompilePlannerTest, CompilesAnEntryPointOutsideTheSourceDirectory)
  */
 TEST(CompilePlannerTest, PlansNothingWithoutATarget)
 {
-    EXPECT_TRUE(planCompileCommands(ProjectRoot, BuildDirectory, packageWithStandard("23"), {}, Compiler).empty());
+    EXPECT_TRUE(
+        planCompileCommands(ProjectRoot, BuildDirectory, packageWithStandard(LanguageStandard::Cxx23), {}, Compiler)
+            .empty());
 }
 
 /**
@@ -163,7 +167,7 @@ TEST(CompilePlannerTest, PlacesObjectFilesInTheBuildDirectoryGiven)
 {
     const auto commands = planCompileCommands(ProjectRoot,
                                               "build/release",
-                                              packageWithStandard("23"),
+                                              packageWithStandard(LanguageStandard::Cxx23),
                                               {executableWithSources("hello", "src/main.cpp", {"src/main.cpp"})},
                                               Compiler);
 
@@ -180,7 +184,7 @@ TEST(CompilePlannerTest, PassesASourceThatLooksLikeAnOptionAsAFile)
 {
     const auto commands = planCompileCommands(ProjectRoot,
                                               BuildDirectory,
-                                              packageWithStandard("23"),
+                                              packageWithStandard(LanguageStandard::Cxx23),
                                               {executableWithSources("x", "-fplugin=evil.so", {"-fplugin=evil.so"})},
                                               Compiler);
 
