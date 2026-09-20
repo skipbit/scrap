@@ -251,6 +251,23 @@ TEST(CompilePlannerTest, PassesASourceThatLooksLikeAnOptionAsAFile)
 }
 
 /**
+ * A declared entry point that starts with '@' reaches the compiler as a
+ * file, never as the file of options that an argument starting with '@'
+ * otherwise names.
+ */
+TEST(CompilePlannerTest, PassesASourceThatLooksLikeAFileOfOptionsAsAFile)
+{
+    const auto commands =
+        planCompileCommands(settingsFor(Gcc13), {executableWithSources("x", "@options.cpp", {"@options.cpp"})});
+
+    ASSERT_EQ(commands.size(), 1);
+    EXPECT_EQ(commands[0].file, "./@options.cpp");
+    EXPECT_EQ(commands[0].output, "build/debug/obj/x/@options.cpp.o");
+    ASSERT_GE(commands[0].arguments.size(), 4);
+    EXPECT_EQ(commands[0].arguments[commands[0].arguments.size() - 3], "./@options.cpp");
+}
+
+/**
  * An executable is linked in the project root from the object files its
  * sources compile to, in the same order, into bin/ below the build directory.
  */

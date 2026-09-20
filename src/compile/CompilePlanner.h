@@ -41,8 +41,9 @@ struct BuildSettings {
  * builds for debugging with the common warnings on, keeps colour in the
  * compiler's diagnostics where the driver knows how, and searches include/
  * for headers; the compiler passes over that directory when a project has
- * none. A source whose path starts with '-' is written as ./<path>, so the
- * compiler reads it as a file rather than as an option.
+ * none. A source whose path starts with '-' or '@' is written as ./<path>,
+ * so the compiler reads it as a file rather than as an option or as a file
+ * of options.
  *
  * @param settings What the commands of the build share.
  * @param targets Each target with its sources, as collectSources() returned them.

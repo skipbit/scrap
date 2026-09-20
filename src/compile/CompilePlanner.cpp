@@ -33,11 +33,13 @@ constexpr std::array<std::string_view, 5> DebugOptions{"-g", "-O0", "-Wall", "-W
 
 /**
  * @p path as it goes on the command line: a relative path that starts with
- * '-' gains a leading ./, so the compiler reads it as a file.
+ * '-' or '@' gains a leading ./, so the compiler reads it as a file. An
+ * argument starting with '@' names a file of options the compiler reads
+ * before anything else, which would let a source name decide the command.
  */
 auto asArgument(const std::filesystem::path& path) -> std::filesystem::path
 {
-    if (path.is_relative() && path.native().starts_with('-')) {
+    if (path.is_relative() && (path.native().starts_with('-') || path.native().starts_with('@'))) {
         return std::filesystem::path{"."} / path;
     }
     return path;
