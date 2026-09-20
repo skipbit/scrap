@@ -121,8 +121,19 @@ auto appendEscaped(const unsigned byte, std::string& text) -> void
     text += HexDigits[byte & 0x0FU];
 }
 
-/// The longest rejected name echoed back, counted before any escape expands it.
+/// The longest value echoed back, counted before any escape expands it.
 constexpr std::size_t EchoedNameLimit = Project::MaxProjectNameLength;
+
+/**
+ * A value the user gave, made safe to print and cut where it is longer than
+ * a name can be.
+ *
+ * Every value long enough to be cut is already too long to be the name it
+ * was given as, so the cut costs the reader nothing and keeps one screen
+ * enough for the message. A target name is not cut: it names something the
+ * manifest declares, and a message has to name it as the manifest does.
+ */
+auto printableEcho(std::string_view text) -> std::string;
 
 /**
  * The length of the well-formed UTF-8 sequence starting at @p index, or 0 when
@@ -157,7 +168,7 @@ auto render(const Project::InvalidProjectName& error) -> std::string
         text = "error: the project name is empty\n";
     } else {
         text = "error: '";
-        text += printableName(error.name);
+        text += printableEcho(error.name);
         text += "' is not a valid project name\n";
     }
     text += projectNameHint();
@@ -332,9 +343,8 @@ auto printablePath(const std::filesystem::path& path) -> std::string
 
 auto printableName(const std::string_view name) -> std::string
 {
-    const bool cut = name.size() > EchoedNameLimit;
     std::string result;
-    for (const char ch : name.substr(0, EchoedNameLimit)) {
+    for (const char ch : name) {
         const unsigned byte = static_cast<unsigned char>(ch);
         if (byte >= 0x20U && byte < 0x7FU && ch != '\\') {
             result += ch;
@@ -342,11 +352,20 @@ auto printableName(const std::string_view name) -> std::string
             appendEscaped(byte, result);
         }
     }
-    if (cut) {
-        result += "...";
-    }
     return result;
 }
+
+namespace {
+
+auto printableEcho(const std::string_view text) -> std::string
+{
+    if (text.size() <= EchoedNameLimit) {
+        return printableName(text);
+    }
+    return printableName(text.substr(0, EchoedNameLimit)) + "...";
+}
+
+}  // anonymous namespace
 
 auto renderEmptyPathArgument() -> std::string
 {
@@ -362,13 +381,13 @@ auto renderNoCompilerFound() -> std::string
 }
 
 /**
- * The value is echoed through printableName(), since the environment can hold any
+ * The value is echoed through printableEcho(), since the environment can hold any
  * byte and the answer is read in a terminal.
  */
 auto renderUnusableCompilerRequest(const std::string_view requested) -> std::string
 {
     std::string text = "error: CXX names '";
-    text += printableName(requested);
+    text += printableEcho(requested);
     text += "', which cannot be run\n";
     text += "hint: set CXX to the path of a compiler, or unset it to search for one\n";
     return text;

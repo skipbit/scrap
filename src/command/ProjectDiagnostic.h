@@ -127,8 +127,9 @@ namespace scrap::Command {
  *
  * A name the user wrote can hold any byte, so printable ASCII stays as it is
  * and every other byte becomes \xNN: control characters and escape sequences
- * reach the terminal as text rather than as instructions. A name too long to
- * be one is cut, which keeps one screen enough for the message.
+ * reach the terminal as text rather than as instructions. The name is kept
+ * whole, since a message naming a target has to name it as the manifest
+ * does.
  *
  * @param name Name to render.
  * @return The name as text for a terminal.

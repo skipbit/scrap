@@ -11,6 +11,7 @@
 
 #include <cerrno>
 #include <optional>
+#include <string>
 #include <system_error>
 
 using scrap::Build::BuildStep;
@@ -715,10 +716,12 @@ TEST(ProjectDiagnosticTest, RendersALibraryItDoesNotBuild)
 
 /**
  * A name reaches the terminal as text: printable ASCII stays and every other
- * byte is escaped.
+ * byte is escaped. A name is kept whole, since a message naming a target has
+ * to name it as the manifest does.
  */
 TEST(ProjectDiagnosticTest, EscapesWhatANameCannotPrint)
 {
     EXPECT_EQ(printableName("core"), "core");
     EXPECT_EQ(printableName(std::string_view{"a\x1b[31m\x7f\\b"}), "a\\x1B[31m\\x7F\\x5Cb");
+    EXPECT_EQ(printableName(std::string(100, 'n')), std::string(100, 'n'));
 }
