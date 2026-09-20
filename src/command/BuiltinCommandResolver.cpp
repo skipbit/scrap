@@ -86,7 +86,7 @@ public:
             }
         }
 
-        std::cerr << "Unknown command: " << printableName(target) << "\n";
+        std::cerr << "Unknown command: " << printableText(target) << "\n";
         return 1;
     }
 

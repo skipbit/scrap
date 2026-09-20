@@ -122,7 +122,7 @@ auto Application::handleHelp(const CommandCatalog& catalog, const std::optional<
             return 0;
         }
     }
-    std::cerr << "Unknown command: " << *target << "\n";
+    std::cerr << "Unknown command: " << printableText(*target) << "\n";
     std::cerr << "Run 'scrap --help' for usage information.\n";
     return 1;
 }
@@ -131,11 +131,11 @@ auto Application::handleHelp(const CommandCatalog& catalog, const std::optional<
  * Handle a ParseFailure (error message + help suggestion).
  *
  * The parser writes what the user typed into its message, so the message
- * reaches the terminal as text.
+ * reaches the terminal as text rather than as instructions.
  */
 auto Application::handleFailure(const ParseFailure& failure) -> int
 {
-    std::cerr << printableName(failure.message) << "\n";
+    std::cerr << printableText(failure.message) << "\n";
     std::cerr << "Run 'scrap --help' for usage information.\n";
     return 1;
 }

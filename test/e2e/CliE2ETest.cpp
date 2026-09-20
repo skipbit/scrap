@@ -556,15 +556,19 @@ TEST_F(CliE2ETest, HelpForAnUnknownCommandFails)
 
 /**
  * The name reported back is written as text: an escape sequence in it reaches
- * the terminal as \xNN rather than as an instruction to act on.
+ * the terminal as \xNN rather than as an instruction to act on, while letters
+ * stay as the user typed them.
  */
 TEST_F(CliE2ETest, HelpForAnUnknownCommandWritesTheNameAsText)
 {
-    auto result = runScrap({"help", "x\x1b]0;pwn\x07"}, {}, root_);
+    // The name holds U+65E5 and an escape sequence that names a terminal.
+    auto result = runScrap({"help", "\xe6\x97\xa5x\x1b]0;pwn\x07"}, {}, root_);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 1);
-    EXPECT_NE(result.stderrText.find("Unknown command: x\\x1B]0;pwn\\x07"), std::string::npos) << result.stderrText;
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    EXPECT_NE(result.stderrText.find("Unknown command: \xe6\x97\xa5x\\x1B]0;pwn\\x07"), std::string::npos)
+        << result.stderrText;
     EXPECT_EQ(result.stderrText.find('\x1b'), std::string::npos);
     EXPECT_EQ(result.stderrText.find('\x07'), std::string::npos);
 }
@@ -586,11 +590,13 @@ TEST_F(CliE2ETest, UnknownCommand)
  */
 TEST_F(CliE2ETest, AnUnexpectedArgumentIsWrittenAsText)
 {
-    auto result = runScrap({"new", "hello", "x\x1b]0;pwn\x07"}, {}, root_);
+    // The argument holds U+65E5 and an escape sequence that names a terminal.
+    auto result = runScrap({"new", "hello", "\xe6\x97\xa5x\x1b]0;pwn\x07"}, {}, root_);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 1);
-    EXPECT_NE(result.stderrText.find("x\\x1B]0;pwn\\x07"), std::string::npos) << result.stderrText;
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    EXPECT_NE(result.stderrText.find("\xe6\x97\xa5x\\x1B]0;pwn\\x07"), std::string::npos) << result.stderrText;
     EXPECT_EQ(result.stderrText.find('\x1b'), std::string::npos);
     EXPECT_EQ(result.stderrText.find('\x07'), std::string::npos);
     EXPECT_FALSE(std::filesystem::exists(root_ / "hello"));
