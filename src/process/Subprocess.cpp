@@ -71,9 +71,11 @@ private:
     int descriptor_;
 };
 
+#if defined(__APPLE__)
 /**
  * Mark @p descriptor to close when a program is started, so only the copies
- * set up for the child reach it.
+ * set up for the child reach it. Only Darwin needs this: it has no call that
+ * creates a pipe already marked.
  */
 auto closeOnExec(int descriptor) -> bool
 {
@@ -84,6 +86,7 @@ auto closeOnExec(int descriptor) -> bool
     }
     return ::fcntl(descriptor, F_SETFD, flags | FD_CLOEXEC) == 0;  // NOLINT(hicpp-signed-bitwise) - POSIX flag API
 }
+#endif
 
 /**
  * Describe to posix_spawn where the child's streams and working directory
@@ -117,8 +120,12 @@ auto recordActions(posix_spawn_file_actions_t& actions,
 
 /**
  * Read @p descriptor until the other end is closed.
+ *
+ * @return An empty code once everything written has been read, or why the
+ *         read stopped: what came back until then is part of what the
+ *         program wrote, not all of it.
  */
-void readAll(int descriptor, std::string& output)
+auto readAll(int descriptor, std::string& output) -> std::error_code
 {
     std::array<char, ReadChunkBytes> buffer{};
     while (true) {
@@ -127,11 +134,40 @@ void readAll(int descriptor, std::string& output)
             output.append(buffer.data(), static_cast<std::size_t>(count));
             continue;
         }
-        if (count < 0 && errno == EINTR) {
+        if (count == 0) {
+            return {};
+        }
+        if (errno == EINTR) {
             continue;
         }
-        return;
+        return lastError();
     }
+}
+
+/**
+ * Create a pipe both of whose ends close when a program is started.
+ *
+ * Where the system creates it in one step, nothing between the two can
+ * inherit an end: a program started from elsewhere at that moment would
+ * otherwise hold the write end open, and the read below would wait for it
+ * rather than for the child.
+ */
+auto openPipe(std::array<int, 2>& ends) -> std::error_code
+{
+#if defined(__APPLE__)
+    if (::pipe(ends.data()) != 0) {
+        return lastError();
+    }
+    if (! closeOnExec(ends[0]) || ! closeOnExec(ends[1])) {
+        return lastError();
+    }
+    return {};
+#else
+    if (::pipe2(ends.data(), O_CLOEXEC) != 0) {
+        return lastError();
+    }
+    return {};
+#endif
 }
 
 /**
@@ -206,14 +242,11 @@ auto runProgram(const std::vector<std::string>& arguments,
     }
 
     std::array<int, 2> pipeEnds{-1, -1};
-    if (::pipe(pipeEnds.data()) != 0) {
-        return std::unexpected(lastError());
+    if (const std::error_code failed = openPipe(pipeEnds)) {
+        return std::unexpected(failed);
     }
     OwnedDescriptor readEnd{pipeEnds[0]};
     OwnedDescriptor writeEnd{pipeEnds[1]};
-    if (! closeOnExec(readEnd.get()) || ! closeOnExec(writeEnd.get())) {
-        return std::unexpected(lastError());
-    }
 
     const auto child = startProgram(arguments, writeEnd.get(), capture, workingDirectory);
     // The parent's copy is closed so the read below ends once the child and
@@ -224,9 +257,17 @@ auto runProgram(const std::vector<std::string>& arguments,
     }
 
     Completion completion;
-    readAll(readEnd.get(), completion.output);
+    const std::error_code read = readAll(readEnd.get(), completion.output);
     readEnd.close();
-    if (auto waited = waitFor(*child, completion); ! waited.has_value()) {
+
+    // The child is waited for whichever way the read ended, so no program is
+    // left behind, and a read that stopped early is reported rather than
+    // passed off as everything the program wrote.
+    const auto waited = waitFor(*child, completion);
+    if (read) {
+        return std::unexpected(read);
+    }
+    if (! waited.has_value()) {
         return std::unexpected(waited.error());
     }
     return completion;
