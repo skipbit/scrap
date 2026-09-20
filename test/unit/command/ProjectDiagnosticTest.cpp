@@ -19,7 +19,6 @@ using scrap::Build::FailedStep;
 using scrap::Build::StepFailure;
 using scrap::Build::StepFailureKind;
 using scrap::Build::StepKind;
-using scrap::Command::printableName;
 using scrap::Command::renderCompilationDatabaseFailure;
 using scrap::Command::renderLibraryNotBuilt;
 using scrap::Command::renderNoCompilerFound;
@@ -379,15 +378,6 @@ TEST(ProjectDiagnosticTest, EscapesALoneByteInTheC1Range)
 }
 
 /**
- * A byte that starts no well-formed sequence is escaped as well.
- */
-TEST(ProjectDiagnosticTest, EscapesBytesThatFormNoUtf8Sequence)
-{
-    EXPECT_EQ(scrap::Command::printablePath("/home/me/\xe4\xbd/hello"), "/home/me/\\xE4\\xBD/hello");
-    EXPECT_EQ(scrap::Command::printablePath("/home/me/\xff/hello"), "/home/me/\\xFF/hello");
-}
-
-/**
  * A name longer than a project name may be is cut where it stops mattering.
  */
 TEST(ProjectDiagnosticTest, CutsALongNameInTheMessage)
@@ -712,16 +702,4 @@ TEST(ProjectDiagnosticTest, RendersALibraryItDoesNotBuild)
     EXPECT_EQ(renderLibraryNotBuilt("core"),
               "error: building the library 'core' is not supported yet\n"
               "hint: remove the [[lib]] section from scrap.toml to build its sources into the executable\n");
-}
-
-/**
- * A name reaches the terminal as text: printable ASCII stays and every other
- * byte is escaped. A name is kept whole, since a message naming a target has
- * to name it as the manifest does.
- */
-TEST(ProjectDiagnosticTest, EscapesWhatANameCannotPrint)
-{
-    EXPECT_EQ(printableName("core"), "core");
-    EXPECT_EQ(printableName(std::string_view{"a\x1b[31m\x7f\\b"}), "a\\x1B[31m\\x7F\\x5Cb");
-    EXPECT_EQ(printableName(std::string(100, 'n')), std::string(100, 'n'));
 }

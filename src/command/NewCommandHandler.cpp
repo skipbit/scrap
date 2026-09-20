@@ -1,6 +1,7 @@
 #include "command/NewCommandHandler.h"
 
 #include "command/InvocationContext.h"
+#include "command/PrintableText.h"
 #include "command/ProjectDiagnostic.h"
 #include "command/RuntimeEnvironment.h"
 #include "project/DefaultTemplate.h"

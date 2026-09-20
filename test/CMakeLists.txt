@@ -20,6 +20,7 @@ add_executable(scrap_gtest
     unit/command/BuiltinCommandResolverTest.cpp
     unit/command/ExternalCommandResolverTest.cpp
     unit/command/MetadataProtocolProviderTest.cpp
+    unit/command/PrintableTextTest.cpp
     unit/command/ProjectCommandResolverTest.cpp
     unit/command/ProjectDiagnosticTest.cpp
     unit/command/RuntimeEnvironmentFactoryTest.cpp

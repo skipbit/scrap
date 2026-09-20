@@ -1,7 +1,7 @@
 #include "command/BuildProgress.h"
 
 #include "build/BuildStep.h"
-#include "command/ProjectDiagnostic.h"
+#include "command/PrintableText.h"
 
 #include <algorithm>
 #include <cstddef>
