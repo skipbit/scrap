@@ -3,6 +3,7 @@
 #include "build/BuildStep.h"
 #include "command/ProjectDiagnostic.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <ostream>
 #include <string>
@@ -16,8 +17,34 @@ namespace {
 /// Width the word for what is being done is written in, so the lines line up.
 constexpr std::size_t VerbWidth = 12;
 
+/// Starts every sequence a terminal acts on.
+constexpr char Escape = '\x1b';
+
 /// Starts every sequence that colours what follows it.
 constexpr std::string_view ColorSequenceStart = "\x1b[";
+
+/**
+ * Where the colour sequence starting at @p index ends, or @p index when the
+ * bytes there start something else.
+ *
+ * A compiler colours its diagnostics with the sequences that set an
+ * attribute, and gcc clears the rest of the line after each of them. Every
+ * other sequence is one this has no reason to pass on.
+ */
+auto colorSequenceEnd(std::string_view text, std::size_t index) -> std::size_t
+{
+    if (! text.substr(index).starts_with(ColorSequenceStart)) {
+        return index;
+    }
+    std::size_t end = index + ColorSequenceStart.size();
+    while (end < text.size() && text[end] >= '0' && text[end] <= '?') {
+        ++end;
+    }
+    if (end < text.size() && (text[end] == 'm' || text[end] == 'K')) {
+        return end + 1;
+    }
+    return index;
+}
 
 /**
  * The word for what @p step does.
@@ -28,11 +55,13 @@ auto verbFor(const Build::BuildStep& step) -> std::string_view
 }
 
 /**
- * @p verb written in the width the lines line up in.
+ * @p verb written in the width the lines line up in. A verb longer than the
+ * width is written as it is, so the lines lose their alignment rather than
+ * the count wrapping.
  */
 auto alignedVerb(std::string_view verb) -> std::string
 {
-    std::string text(VerbWidth - verb.size(), ' ');
+    std::string text(VerbWidth - std::min(VerbWidth, verb.size()), ' ');
     text += verb;
     return text;
 }
@@ -55,7 +84,7 @@ void StreamBuildReporter::finished(const Build::BuildStep& /*step*/, const std::
     if (output.empty()) {
         return;
     }
-    const std::string text = keepColor_ ? std::string{output} : withoutColor(output);
+    const std::string text = printableOutput(output, keepColor_);
     *out_ << text;
     if (! text.ends_with('\n')) {
         *out_ << '\n';
@@ -67,26 +96,29 @@ auto renderBuildFinished() -> std::string
     return alignedVerb("Finished") + " debug build\n";
 }
 
-auto withoutColor(const std::string_view text) -> std::string
+auto printableOutput(const std::string_view text, const bool keepColor) -> std::string
 {
     std::string result;
     result.reserve(text.size());
     for (std::size_t index = 0; index < text.size();) {
-        if (! text.substr(index).starts_with(ColorSequenceStart)) {
+        if (text[index] != Escape) {
             result += text[index];
             ++index;
             continue;
         }
-        std::size_t end = index + ColorSequenceStart.size();
-        while (end < text.size() && text[end] >= '0' && text[end] <= '?') {
-            ++end;
-        }
-        if (end < text.size() && (text[end] == 'm' || text[end] == 'K')) {
-            index = end + 1;  // The sequence colours; it is not part of what was written.
+
+        const std::size_t end = colorSequenceEnd(text, index);
+        if (end == index) {
+            // Anything else the terminal would act on is written as text, as
+            // every other string scrap prints is.
+            result += "\\x1B";
+            ++index;
             continue;
         }
-        result += text[index];
-        ++index;
+        if (keepColor) {
+            result.append(text, index, end - index);
+        }
+        index = end;
     }
     return result;
 }

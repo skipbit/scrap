@@ -1014,6 +1014,44 @@ TEST_F(CliE2ETest, BuildStopsAtTheFirstSourceThatFails)
     EXPECT_FALSE(std::filesystem::exists(root_ / "build" / "debug" / "bin" / "app"));
 }
 
+TEST_F(CliE2ETest, BuildReadsASourceNamedLikeAFileOfOptionsAsASource)
+{
+    // An argument starting with '@' names a file the compiler reads options
+    // from, so a source named that way would decide the command it is built
+    // with.
+    writeFile("scrap.toml",
+              "[package]\nname = \"app\"\nversion = \"0.1.0\"\n\n[[bin]]\nname = \"app\"\nsrc = "
+              "\"@options.cpp\"\n");
+    writeFile("options.cpp", "-DINJECTED=1\n");
+    makeDummy("echoing-c++", "printf '%s\\n' \"$*\" >> calls.log\nexit 0");
+    const std::string compiler = (std::filesystem::canonical(root_) / "bin" / "echoing-c++").string();
+
+    auto result = runScrap({"build"}, {"CXX=" + compiler}, root_);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    const std::string calls = readFile("calls.log");
+    EXPECT_NE(calls.find("-c ./@options.cpp"), std::string::npos) << calls;
+    EXPECT_EQ(calls.find(" @options.cpp"), std::string::npos) << calls;
+}
+
+TEST_F(CliE2ETest, BuildWritesWhatTheCompilerSaysWithoutLettingItDriveTheTerminal)
+{
+    // A diagnostic quotes the source it read, which an untrusted project
+    // decides the contents of.
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp", MainSource);
+    makeDummy("shouting-c++", "printf 'title\\033]0;pwned\\007 and \\033[2J\\n' >&2\nexit 1");
+    const std::string compiler = (std::filesystem::canonical(root_) / "bin" / "shouting-c++").string();
+
+    auto result = runScrap({"build"}, {"CXX=" + compiler}, root_);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_NE(result.stderrText.find("title\\x1B]0;pwned"), std::string::npos) << result.stderrText;
+    EXPECT_EQ(result.stderrText.find('\033'), std::string::npos) << result.stderrText;
+}
+
 TEST_F(CliE2ETest, BuildLeavesColorOutOfOutputThatIsNotATerminal)
 {
     // The compiler is asked for colour, since a build usually runs in a

@@ -8,9 +8,9 @@
 
 using scrap::Build::BuildStep;
 using scrap::Build::StepKind;
+using scrap::Command::printableOutput;
 using scrap::Command::renderBuildFinished;
 using scrap::Command::StreamBuildReporter;
-using scrap::Command::withoutColor;
 
 namespace {
 
@@ -113,16 +113,37 @@ TEST(BuildProgressTest, EscapesWhatItCannotPrint)
 }
 
 /**
- * Only the sequences that colour are removed; anything else is text the
- * compiler wrote.
+ * The sequences that colour are kept or removed as asked; text around them
+ * is left as it is.
  */
-TEST(BuildProgressTest, RemovesTheSequencesThatColor)
+TEST(BuildProgressTest, KeepsOrRemovesTheSequencesThatColor)
 {
-    EXPECT_EQ(withoutColor("plain text"), "plain text");
-    EXPECT_EQ(withoutColor("\x1b[01;31mred\x1b[0m"), "red");
-    EXPECT_EQ(withoutColor("gcc\x1b[Kclears the line"), "gccclears the line");
-    EXPECT_EQ(withoutColor("\x1b[2Jkept"), "\x1b[2Jkept");
-    EXPECT_EQ(withoutColor("a lone \x1b stays"), "a lone \x1b stays");
+    EXPECT_EQ(printableOutput("plain text", false), "plain text");
+    EXPECT_EQ(printableOutput("\x1b[01;31mred\x1b[0m", false), "red");
+    EXPECT_EQ(printableOutput("\x1b[01;31mred\x1b[0m", true), "\x1b[01;31mred\x1b[0m");
+    EXPECT_EQ(printableOutput("gcc\x1b[Kclears the line", false), "gccclears the line");
+    EXPECT_EQ(printableOutput("gcc\x1b[Kclears the line", true), "gcc\x1b[Kclears the line");
+}
+
+/**
+ * A diagnostic quotes the source it read, so what it carries is the
+ * project's to decide: every other sequence reaches the terminal as text,
+ * whether or not colour is kept.
+ */
+TEST(BuildProgressTest, WritesEveryOtherSequenceAsText)
+{
+    for (const bool keepColor : {false, true}) {
+        // Rewriting the terminal's title, clearing its screen, and a byte
+        // that starts neither.
+        EXPECT_EQ(printableOutput("\x1b]0;pwned\x07"
+                                  "after",
+                                  keepColor),
+                  "\\x1B]0;pwned\x07"
+                  "after")
+            << keepColor;
+        EXPECT_EQ(printableOutput("\x1b[2Jgone", keepColor), "\\x1B[2Jgone") << keepColor;
+        EXPECT_EQ(printableOutput("a lone \x1b stays", keepColor), "a lone \\x1B stays") << keepColor;
+    }
 }
 
 /**
