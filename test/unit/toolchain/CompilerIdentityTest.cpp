@@ -95,6 +95,10 @@ TEST(CompilerIdentityTest, MatchesAMacroByItsWholeName)
 {
     EXPECT_EQ(readCompilerIdentity("#define __GNUC_MINOR__ 3\n").family, CompilerFamily::Unknown);
     EXPECT_EQ(readCompilerIdentity("#define __clang_major__ 22\n").family, CompilerFamily::Unknown);
+    // A macro whose name begins with one that is read is another macro.
+    EXPECT_EQ(readCompilerIdentity("#define __clang__x 1\n").family, CompilerFamily::Unknown);
+    // A macro with no value is not read as one that has a value.
+    EXPECT_EQ(readCompilerIdentity("#define __clang__\n").family, CompilerFamily::Unknown);
 }
 
 /**
