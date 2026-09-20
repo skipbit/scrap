@@ -31,7 +31,9 @@ auto NewCommandHandler::execute(const InvocationContext& ctx) -> int
         return 1;
     }
 
-    std::cout << "Created project '" << name << "' at '" << printablePath(*root) << "'\n";
+    // What the command did, not what it returns: the line goes where the
+    // progress and the failures of every command go.
+    std::cerr << "Created project '" << name << "' at '" << printablePath(*root) << "'\n";
     return 0;
 }
 
