@@ -4,6 +4,7 @@
 #include "build/StepRunner.h"
 #include "command/BuildProgress.h"
 #include "command/InvocationContext.h"
+#include "command/PrintableText.h"
 #include "command/ProjectDiagnostic.h"
 #include "command/RuntimeEnvironment.h"
 #include "compile/CompilationDatabase.h"

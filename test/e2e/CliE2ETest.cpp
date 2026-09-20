@@ -554,6 +554,25 @@ TEST_F(CliE2ETest, HelpForAnUnknownCommandFails)
     EXPECT_NE(result.stderrText.find("Unknown command: nosuch"), std::string::npos) << result.stderrText;
 }
 
+/**
+ * The name reported back is written as text: an escape sequence in it reaches
+ * the terminal as \xNN rather than as an instruction to act on, while letters
+ * stay as the user typed them.
+ */
+TEST_F(CliE2ETest, HelpForAnUnknownCommandWritesTheNameAsText)
+{
+    // The name holds U+65E5 and an escape sequence that names a terminal.
+    auto result = runScrap({"help", "\xe6\x97\xa5x\x1b]0;pwn\x07"}, {}, root_);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    EXPECT_NE(result.stderrText.find("Unknown command: \xe6\x97\xa5x\\x1B]0;pwn\\x07"), std::string::npos)
+        << result.stderrText;
+    EXPECT_EQ(result.stderrText.find('\x1b'), std::string::npos);
+    EXPECT_EQ(result.stderrText.find('\x07'), std::string::npos);
+}
+
 // --- TS-06: unknown command -------------------------------------------------------
 
 TEST_F(CliE2ETest, UnknownCommand)
@@ -563,6 +582,24 @@ TEST_F(CliE2ETest, UnknownCommand)
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 1);
     EXPECT_NE(result.stderrText.find("Run 'scrap --help' for usage information"), std::string::npos);
+}
+
+/**
+ * The parser writes the argument it did not expect into its message, and that
+ * message is written as text.
+ */
+TEST_F(CliE2ETest, AnUnexpectedArgumentIsWrittenAsText)
+{
+    // The argument holds U+65E5 and an escape sequence that names a terminal.
+    auto result = runScrap({"new", "hello", "\xe6\x97\xa5x\x1b]0;pwn\x07"}, {}, root_);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    EXPECT_NE(result.stderrText.find("\xe6\x97\xa5x\\x1B]0;pwn\\x07"), std::string::npos) << result.stderrText;
+    EXPECT_EQ(result.stderrText.find('\x1b'), std::string::npos);
+    EXPECT_EQ(result.stderrText.find('\x07'), std::string::npos);
+    EXPECT_FALSE(std::filesystem::exists(root_ / "hello"));
 }
 
 // --- TS-07: real CLI11 nested subcommand parsing --------------------------------
