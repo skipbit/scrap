@@ -1,23 +1,37 @@
 #include <gtest/gtest.h>
 
+#include "build/BuildStep.h"
+#include "build/SerialBuild.h"
 #include "command/ProjectDiagnostic.h"
 #include "compile/CompilationDatabase.h"
+#include "project/LanguageStandard.h"
 #include "project/ManifestError.h"
 #include "project/ProjectLoader.h"
 #include "project/SourceCollector.h"
 
 #include <cerrno>
 #include <optional>
+#include <string>
 #include <system_error>
 
+using scrap::Build::BuildStep;
+using scrap::Build::FailedStep;
+using scrap::Build::StepFailure;
+using scrap::Build::StepFailureKind;
+using scrap::Build::StepKind;
+using scrap::Command::printableName;
 using scrap::Command::renderCompilationDatabaseFailure;
+using scrap::Command::renderLibraryNotBuilt;
 using scrap::Command::renderNoCompilerFound;
 using scrap::Command::renderNoTargetToBuild;
 using scrap::Command::renderProjectError;
 using scrap::Command::renderSourceScanFailure;
+using scrap::Command::renderStepFailure;
+using scrap::Command::renderUnsupportedStandard;
 using scrap::Command::renderUnusableCompilerRequest;
 using scrap::Compile::DatabaseWriteFailure;
 using scrap::Compile::DatabaseWriteStep;
+using scrap::Project::LanguageStandard;
 using scrap::Project::ManifestError;
 using scrap::Project::ManifestErrorKind;
 using scrap::Project::NotADirectory;
@@ -555,4 +569,159 @@ TEST(ProjectDiagnosticTest, RendersAnyOtherFailureWithTheGeneralHint)
     EXPECT_EQ(scrap::Command::renderCreateProjectError(uncoded),
               "error: cannot create '/home/me/work/hello/scrap.toml': the file could not be written\n"
               "hint: check that the directory exists and can be written\n");
+}
+
+namespace {
+
+/**
+ * A step that compiles @p source for the target "hello".
+ */
+auto compileStep(const char* source) -> BuildStep
+{
+    return BuildStep{.kind = StepKind::Compile,
+                     .target = "hello",
+                     .subject = source,
+                     .directory = "/home/me/hello",
+                     .output = "build/debug/obj/hello/src/main.cpp.o",
+                     .arguments = {"/usr/bin/c++"}};
+}
+
+/**
+ * A step that links the executable of the target "hello".
+ */
+auto linkStep() -> BuildStep
+{
+    return BuildStep{.kind = StepKind::Link,
+                     .target = "hello",
+                     .subject = "build/debug/bin/hello",
+                     .directory = "/home/me/hello",
+                     .output = "build/debug/bin/hello",
+                     .arguments = {"/usr/bin/c++"}};
+}
+
+}  // namespace
+
+/**
+ * A compilation that failed names the source and the target it was building,
+ * by the absolute path; the compiler has already said what is wrong.
+ */
+TEST(ProjectDiagnosticTest, RendersASourceThatFailedToCompile)
+{
+    const FailedStep failed{
+        .step = compileStep("src/main.cpp"),
+        .failure = StepFailure{.kind = StepFailureKind::Exited, .path = {}, .code = {}, .status = 1}};
+
+    EXPECT_EQ(renderStepFailure(failed),
+              "error: failed to compile '/home/me/hello/src/main.cpp' for 'hello'\n"
+              "hint: fix the errors reported above and run the command again\n");
+}
+
+/**
+ * A source written as ./<path>, so the compiler reads it as a file, is
+ * reported by the path it names.
+ */
+TEST(ProjectDiagnosticTest, RendersASourceThatLooksLikeAnOption)
+{
+    const FailedStep failed{
+        .step = compileStep("./-x.cpp"),
+        .failure = StepFailure{.kind = StepFailureKind::Exited, .path = {}, .code = {}, .status = 1}};
+
+    EXPECT_NE(renderStepFailure(failed).find("'/home/me/hello/-x.cpp'"), std::string::npos);
+}
+
+/**
+ * A link that failed names the executable it was writing.
+ */
+TEST(ProjectDiagnosticTest, RendersAnExecutableThatFailedToLink)
+{
+    const FailedStep failed{
+        .step = linkStep(),
+        .failure = StepFailure{.kind = StepFailureKind::Exited, .path = {}, .code = {}, .status = 1}};
+
+    EXPECT_EQ(renderStepFailure(failed),
+              "error: failed to link '/home/me/hello/build/debug/bin/hello'\n"
+              "hint: fix the errors reported above and run the command again\n");
+}
+
+/**
+ * A compiler a signal stopped wrote no diagnostic of its own, so the signal
+ * is named along with a step to take.
+ */
+TEST(ProjectDiagnosticTest, RendersACompilerASignalStopped)
+{
+    const FailedStep failed{
+        .step = compileStep("src/main.cpp"),
+        .failure = StepFailure{.kind = StepFailureKind::Signalled, .path = {}, .code = {}, .status = 9}};
+
+    EXPECT_EQ(renderStepFailure(failed),
+              "error: failed to compile '/home/me/hello/src/main.cpp' for 'hello': "
+              "the compiler was stopped by signal 9\n"
+              "hint: check that the compiler has enough memory and run the command again\n");
+}
+
+/**
+ * A compiler that could not be started is named with the system's reason.
+ */
+TEST(ProjectDiagnosticTest, RendersACompilerThatCouldNotStart)
+{
+    const FailedStep failed{.step = compileStep("src/main.cpp"),
+                            .failure = StepFailure{.kind = StepFailureKind::CannotStart,
+                                                   .path = "/usr/bin/c++",
+                                                   .code = std::make_error_code(std::errc::permission_denied),
+                                                   .status = 0}};
+
+    EXPECT_EQ(renderStepFailure(failed),
+              "error: cannot run '/usr/bin/c++': " + std::make_error_code(std::errc::permission_denied).message() +
+                  "\nhint: check that the compiler can be run, or set CXX to another one\n");
+}
+
+/**
+ * A directory the build could not create is reported like any other path it
+ * writes, with the hint the reason calls for.
+ */
+TEST(ProjectDiagnosticTest, RendersADirectoryAStepCouldNotCreate)
+{
+    const FailedStep failed{.step = compileStep("src/main.cpp"),
+                            .failure = StepFailure{.kind = StepFailureKind::CannotCreateDirectory,
+                                                   .path = "/home/me/hello/build/debug/obj",
+                                                   .code = std::make_error_code(std::errc::not_a_directory),
+                                                   .status = 0}};
+
+    const std::string text = renderStepFailure(failed);
+
+    EXPECT_NE(text.find("error: cannot create '/home/me/hello/build/debug/obj': "), std::string::npos) << text;
+    EXPECT_NE(text.find("\nhint: check what is already at that path\n"), std::string::npos) << text;
+}
+
+/**
+ * A standard the compiler has no version of is reported before anything is
+ * compiled, with the two ways out of it.
+ */
+TEST(ProjectDiagnosticTest, RendersAStandardTheCompilerCannotBuild)
+{
+    EXPECT_EQ(renderUnsupportedStandard("/usr/bin/g++", LanguageStandard::Cxx26),
+              "error: '/usr/bin/g++' does not support C++26\n"
+              "hint: use a newer compiler, or set std in scrap.toml to an older standard\n");
+}
+
+/**
+ * A library is named with what removing its declaration would do.
+ */
+TEST(ProjectDiagnosticTest, RendersALibraryItDoesNotBuild)
+{
+    EXPECT_EQ(renderLibraryNotBuilt("core"),
+              "error: building the library 'core' is not supported yet\n"
+              "hint: remove the [[lib]] section from scrap.toml to build its sources into the executable\n");
+}
+
+/**
+ * A name reaches the terminal as text: printable ASCII stays and every other
+ * byte is escaped. A name is kept whole, since a message naming a target has
+ * to name it as the manifest does.
+ */
+TEST(ProjectDiagnosticTest, EscapesWhatANameCannotPrint)
+{
+    EXPECT_EQ(printableName("core"), "core");
+    EXPECT_EQ(printableName(std::string_view{"a\x1b[31m\x7f\\b"}), "a\\x1B[31m\\x7F\\x5Cb");
+    EXPECT_EQ(printableName(std::string(100, 'n')), std::string(100, 'n'));
 }

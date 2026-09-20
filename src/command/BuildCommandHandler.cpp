@@ -1,19 +1,27 @@
 #include "command/BuildCommandHandler.h"
 
+#include "build/SerialBuild.h"
+#include "build/StepRunner.h"
+#include "command/BuildProgress.h"
 #include "command/InvocationContext.h"
 #include "command/ProjectDiagnostic.h"
 #include "command/RuntimeEnvironment.h"
 #include "compile/CompilationDatabase.h"
+#include "compile/CompileCommand.h"
 #include "compile/CompilePlanner.h"
+#include "compile/CompilerDriver.h"
+#include "project/Manifest.h"
 #include "project/ProjectLoader.h"
 #include "project/SourceCollector.h"
 #include "project/TargetResolver.h"
+#include "toolchain/CompilerIdentity.h"
 #include "toolchain/SystemCompiler.h"
 
 #include <filesystem>
 #include <iostream>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 namespace scrap::Command {
 
@@ -49,6 +57,58 @@ auto startDirectory(const InvocationContext& ctx) -> std::filesystem::path
     return ctx.env->workingDirectory / ctx.options.positional.front();
 }
 
+/**
+ * Finish a project that states it builds nothing.
+ *
+ * Nothing of the system is asked for, since nothing is compiled. The
+ * database is emptied so an editor stops reading the commands of targets the
+ * project no longer has.
+ */
+auto finishWithNothingToBuild(const std::filesystem::path& databaseDirectory) -> int
+{
+    const auto written = Compile::writeCompilationDatabase(databaseDirectory, {});
+    if (! written.has_value()) {
+        std::cerr << renderCompilationDatabaseFailure(written.error());
+        return 1;
+    }
+    std::cerr << renderBuildFinished();
+    return 0;
+}
+
+/**
+ * The first library among @p targets, or nothing when they are all
+ * executables.
+ */
+auto libraryAmong(const std::vector<Project::Target>& targets) -> const Project::Target*
+{
+    for (const Project::Target& target : targets) {
+        if (target.kind == Project::TargetKind::Library) {
+            return &target;
+        }
+    }
+    return nullptr;
+}
+
+/**
+ * Compile and link what @p compiles and the targets state, reporting each
+ * step as it runs.
+ */
+auto runBuild(const Compile::BuildSettings& settings,
+              const std::vector<Project::TargetSources>& targets,
+              const std::vector<Compile::CompileCommand>& compiles) -> int
+{
+    Build::ProgramStepRunner runner;
+    StreamBuildReporter reporter{std::cerr, standardErrorIsTerminal()};
+    const auto built =
+        Build::runSerially(Build::buildSteps(compiles, Compile::planLinkCommands(settings, targets)), runner, reporter);
+    if (! built.has_value()) {
+        std::cerr << renderStepFailure(built.error());
+        return 1;
+    }
+    std::cerr << renderBuildFinished();
+    return 0;
+}
+
 }  // anonymous namespace
 
 auto BuildCommandHandler::execute(const InvocationContext& ctx) -> int
@@ -74,6 +134,11 @@ auto BuildCommandHandler::execute(const InvocationContext& ctx) -> int
         return 1;
     }
 
+    const std::filesystem::path buildDirectory{Compile::DebugBuildDirectory};
+    if (targets.empty()) {
+        return finishWithNothingToBuild(project->root / buildDirectory);
+    }
+
     const auto sources = Project::collectSources(project->root, targets);
     if (! sources.has_value()) {
         std::cerr << renderSourceScanFailure(sources.error());
@@ -89,23 +154,34 @@ auto BuildCommandHandler::execute(const InvocationContext& ctx) -> int
         }
         return 1;
     }
-    std::cout << "Using the system compiler '" << printablePath(compiler->path) << "' ("
+    std::cerr << "Using the system compiler '" << printablePath(compiler->path) << "' ("
               << describeOrigin(compiler->origin) << ")\n";
 
-    // Written for a project that builds nothing as well, so an editor stops
-    // reading the commands of targets the project no longer has.
-    const std::filesystem::path buildDirectory{Compile::DebugBuildDirectory};
-    const auto commands = Compile::planCompileCommands(
-        project->root, buildDirectory, project->manifest.package, *sources, compiler->path);
-    const auto written = Compile::writeCompilationDatabase(project->root / buildDirectory, commands);
+    const Compile::BuildSettings settings{
+        .projectRoot = project->root,
+        .buildDirectory = buildDirectory,
+        .compiler = compiler->path,
+        .driver = Compile::CompilerDriver{Toolchain::identifyCompiler(compiler->path)},
+        .standard = project->manifest.package.standard};
+    const auto compiles = Compile::planCompileCommands(settings, *sources);
+    const auto written = Compile::writeCompilationDatabase(project->root / buildDirectory, compiles);
     if (! written.has_value()) {
         std::cerr << renderCompilationDatabaseFailure(written.error());
         return 1;
     }
 
-    // Placeholder output until the build compiles the project.
-    std::cout << "build: not yet implemented\n";
-    return 0;
+    // The database is written before the build stops for either reason
+    // below, so an editor reads the commands whether or not they can run.
+    if (const Project::Target* library = libraryAmong(targets); library != nullptr) {
+        std::cerr << renderLibraryNotBuilt(library->name);
+        return 1;
+    }
+    if (! settings.driver.standardOption(settings.standard).has_value()) {
+        std::cerr << renderUnsupportedStandard(compiler->path, settings.standard);
+        return 1;
+    }
+
+    return runBuild(settings, *sources, compiles);
 }
 
 }  // namespace scrap::Command

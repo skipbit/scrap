@@ -16,6 +16,7 @@ add_executable(scrap_gtest
     unit/command/CommandCatalogTest.cpp
     unit/command/DefaultHelpRendererTest.cpp
     unit/command/DefaultVersionRendererTest.cpp
+    unit/command/BuildProgressTest.cpp
     unit/command/BuiltinCommandResolverTest.cpp
     unit/command/ExternalCommandResolverTest.cpp
     unit/command/MetadataProtocolProviderTest.cpp
@@ -23,11 +24,14 @@ add_executable(scrap_gtest
     unit/command/ProjectDiagnosticTest.cpp
     unit/command/RuntimeEnvironmentFactoryTest.cpp
     unit/command/ApplicationTest.cpp
+    unit/process/SubprocessTest.cpp
+    unit/toolchain/CompilerIdentityTest.cpp
     unit/toolchain/SystemCompilerTest.cpp
 )
 
 target_link_libraries(scrap_gtest PRIVATE
     scrap_command
+    scrap_process
     scrap_toolchain
     scrap_test_support
     GTest::gtest_main
@@ -75,6 +79,7 @@ gtest_discover_tests(scrap_gtest_project)
 add_executable(scrap_gtest_compile
     unit/compile/CompilationDatabaseTest.cpp
     unit/compile/CompilePlannerTest.cpp
+    unit/compile/CompilerDriverTest.cpp
 )
 
 target_link_libraries(scrap_gtest_compile PRIVATE
@@ -86,12 +91,32 @@ scrap_apply_compile_settings(scrap_gtest_compile)
 
 gtest_discover_tests(scrap_gtest_compile)
 
+# --- Build step tests ---
+add_executable(scrap_gtest_build
+    unit/build/ProgramStepRunnerTest.cpp
+    unit/build/SerialBuildTest.cpp
+)
+
+target_link_libraries(scrap_gtest_build PRIVATE
+    scrap_build
+    scrap_test_support
+    GTest::gtest_main
+)
+scrap_apply_compile_settings(scrap_gtest_build)
+
+gtest_discover_tests(scrap_gtest_build)
+
 # --- CLI end-to-end tests (spawns the built scrap binary as a subprocess) ---
 add_executable(scrap_e2e
     e2e/CliE2ETest.cpp
 )
 
-target_compile_definitions(scrap_e2e PRIVATE SCRAP_BINARY_PATH="$<TARGET_FILE:scrap>")
+# The e2e tests build a project with the compiler this tree was built with:
+# the fixed PATH they give the child holds no compiler of its own.
+target_compile_definitions(scrap_e2e PRIVATE
+    SCRAP_BINARY_PATH="$<TARGET_FILE:scrap>"
+    SCRAP_TEST_CXX="${CMAKE_CXX_COMPILER}"
+)
 
 target_link_libraries(scrap_e2e PRIVATE GTest::gtest_main)
 scrap_apply_compile_settings(scrap_e2e)

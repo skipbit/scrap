@@ -42,7 +42,7 @@ jobs:
       # header pulled in by these TUs (see HeaderFilterRegex) also fail the gate.
       - name: Run clang-tidy
         run: |
-          find src/command src/compile src/project src/toolchain -type f -name '*.cpp' -print0 \
+          find src/build src/command src/compile src/process src/project src/toolchain -type f -name '*.cpp' -print0 \
             | xargs -0 -r clang-tidy -p build --warnings-as-errors='*'
 
   format-check:

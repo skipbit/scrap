@@ -13,6 +13,7 @@ namespace scrap::Compile {
  * reads the same command the compiler is given.
  */
 struct CompileCommand {
+    std::string target;                  ///< The target the object file is built for.
     std::filesystem::path directory;     ///< Where the command runs: the project root, absolute.
     std::filesystem::path file;          ///< The source, relative to the directory.
     std::filesystem::path output;        ///< The object file, relative to the directory.

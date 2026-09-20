@@ -36,5 +36,6 @@
 compile_commands.json
 
 # Build directories. The Makefile configures build/debug and build/release,
-# the workflows configure build, and none of it belongs in the history.
-build/
+# the workflows configure build, and none of it belongs in the history. The
+# rule is anchored to the root, so src/build and test/unit/build stay tracked.
+/build/

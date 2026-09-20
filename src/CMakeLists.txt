@@ -30,6 +30,7 @@ find_package(TomlPlusPlus REQUIRED)
 # Project configuration (scrap.toml)
 add_library(scrap_project STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/project/DefaultTemplate.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/project/LanguageStandard.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/project/ManifestError.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/project/ManifestParser.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/project/ProjectCreator.cpp
@@ -44,28 +45,50 @@ target_include_directories(scrap_project PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(scrap_project PRIVATE tomlplusplus::tomlplusplus)
 scrap_apply_compile_settings(scrap_project WARNINGS_AS_ERRORS)
 
+# Running other programs
+add_library(scrap_process STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/process/Subprocess.cpp
+)
+target_include_directories(scrap_process PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+scrap_apply_compile_settings(scrap_process WARNINGS_AS_ERRORS)
+
 # Toolchain detection
 add_library(scrap_toolchain STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/CompilerIdentity.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/SystemCompiler.cpp
 )
 target_include_directories(scrap_toolchain PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(scrap_toolchain PRIVATE scrap_process)
 scrap_apply_compile_settings(scrap_toolchain WARNINGS_AS_ERRORS)
 
 # Compile commands
 add_library(scrap_compile STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/compile/CompilationDatabase.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/compile/CompilePlanner.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/compile/CompilerDriver.cpp
 )
 target_include_directories(scrap_compile PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-# The compile headers name project types.
-target_link_libraries(scrap_compile PUBLIC scrap_project)
+# The compile headers name project and toolchain types.
+target_link_libraries(scrap_compile PUBLIC scrap_project scrap_toolchain)
 scrap_apply_compile_settings(scrap_compile WARNINGS_AS_ERRORS)
+
+# Running the steps of a build
+add_library(scrap_build STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/build/BuildReporter.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/build/SerialBuild.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/build/StepRunner.cpp
+)
+target_include_directories(scrap_build PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+# The build headers name compile types; running a program stays inside.
+target_link_libraries(scrap_build PUBLIC scrap_compile PRIVATE scrap_process)
+scrap_apply_compile_settings(scrap_build WARNINGS_AS_ERRORS)
 
 # Command architecture, with the version banner it prints
 add_library(scrap_command STATIC
     ${SCRAP_VERSION_SOURCE}
     ${CMAKE_CURRENT_SOURCE_DIR}/command/Application.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/BuildCommandHandler.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/BuildProgress.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/BuiltinCommandResolver.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/CommandCatalog.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/CommandHandler.cpp
@@ -87,10 +110,10 @@ add_library(scrap_command STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/command/driver/CLI11ParserAdapter.cpp
 )
 target_include_directories(scrap_command PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-# The command headers name project and compile types; the toolchain and CLI11
-# stay inside.
+# The command headers name project, compile and build types; the toolchain
+# and CLI11 stay inside.
 target_link_libraries(scrap_command
-    PUBLIC scrap_project scrap_compile
+    PUBLIC scrap_project scrap_compile scrap_build
     PRIVATE scrap_toolchain CLI11::CLI11
 )
 add_dependencies(scrap_command scrap_version_source)
