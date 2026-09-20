@@ -6,6 +6,7 @@
 #include "command/InvocationContext.h"
 #include "command/ParseResult.h"
 #include "command/ParserAdapter.h"
+#include "command/PrintableText.h"
 #include "command/RuntimeEnvironment.h"
 #include "command/VersionRenderer.h"
 
@@ -128,10 +129,13 @@ auto Application::handleHelp(const CommandCatalog& catalog, const std::optional<
 
 /**
  * Handle a ParseFailure (error message + help suggestion).
+ *
+ * The parser writes what the user typed into its message, so the message
+ * reaches the terminal as text.
  */
 auto Application::handleFailure(const ParseFailure& failure) -> int
 {
-    std::cerr << failure.message << "\n";
+    std::cerr << printableName(failure.message) << "\n";
     std::cerr << "Run 'scrap --help' for usage information.\n";
     return 1;
 }

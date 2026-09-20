@@ -427,6 +427,29 @@ TEST(ApplicationTest, Run_ParseFailure)
 }
 
 /**
+ * The parser writes what the user typed into its message, and it reaches the
+ * terminal as text rather than as instructions.
+ */
+TEST(ApplicationTest, Run_ParseFailureEscapesWhatTheUserTyped)
+{
+    auto parser = std::make_unique<MockParserAdapter>();
+    parser->setResult(
+        std::unexpected(ParseInterruption{ParseFailure{"The following argument was not expected: x\x1b]0;pwn\x07"}}));
+
+    Application app(std::move(parser), std::make_unique<MockHelpRenderer>(), std::make_unique<MockVersionRenderer>());
+
+    RuntimeEnvironment env;
+    const char* argv[] = {"scrap", "new", "hello"};
+
+    StderrCapture capture;
+    auto exitCode = app.run(argv, env);
+
+    EXPECT_EQ(exitCode, 1);
+    EXPECT_NE(capture.str().find("The following argument was not expected: x\\x1B]0;pwn\\x07"), std::string::npos);
+    EXPECT_EQ(capture.str().find('\x1b'), std::string::npos);
+}
+
+/**
  * Multiple resolvers merge entries; first resolver wins on collision.
  */
 TEST(ApplicationTest, Run_ResolverPriority)

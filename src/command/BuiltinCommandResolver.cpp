@@ -10,6 +10,7 @@
 #include "command/NewCommandHandler.h"
 #include "command/OptionSchema.h"
 #include "command/ParsedOptions.h"
+#include "command/PrintableText.h"
 #include "command/RuntimeEnvironment.h"
 #include "command/VersionRenderer.h"
 #include "project/ProjectFileSystem.h"
@@ -85,7 +86,7 @@ public:
             }
         }
 
-        std::cerr << "Unknown command: " << target << "\n";
+        std::cerr << "Unknown command: " << printableName(target) << "\n";
         return 1;
     }
 

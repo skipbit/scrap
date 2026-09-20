@@ -554,6 +554,21 @@ TEST_F(CliE2ETest, HelpForAnUnknownCommandFails)
     EXPECT_NE(result.stderrText.find("Unknown command: nosuch"), std::string::npos) << result.stderrText;
 }
 
+/**
+ * The name reported back is written as text: an escape sequence in it reaches
+ * the terminal as \xNN rather than as an instruction to act on.
+ */
+TEST_F(CliE2ETest, HelpForAnUnknownCommandWritesTheNameAsText)
+{
+    auto result = runScrap({"help", "x\x1b]0;pwn\x07"}, {}, root_);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_NE(result.stderrText.find("Unknown command: x\\x1B]0;pwn\\x07"), std::string::npos) << result.stderrText;
+    EXPECT_EQ(result.stderrText.find('\x1b'), std::string::npos);
+    EXPECT_EQ(result.stderrText.find('\x07'), std::string::npos);
+}
+
 // --- TS-06: unknown command -------------------------------------------------------
 
 TEST_F(CliE2ETest, UnknownCommand)
@@ -563,6 +578,22 @@ TEST_F(CliE2ETest, UnknownCommand)
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 1);
     EXPECT_NE(result.stderrText.find("Run 'scrap --help' for usage information"), std::string::npos);
+}
+
+/**
+ * The parser writes the argument it did not expect into its message, and that
+ * message is written as text.
+ */
+TEST_F(CliE2ETest, AnUnexpectedArgumentIsWrittenAsText)
+{
+    auto result = runScrap({"new", "hello", "x\x1b]0;pwn\x07"}, {}, root_);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_NE(result.stderrText.find("x\\x1B]0;pwn\\x07"), std::string::npos) << result.stderrText;
+    EXPECT_EQ(result.stderrText.find('\x1b'), std::string::npos);
+    EXPECT_EQ(result.stderrText.find('\x07'), std::string::npos);
+    EXPECT_FALSE(std::filesystem::exists(root_ / "hello"));
 }
 
 // --- TS-07: real CLI11 nested subcommand parsing --------------------------------
