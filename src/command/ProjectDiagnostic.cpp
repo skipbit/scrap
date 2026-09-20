@@ -123,7 +123,13 @@ constexpr std::size_t EchoedNameLimit = Project::MaxProjectNameLength;
  * enough for the message. A target name is not cut: it names something the
  * manifest declares, and a message has to name it as the manifest does.
  */
-auto printableEcho(std::string_view text) -> std::string;
+auto printableEcho(const std::string_view text) -> std::string
+{
+    if (text.size() <= EchoedNameLimit) {
+        return printableName(text);
+    }
+    return printableName(text.substr(0, EchoedNameLimit)) + "...";
+}
 
 auto render(const Project::InvalidProjectName& error) -> std::string
 {
@@ -265,18 +271,6 @@ auto renderProjectError(const Project::ProjectError& error) -> std::string
 {
     return renderAlternative(error);
 }
-
-namespace {
-
-auto printableEcho(const std::string_view text) -> std::string
-{
-    if (text.size() <= EchoedNameLimit) {
-        return printableName(text);
-    }
-    return printableName(text.substr(0, EchoedNameLimit)) + "...";
-}
-
-}  // anonymous namespace
 
 auto renderEmptyPathArgument() -> std::string
 {
