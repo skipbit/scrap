@@ -76,6 +76,11 @@ fmt = "10.2.1"
 boost = { version = "1.84.0", features = ["filesystem", "asio"] }
 ```
 
+`std` names the C++ standard to build against: `"11"`, `"14"`, `"17"`, `"20"`,
+`"23"` (the default) or `"26"`. Whether a given compiler can build the one you
+name is the compiler's to answer, and `scrap build` says so before it compiles
+anything.
+
 ### 🎨 Project Templates
 
 Get started quickly with the built-in template:
@@ -120,6 +125,9 @@ scrap is in early alpha development. Currently implemented:
 ✅ **Core Features**
 - CLI command framework (help, version, command discovery)
 - Project creation (`scrap new`) from the built-in template
+- Debug builds (`scrap build`): the sources of each target are compiled and
+  each executable is linked, one command after another, with
+  `compile_commands.json` written beside them
 - External command metadata fetching - `scrap-*` executables are probed via
   `--scrap-metadata` (falling back to `--help`) for a plain first-line
   description shown in `scrap --help`; structured JSON/options metadata is
@@ -127,10 +135,11 @@ scrap is in early alpha development. Currently implemented:
 
 🚧 **In Progress**
 - Template system with variable substitution
-- Basic command structure (build, run, clean) - currently placeholder commands
-- Configuration file parsing (`scrap.toml`)
+- `scrap run` and `scrap clean` - currently placeholder commands
+- Release builds (`--release`), parallel builds, and libraries
+- Configuration file parsing (`scrap.toml`) - `[dependencies]` and
+  `[toolchain]` are accepted and not yet read
 - Git-based template repository integration
-- Build system implementation
 - Toolchain management
 
 📅 **Planned**
