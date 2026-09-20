@@ -111,7 +111,12 @@ add_executable(scrap_e2e
     e2e/CliE2ETest.cpp
 )
 
-target_compile_definitions(scrap_e2e PRIVATE SCRAP_BINARY_PATH="$<TARGET_FILE:scrap>")
+# The e2e tests build a project with the compiler this tree was built with:
+# the fixed PATH they give the child holds no compiler of its own.
+target_compile_definitions(scrap_e2e PRIVATE
+    SCRAP_BINARY_PATH="$<TARGET_FILE:scrap>"
+    SCRAP_TEST_CXX="${CMAKE_CXX_COMPILER}"
+)
 
 target_link_libraries(scrap_e2e PRIVATE GTest::gtest_main)
 scrap_apply_compile_settings(scrap_e2e)

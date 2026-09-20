@@ -74,6 +74,10 @@ auto insideAProject(const std::filesystem::path& directory) -> bool
 }
 
 constexpr std::chrono::milliseconds HarnessTimeout{5000};
+
+/// A real compiler takes longer than the commands that only read files, and
+/// longer again on a loaded machine.
+constexpr std::chrono::milliseconds BuildTimeout{120000};
 constexpr std::size_t ReadChunkBytes = 4096;
 
 /**
@@ -312,13 +316,38 @@ protected:
     }
 
     /**
+     * The compiler this test binary was built with, as a CXX override. The
+     * fixed PATH the harness gives the child holds no compiler of its own,
+     * and a build has to reach one the platform actually provides.
+     */
+    [[nodiscard]] static auto realCompiler() -> std::string
+    {
+        return std::string{"CXX="} + SCRAP_TEST_CXX;
+    }
+
+    /**
      * Run the built scrap binary with @p args, a minimal controlled
      * environment (SCRAP_HOME=root_, plus any @p envOverrides), and the
      * given @p cwd. Captures stdout/stderr separately.
      */
     [[nodiscard]] auto runScrap(const std::vector<std::string>& args,
                                 const std::vector<std::string>& envOverrides,
-                                const std::filesystem::path& cwd) const -> ProcessOutput
+                                const std::filesystem::path& cwd,
+                                std::chrono::milliseconds timeout = HarnessTimeout) const -> ProcessOutput
+    {
+        std::vector<std::string> command{SCRAP_BINARY_PATH};
+        command.insert(command.end(), args.begin(), args.end());
+        return runProgram(command, envOverrides, cwd, timeout);
+    }
+
+    /**
+     * Run @p command, the first of which names the program, in the same
+     * controlled environment the scrap binary is run in.
+     */
+    [[nodiscard]] auto runProgram(const std::vector<std::string>& command,
+                                  const std::vector<std::string>& envOverrides,
+                                  const std::filesystem::path& cwd,
+                                  std::chrono::milliseconds timeout = HarnessTimeout) const -> ProcessOutput
     {
         std::array<int, 2> outPipe{-1, -1};
         std::array<int, 2> errPipe{-1, -1};
@@ -331,12 +360,7 @@ protected:
             return {};
         }
 
-        std::vector<std::string> ownedArgs;
-        ownedArgs.reserve(args.size() + 1);
-        ownedArgs.emplace_back(SCRAP_BINARY_PATH);
-        for (const auto& arg : args) {
-            ownedArgs.push_back(arg);
-        }
+        std::vector<std::string> ownedArgs = command;
         std::vector<char*> argv;
         argv.reserve(ownedArgs.size() + 1);
         for (auto& arg : ownedArgs) {
@@ -391,7 +415,7 @@ protected:
         ::close(errPipe[1]);
 
         ProcessOutput result;
-        auto deadline = std::chrono::steady_clock::now() + HarnessTimeout;
+        auto deadline = std::chrono::steady_clock::now() + timeout;
         bool timedOut = drainBoth(outPipe[0], errPipe[0], deadline, result.stdoutText, result.stderrText);
         ::close(outPipe[0]);
         ::close(errPipe[0]);
@@ -1045,6 +1069,65 @@ TEST_F(CliE2ETest, BuildReportsAStandardTheCompilerCannotBuild)
               std::string::npos)
         << result.stderrText;
     EXPECT_NE(readFile("build/debug/compile_commands.json").find("\"-std=c++26\""), std::string::npos);
+}
+
+// --- build: with the compiler the platform provides ----------------------------
+
+TEST_F(CliE2ETest, BuildsAndRunsAProjectWithTheRealCompiler)
+{
+    std::filesystem::create_directories(root_ / "work");
+    auto created = runScrap({"new", "hello"}, {}, root_ / "work");
+    ASSERT_EQ(created.exitCode, 0) << created.stderrText;
+    const std::filesystem::path project = root_ / "work" / "hello";
+
+    auto result = runScrap({"build"}, {realCompiler()}, project, BuildTimeout);
+
+    ASSERT_TRUE(result.exitedNormally) << result.stderrText;
+    ASSERT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_NE(result.stderrText.find("Compiling hello (src/main.cpp)\n"), std::string::npos) << result.stderrText;
+    EXPECT_NE(result.stderrText.find("Finished debug build\n"), std::string::npos) << result.stderrText;
+    ASSERT_TRUE(std::filesystem::is_regular_file(project / "build" / "debug" / "bin" / "hello"));
+
+    auto ran = runProgram({(project / "build" / "debug" / "bin" / "hello").string()}, {}, project);
+
+    ASSERT_TRUE(ran.exitedNormally);
+    EXPECT_EQ(ran.exitCode, 0);
+    EXPECT_EQ(ran.stdoutText, "Hello, world!\n");
+}
+
+TEST_F(CliE2ETest, BuildsSeveralSourcesIntoOneExecutable)
+{
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp", "int answer();\nint main() { return answer() == 42 ? 0 : 1; }\n");
+    writeFile("src/answer.cpp", "int answer() { return 42; }\n");
+
+    auto result = runScrap({"build"}, {realCompiler()}, root_, BuildTimeout);
+
+    ASSERT_TRUE(result.exitedNormally) << result.stderrText;
+    ASSERT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_TRUE(std::filesystem::is_regular_file(root_ / "build" / "debug" / "obj" / "app" / "src" / "answer.cpp.o"));
+
+    auto ran = runProgram({(root_ / "build" / "debug" / "bin" / "app").string()}, {}, root_);
+
+    ASSERT_TRUE(ran.exitedNormally);
+    EXPECT_EQ(ran.exitCode, 0);
+}
+
+TEST_F(CliE2ETest, BuildKeepsTheDatabaseWhenTheRealCompilerReportsAnError)
+{
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp", "int main() { return 0 }\n");
+    const std::string source = (std::filesystem::canonical(root_) / "src" / "main.cpp").string();
+
+    auto result = runScrap({"build"}, {realCompiler()}, root_, BuildTimeout);
+
+    ASSERT_TRUE(result.exitedNormally) << result.stderrText;
+    EXPECT_EQ(result.exitCode, 1) << result.stderrText;
+    EXPECT_NE(result.stderrText.find("src/main.cpp:1:"), std::string::npos) << result.stderrText;
+    EXPECT_NE(result.stderrText.find("error: failed to compile '" + source + "' for 'app'\n"), std::string::npos)
+        << result.stderrText;
+    EXPECT_NE(readFile("build/debug/compile_commands.json").find("\"file\": \"src/main.cpp\""), std::string::npos);
+    EXPECT_FALSE(std::filesystem::exists(root_ / "build" / "debug" / "bin" / "app"));
 }
 
 // --- new: creating a project ---------------------------------------------------
