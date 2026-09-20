@@ -39,11 +39,13 @@ public:
     }
 
     /**
-     * Print a "not yet implemented" message and return success.
+     * Print a "not yet implemented" message and return success. It reports
+     * the state of the command rather than answering it, so it goes to
+     * standard error.
      */
     auto execute([[maybe_unused]] const InvocationContext& ctx) -> int override
     {
-        std::cout << commandName_ << ": not yet implemented\n";
+        std::cerr << commandName_ << ": not yet implemented\n";
         return 0;
     }
 

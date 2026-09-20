@@ -573,7 +573,8 @@ TEST_F(CliE2ETest, RealCli11Nested)
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
-    EXPECT_NE(result.stdoutText.find("install: not yet implemented"), std::string::npos);
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    EXPECT_NE(result.stderrText.find("install: not yet implemented"), std::string::npos) << result.stderrText;
 }
 
 // --- TS-08: metadata actually fetched via --scrap-metadata ----------------------
@@ -1179,8 +1180,8 @@ TEST_F(CliE2ETest, NewCreatesAProject)
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
-    EXPECT_TRUE(result.stderrText.empty()) << result.stderrText;
-    EXPECT_EQ(result.stdoutText, "Created project 'hello' at '" + project + "'\n");
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    EXPECT_EQ(result.stderrText, "Created project 'hello' at '" + project + "'\n");
     EXPECT_TRUE(std::filesystem::is_regular_file(root_ / "work" / "hello" / "scrap.toml"));
     EXPECT_TRUE(std::filesystem::is_regular_file(root_ / "work" / "hello" / "src" / "main.cpp"));
 }
