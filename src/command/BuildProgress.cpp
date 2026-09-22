@@ -36,12 +36,12 @@ auto colorSequenceEnd(std::string_view text, std::size_t index) -> std::size_t
     if (! text.substr(index).starts_with(ColorSequenceStart)) {
         return index;
     }
-    std::size_t end = index + ColorSequenceStart.size();
-    while (end < text.size() && text[end] >= '0' && text[end] <= '?') {
+    std::size_t end = (index + ColorSequenceStart.size());
+    while ((end < text.size()) && (text[end] >= '0') && (text[end] <= '?')) {
         ++end;
     }
-    if (end < text.size() && (text[end] == 'm' || text[end] == 'K')) {
-        return end + 1;
+    if ((end < text.size()) && ((text[end] == 'm') || (text[end] == 'K'))) {
+        return (end + 1);
     }
     return index;
 }
@@ -125,7 +125,7 @@ auto printableOutput(const std::string_view text, const bool keepColor) -> std::
 
 auto standardErrorIsTerminal() -> bool
 {
-    return ::isatty(STDERR_FILENO) == 1;
+    return (::isatty(STDERR_FILENO) == 1);
 }
 
 }  // namespace scrap::Command

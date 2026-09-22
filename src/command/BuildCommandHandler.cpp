@@ -115,7 +115,7 @@ auto BuildCommandHandler::execute(const InvocationContext& ctx) -> int
 {
     // An explicitly empty argument is usually an unset variable, so it is
     // reported as an error instead of standing for the working directory.
-    if (! ctx.options.positional.empty() && ctx.options.positional.front().empty()) {
+    if ((! ctx.options.positional.empty()) && ctx.options.positional.front().empty()) {
         std::cerr << renderEmptyPathArgument();
         return 1;
     }
@@ -129,7 +129,7 @@ auto BuildCommandHandler::execute(const InvocationContext& ctx) -> int
     // An empty declaration states that the project builds nothing, which is a
     // different answer from finding nothing where no declaration was written.
     const auto targets = Project::resolveTargets(project->root, project->manifest);
-    if (targets.empty() && ! project->manifest.declaresTargets) {
+    if (targets.empty() && (! project->manifest.declaresTargets)) {
         std::cerr << renderNoTargetToBuild(project->root);
         return 1;
     }

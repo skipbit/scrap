@@ -35,7 +35,7 @@ auto appendJsonString(std::string& out, std::string_view text) -> void
     out += '"';
     for (const char ch : text) {
         const unsigned byte = static_cast<unsigned char>(ch);
-        if (ch == '"' || ch == '\\') {
+        if ((ch == '"') || (ch == '\\')) {
             out += '\\';
             out += ch;
         } else if (byte < 0x20U) {
@@ -123,10 +123,10 @@ auto replaceFile(const std::filesystem::path& file, std::string_view content) ->
         }
 
         std::error_code failure = writeAll(descriptor, content);
-        if (::close(descriptor) != 0 && ! failure) {
+        if ((::close(descriptor) != 0) && (! failure)) {
             failure = lastFailure();
         }
-        if (! failure && ::rename(staged.c_str(), file.c_str()) != 0) {
+        if ((! failure) && (::rename(staged.c_str(), file.c_str()) != 0)) {
             failure = lastFailure();
         }
         if (failure) {

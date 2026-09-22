@@ -39,7 +39,7 @@ void appendCommandLine(std::ostringstream& out, const std::string& name, const s
 {
     out << "    " << name;
     if (! description.empty()) {
-        auto padding = columnWidth - name.size() + 4;
+        auto padding = (columnWidth - name.size() + 4);
         for (std::size_t i = 0; i < padding; ++i) {
             out << ' ';
         }
@@ -178,7 +178,7 @@ auto DefaultHelpRenderer::renderCommand(const CommandSpec& spec) const -> std::s
         out << "\nOPTIONS:\n";
         std::size_t maxLen = 0;
         for (const auto& opt : spec.options.named) {
-            std::size_t len = 2 + opt.longName.size();
+            std::size_t len = (2 + opt.longName.size());
             if (opt.shortName.has_value()) {
                 len += 4;
             }

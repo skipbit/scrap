@@ -157,7 +157,7 @@ auto openPipe(std::array<int, 2>& ends) -> std::error_code
     if (::pipe(ends.data()) != 0) {
         return lastError();
     }
-    if (! closeOnExec(ends[0]) || ! closeOnExec(ends[1])) {
+    if ((! closeOnExec(ends[0])) || (! closeOnExec(ends[1]))) {
         return lastError();
     }
     return {};
@@ -213,7 +213,7 @@ auto waitFor(pid_t child, Completion& completion) -> std::expected<void, std::er
 {
     int status = 0;
     pid_t waited = ::waitpid(child, &status, 0);
-    while (waited < 0 && errno == EINTR) {
+    while ((waited < 0) && (errno == EINTR)) {
         waited = ::waitpid(child, &status, 0);
     }
     if (waited != child) {

@@ -26,11 +26,11 @@ constexpr std::array<std::string_view, 3> SourceExtensions{ ".cpp", ".cc", ".cxx
 auto isSource(const std::filesystem::directory_entry& entry) -> bool
 {
     std::error_code ec;
-    if (! entry.is_regular_file(ec) || ec) {
+    if ((! entry.is_regular_file(ec)) || ec) {
         return false;
     }
     const std::string extension = entry.path().extension().string();
-    return std::ranges::find(SourceExtensions, extension) != SourceExtensions.end();
+    return (std::ranges::find(SourceExtensions, extension) != SourceExtensions.end());
 }
 
 /**

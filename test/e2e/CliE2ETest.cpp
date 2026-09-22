@@ -96,11 +96,11 @@ struct ProcessOutput {
 auto trim(std::string_view text) -> std::string
 {
     std::size_t begin = 0;
-    while (begin < text.size() && (std::isspace(static_cast<unsigned char>(text[begin])) != 0)) {
+    while ((begin < text.size()) && (std::isspace(static_cast<unsigned char>(text[begin])) != 0)) {
         ++begin;
     }
     std::size_t end = text.size();
-    while (end > begin && (std::isspace(static_cast<unsigned char>(text[end - 1])) != 0)) {
+    while ((end > begin) && (std::isspace(static_cast<unsigned char>(text[end - 1])) != 0)) {
         --end;
     }
     return std::string{ text.substr(begin, end - begin) };
@@ -129,7 +129,7 @@ auto buildEnv(const std::filesystem::path& scrapHome, const std::vector<std::str
         bool replaced = false;
         for (auto& existing : env) {
             auto existingEq = existing.find('=');
-            if (existingEq != std::string::npos && existing.compare(0, existingEq, key) == 0) {
+            if ((existingEq != std::string::npos) && (existing.compare(0, existingEq, key) == 0)) {
                 existing = entry;
                 replaced = true;
                 break;
@@ -191,12 +191,12 @@ auto drainBoth(int fd1, int fd2, std::chrono::steady_clock::time_point deadline,
         }
 
         // NOLINTNEXTLINE(hicpp-signed-bitwise) - POSIX poll() revents flag combination
-        if (idx1 >= 0 && (pfds[static_cast<std::size_t>(idx1)].revents & (POLLIN | POLLHUP)) != 0) {
+        if ((idx1 >= 0) && ((pfds[static_cast<std::size_t>(idx1)].revents & (POLLIN | POLLHUP)) != 0)) {
             auto bytesRead = ::read(fd1, buffer.data(), buffer.size());
             if (bytesRead == 0) {
                 open1 = false;
             } else if (bytesRead < 0) {
-                if (errno != EINTR && errno != EAGAIN) {
+                if ((errno != EINTR) && (errno != EAGAIN)) {
                     open1 = false;
                 }
             } else {
@@ -204,12 +204,12 @@ auto drainBoth(int fd1, int fd2, std::chrono::steady_clock::time_point deadline,
             }
         }
         // NOLINTNEXTLINE(hicpp-signed-bitwise) - POSIX poll() revents flag combination
-        if (idx2 >= 0 && (pfds[static_cast<std::size_t>(idx2)].revents & (POLLIN | POLLHUP)) != 0) {
+        if ((idx2 >= 0) && ((pfds[static_cast<std::size_t>(idx2)].revents & (POLLIN | POLLHUP)) != 0)) {
             auto bytesRead = ::read(fd2, buffer.data(), buffer.size());
             if (bytesRead == 0) {
                 open2 = false;
             } else if (bytesRead < 0) {
-                if (errno != EINTR && errno != EAGAIN) {
+                if ((errno != EINTR) && (errno != EAGAIN)) {
                     open2 = false;
                 }
             } else {
@@ -426,9 +426,9 @@ protected:
         pid_t waited = -1;
         do {
             waited = ::waitpid(childPid, &status, 0);
-        } while (waited < 0 && errno == EINTR);
+        } while ((waited < 0) && (errno == EINTR));
 
-        if (! timedOut && waited == childPid && WIFEXITED(status)) {
+        if ((! timedOut) && (waited == childPid) && WIFEXITED(status)) {
             result.exitedNormally = true;
             result.exitCode = WEXITSTATUS(status);
         }

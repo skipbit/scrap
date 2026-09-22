@@ -19,12 +19,12 @@ namespace {
 
 auto isAsciiLetter(const char ch) -> bool
 {
-    return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z');
+    return (((ch >= 'a') && (ch <= 'z')) || ((ch >= 'A') && (ch <= 'Z')));
 }
 
 auto isAsciiDigit(const char ch) -> bool
 {
-    return ch >= '0' && ch <= '9';
+    return ((ch >= '0') && (ch <= '9'));
 }
 
 /**
@@ -81,11 +81,11 @@ auto writeTemplateFile(ProjectFileSystem& fileSystem,
 
 auto isValidProjectName(std::string_view name) -> bool
 {
-    if (name.empty() || name.size() > MaxProjectNameLength || ! isAsciiLetter(name.front())) {
+    if (name.empty() || (name.size() > MaxProjectNameLength) || (! isAsciiLetter(name.front()))) {
         return false;
     }
     return std::ranges::all_of(name, [](const char ch) {
-        return isAsciiLetter(ch) || isAsciiDigit(ch) || ch == '-' || ch == '_';
+        return (isAsciiLetter(ch) || isAsciiDigit(ch) || (ch == '-') || (ch == '_'));
     });
 }
 

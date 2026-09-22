@@ -43,7 +43,7 @@ constexpr const char* HelpFlag = "--help";
 
 // Upper bound on captured stdout; a metadata description is a single short
 // line, so this is generous headroom rather than an expected size.
-constexpr std::size_t MaxCaptureBytes = 64UL * 1024UL;
+constexpr std::size_t MaxCaptureBytes = (64UL * 1024UL);
 constexpr std::size_t ReadChunkBytes = 4096;
 
 // Short sleep between non-blocking reap polls while waiting for a child that
@@ -74,10 +74,10 @@ auto firstNonEmptyLine(std::string_view text) -> std::string
         auto lineEnd = (newlinePos == std::string_view::npos) ? text.size() : newlinePos;
         auto line = text.substr(pos, lineEnd - pos);
 
-        while (! line.empty() && (line.front() == ' ' || line.front() == '\t')) {
+        while ((! line.empty()) && ((line.front() == ' ') || (line.front() == '\t'))) {
             line.remove_prefix(1);
         }
-        while (! line.empty() && (line.back() == ' ' || line.back() == '\t' || line.back() == '\r')) {
+        while ((! line.empty()) && ((line.back() == ' ') || (line.back() == '\t') || (line.back() == '\r'))) {
             line.remove_suffix(1);
         }
 
@@ -104,7 +104,7 @@ auto setCloseOnExec(int fd) -> bool
     if (flags < 0) {
         return false;
     }
-    return ::fcntl(fd, F_SETFD, flags | FD_CLOEXEC) == 0;  // NOLINT(hicpp-signed-bitwise) - POSIX fcntl flag API
+    return (::fcntl(fd, F_SETFD, flags | FD_CLOEXEC) == 0);  // NOLINT(hicpp-signed-bitwise) - POSIX fcntl flag API
 }
 
 /**
@@ -223,7 +223,7 @@ auto drainUntilEofOrDeadline(int readFd, std::chrono::steady_clock::time_point d
             return;
         }
         if (bytesRead < 0) {
-            if (errno == EINTR || errno == EAGAIN) {
+            if ((errno == EINTR) || (errno == EAGAIN)) {
                 continue;
             }
             return;  // Unexpected read() failure: stop reading.
@@ -232,7 +232,7 @@ auto drainUntilEofOrDeadline(int readFd, std::chrono::steady_clock::time_point d
         if (out.size() >= MaxCaptureBytes) {
             return;  // Capture cap reached; stop reading and let the caller reap.
         }
-        auto available = MaxCaptureBytes - out.size();
+        auto available = (MaxCaptureBytes - out.size());
         auto toAppend = std::min(static_cast<std::size_t>(bytesRead), available);
         out.append(buffer.data(), toAppend);
     }
@@ -287,7 +287,7 @@ auto reapBounded(pid_t childPid, std::chrono::steady_clock::time_point deadline)
             ::killpg(childPid, SIGKILL);
             killed = true;
             waited = ::waitpid(childPid, &status, 0);
-            while (waited < 0 && errno == EINTR) {
+            while ((waited < 0) && (errno == EINTR)) {
                 waited = ::waitpid(childPid, &status, 0);
             }
             break;
@@ -296,7 +296,7 @@ auto reapBounded(pid_t childPid, std::chrono::steady_clock::time_point deadline)
     }
 
     // NOLINTNEXTLINE(misc-include-cleaner) - WIFEXITED/WEXITSTATUS are provided by <sys/wait.h>
-    if (! killed && waited == childPid && WIFEXITED(status)) {
+    if ((! killed) && (waited == childPid) && WIFEXITED(status)) {
         return WEXITSTATUS(status);  // NOLINT(misc-include-cleaner) - provided by <sys/wait.h>
     }
     return std::nullopt;
@@ -320,7 +320,7 @@ auto runOnce(const std::filesystem::path& executable, const char* flag, std::chr
     UniqueFd readFd{ pipeFds[0] };
     UniqueFd writeFd{ pipeFds[1] };
 
-    if (! setCloseOnExec(readFd.get()) || ! setCloseOnExec(writeFd.get())) {
+    if ((! setCloseOnExec(readFd.get())) || (! setCloseOnExec(writeFd.get()))) {
         return {};
     }
 
@@ -381,7 +381,7 @@ auto runOnce(const std::filesystem::path& executable, const char* flag, std::chr
 auto probe(const std::filesystem::path& executable, const char* flag, std::chrono::milliseconds timeout) -> std::string
 {
     auto result = runOnce(executable, flag, timeout);
-    if (! result.exitedNormally || result.exitCode != 0) {
+    if ((! result.exitedNormally) || (result.exitCode != 0)) {
         return {};
     }
     return firstNonEmptyLine(result.capturedStdout);

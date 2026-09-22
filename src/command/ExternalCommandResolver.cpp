@@ -28,7 +28,7 @@ constexpr std::string_view ExternalPrefix = "scrap-";
 auto isScrapExecutable(const std::filesystem::directory_entry& entry) -> bool
 {
     std::error_code ec;
-    if (! entry.is_regular_file(ec) || ec) {
+    if ((! entry.is_regular_file(ec)) || ec) {
         return false;
     }
     auto filename = entry.path().filename().string();
@@ -39,7 +39,7 @@ auto isScrapExecutable(const std::filesystem::directory_entry& entry) -> bool
     if (ec) {
         return false;
     }
-    return (status.permissions() & std::filesystem::perms::owner_exec) != std::filesystem::perms::none;
+    return ((status.permissions() & std::filesystem::perms::owner_exec) != std::filesystem::perms::none);
 }
 
 /**
@@ -101,10 +101,10 @@ auto ExternalCommandResolver::resolve(const RuntimeEnvironment& env) -> std::vec
 
     for (const auto& searchPath : env.searchPaths) {
         std::error_code ec;
-        if (! std::filesystem::is_directory(searchPath, ec) || ec) {
+        if ((! std::filesystem::is_directory(searchPath, ec)) || ec) {
             continue;
         }
-        for (std::filesystem::directory_iterator it(searchPath, ec), end; ! ec && it != end; it.increment(ec)) {
+        for (std::filesystem::directory_iterator it(searchPath, ec), end; (! ec) && (it != end); it.increment(ec)) {
             if (isScrapExecutable(*it)) {
                 entries.push_back(buildEntry(it->path(), metadataProvider_.get()));
             }

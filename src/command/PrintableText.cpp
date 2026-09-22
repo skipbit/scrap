@@ -35,7 +35,7 @@ auto utf8SequenceLength(std::string_view text, const std::size_t index) -> std::
     } else if ((lead & 0xF8U) == 0xF0U) {
         length = 4;
     }
-    if (length == 0 || index + length > text.size()) {
+    if ((length == 0) || ((index + length) > text.size())) {
         return 0;
     }
     for (std::size_t offset = 1; offset < length; ++offset) {
@@ -60,7 +60,7 @@ auto printableText(const std::string_view text) -> std::string
     while (index < text.size()) {
         const auto byte = static_cast<unsigned char>(text[index]);
         if (byte < 0x80U) {
-            if (byte < 0x20U || byte == 0x7FU || text[index] == '\\') {
+            if ((byte < 0x20U) || (byte == 0x7FU) || (text[index] == '\\')) {
                 appendEscaped(byte, result);
             } else {
                 result += text[index];
@@ -70,7 +70,7 @@ auto printableText(const std::string_view text) -> std::string
         }
 
         const std::size_t length = utf8SequenceLength(text, index);
-        const bool isC1 = length == 2 && byte == 0xC2U && static_cast<unsigned char>(text[index + 1]) <= 0x9FU;
+        const bool isC1 = ((length == 2) && (byte == 0xC2U) && (static_cast<unsigned char>(text[index + 1]) <= 0x9FU));
         if (length == 0) {
             appendEscaped(byte, result);
             ++index;
@@ -96,7 +96,7 @@ auto printableName(const std::string_view name) -> std::string
     std::string result;
     for (const char ch : name) {
         const auto byte = static_cast<unsigned char>(ch);
-        if (byte >= 0x20U && byte < 0x7FU && ch != '\\') {
+        if ((byte >= 0x20U) && (byte < 0x7FU) && (ch != '\\')) {
             result += ch;
         } else {
             appendEscaped(byte, result);

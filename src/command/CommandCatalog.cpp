@@ -45,7 +45,7 @@ auto CommandCatalog::find(const std::string& commandPath) const -> const Command
     }
 
     // Reject malformed paths: leading/trailing dots, consecutive dots.
-    if (commandPath.front() == '.' || commandPath.back() == '.' || commandPath.contains("..")) {
+    if ((commandPath.front() == '.') || (commandPath.back() == '.') || commandPath.contains("..")) {
         return nullptr;
     }
 

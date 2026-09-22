@@ -158,7 +158,7 @@ auto render(const Project::PathExists& error) -> std::string
 auto isQuotaExceeded(const std::error_code& code) -> bool
 {
 #ifdef EDQUOT
-    return code.value() == EDQUOT && (code.category() == std::generic_category() || code.category() == std::system_category());
+    return ((code.value() == EDQUOT) && ((code.category() == std::generic_category()) || (code.category() == std::system_category())));
 #else
     static_cast<void>(code);
     return false;

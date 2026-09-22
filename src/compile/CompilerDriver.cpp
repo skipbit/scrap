@@ -83,7 +83,7 @@ auto lookUp(std::span<const Spelling> spellings,
             const Toolchain::CompilerVersion& version) -> std::optional<std::string>
 {
     for (const Spelling& spelling : spellings) {
-        if (spelling.standard == standard && Toolchain::isAtLeast(version, spelling.major, spelling.minor)) {
+        if ((spelling.standard == standard) && Toolchain::isAtLeast(version, spelling.major, spelling.minor)) {
             return std::string{ spelling.option };
         }
     }

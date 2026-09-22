@@ -35,7 +35,7 @@ auto macroValue(std::string_view macros, std::string_view name) -> std::optional
             continue;
         }
         line.remove_prefix(DefinePrefix.size());
-        if (line.starts_with(name) && line.size() > name.size() && line[name.size()] == ' ') {
+        if (line.starts_with(name) && (line.size() > name.size()) && (line[name.size()] == ' ')) {
             return line.substr(name.size() + 1);
         }
     }
@@ -71,9 +71,9 @@ auto versionFrom(std::string_view macros, std::string_view major, std::string_vi
 auto isAtLeast(const CompilerVersion& version, const int major, const int minor) -> bool
 {
     if (version.major != major) {
-        return version.major > major;
+        return (version.major > major);
     }
-    return version.minor >= minor;
+    return (version.minor >= minor);
 }
 
 auto readCompilerIdentity(std::string_view predefinedMacros) -> CompilerIdentity
@@ -98,7 +98,7 @@ auto identifyCompiler(const std::filesystem::path& compiler) -> CompilerIdentity
 {
     const std::vector<std::string> arguments{ compiler.string(), "-dM", "-E", "-x", "c++", "/dev/null" };
     const auto completion = Process::runProgram(arguments, {}, Process::OutputCapture::StandardOutput);
-    if (! completion.has_value() || completion->exitCode != 0) {
+    if ((! completion.has_value()) || (completion->exitCode != 0)) {
         return CompilerIdentity{};
     }
     return readCompilerIdentity(completion->output);

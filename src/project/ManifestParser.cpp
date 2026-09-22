@@ -167,7 +167,7 @@ auto parseStandard(const std::filesystem::path& file, const toml::table& package
 auto hasControlCharacter(std::string_view text) -> bool
 {
     return std::ranges::any_of(text, [](const char ch) {
-        return static_cast<unsigned char>(ch) < 0x20;
+        return (static_cast<unsigned char>(ch) < 0x20);
     });
 }
 
@@ -186,7 +186,7 @@ auto validateName(const std::filesystem::path& file, const StringField& field, s
     if (field.value == "." || field.value == "..") {
         return std::unexpected(errorAt(file, *field.node, std::move(key), "must not be '.' or '..'"));
     }
-    if (field.value.find('/') != std::string::npos || field.value.find('\\') != std::string::npos) {
+    if ((field.value.find('/') != std::string::npos) || (field.value.find('\\') != std::string::npos)) {
         return std::unexpected(errorAt(file, *field.node, std::move(key), "must not contain a path separator"));
     }
     if (hasControlCharacter(field.value)) {
@@ -422,7 +422,7 @@ auto parseManifest(std::string_view text, const std::filesystem::path& file) -> 
 
     Manifest manifest;
     manifest.package = std::move(*package);
-    manifest.declaresTargets = parsed.table().get("bin") != nullptr || parsed.table().get("lib") != nullptr;
+    manifest.declaresTargets = ((parsed.table().get("bin") != nullptr) || (parsed.table().get("lib") != nullptr));
 
     auto executables = parseTargetArray(file, parsed.table(), "bin", TargetKind::Executable, manifest.targets);
     if (! executables.has_value()) {

@@ -45,7 +45,7 @@ auto DiskProjectFileSystem::createDirectory(const std::filesystem::path& directo
 {
     std::error_code ec;
     const bool created = std::filesystem::create_directory(directory, ec);
-    if (! ec && ! created) {
+    if ((! ec) && (! created)) {
         return std::make_error_code(std::errc::file_exists);
     }
     return ec;
