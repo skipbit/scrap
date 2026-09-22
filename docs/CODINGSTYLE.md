@@ -353,7 +353,7 @@ class Example {
 - **File endings**: Must end with a newline
 - **Empty lines**: Do not indent
 - **Trailing whitespace**: Remove
-- **Line width**: 120 characters recommended
+- **Line width**: aim for 140 characters, with no hard limit. `.clang-format` sets no `ColumnLimit`, so a line is never rewrapped to fit a width; go past 140 where breaking would hurt readability
 
 ## Error Handling
 
