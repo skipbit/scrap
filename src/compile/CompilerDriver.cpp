@@ -93,19 +93,19 @@ auto lookUp(std::span<const Spelling> spellings,
 }  // anonymous namespace
 
 CompilerDriver::CompilerDriver(Toolchain::CompilerIdentity identity)
-    : identity_(identity)
+    : _identity(identity)
 {
 }
 
 auto CompilerDriver::standardOption(const LanguageStandard standard) const -> std::optional<std::string>
 {
-    switch (identity_.family) {
+    switch (_identity.family) {
     case CompilerFamily::Gcc:
-        return lookUp(GccSpellings, standard, identity_.version);
+        return lookUp(GccSpellings, standard, _identity.version);
     case CompilerFamily::Clang:
-        return lookUp(ClangSpellings, standard, identity_.version);
+        return lookUp(ClangSpellings, standard, _identity.version);
     case CompilerFamily::AppleClang:
-        return lookUp(AppleClangSpellings, standard, identity_.version);
+        return lookUp(AppleClangSpellings, standard, _identity.version);
     case CompilerFamily::Unknown:
         return standardNameOption(standard);
     }
@@ -114,7 +114,7 @@ auto CompilerDriver::standardOption(const LanguageStandard standard) const -> st
 
 auto CompilerDriver::colorOption() const -> std::optional<std::string>
 {
-    if (identity_.family == CompilerFamily::Unknown) {
+    if (_identity.family == CompilerFamily::Unknown) {
         return std::nullopt;
     }
     return std::string{ ColorOption };

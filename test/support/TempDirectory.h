@@ -56,7 +56,7 @@ public:
     std::string readFile(const std::filesystem::path& file) const;
 
 private:
-    std::filesystem::path path_;
+    std::filesystem::path _path;
 };
 
 }  // namespace scrap::TestSupport

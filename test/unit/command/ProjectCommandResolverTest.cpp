@@ -18,7 +18,7 @@ public:
      * Construct with the result to return from read().
      */
     explicit MockScriptsReader(std::expected<std::vector<ScriptDef>, std::string> result)
-        : result_(std::move(result))
+        : _result(std::move(result))
     {
     }
 
@@ -27,11 +27,11 @@ public:
      */
     auto read([[maybe_unused]] const std::filesystem::path& projectRoot) -> std::expected<std::vector<ScriptDef>, std::string> override
     {
-        return result_;
+        return _result;
     }
 
 private:
-    std::expected<std::vector<ScriptDef>, std::string> result_;
+    std::expected<std::vector<ScriptDef>, std::string> _result;
 };
 
 }  // namespace

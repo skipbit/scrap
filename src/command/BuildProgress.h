@@ -36,8 +36,8 @@ public:
     void finished(const Build::BuildStep& step, std::string_view output) override;
 
 private:
-    std::ostream* out_;
-    bool keepColor_;
+    std::ostream* _out;
+    bool _keepColor;
 };
 
 /**

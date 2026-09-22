@@ -32,7 +32,7 @@ public:
     auto resolve(const RuntimeEnvironment& env) -> std::vector<CommandEntry> override;
 
 private:
-    std::unique_ptr<ExternalMetadataProvider> metadataProvider_;
+    std::unique_ptr<ExternalMetadataProvider> _metadataProvider;
 };
 
 }  // namespace scrap::Command

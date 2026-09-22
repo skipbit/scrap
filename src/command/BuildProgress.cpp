@@ -69,14 +69,14 @@ auto alignedVerb(std::string_view verb) -> std::string
 }  // anonymous namespace
 
 StreamBuildReporter::StreamBuildReporter(std::ostream& out, const bool keepColor)
-    : out_(&out)
-    , keepColor_(keepColor)
+    : _out(&out)
+    , _keepColor(keepColor)
 {
 }
 
 void StreamBuildReporter::started(const Build::BuildStep& step)
 {
-    *out_ << alignedVerb(verbFor(step)) << ' ' << printableName(step.target) << " (" << printablePath(step.subject) << ")\n";
+    *_out << alignedVerb(verbFor(step)) << ' ' << printableName(step.target) << " (" << printablePath(step.subject) << ")\n";
 }
 
 void StreamBuildReporter::finished(const Build::BuildStep& /*step*/, const std::string_view output)
@@ -84,10 +84,10 @@ void StreamBuildReporter::finished(const Build::BuildStep& /*step*/, const std::
     if (output.empty()) {
         return;
     }
-    const std::string text = printableOutput(output, keepColor_);
-    *out_ << text;
+    const std::string text = printableOutput(output, _keepColor);
+    *_out << text;
     if (! text.ends_with('\n')) {
-        *out_ << '\n';
+        *_out << '\n';
     }
 }
 

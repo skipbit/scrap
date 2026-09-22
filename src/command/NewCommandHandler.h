@@ -30,7 +30,7 @@ public:
     auto execute(const InvocationContext& ctx) -> int override;
 
 private:
-    Project::ProjectFileSystem* fileSystem_;
+    Project::ProjectFileSystem* _fileSystem;
 };
 
 }  // namespace scrap::Command

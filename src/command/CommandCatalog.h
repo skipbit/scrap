@@ -74,7 +74,7 @@ public:
     [[nodiscard]] auto helpEntries() const -> std::vector<HelpEntry>;
 
 private:
-    std::vector<CommandEntry> entries_;
+    std::vector<CommandEntry> _entries;
 
     /**
      * @brief Recursively build a CommandSpec from a CommandEntry.

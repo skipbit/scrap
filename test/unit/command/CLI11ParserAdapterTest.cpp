@@ -37,25 +37,25 @@ auto makeSpecWithSubs(const std::string& name, std::vector<CommandSpec> subs, co
 class ArgvBuilder {
 public:
     ArgvBuilder(std::initializer_list<const char*> args)
-        : args_(args)
+        : _args(args)
     {
     }
 
     [[nodiscard]] auto data() const -> const char* const*
     {
-        return args_.data();
+        return _args.data();
     }
     [[nodiscard]] auto size() const -> std::size_t
     {
-        return args_.size();
+        return _args.size();
     }
     [[nodiscard]] auto span() const -> std::span<const char* const>
     {
-        return { args_.data(), args_.size() };
+        return { _args.data(), _args.size() };
     }
 
 private:
-    std::vector<const char*> args_;
+    std::vector<const char*> _args;
 };
 
 }  // namespace

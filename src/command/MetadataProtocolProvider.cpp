@@ -117,7 +117,7 @@ class UniqueFd {
 public:
     UniqueFd() = default;
     explicit UniqueFd(int fd)
-        : fd_(fd)
+        : _fd(fd)
     {
     }
 
@@ -125,7 +125,7 @@ public:
     auto operator=(const UniqueFd&) -> UniqueFd& = delete;
 
     UniqueFd(UniqueFd&& other) noexcept
-        : fd_(other.release())
+        : _fd(other.release())
     {
     }
     auto operator=(UniqueFd&& other) noexcept -> UniqueFd&
@@ -143,28 +143,28 @@ public:
 
     [[nodiscard]] auto get() const -> int
     {
-        return fd_;
+        return _fd;
     }
 
     /** Relinquish ownership, returning the raw descriptor without closing it. */
     [[nodiscard]] auto release() -> int
     {
-        auto fd = fd_;
-        fd_ = -1;
+        auto fd = _fd;
+        _fd = -1;
         return fd;
     }
 
     /** Close the current descriptor (if any) and take ownership of @p fd. */
     void reset(int fd = -1)
     {
-        if (fd_ >= 0) {
-            ::close(fd_);
+        if (_fd >= 0) {
+            ::close(_fd);
         }
-        fd_ = fd;
+        _fd = fd;
     }
 
 private:
-    int fd_ = -1;
+    int _fd = -1;
 };
 
 /**
@@ -393,7 +393,7 @@ auto probe(const std::filesystem::path& executable, const char* flag, std::chron
  * Construct with the subprocess timeout used for both probe attempts.
  */
 MetadataProtocolProvider::MetadataProtocolProvider(std::chrono::milliseconds timeout)
-    : timeout_(timeout)
+    : _timeout(timeout)
 {
 }
 
@@ -411,11 +411,11 @@ auto MetadataProtocolProvider::fetch(const std::filesystem::path& executable) ->
     auto canonicalized = std::filesystem::weakly_canonical(executable, ec);
     const std::filesystem::path& exe = ec ? executable : canonicalized;
 
-    if (auto description = probe(exe, ProtocolFlag, timeout_); ! description.empty()) {
+    if (auto description = probe(exe, ProtocolFlag, _timeout); ! description.empty()) {
         return ExternalCommandMetadata{ .name = "", .description = std::move(description), .options = {} };
     }
 
-    if (auto description = probe(exe, HelpFlag, timeout_); ! description.empty()) {
+    if (auto description = probe(exe, HelpFlag, _timeout); ! description.empty()) {
         return ExternalCommandMetadata{ .name = "", .description = std::move(description), .options = {} };
     }
 

@@ -42,7 +42,7 @@ public:
 private:
     static constexpr std::chrono::milliseconds DefaultTimeout{ 2000 };
 
-    std::chrono::milliseconds timeout_;
+    std::chrono::milliseconds _timeout;
 };
 
 }  // namespace scrap::Command

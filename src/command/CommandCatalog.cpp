@@ -25,16 +25,16 @@ CommandCatalog& CommandCatalog::operator=(CommandCatalog&&) noexcept = default;
 auto CommandCatalog::addEntries(std::vector<CommandEntry> entries) -> void
 {
     for (auto& incoming : entries) {
-        auto it = std::ranges::find_if(entries_, [&](const CommandEntry& existing) {
+        auto it = std::ranges::find_if(_entries, [&](const CommandEntry& existing) {
             return existing.spec.name == incoming.spec.name;
         });
 
-        if (it != entries_.end()) {
+        if (it != _entries.end()) {
             std::cerr << "warning: command '" << incoming.spec.name << "' already registered; ignoring duplicate\n";
             continue;
         }
 
-        entries_.push_back(std::move(incoming));
+        _entries.push_back(std::move(incoming));
     }
 }
 
@@ -62,7 +62,7 @@ auto CommandCatalog::find(const std::string& commandPath) const -> const Command
     }
 
     // Walk the tree level by level.
-    const std::vector<CommandEntry>* currentLevel = &entries_;
+    const std::vector<CommandEntry>* currentLevel = &_entries;
     const CommandEntry* found = nullptr;
 
     for (const auto& seg : segments) {
@@ -84,9 +84,9 @@ auto CommandCatalog::find(const std::string& commandPath) const -> const Command
 auto CommandCatalog::specs() const -> std::vector<CommandSpec>
 {
     std::vector<CommandSpec> result;
-    result.reserve(entries_.size());
+    result.reserve(_entries.size());
 
-    for (const auto& entry : entries_) {
+    for (const auto& entry : _entries) {
         result.push_back(buildSpec(entry));
     }
 
@@ -96,9 +96,9 @@ auto CommandCatalog::specs() const -> std::vector<CommandSpec>
 auto CommandCatalog::helpEntries() const -> std::vector<HelpEntry>
 {
     std::vector<HelpEntry> result;
-    result.reserve(entries_.size());
+    result.reserve(_entries.size());
 
-    for (const auto& entry : entries_) {
+    for (const auto& entry : _entries) {
         result.push_back(HelpEntry{ buildSpec(entry), entry.source });
     }
 

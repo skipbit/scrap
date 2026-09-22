@@ -40,7 +40,7 @@ public:
     [[nodiscard]] auto colorOption() const -> std::optional<std::string>;
 
 private:
-    Toolchain::CompilerIdentity identity_;
+    Toolchain::CompilerIdentity _identity;
 };
 
 /**

@@ -282,7 +282,7 @@ auto determineHelpTarget(const CLI::App& app) -> std::optional<std::string>
 // =============================================================================
 
 CLI11ParserAdapter::CLI11ParserAdapter()
-    : impl_(std::make_unique<Impl>())
+    : _impl(std::make_unique<Impl>())
 {
 }
 
@@ -294,7 +294,7 @@ CLI11ParserAdapter& CLI11ParserAdapter::operator=(CLI11ParserAdapter&&) noexcept
 
 auto CLI11ParserAdapter::configure(std::span<const CommandSpec> specs) -> void
 {
-    impl_->specs.assign(specs.begin(), specs.end());
+    _impl->specs.assign(specs.begin(), specs.end());
 }
 
 // --- parse -------------------------------------------------------------------
@@ -312,7 +312,7 @@ auto CLI11ParserAdapter::parse(std::span<const char* const> argv) const -> Parse
 
     try {
         // Map the CommandSpec tree onto CLI11 subcommands and options.
-        addSubcommands(app, impl_->specs, storageMap);
+        addSubcommands(app, _impl->specs, storageMap);
 
         // --- Parse ---------------------------------------------------------------
         app.parse(static_cast<int>(argv.size()), argv.data());

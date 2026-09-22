@@ -37,29 +37,29 @@ TempDirectory::TempDirectory()
         ADD_FAILURE() << "mkdtemp failed: " << std::strerror(errno);
         return;
     }
-    path_ = std::filesystem::path(created);
+    _path = std::filesystem::path(created);
 }
 
 TempDirectory::~TempDirectory()
 {
-    if (path_.empty()) {
+    if (_path.empty()) {
         return;
     }
     std::error_code ec;
-    std::filesystem::remove_all(path_, ec);
+    std::filesystem::remove_all(_path, ec);
     if (ec) {
-        ADD_FAILURE() << "cannot remove " << path_ << ": " << ec.message();
+        ADD_FAILURE() << "cannot remove " << _path << ": " << ec.message();
     }
 }
 
 const std::filesystem::path& TempDirectory::path() const
 {
-    return path_;
+    return _path;
 }
 
 std::filesystem::path TempDirectory::writeFile(std::string_view relative, std::string_view content) const
 {
-    const std::filesystem::path target = path_ / relative;
+    const std::filesystem::path target = _path / relative;
 
     std::error_code ec;
     std::filesystem::create_directories(target.parent_path(), ec);
@@ -83,14 +83,14 @@ std::filesystem::path TempDirectory::writeFile(std::string_view relative, std::s
 
 std::string TempDirectory::readFile(const std::filesystem::path& file) const
 {
-    const std::filesystem::path target = file.is_absolute() ? file : path_ / file;
+    const std::filesystem::path target = file.is_absolute() ? file : _path / file;
     std::ifstream input(target, std::ios::binary);
     return std::string{ std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>() };
 }
 
 std::filesystem::path TempDirectory::makeDirectory(std::string_view relative) const
 {
-    const std::filesystem::path target = path_ / relative;
+    const std::filesystem::path target = _path / relative;
     std::error_code ec;
     std::filesystem::create_directories(target, ec);
     if (ec) {

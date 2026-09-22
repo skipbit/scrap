@@ -29,7 +29,7 @@ public:
      */
     void setResult(ParseResult result)
     {
-        result_ = std::move(result);
+        _result = std::move(result);
     }
 
     /**
@@ -37,11 +37,11 @@ public:
      */
     [[nodiscard]] auto parse([[maybe_unused]] std::span<const char* const> argv) const -> ParseResult override
     {
-        return result_;
+        return _result;
     }
 
 private:
-    ParseResult result_ = std::unexpected(ParseInterruption{ ParseFailure{ "not configured" } });
+    ParseResult _result = std::unexpected(ParseInterruption{ ParseFailure{ "not configured" } });
 };
 
 /**
@@ -90,7 +90,7 @@ public:
      */
     void setEntries(std::vector<CommandEntry> entries)
     {
-        entries_ = std::move(entries);
+        _entries = std::move(entries);
     }
 
     /**
@@ -98,11 +98,11 @@ public:
      */
     auto resolve([[maybe_unused]] const RuntimeEnvironment& env) -> std::vector<CommandEntry> override
     {
-        return std::move(entries_);
+        return std::move(_entries);
     }
 
 private:
-    std::vector<CommandEntry> entries_;
+    std::vector<CommandEntry> _entries;
 };
 
 /**
@@ -114,7 +114,7 @@ public:
      * Construct with the exit code to return.
      */
     explicit StubHandler(int exitCode)
-        : exitCode_(exitCode)
+        : _exitCode(exitCode)
     {
     }
 
@@ -123,8 +123,8 @@ public:
      */
     auto execute([[maybe_unused]] const InvocationContext& ctx) -> int override
     {
-        executed_ = true;
-        return exitCode_;
+        _executed = true;
+        return _exitCode;
     }
 
     /**
@@ -132,12 +132,12 @@ public:
      */
     [[nodiscard]] auto wasExecuted() const -> bool
     {
-        return executed_;
+        return _executed;
     }
 
 private:
-    int exitCode_;
-    bool executed_ = false;
+    int _exitCode;
+    bool _executed = false;
 };
 
 /**
@@ -174,7 +174,7 @@ public:
      * Start capturing stdout.
      */
     StdoutCapture()
-        : original_(std::cout.rdbuf(captured_.rdbuf()))
+        : _original(std::cout.rdbuf(_captured.rdbuf()))
     {
     }
 
@@ -183,7 +183,7 @@ public:
      */
     ~StdoutCapture()
     {
-        std::cout.rdbuf(original_);
+        std::cout.rdbuf(_original);
     }
 
     StdoutCapture(const StdoutCapture&) = delete;
@@ -194,12 +194,12 @@ public:
      */
     [[nodiscard]] auto str() const -> std::string
     {
-        return captured_.str();
+        return _captured.str();
     }
 
 private:
-    std::ostringstream captured_;
-    std::streambuf* original_;
+    std::ostringstream _captured;
+    std::streambuf* _original;
 };
 
 /**
@@ -211,7 +211,7 @@ public:
      * Start capturing stderr.
      */
     StderrCapture()
-        : original_(std::cerr.rdbuf(captured_.rdbuf()))
+        : _original(std::cerr.rdbuf(_captured.rdbuf()))
     {
     }
 
@@ -220,7 +220,7 @@ public:
      */
     ~StderrCapture()
     {
-        std::cerr.rdbuf(original_);
+        std::cerr.rdbuf(_original);
     }
 
     StderrCapture(const StderrCapture&) = delete;
@@ -231,12 +231,12 @@ public:
      */
     [[nodiscard]] auto str() const -> std::string
     {
-        return captured_.str();
+        return _captured.str();
     }
 
 private:
-    std::ostringstream captured_;
-    std::streambuf* original_;
+    std::ostringstream _captured;
+    std::streambuf* _original;
 };
 
 }  // namespace

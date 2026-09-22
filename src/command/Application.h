@@ -81,10 +81,10 @@ private:
      */
     static auto handleFailure(const ParseFailure& failure) -> int;
 
-    std::unique_ptr<ParserAdapter> parser_;
-    std::unique_ptr<HelpRenderer> helpRenderer_;
-    std::unique_ptr<VersionRenderer> versionRenderer_;
-    std::vector<std::unique_ptr<CommandResolver>> resolvers_;
+    std::unique_ptr<ParserAdapter> _parser;
+    std::unique_ptr<HelpRenderer> _helpRenderer;
+    std::unique_ptr<VersionRenderer> _versionRenderer;
+    std::vector<std::unique_ptr<CommandResolver>> _resolvers;
 };
 
 }  // namespace scrap::Command

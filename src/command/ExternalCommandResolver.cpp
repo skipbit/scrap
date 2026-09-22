@@ -88,7 +88,7 @@ auto buildEntry(const std::filesystem::path& executablePath, ExternalMetadataPro
  * Construct with an ExternalMetadataProvider for fetching command metadata.
  */
 ExternalCommandResolver::ExternalCommandResolver(std::unique_ptr<ExternalMetadataProvider> metadataProvider)
-    : metadataProvider_(std::move(metadataProvider))
+    : _metadataProvider(std::move(metadataProvider))
 {
 }
 
@@ -106,7 +106,7 @@ auto ExternalCommandResolver::resolve(const RuntimeEnvironment& env) -> std::vec
         }
         for (std::filesystem::directory_iterator it(searchPath, ec), end; (! ec) && (it != end); it.increment(ec)) {
             if (isScrapExecutable(*it)) {
-                entries.push_back(buildEntry(it->path(), metadataProvider_.get()));
+                entries.push_back(buildEntry(it->path(), _metadataProvider.get()));
             }
         }
     }

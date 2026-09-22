@@ -40,7 +40,7 @@ auto lastError() -> std::error_code
 class OwnedDescriptor {
 public:
     explicit OwnedDescriptor(int descriptor)
-        : descriptor_(descriptor)
+        : _descriptor(descriptor)
     {
     }
 
@@ -56,19 +56,19 @@ public:
 
     [[nodiscard]] auto get() const -> int
     {
-        return descriptor_;
+        return _descriptor;
     }
 
     void close()
     {
-        if (descriptor_ >= 0) {
-            ::close(descriptor_);
-            descriptor_ = -1;
+        if (_descriptor >= 0) {
+            ::close(_descriptor);
+            _descriptor = -1;
         }
     }
 
 private:
-    int descriptor_;
+    int _descriptor;
 };
 
 #if defined(__APPLE__)

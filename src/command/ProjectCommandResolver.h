@@ -35,7 +35,7 @@ public:
     auto resolve(const RuntimeEnvironment& env) -> std::vector<CommandEntry> override;
 
 private:
-    std::unique_ptr<ScriptsReader> scriptsReader_;
+    std::unique_ptr<ScriptsReader> _scriptsReader;
 };
 
 }  // namespace scrap::Command

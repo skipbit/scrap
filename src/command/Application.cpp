@@ -28,9 +28,9 @@ namespace scrap::Command {
 Application::Application(std::unique_ptr<ParserAdapter> parser,
                          std::unique_ptr<HelpRenderer> helpRenderer,
                          std::unique_ptr<VersionRenderer> versionRenderer)
-    : parser_(std::move(parser))
-    , helpRenderer_(std::move(helpRenderer))
-    , versionRenderer_(std::move(versionRenderer))
+    : _parser(std::move(parser))
+    , _helpRenderer(std::move(helpRenderer))
+    , _versionRenderer(std::move(versionRenderer))
 {
 }
 
@@ -43,7 +43,7 @@ Application& Application::operator=(Application&&) noexcept = default;
  */
 auto Application::addResolver(std::unique_ptr<CommandResolver> resolver) -> void
 {
-    resolvers_.push_back(std::move(resolver));
+    _resolvers.push_back(std::move(resolver));
 }
 
 /**
@@ -53,16 +53,16 @@ auto Application::run(std::span<const char* const> argv, const RuntimeEnvironmen
 {
     // Phase 1: Resolve - collect CommandEntry trees from all resolvers.
     CommandCatalog catalog;
-    for (auto& resolver : resolvers_) {
+    for (auto& resolver : _resolvers) {
         catalog.addEntries(resolver->resolve(env));
     }
 
     // Phase 2: Configure - derive CommandSpec tree and feed to parser.
     auto specTree = catalog.specs();
-    parser_->configure(specTree);
+    _parser->configure(specTree);
 
     // Phase 3: Parse - parse argv into a ParseResult.
-    auto result = parser_->parse(argv);
+    auto result = _parser->parse(argv);
 
     // Phase 4: Execute - dispatch based on ParseResult.
     if (result.has_value()) {
@@ -101,7 +101,7 @@ auto Application::handleDirective(const CommandCatalog& catalog, const ParseDire
     case ParseDirectiveKind::HelpRequested:
         return handleHelp(catalog, directive.target);
     case ParseDirectiveKind::VersionRequested:
-        std::cout << versionRenderer_->render() << "\n";
+        std::cout << _versionRenderer->render() << "\n";
         return 0;
     }
     return 1;
@@ -113,12 +113,12 @@ auto Application::handleDirective(const CommandCatalog& catalog, const ParseDire
 auto Application::handleHelp(const CommandCatalog& catalog, const std::optional<std::string>& target) -> int
 {
     if (! target.has_value()) {
-        std::cout << helpRenderer_->renderGlobal(catalog.helpEntries());
+        std::cout << _helpRenderer->renderGlobal(catalog.helpEntries());
         return 0;
     }
     for (const auto& spec : catalog.specs()) {
         if (spec.name == *target) {
-            std::cout << helpRenderer_->renderCommand(spec);
+            std::cout << _helpRenderer->renderCommand(spec);
             return 0;
         }
     }

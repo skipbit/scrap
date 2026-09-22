@@ -35,7 +35,7 @@ public:
      * Construct with the command name shown in the placeholder message.
      */
     explicit PlaceholderHandler(std::string commandName)
-        : commandName_(std::move(commandName))
+        : _commandName(std::move(commandName))
     {
     }
 
@@ -46,12 +46,12 @@ public:
      */
     auto execute([[maybe_unused]] const InvocationContext& ctx) -> int override
     {
-        std::cerr << commandName_ << ": not yet implemented\n";
+        std::cerr << _commandName << ": not yet implemented\n";
         return 0;
     }
 
 private:
-    std::string commandName_;
+    std::string _commandName;
 };
 
 /**
@@ -64,7 +64,7 @@ public:
      * Construct with a non-owning pointer to the shared HelpRenderer.
      */
     explicit HelpCommandHandler(HelpRenderer* renderer)
-        : renderer_(renderer)
+        : _renderer(renderer)
     {
     }
 
@@ -74,14 +74,14 @@ public:
     auto execute(const InvocationContext& ctx) -> int override
     {
         if (ctx.options.positional.empty()) {
-            std::cout << renderer_->renderGlobal(ctx.catalog->helpEntries());
+            std::cout << _renderer->renderGlobal(ctx.catalog->helpEntries());
             return 0;
         }
 
         auto target = ctx.options.positional[0];
         for (const auto& spec : ctx.catalog->specs()) {
             if (spec.name == target) {
-                std::cout << renderer_->renderCommand(spec);
+                std::cout << _renderer->renderCommand(spec);
                 return 0;
             }
         }
@@ -91,7 +91,7 @@ public:
     }
 
 private:
-    HelpRenderer* renderer_;
+    HelpRenderer* _renderer;
 };
 
 /**
@@ -104,7 +104,7 @@ public:
      * Construct with a non-owning pointer to the shared VersionRenderer.
      */
     explicit VersionCommandHandler(VersionRenderer* renderer)
-        : renderer_(renderer)
+        : _renderer(renderer)
     {
     }
 
@@ -113,12 +113,12 @@ public:
      */
     auto execute([[maybe_unused]] const InvocationContext& ctx) -> int override
     {
-        std::cout << renderer_->render() << "\n";
+        std::cout << _renderer->render() << "\n";
         return 0;
     }
 
 private:
-    VersionRenderer* renderer_;
+    VersionRenderer* _renderer;
 };
 
 /**
@@ -192,9 +192,9 @@ auto makeBuildEntry() -> CommandEntry
 BuiltinCommandResolver::BuiltinCommandResolver(HelpRenderer& helpRenderer,
                                                VersionRenderer& versionRenderer,
                                                Project::ProjectFileSystem& fileSystem)
-    : helpRenderer_(&helpRenderer)
-    , versionRenderer_(&versionRenderer)
-    , fileSystem_(&fileSystem)
+    : _helpRenderer(&helpRenderer)
+    , _versionRenderer(&versionRenderer)
+    , _fileSystem(&fileSystem)
 {
 }
 
@@ -214,7 +214,7 @@ auto BuiltinCommandResolver::resolve([[maybe_unused]] const RuntimeEnvironment& 
         entry.spec.options.positional.push_back(
             PositionalDef{ .name = "command", .description = "Command to get help for", .required = false });
         entry.source = CommandSource::Builtin;
-        auto* renderer = helpRenderer_;
+        auto* renderer = _helpRenderer;
         entry.createHandler = [renderer](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
             return std::make_unique<HelpCommandHandler>(renderer);
         };
@@ -228,7 +228,7 @@ auto BuiltinCommandResolver::resolve([[maybe_unused]] const RuntimeEnvironment& 
         entry.spec.description = "Display version information";
         entry.spec.category = "Built-in Commands";
         entry.source = CommandSource::Builtin;
-        auto* renderer = versionRenderer_;
+        auto* renderer = _versionRenderer;
         entry.createHandler = [renderer](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
             return std::make_unique<VersionCommandHandler>(renderer);
         };
@@ -236,7 +236,7 @@ auto BuiltinCommandResolver::resolve([[maybe_unused]] const RuntimeEnvironment& 
     }
 
     // Project commands
-    entries.push_back(makeNewEntry(*fileSystem_));
+    entries.push_back(makeNewEntry(*_fileSystem));
     entries.push_back(makeBuildEntry());
     entries.push_back(makePlaceholder("run", "Run the current project executable", "Project Commands"));
     entries.push_back(makePlaceholder("clean", "Remove build artifacts and cached files", "Project Commands"));

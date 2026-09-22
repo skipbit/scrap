@@ -55,9 +55,9 @@ protected:
     void SetUp() override
     {
         const auto* info = ::testing::UnitTest::GetInstance()->current_test_info();
-        tempDir_ = std::filesystem::temp_directory_path() / (std::string("scrap_resolver_test_") + info->name());
-        std::filesystem::remove_all(tempDir_);
-        std::filesystem::create_directories(tempDir_);
+        _tempDir = std::filesystem::temp_directory_path() / (std::string("scrap_resolver_test_") + info->name());
+        std::filesystem::remove_all(_tempDir);
+        std::filesystem::create_directories(_tempDir);
     }
 
     /**
@@ -65,7 +65,7 @@ protected:
      */
     void TearDown() override
     {
-        std::filesystem::remove_all(tempDir_);
+        std::filesystem::remove_all(_tempDir);
     }
 
     /**
@@ -73,7 +73,7 @@ protected:
      */
     void createExecutable(const std::string& name)
     {
-        auto path = tempDir_ / name;
+        auto path = _tempDir / name;
         std::ofstream(path) << "#!/bin/sh\necho hello\n";
         std::filesystem::permissions(path, std::filesystem::perms::owner_exec, std::filesystem::perm_options::add);
     }
@@ -83,11 +83,11 @@ protected:
      */
     void createNonExecutable(const std::string& name)
     {
-        auto path = tempDir_ / name;
+        auto path = _tempDir / name;
         std::ofstream(path) << "not executable";
     }
 
-    std::filesystem::path tempDir_;
+    std::filesystem::path _tempDir;
 };
 
 /**
@@ -102,7 +102,7 @@ TEST_F(ExternalCommandResolverTest, FindsScrapPrefixedExecutables)
     ExternalCommandResolver resolver(std::move(provider));
 
     RuntimeEnvironment env;
-    env.searchPaths = { tempDir_ };
+    env.searchPaths = { _tempDir };
     auto entries = resolver.resolve(env);
 
     EXPECT_EQ(entries.size(), 2);
@@ -122,7 +122,7 @@ TEST_F(ExternalCommandResolverTest, SkipsNonScrapFiles)
     ExternalCommandResolver resolver(std::move(provider));
 
     RuntimeEnvironment env;
-    env.searchPaths = { tempDir_ };
+    env.searchPaths = { _tempDir };
     auto entries = resolver.resolve(env);
 
     EXPECT_EQ(entries.size(), 1);
@@ -140,7 +140,7 @@ TEST_F(ExternalCommandResolverTest, SkipsNonExecutables)
     ExternalCommandResolver resolver(std::move(provider));
 
     RuntimeEnvironment env;
-    env.searchPaths = { tempDir_ };
+    env.searchPaths = { _tempDir };
     auto entries = resolver.resolve(env);
 
     EXPECT_TRUE(entries.empty());
@@ -171,7 +171,7 @@ TEST_F(ExternalCommandResolverTest, EntriesHaveExternalSource)
     ExternalCommandResolver resolver(std::move(provider));
 
     RuntimeEnvironment env;
-    env.searchPaths = { tempDir_ };
+    env.searchPaths = { _tempDir };
     auto entries = resolver.resolve(env);
 
     ASSERT_EQ(entries.size(), 1);
