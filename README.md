@@ -153,7 +153,7 @@ scrap is in early alpha development. Currently implemented:
 ### Prerequisites
 
 - C++23 compatible compiler (GCC 13+, Clang 16+, MSVC 2022+)
-- CMake 3.20 or higher
+- CMake 3.20 or higher (3.25 or higher for the presets used below)
 - Git
 
 ### Building from Source
@@ -164,8 +164,8 @@ git clone https://github.com/skipbit/scrap.git
 cd scrap
 
 # Configure and build
-cmake -S . -B build/release -DCMAKE_BUILD_TYPE=Release
-cmake --build build/release --parallel
+cmake --preset release
+cmake --build --preset release --parallel
 
 # The executable will be at build/release/bin/scrap
 ```
@@ -225,15 +225,12 @@ We welcome contributions! scrap is built with:
 # Clone with submodules
 git clone --recursive https://github.com/skipbit/scrap.git
 
-# Build in debug mode
-cmake -S . -B build/debug -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON
-cmake --build build/debug --parallel
+# Configure, build and run the tests in debug mode
+cmake --workflow --preset debug
 
-# Run tests
-cmake --build build/debug --target test
-
-# Or run tests directly with ctest
-ctest --test-dir build/debug --output-on-failure --no-tests=error
+# Run the tests again after a change
+cmake --build --preset debug --parallel
+ctest --preset debug
 ```
 
 ### Testing
@@ -242,10 +239,10 @@ The project uses GoogleTest for unit and end-to-end testing, run through ctest. 
 
 ```bash
 # Build and run all tests
-cmake --build build/debug --target test
+cmake --workflow --preset debug
 
 # Run tests with verbose output
-ctest --test-dir build/debug --output-on-failure --no-tests=error --verbose
+ctest --preset debug --verbose
 
 # Run a specific test executable directly
 ./build/debug/test/scrap_gtest
@@ -256,8 +253,7 @@ ctest --test-dir build/debug --output-on-failure --no-tests=error --verbose
 ./build/debug/test/scrap_e2e
 
 # Release build testing
-cmake -S . -B build/release -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON
-cmake --build build/release --target test
+cmake --workflow --preset release
 ```
 
 **Test Structure:**
