@@ -26,8 +26,7 @@ StepResult ProgramStepRunner::run(const BuildStep& step)
 
     auto completion = Process::runProgram(step.arguments, step.directory, Process::OutputCapture::Combined);
     if (! completion.has_value()) {
-        const std::filesystem::path failedPath
-            = step.arguments.empty() ? std::filesystem::path{} : std::filesystem::path{ step.arguments.front() };
+        const std::filesystem::path failedPath = step.arguments.empty() ? std::filesystem::path{} : std::filesystem::path{ step.arguments.front() };
         return StepResult{
             .output = {},
             .failure = StepFailure{ .kind = StepFailureKind::CannotStart, .path = failedPath, .code = completion.error(), .status = 0 }

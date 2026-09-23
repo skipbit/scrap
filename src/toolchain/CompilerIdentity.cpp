@@ -88,8 +88,7 @@ CompilerIdentity readCompilerIdentity(std::string_view predefinedMacros)
         return CompilerIdentity{ .family = CompilerFamily::Clang, .version = clangVersion() };
     }
     if (macroValue(predefinedMacros, "__GNUC__").has_value()) {
-        return CompilerIdentity{ .family = CompilerFamily::Gcc,
-                                 .version = versionFrom(predefinedMacros, "__GNUC__", "__GNUC_MINOR__", "__GNUC_PATCHLEVEL__") };
+        return CompilerIdentity{ .family = CompilerFamily::Gcc, .version = versionFrom(predefinedMacros, "__GNUC__", "__GNUC_MINOR__", "__GNUC_PATCHLEVEL__") };
     }
     return CompilerIdentity{};
 }

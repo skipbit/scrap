@@ -60,8 +60,10 @@ std::filesystem::path objectFile(const BuildSettings& settings, const std::strin
  */
 std::vector<std::string> sharedCompileArguments(const BuildSettings& settings)
 {
-    std::vector<std::string> arguments{ settings.compiler.string(),
-                                        settings.driver.standardOption(settings.standard).value_or(standardNameOption(settings.standard)) };
+    std::vector<std::string> arguments{
+        settings.compiler.string(),
+        settings.driver.standardOption(settings.standard).value_or(standardNameOption(settings.standard))
+    };
     arguments.insert(arguments.end(), DebugOptions.begin(), DebugOptions.end());
     if (const auto color = settings.driver.colorOption(); color.has_value()) {
         arguments.push_back(*color);
