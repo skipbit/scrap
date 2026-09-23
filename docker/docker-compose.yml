@@ -1,0 +1,20 @@
+# Runs the tools over the checkout that REPO_ROOT names. scripts/tools.sh sets
+# REPO_ROOT, HOST_UID and HOST_GID.
+#
+# The checkout is mounted at its own absolute path. A compilation database
+# records absolute paths, so mounting it anywhere else leaves clang-tidy unable
+# to resolve them, and it then reports problems that are not in the code.
+services:
+  tools:
+    build:
+      context: .
+    image: scrap-tools:18.1.3
+    # Files the tools write belong to the caller rather than to root.
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    environment:
+      # The caller's user has no home in the image; git needs one to fetch
+      # the dependencies at configure time.
+      HOME: /tmp
+    volumes:
+      - "${REPO_ROOT:?REPO_ROOT must name the repository root}:${REPO_ROOT}"
+    working_dir: "${REPO_ROOT}"
