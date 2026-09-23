@@ -3,6 +3,7 @@
 #include "command/CommandCatalog.h"
 #include "command/CommandResolver.h"
 #include "command/HelpRenderer.h"
+#include "command/HelpRequest.h"
 #include "command/InvocationContext.h"
 #include "command/ParseResult.h"
 #include "command/ParserAdapter.h"
@@ -14,7 +15,6 @@
 #include <memory>
 #include <optional>
 #include <span>
-#include <string>
 #include <type_traits>
 #include <utility>
 #include <variant>
@@ -99,31 +99,11 @@ int Application::handleDirective(const CommandCatalog& catalog, const ParseDirec
 {
     switch (directive.kind) {
     case ParseDirectiveKind::HelpRequested:
-        return handleHelp(catalog, directive.target);
+        return showHelp(*_helpRenderer, catalog, directive.target);
     case ParseDirectiveKind::VersionRequested:
         std::cout << _versionRenderer->render() << "\n";
         return 0;
     }
-    return 1;
-}
-
-/**
- * Render help for a specific command or the global listing.
- */
-int Application::handleHelp(const CommandCatalog& catalog, const std::optional<std::string>& target)
-{
-    if (! target.has_value()) {
-        std::cout << _helpRenderer->renderGlobal(catalog.helpEntries());
-        return 0;
-    }
-    for (const auto& spec : catalog.specs()) {
-        if (spec.name == *target) {
-            std::cout << _helpRenderer->renderCommand(spec);
-            return 0;
-        }
-    }
-    std::cerr << "Unknown command: " << printableText(*target) << "\n";
-    std::cerr << "Run 'scrap --help' for usage information.\n";
     return 1;
 }
 

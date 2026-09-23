@@ -376,8 +376,8 @@ TEST(ApplicationTest, Run_HelpUnknownCommand)
     StderrCapture capture;
     auto exitCode = app2.run(argv, env);
 
-    EXPECT_EQ(exitCode, 1);
-    EXPECT_NE(capture.str().find("Unknown command"), std::string::npos);
+    EXPECT_EQ(exitCode, 2);
+    EXPECT_EQ(capture.str(), "error: unknown command 'nonexistent'\nhint: run 'scrap --help' to list the commands\n");
 }
 
 /**

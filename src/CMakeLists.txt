@@ -98,6 +98,7 @@ add_library(scrap_command STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ExternalCommandResolver.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ExternalMetadataProvider.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/HelpRenderer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/HelpRequest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/MetadataProtocolProvider.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/NewCommandHandler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ParserAdapter.cpp
