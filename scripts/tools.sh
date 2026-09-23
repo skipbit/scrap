@@ -45,7 +45,9 @@ case "${1:-}" in
     ;;
   lint)
     clang-tidy --version
-    CC=clang CXX=clang++ CXXFLAGS=-stdlib=libc++ cmake --preset lint
+    # --fresh: build/lint may hold a cache made on the host, naming a compiler
+    # the image does not have.
+    CC=clang CXX=clang++ CXXFLAGS=-stdlib=libc++ cmake --preset lint --fresh
     linted_sources | xargs -0 -r clang-tidy -p build/lint --warnings-as-errors='*'
     ;;
   *)
