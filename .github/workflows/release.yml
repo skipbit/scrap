@@ -93,26 +93,30 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/.ccache
-          key: ccache-ubuntu-24.04-gcc-Release-${{ github.run_id }}
+          key: ccache-ubuntu-24.04-gcc-release-${{ github.run_id }}
           restore-keys: |
-            ccache-ubuntu-24.04-gcc-Release-
+            ccache-ubuntu-24.04-gcc-release-
 
       - name: Build
         env:
           CCACHE_DIR: ~/.ccache
           CCACHE_BASEDIR: ${{ github.workspace }}
+          CMAKE_CXX_COMPILER_LAUNCHER: ccache
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq ccache
-          cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF \
-            -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-          cmake --build build -j"$(nproc)"
+          cmake --preset release-no-tests
+          cmake --build --preset release-no-tests -j"$(nproc)"
+
+      # What the build was configured with, as CMake recorded it.
+      - name: Report the configuration the build used
+        run: grep -E '^(CMAKE_CXX_COMPILER|CMAKE_BUILD_TYPE|CMAKE_CXX_FLAGS|BUILD_TESTS):' build/release-no-tests/CMakeCache.txt
 
       # That the binary carries what the module computed. The expected text
       # comes from the module too, so nothing here re-derives the banner.
       - name: Check the binary against it
         run: |
           expected="$(sed -n 2p "$RUNNER_TEMP/version")"
-          banner="$(./build/bin/scrap version)"
+          banner="$(./build/release-no-tests/bin/scrap version)"
           if [ "$banner" != "$expected" ]; then
             echo "::error::the binary reports '$banner', expected '$expected'"
             exit 1
