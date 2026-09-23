@@ -193,7 +193,7 @@ void addSubcommands(CLI::App& root,
  * @return Dot-separated command path (e.g. "toolchain.install"), or
  *         empty string if no subcommand was parsed.
  */
-auto buildCommandPath(const CLI::App& app) -> std::string
+std::string buildCommandPath(const CLI::App& app)
 {
     std::string path;
     const CLI::App* current = &app;
@@ -228,7 +228,7 @@ auto buildCommandPath(const CLI::App& app) -> std::string
  * positionals in order, so the omitted ones are the trailing ones and
  * each harvested value keeps its index.
  */
-auto harvestOptions(const OptionStorage& storage) -> ParsedOptions
+ParsedOptions harvestOptions(const OptionStorage& storage)
 {
     ParsedOptions opts;
 
@@ -266,7 +266,7 @@ auto harvestOptions(const OptionStorage& storage) -> ParsedOptions
  * @return The command path if a subcommand was at least partially
  *         parsed, or nullopt for global help.
  */
-auto determineHelpTarget(const CLI::App& app) -> std::optional<std::string>
+std::optional<std::string> determineHelpTarget(const CLI::App& app)
 {
     auto path = buildCommandPath(app);
     if (path.empty()) {
@@ -292,14 +292,14 @@ CLI11ParserAdapter& CLI11ParserAdapter::operator=(CLI11ParserAdapter&&) noexcept
 
 // --- configure ---------------------------------------------------------------
 
-auto CLI11ParserAdapter::configure(std::span<const CommandSpec> specs) -> void
+void CLI11ParserAdapter::configure(std::span<const CommandSpec> specs)
 {
     _impl->specs.assign(specs.begin(), specs.end());
 }
 
 // --- parse -------------------------------------------------------------------
 
-auto CLI11ParserAdapter::parse(std::span<const char* const> argv) const -> ParseResult
+ParseResult CLI11ParserAdapter::parse(std::span<const char* const> argv) const
 {
     // Build a temporary CLI::App from the stored specs.
     // Defined outside try so that catch blocks can inspect parsed state.

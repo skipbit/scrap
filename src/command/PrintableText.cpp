@@ -12,7 +12,7 @@ namespace {
 /**
  * Append @p byte to @p text as \xNN.
  */
-auto appendEscaped(const unsigned char byte, std::string& text) -> void
+void appendEscaped(const unsigned char byte, std::string& text)
 {
     static constexpr std::string_view HexDigits = "0123456789ABCDEF";
     text += "\\x";
@@ -24,7 +24,7 @@ auto appendEscaped(const unsigned char byte, std::string& text) -> void
  * The length of the well-formed UTF-8 sequence starting at @p index, or 0 when
  * the bytes there do not form one.
  */
-auto utf8SequenceLength(std::string_view text, const std::size_t index) -> std::size_t
+std::size_t utf8SequenceLength(std::string_view text, const std::size_t index)
 {
     const auto lead = static_cast<unsigned char>(text[index]);
     std::size_t length = 0;
@@ -53,7 +53,7 @@ auto utf8SequenceLength(std::string_view text, const std::size_t index) -> std::
  * that is not a C1 control character. A lone byte in that range is escaped,
  * since a terminal in an eight-bit locale acts on 0x80 to 0x9F as controls.
  */
-auto printableText(const std::string_view text) -> std::string
+std::string printableText(const std::string_view text)
 {
     std::string result;
     std::size_t index = 0;
@@ -86,12 +86,12 @@ auto printableText(const std::string_view text) -> std::string
     return result;
 }
 
-auto printablePath(const std::filesystem::path& path) -> std::string
+std::string printablePath(const std::filesystem::path& path)
 {
     return printableText(path.string());
 }
 
-auto printableName(const std::string_view name) -> std::string
+std::string printableName(const std::string_view name)
 {
     std::string result;
     for (const char ch : name) {

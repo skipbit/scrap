@@ -20,7 +20,7 @@ namespace scrap::Project {
  * @param file Path reported in errors. Not read from.
  * @return Parsed manifest, or the first error found.
  */
-[[nodiscard]] auto parseManifest(std::string_view text, const std::filesystem::path& file) -> std::expected<Manifest, ManifestError>;
+[[nodiscard]] std::expected<Manifest, ManifestError> parseManifest(std::string_view text, const std::filesystem::path& file);
 
 /**
  * @brief Read a manifest file from disk and parse it.
@@ -29,6 +29,6 @@ namespace scrap::Project {
  * @return Parsed manifest, or an error describing why it could not be read
  *         or parsed.
  */
-[[nodiscard]] auto loadManifest(const std::filesystem::path& file) -> std::expected<Manifest, ManifestError>;
+[[nodiscard]] std::expected<Manifest, ManifestError> loadManifest(const std::filesystem::path& file);
 
 }  // namespace scrap::Project

@@ -18,7 +18,7 @@ NewCommandHandler::NewCommandHandler(Project::ProjectFileSystem& fileSystem)
 {
 }
 
-auto NewCommandHandler::execute(const InvocationContext& ctx) -> int
+int NewCommandHandler::execute(const InvocationContext& ctx)
 {
     // The parser requires the name, so the first positional is there. Reading
     // an empty list as an empty name keeps a caller that skips the parser from

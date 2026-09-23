@@ -78,9 +78,9 @@ constexpr std::string_view ColorOption = "-fdiagnostics-color=always";
  * The option @p spellings give @p standard at @p version, or nothing when the
  * version predates them all.
  */
-auto lookUp(std::span<const Spelling> spellings,
-            const LanguageStandard standard,
-            const Toolchain::CompilerVersion& version) -> std::optional<std::string>
+std::optional<std::string> lookUp(std::span<const Spelling> spellings,
+                                  const LanguageStandard standard,
+                                  const Toolchain::CompilerVersion& version)
 {
     for (const Spelling& spelling : spellings) {
         if ((spelling.standard == standard) && Toolchain::isAtLeast(version, spelling.major, spelling.minor)) {
@@ -97,7 +97,7 @@ CompilerDriver::CompilerDriver(Toolchain::CompilerIdentity identity)
 {
 }
 
-auto CompilerDriver::standardOption(const LanguageStandard standard) const -> std::optional<std::string>
+std::optional<std::string> CompilerDriver::standardOption(const LanguageStandard standard) const
 {
     switch (_identity.family) {
     case CompilerFamily::Gcc:
@@ -112,7 +112,7 @@ auto CompilerDriver::standardOption(const LanguageStandard standard) const -> st
     std::unreachable();
 }
 
-auto CompilerDriver::colorOption() const -> std::optional<std::string>
+std::optional<std::string> CompilerDriver::colorOption() const
 {
     if (_identity.family == CompilerFamily::Unknown) {
         return std::nullopt;
@@ -120,7 +120,7 @@ auto CompilerDriver::colorOption() const -> std::optional<std::string>
     return std::string{ ColorOption };
 }
 
-auto standardNameOption(const LanguageStandard standard) -> std::string
+std::string standardNameOption(const LanguageStandard standard)
 {
     return "-std=c++" + std::string{ Project::standardNumber(standard) };
 }

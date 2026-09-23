@@ -16,7 +16,7 @@ namespace {
 /**
  * Create a program that can be run below the temp directory.
  */
-auto createExecutable(const TempDirectory& temp, const std::string& relative) -> std::filesystem::path
+std::filesystem::path createExecutable(const TempDirectory& temp, const std::string& relative)
 {
     const std::filesystem::path path = temp.writeFile(relative, "#!/bin/sh\nexit 0\n");
     std::error_code ec;
@@ -30,7 +30,7 @@ auto createExecutable(const TempDirectory& temp, const std::string& relative) ->
 /**
  * The path as the detection reports it: absolute, with symbolic links kept.
  */
-auto asReported(const std::filesystem::path& path) -> std::filesystem::path
+std::filesystem::path asReported(const std::filesystem::path& path)
 {
     std::error_code ec;
     std::filesystem::path absolute = std::filesystem::absolute(path, ec);

@@ -16,7 +16,7 @@ namespace {
 /**
  * Create a program below the temp directory that runs @p body.
  */
-auto createCompiler(const TempDirectory& temp, const std::string& body) -> std::filesystem::path
+std::filesystem::path createCompiler(const TempDirectory& temp, const std::string& body)
 {
     const std::filesystem::path path = temp.writeFile("bin/c++", "#!/bin/sh\n" + body + "\n");
     std::error_code ec;

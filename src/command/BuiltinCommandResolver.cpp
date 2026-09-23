@@ -44,7 +44,7 @@ public:
      * the state of the command rather than answering it, so it goes to
      * standard error.
      */
-    auto execute([[maybe_unused]] const InvocationContext& ctx) -> int override
+    int execute([[maybe_unused]] const InvocationContext& ctx) override
     {
         std::cerr << _commandName << ": not yet implemented\n";
         return 0;
@@ -71,7 +71,7 @@ public:
     /**
      * Render help for a specific command, or global help if no target given.
      */
-    auto execute(const InvocationContext& ctx) -> int override
+    int execute(const InvocationContext& ctx) override
     {
         if (ctx.options.positional.empty()) {
             std::cout << _renderer->renderGlobal(ctx.catalog->helpEntries());
@@ -111,7 +111,7 @@ public:
     /**
      * Print the version string and return success.
      */
-    auto execute([[maybe_unused]] const InvocationContext& ctx) -> int override
+    int execute([[maybe_unused]] const InvocationContext& ctx) override
     {
         std::cout << _renderer->render() << "\n";
         return 0;
@@ -124,7 +124,7 @@ private:
 /**
  * Create a placeholder CommandEntry with a no-op handler.
  */
-auto makePlaceholder(const std::string& name, const std::string& description, const std::string& category) -> CommandEntry
+CommandEntry makePlaceholder(const std::string& name, const std::string& description, const std::string& category)
 {
     CommandEntry entry;
     entry.spec.name = name;
@@ -140,10 +140,10 @@ auto makePlaceholder(const std::string& name, const std::string& description, co
 /**
  * Create a project command that takes one positional argument.
  */
-auto makeProjectEntry(std::string name,
-                      std::string description,
-                      PositionalDef positional,
-                      CommandEntry::HandlerFactory createHandler) -> CommandEntry
+CommandEntry makeProjectEntry(std::string name,
+                              std::string description,
+                              PositionalDef positional,
+                              CommandEntry::HandlerFactory createHandler)
 {
     CommandEntry entry;
     entry.spec.name = std::move(name);
@@ -158,7 +158,7 @@ auto makeProjectEntry(std::string name,
 /**
  * Create the entry for "new", which takes the name of the project to create.
  */
-auto makeNewEntry(Project::ProjectFileSystem& fileSystem) -> CommandEntry
+CommandEntry makeNewEntry(Project::ProjectFileSystem& fileSystem)
 {
     auto* files = &fileSystem;
     return makeProjectEntry(
@@ -173,7 +173,7 @@ auto makeNewEntry(Project::ProjectFileSystem& fileSystem) -> CommandEntry
 /**
  * Create the entry for "build", which takes an optional path into the project.
  */
-auto makeBuildEntry() -> CommandEntry
+CommandEntry makeBuildEntry()
 {
     return makeProjectEntry(
         "build",
@@ -201,7 +201,7 @@ BuiltinCommandResolver::BuiltinCommandResolver(HelpRenderer& helpRenderer,
 /**
  * Return the fixed set of built-in command entries.
  */
-auto BuiltinCommandResolver::resolve([[maybe_unused]] const RuntimeEnvironment& env) -> std::vector<CommandEntry>
+std::vector<CommandEntry> BuiltinCommandResolver::resolve([[maybe_unused]] const RuntimeEnvironment& env)
 {
     std::vector<CommandEntry> entries;
 

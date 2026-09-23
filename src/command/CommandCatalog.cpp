@@ -22,7 +22,7 @@ CommandCatalog& CommandCatalog::operator=(CommandCatalog&&) noexcept = default;
 
 // --- Public interface ---------------------------------------------------------
 
-auto CommandCatalog::addEntries(std::vector<CommandEntry> entries) -> void
+void CommandCatalog::addEntries(std::vector<CommandEntry> entries)
 {
     for (auto& incoming : entries) {
         auto it = std::ranges::find_if(_entries, [&](const CommandEntry& existing) {
@@ -38,7 +38,7 @@ auto CommandCatalog::addEntries(std::vector<CommandEntry> entries) -> void
     }
 }
 
-auto CommandCatalog::find(const std::string& commandPath) const -> const CommandEntry*
+const CommandEntry* CommandCatalog::find(const std::string& commandPath) const
 {
     if (commandPath.empty()) {
         return nullptr;
@@ -81,7 +81,7 @@ auto CommandCatalog::find(const std::string& commandPath) const -> const Command
     return found;
 }
 
-auto CommandCatalog::specs() const -> std::vector<CommandSpec>
+std::vector<CommandSpec> CommandCatalog::specs() const
 {
     std::vector<CommandSpec> result;
     result.reserve(_entries.size());
@@ -93,7 +93,7 @@ auto CommandCatalog::specs() const -> std::vector<CommandSpec>
     return result;
 }
 
-auto CommandCatalog::helpEntries() const -> std::vector<HelpEntry>
+std::vector<HelpEntry> CommandCatalog::helpEntries() const
 {
     std::vector<HelpEntry> result;
     result.reserve(_entries.size());
@@ -108,7 +108,7 @@ auto CommandCatalog::helpEntries() const -> std::vector<HelpEntry>
 // --- Private helpers ----------------------------------------------------------
 
 // NOLINTNEXTLINE(readability-function-size) - iterative BFS requires local struct + loop state
-auto CommandCatalog::buildSpec(const CommandEntry& entry) -> CommandSpec
+CommandSpec CommandCatalog::buildSpec(const CommandEntry& entry)
 {
     CommandSpec root = entry.spec;
     root.subcommands.clear();

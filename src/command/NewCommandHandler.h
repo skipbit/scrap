@@ -27,7 +27,7 @@ public:
      * @param ctx Invocation context. Its first positional is the project name.
      * @return 0 when the project was created, 1 otherwise.
      */
-    auto execute(const InvocationContext& ctx) -> int override;
+    int execute(const InvocationContext& ctx) override;
 
 private:
     Project::ProjectFileSystem* _fileSystem;

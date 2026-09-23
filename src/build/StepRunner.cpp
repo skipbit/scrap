@@ -12,7 +12,7 @@ namespace scrap::Build {
 
 StepRunner::~StepRunner() = default;
 
-auto ProgramStepRunner::run(const BuildStep& step) -> StepResult
+StepResult ProgramStepRunner::run(const BuildStep& step)
 {
     const std::filesystem::path outputDirectory = (step.directory / step.output).parent_path();
     std::error_code ec;

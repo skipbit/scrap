@@ -25,7 +25,7 @@ ProjectCommandResolver::ProjectCommandResolver(std::unique_ptr<ScriptsReader> sc
  * Read project scripts and convert them to CommandEntry list.
  * Returns empty on any read error (graceful degradation).
  */
-auto ProjectCommandResolver::resolve(const RuntimeEnvironment& env) -> std::vector<CommandEntry>
+std::vector<CommandEntry> ProjectCommandResolver::resolve(const RuntimeEnvironment& env)
 {
     auto result = _scriptsReader->read(env.workingDirectory);
     if (! result.has_value()) {

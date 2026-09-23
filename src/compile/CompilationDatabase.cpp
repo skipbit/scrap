@@ -29,7 +29,7 @@ constexpr int StagingAttempts = 16;
  * Append @p text to @p out as a JSON string. A quote, a backslash and the
  * control characters are escaped; every other byte is copied as it is.
  */
-auto appendJsonString(std::string& out, std::string_view text) -> void
+void appendJsonString(std::string& out, std::string_view text)
 {
     static constexpr std::string_view HexDigits = "0123456789abcdef";
     out += '"';
@@ -49,7 +49,7 @@ auto appendJsonString(std::string& out, std::string_view text) -> void
     out += '"';
 }
 
-auto appendEntry(std::string& out, const CompileCommand& command) -> void
+void appendEntry(std::string& out, const CompileCommand& command)
 {
     out += "  {\n    \"directory\": ";
     appendJsonString(out, command.directory.string());
@@ -70,7 +70,7 @@ auto appendEntry(std::string& out, const CompileCommand& command) -> void
 /**
  * The failure the last system call reported.
  */
-auto lastFailure() -> std::error_code
+std::error_code lastFailure()
 {
     return { errno, std::generic_category() };
 }
@@ -78,7 +78,7 @@ auto lastFailure() -> std::error_code
 /**
  * Write the whole of @p content to @p descriptor.
  */
-auto writeAll(const int descriptor, std::string_view content) -> std::error_code
+std::error_code writeAll(const int descriptor, std::string_view content)
 {
     const char* data = content.data();
     std::size_t remaining = content.size();
@@ -108,7 +108,7 @@ auto writeAll(const int descriptor, std::string_view content) -> std::error_code
  * count when another build, one in another container with the same id among
  * them, already holds it. The staged file is removed when a later step fails.
  */
-auto replaceFile(const std::filesystem::path& file, std::string_view content) -> std::error_code
+std::error_code replaceFile(const std::filesystem::path& file, std::string_view content)
 {
     const std::string prefix = file.string() + "." + std::to_string(::getpid()) + ".";
     for (int attempt = 0; attempt < StagingAttempts; ++attempt) {
@@ -139,7 +139,7 @@ auto replaceFile(const std::filesystem::path& file, std::string_view content) ->
 
 }  // anonymous namespace
 
-auto renderCompilationDatabase(const std::vector<CompileCommand>& commands) -> std::string
+std::string renderCompilationDatabase(const std::vector<CompileCommand>& commands)
 {
     if (commands.empty()) {
         return "[]\n";
@@ -156,8 +156,8 @@ auto renderCompilationDatabase(const std::vector<CompileCommand>& commands) -> s
     return out;
 }
 
-auto writeCompilationDatabase(const std::filesystem::path& buildDirectory,
-                              const std::vector<CompileCommand>& commands) -> std::expected<void, DatabaseWriteFailure>
+std::expected<void, DatabaseWriteFailure> writeCompilationDatabase(const std::filesystem::path& buildDirectory,
+                                                                   const std::vector<CompileCommand>& commands)
 {
     std::error_code ec;
     std::filesystem::create_directories(buildDirectory, ec);

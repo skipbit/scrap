@@ -9,10 +9,10 @@ namespace {
 /**
  * Helper to build a HelpEntry for testing.
  */
-auto makeHelpEntry(const std::string& name,
-                   CommandSource source,
-                   const std::string& category = "",
-                   const std::string& description = "") -> HelpEntry
+HelpEntry makeHelpEntry(const std::string& name,
+                        CommandSource source,
+                        const std::string& category = "",
+                        const std::string& description = "")
 {
     HelpEntry entry;
     entry.spec.name = name;

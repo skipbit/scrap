@@ -35,7 +35,7 @@ public:
      *
      * @param specs Top-level CommandSpec entries (with subcommand trees).
      */
-    auto configure(std::span<const CommandSpec> specs) -> void override;
+    void configure(std::span<const CommandSpec> specs) override;
 
     /**
      * @brief Parse command-line arguments against the configured specs.
@@ -51,7 +51,7 @@ public:
      * @param argv Raw argument vector (argv[0] is the program name).
      * @return ParseResult indicating success, directive, or failure.
      */
-    [[nodiscard]] auto parse(std::span<const char* const> argv) const -> ParseResult override;
+    [[nodiscard]] ParseResult parse(std::span<const char* const> argv) const override;
 
 private:
     class Impl;

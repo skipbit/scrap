@@ -9,7 +9,7 @@ namespace scrap::Command {
 /**
  * Return the application version string.
  */
-auto DefaultVersionRenderer::render() const -> std::string
+std::string DefaultVersionRenderer::render() const
 {
     return scrap::version();
 }

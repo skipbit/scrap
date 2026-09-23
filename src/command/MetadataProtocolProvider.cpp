@@ -66,7 +66,7 @@ struct SubprocessResult {
  *
  * Returns an empty string if every line is blank (or @p text is empty).
  */
-auto firstNonEmptyLine(std::string_view text) -> std::string
+std::string firstNonEmptyLine(std::string_view text)
 {
     std::size_t pos = 0;
     while (pos <= text.size()) {
@@ -98,7 +98,7 @@ auto firstNonEmptyLine(std::string_view text) -> std::string
  * Explicit dup2 targets set up via posix_spawn_file_actions are unaffected:
  * dup2 always clears FD_CLOEXEC on the newly created descriptor.
  */
-auto setCloseOnExec(int fd) -> bool
+bool setCloseOnExec(int fd)
 {
     auto flags = ::fcntl(fd, F_GETFD);  // NOLINT(hicpp-signed-bitwise) - POSIX fcntl(F_GETFD) result, not a flag combination
     if (flags < 0) {
@@ -122,13 +122,13 @@ public:
     }
 
     UniqueFd(const UniqueFd&) = delete;
-    auto operator=(const UniqueFd&) -> UniqueFd& = delete;
+    UniqueFd& operator=(const UniqueFd&) = delete;
 
     UniqueFd(UniqueFd&& other) noexcept
         : _fd(other.release())
     {
     }
-    auto operator=(UniqueFd&& other) noexcept -> UniqueFd&
+    UniqueFd& operator=(UniqueFd&& other) noexcept
     {
         if (this != &other) {
             reset(other.release());
@@ -141,13 +141,13 @@ public:
         reset();
     }
 
-    [[nodiscard]] auto get() const -> int
+    [[nodiscard]] int get() const
     {
         return _fd;
     }
 
     /** Relinquish ownership, returning the raw descriptor without closing it. */
-    [[nodiscard]] auto release() -> int
+    [[nodiscard]] int release()
     {
         auto fd = _fd;
         _fd = -1;
@@ -177,7 +177,7 @@ private:
  * this returns, regardless of which of the above reasons stopped the drain,
  * so no return value is needed to single out "timed out" from the others.
  */
-auto drainUntilEofOrDeadline(int readFd, std::chrono::steady_clock::time_point deadline, std::string& out) -> void
+void drainUntilEofOrDeadline(int readFd, std::chrono::steady_clock::time_point deadline, std::string& out)
 {
     std::array<char, ReadChunkBytes> buffer{};
 
@@ -264,7 +264,7 @@ auto drainUntilEofOrDeadline(int readFd, std::chrono::steady_clock::time_point d
  * @return the exit code if the child exited normally within the deadline, or
  *   std::nullopt if it had to be killed (or could not be reaped).
  */
-auto reapBounded(pid_t childPid, std::chrono::steady_clock::time_point deadline) -> std::optional<int>
+std::optional<int> reapBounded(pid_t childPid, std::chrono::steady_clock::time_point deadline)
 {
     int status = 0;
     pid_t waited = 0;
@@ -311,7 +311,7 @@ auto reapBounded(pid_t childPid, std::chrono::steady_clock::time_point deadline)
  * Every path below closes any fds it opened (via UniqueFd's RAII) and, once
  * posix_spawn has created a child, reaps it - no fd leaks, no zombies.
  */
-auto runOnce(const std::filesystem::path& executable, const char* flag, std::chrono::milliseconds timeout) -> SubprocessResult
+SubprocessResult runOnce(const std::filesystem::path& executable, const char* flag, std::chrono::milliseconds timeout)
 {
     std::array<int, 2> pipeFds{ -1, -1 };
     if (::pipe(pipeFds.data()) != 0) {
@@ -378,7 +378,7 @@ auto runOnce(const std::filesystem::path& executable, const char* flag, std::chr
  * an empty string if the attempt did not yield a usable result (non-zero
  * exit, empty output, spawn failure, or timeout).
  */
-auto probe(const std::filesystem::path& executable, const char* flag, std::chrono::milliseconds timeout) -> std::string
+std::string probe(const std::filesystem::path& executable, const char* flag, std::chrono::milliseconds timeout)
 {
     auto result = runOnce(executable, flag, timeout);
     if ((! result.exitedNormally) || (result.exitCode != 0)) {
@@ -405,7 +405,7 @@ MetadataProtocolProvider::MetadataProtocolProvider(std::chrono::milliseconds tim
  * Only a plain-text first-line description is extracted; structured
  * (name/options) metadata is not yet part of the protocol.
  */
-auto MetadataProtocolProvider::fetch(const std::filesystem::path& executable) -> std::expected<ExternalCommandMetadata, std::string>
+std::expected<ExternalCommandMetadata, std::string> MetadataProtocolProvider::fetch(const std::filesystem::path& executable)
 {
     std::error_code ec;
     auto canonicalized = std::filesystem::weakly_canonical(executable, ec);

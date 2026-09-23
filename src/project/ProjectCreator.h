@@ -67,7 +67,7 @@ inline constexpr std::size_t MaxProjectNameLength = 64;
  * The rule is stricter than what scrap.toml accepts, and loosening it later
  * keeps every project created under it valid.
  */
-[[nodiscard]] auto isValidProjectName(std::string_view name) -> bool;
+[[nodiscard]] bool isValidProjectName(std::string_view name);
 
 /**
  * @brief Create a project directory and write the template's files into it.
@@ -84,9 +84,9 @@ inline constexpr std::size_t MaxProjectNameLength = 64;
  *                      relative to the project root.
  * @return The absolute project root, or why the project could not be created.
  */
-[[nodiscard]] auto createProject(ProjectFileSystem& fileSystem,
-                                 const std::filesystem::path& parentDir,
-                                 std::string_view name,
-                                 const TemplateFiles& templateFiles) -> std::expected<std::filesystem::path, CreateProjectError>;
+[[nodiscard]] std::expected<std::filesystem::path, CreateProjectError> createProject(ProjectFileSystem& fileSystem,
+                                                                                     const std::filesystem::path& parentDir,
+                                                                                     std::string_view name,
+                                                                                     const TemplateFiles& templateFiles);
 
 }  // namespace scrap::Project

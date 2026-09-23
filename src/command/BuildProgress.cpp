@@ -31,7 +31,7 @@ constexpr std::string_view ColorSequenceStart = "\x1b[";
  * attribute, and gcc clears the rest of the line after each of them. Every
  * other sequence is one this has no reason to pass on.
  */
-auto colorSequenceEnd(std::string_view text, std::size_t index) -> std::size_t
+std::size_t colorSequenceEnd(std::string_view text, std::size_t index)
 {
     if (! text.substr(index).starts_with(ColorSequenceStart)) {
         return index;
@@ -49,7 +49,7 @@ auto colorSequenceEnd(std::string_view text, std::size_t index) -> std::size_t
 /**
  * The word for what @p step does.
  */
-auto verbFor(const Build::BuildStep& step) -> std::string_view
+std::string_view verbFor(const Build::BuildStep& step)
 {
     return step.kind == Build::StepKind::Compile ? "Compiling" : "Linking";
 }
@@ -59,7 +59,7 @@ auto verbFor(const Build::BuildStep& step) -> std::string_view
  * width is written as it is, so the lines lose their alignment rather than
  * the count wrapping.
  */
-auto alignedVerb(std::string_view verb) -> std::string
+std::string alignedVerb(std::string_view verb)
 {
     std::string text(VerbWidth - std::min(VerbWidth, verb.size()), ' ');
     text += verb;
@@ -91,12 +91,12 @@ void StreamBuildReporter::finished(const Build::BuildStep& /*step*/, const std::
     }
 }
 
-auto renderBuildFinished() -> std::string
+std::string renderBuildFinished()
 {
     return alignedVerb("Finished") + " debug build\n";
 }
 
-auto printableOutput(const std::string_view text, const bool keepColor) -> std::string
+std::string printableOutput(const std::string_view text, const bool keepColor)
 {
     std::string result;
     result.reserve(text.size());
@@ -123,7 +123,7 @@ auto printableOutput(const std::string_view text, const bool keepColor) -> std::
     return result;
 }
 
-auto standardErrorIsTerminal() -> bool
+bool standardErrorIsTerminal()
 {
     return (::isatty(STDERR_FILENO) == 1);
 }

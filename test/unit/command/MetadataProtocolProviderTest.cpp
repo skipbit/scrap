@@ -50,7 +50,7 @@ protected:
     /**
      * Create a shell script with execute permission.
      */
-    auto createExecutable(const std::string& name, const std::string& body) -> std::filesystem::path
+    std::filesystem::path createExecutable(const std::string& name, const std::string& body)
     {
         auto path = _tempDir / name;
         std::ofstream(path) << "#!/bin/sh\n"

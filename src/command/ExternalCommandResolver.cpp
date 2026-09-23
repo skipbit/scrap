@@ -25,7 +25,7 @@ constexpr std::string_view ExternalPrefix = "scrap-";
 /**
  * Check if a directory entry is an executable scrap-* command.
  */
-auto isScrapExecutable(const std::filesystem::directory_entry& entry) -> bool
+bool isScrapExecutable(const std::filesystem::directory_entry& entry)
 {
     std::error_code ec;
     if ((! entry.is_regular_file(ec)) || ec) {
@@ -45,7 +45,7 @@ auto isScrapExecutable(const std::filesystem::directory_entry& entry) -> bool
 /**
  * Extract the command name from a scrap-* filename.
  */
-auto commandNameFrom(const std::filesystem::path& path) -> std::string
+std::string commandNameFrom(const std::filesystem::path& path)
 {
     return path.filename().string().substr(ExternalPrefix.size());
 }
@@ -53,7 +53,7 @@ auto commandNameFrom(const std::filesystem::path& path) -> std::string
 /**
  * Build a CommandEntry from a discovered executable, fetching metadata if available.
  */
-auto buildEntry(const std::filesystem::path& executablePath, ExternalMetadataProvider* provider) -> CommandEntry
+CommandEntry buildEntry(const std::filesystem::path& executablePath, ExternalMetadataProvider* provider)
 {
     auto name = commandNameFrom(executablePath);
     std::string description;
@@ -95,7 +95,7 @@ ExternalCommandResolver::ExternalCommandResolver(std::unique_ptr<ExternalMetadat
 /**
  * Scan env.searchPaths for scrap-* executables and build CommandEntry list.
  */
-auto ExternalCommandResolver::resolve(const RuntimeEnvironment& env) -> std::vector<CommandEntry>
+std::vector<CommandEntry> ExternalCommandResolver::resolve(const RuntimeEnvironment& env)
 {
     std::vector<CommandEntry> entries;
 

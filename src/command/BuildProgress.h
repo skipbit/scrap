@@ -43,7 +43,7 @@ private:
 /**
  * @brief The line that ends a debug build that succeeded.
  */
-[[nodiscard]] auto renderBuildFinished() -> std::string;
+[[nodiscard]] std::string renderBuildFinished();
 
 /**
  * @brief @p text as it can be written to a terminal.
@@ -54,11 +54,11 @@ private:
  * project being built decides what it holds, and a terminal is not asked to
  * act on it.
  */
-[[nodiscard]] auto printableOutput(std::string_view text, bool keepColor) -> std::string;
+[[nodiscard]] std::string printableOutput(std::string_view text, bool keepColor);
 
 /**
  * @brief Whether standard error goes to a terminal.
  */
-[[nodiscard]] auto standardErrorIsTerminal() -> bool;
+[[nodiscard]] bool standardErrorIsTerminal();
 
 }  // namespace scrap::Command

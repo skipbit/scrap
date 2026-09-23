@@ -23,7 +23,7 @@ constexpr std::string_view SourceDirectory = "src";
 /// Extensions a source file is recognised by.
 constexpr std::array<std::string_view, 3> SourceExtensions{ ".cpp", ".cc", ".cxx" };
 
-auto isSource(const std::filesystem::directory_entry& entry) -> bool
+bool isSource(const std::filesystem::directory_entry& entry)
 {
     std::error_code ec;
     if ((! entry.is_regular_file(ec)) || ec) {
@@ -41,7 +41,7 @@ auto isSource(const std::filesystem::directory_entry& entry) -> bool
  * its sources out would link an artifact from fewer files than the project
  * holds, and nothing later in the build would name what went missing.
  */
-auto scanSourceDirectory(const std::filesystem::path& projectRoot) -> std::expected<std::vector<std::filesystem::path>, SourceScanFailure>
+std::expected<std::vector<std::filesystem::path>, SourceScanFailure> scanSourceDirectory(const std::filesystem::path& projectRoot)
 {
     const std::filesystem::path directory = projectRoot / SourceDirectory;
     std::error_code ec;
@@ -79,7 +79,7 @@ auto scanSourceDirectory(const std::filesystem::path& projectRoot) -> std::expec
  * The entry points of every target other than the one at the given index,
  * normalized so a path written with a "." component matches the file it names.
  */
-auto otherEntryPoints(const std::vector<Target>& targets, const std::size_t index) -> std::vector<std::filesystem::path>
+std::vector<std::filesystem::path> otherEntryPoints(const std::vector<Target>& targets, const std::size_t index)
 {
     std::vector<std::filesystem::path> entryPoints;
     for (std::size_t other = 0; other < targets.size(); ++other) {
@@ -92,8 +92,8 @@ auto otherEntryPoints(const std::vector<Target>& targets, const std::size_t inde
 
 }  // anonymous namespace
 
-auto collectSources(const std::filesystem::path& projectRoot,
-                    const std::vector<Target>& targets) -> std::expected<std::vector<TargetSources>, SourceScanFailure>
+std::expected<std::vector<TargetSources>, SourceScanFailure> collectSources(const std::filesystem::path& projectRoot,
+                                                                            const std::vector<Target>& targets)
 {
     const auto scanned = scanSourceDirectory(projectRoot);
     if (! scanned.has_value()) {

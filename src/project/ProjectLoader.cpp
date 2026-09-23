@@ -21,7 +21,7 @@ namespace {
  * A path that does not resolve reports not_found whether or not the error
  * code is set, so the type is checked before the code.
  */
-auto resolveStart(const std::filesystem::path& startDir) -> std::expected<std::filesystem::path, ProjectError>
+std::expected<std::filesystem::path, ProjectError> resolveStart(const std::filesystem::path& startDir)
 {
     std::error_code ec;
     const std::filesystem::path absolute = std::filesystem::absolute(startDir, ec);
@@ -49,7 +49,7 @@ auto resolveStart(const std::filesystem::path& startDir) -> std::expected<std::f
 
 }  // anonymous namespace
 
-auto loadProject(const std::filesystem::path& startDir) -> std::expected<LoadedProject, ProjectError>
+std::expected<LoadedProject, ProjectError> loadProject(const std::filesystem::path& startDir)
 {
     const auto start = resolveStart(startDir);
     if (! start.has_value()) {

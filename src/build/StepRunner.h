@@ -21,7 +21,7 @@ public:
     /**
      * @brief Carry out @p step and report what it came to.
      */
-    [[nodiscard]] virtual auto run(const BuildStep& step) -> StepResult = 0;
+    [[nodiscard]] virtual StepResult run(const BuildStep& step) = 0;
 
 protected:
     StepRunner() = default;
@@ -36,7 +36,7 @@ protected:
  */
 class ProgramStepRunner final : public StepRunner {
 public:
-    [[nodiscard]] auto run(const BuildStep& step) -> StepResult override;
+    [[nodiscard]] StepResult run(const BuildStep& step) override;
 };
 
 }  // namespace scrap::Build

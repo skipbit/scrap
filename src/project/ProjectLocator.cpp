@@ -9,7 +9,7 @@ namespace scrap::Project {
 /**
  * Walk up from startDir to the filesystem root looking for a manifest.
  */
-auto findProjectRoot(const std::filesystem::path& startDir) -> std::optional<std::filesystem::path>
+std::optional<std::filesystem::path> findProjectRoot(const std::filesystem::path& startDir)
 {
     std::error_code ec;
     std::filesystem::path directory = std::filesystem::absolute(startDir, ec);

@@ -39,7 +39,7 @@ namespace {
  * build produced would put the same value on both sides of the assertion, so
  * no wrong derivation could fail it.
  */
-auto isVersionBanner(const std::string& text) -> bool
+bool isVersionBanner(const std::string& text)
 {
     static const std::regex Pattern{ R"(^scrap [0-9]+\.[0-9]+\.[0-9]+( \(.+\))?$)" };
     return std::regex_match(text, Pattern);
@@ -60,7 +60,7 @@ constexpr std::string_view MainSource = "int main() { return 0; }\n";
  * The tests that expect no project depend on the temp location not sitting
  * inside one, and skip instead of failing on a machine where it does.
  */
-auto insideAProject(const std::filesystem::path& directory) -> bool
+bool insideAProject(const std::filesystem::path& directory)
 {
     std::error_code ec;
     for (std::filesystem::path current = directory;; current = current.parent_path()) {
@@ -93,7 +93,7 @@ struct ProcessOutput {
 /**
  * Remove leading/trailing ASCII whitespace from @p text.
  */
-auto trim(std::string_view text) -> std::string
+std::string trim(std::string_view text)
 {
     std::size_t begin = 0;
     while ((begin < text.size()) && (std::isspace(static_cast<unsigned char>(text[begin])) != 0)) {
@@ -111,7 +111,7 @@ auto trim(std::string_view text) -> std::string
  * LC_ALL) so external-command discovery only ever sees this test's fixture
  * directory, plus any caller-supplied "KEY=VALUE" overrides.
  */
-auto buildEnv(const std::filesystem::path& scrapHome, const std::vector<std::string>& overrides) -> std::vector<std::string>
+std::vector<std::string> buildEnv(const std::filesystem::path& scrapHome, const std::vector<std::string>& overrides)
 {
     std::vector<std::string> env{
         "SCRAP_HOME=" + scrapHome.string(),
@@ -151,7 +151,7 @@ auto buildEnv(const std::filesystem::path& scrapHome, const std::vector<std::str
  *
  * @return true if @p deadline was reached before both fds closed.
  */
-auto drainBoth(int fd1, int fd2, std::chrono::steady_clock::time_point deadline, std::string& out1, std::string& out2) -> bool
+bool drainBoth(int fd1, int fd2, std::chrono::steady_clock::time_point deadline, std::string& out1, std::string& out2)
 {
     std::array<char, ReadChunkBytes> buffer{};
     bool open1 = true;
@@ -307,7 +307,7 @@ protected:
      * The contents of @p relative below the fixture directory, empty when it
      * cannot be read.
      */
-    [[nodiscard]] auto readFile(const std::filesystem::path& relative) const -> std::string
+    [[nodiscard]] std::string readFile(const std::filesystem::path& relative) const
     {
         std::ifstream in(_root / relative, std::ios::binary);
         return std::string{ std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>() };
@@ -318,7 +318,7 @@ protected:
      * fixed PATH the harness gives the child holds no compiler of its own,
      * and a build has to reach one the platform actually provides.
      */
-    [[nodiscard]] static auto realCompiler() -> std::string
+    [[nodiscard]] static std::string realCompiler()
     {
         return std::string{ "CXX=" } + SCRAP_TEST_CXX;
     }
@@ -328,10 +328,10 @@ protected:
      * environment (SCRAP_HOME=_root, plus any @p envOverrides), and the
      * given @p cwd. Captures stdout/stderr separately.
      */
-    [[nodiscard]] auto runScrap(const std::vector<std::string>& args,
-                                const std::vector<std::string>& envOverrides,
-                                const std::filesystem::path& cwd,
-                                std::chrono::milliseconds timeout = HarnessTimeout) const -> ProcessOutput
+    [[nodiscard]] ProcessOutput runScrap(const std::vector<std::string>& args,
+                                         const std::vector<std::string>& envOverrides,
+                                         const std::filesystem::path& cwd,
+                                         std::chrono::milliseconds timeout = HarnessTimeout) const
     {
         std::vector<std::string> command{ SCRAP_BINARY_PATH };
         command.insert(command.end(), args.begin(), args.end());
@@ -342,10 +342,10 @@ protected:
      * Run @p command, the first of which names the program, in the same
      * controlled environment the scrap binary is run in.
      */
-    [[nodiscard]] auto runProgram(const std::vector<std::string>& command,
-                                  const std::vector<std::string>& envOverrides,
-                                  const std::filesystem::path& cwd,
-                                  std::chrono::milliseconds timeout = HarnessTimeout) const -> ProcessOutput
+    [[nodiscard]] ProcessOutput runProgram(const std::vector<std::string>& command,
+                                           const std::vector<std::string>& envOverrides,
+                                           const std::filesystem::path& cwd,
+                                           std::chrono::milliseconds timeout = HarnessTimeout) const
     {
         std::array<int, 2> outPipe{ -1, -1 };
         std::array<int, 2> errPipe{ -1, -1 };

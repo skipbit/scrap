@@ -19,7 +19,7 @@ public:
     /**
      * Return metadata with name derived from executable filename.
      */
-    auto fetch(const std::filesystem::path& executable) -> std::expected<ExternalCommandMetadata, std::string> override
+    std::expected<ExternalCommandMetadata, std::string> fetch(const std::filesystem::path& executable) override
     {
         ExternalCommandMetadata meta;
         meta.name = executable.filename().string().substr(6);  // strip "scrap-"
@@ -31,7 +31,7 @@ public:
 /**
  * Find an entry by name in a flat vector.
  */
-auto findByName(const std::vector<CommandEntry>& entries, const std::string& name) -> const CommandEntry*
+const CommandEntry* findByName(const std::vector<CommandEntry>& entries, const std::string& name)
 {
     auto it = std::ranges::find_if(entries, [&](const CommandEntry& e) {
         return e.spec.name == name;

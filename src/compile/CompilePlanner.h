@@ -49,8 +49,8 @@ struct BuildSettings {
  * @param targets Each target with its sources, as collectSources() returned them.
  * @return One command per source of each target, targets in the order given.
  */
-[[nodiscard]] auto planCompileCommands(const BuildSettings& settings,
-                                       const std::vector<Project::TargetSources>& targets) -> std::vector<CompileCommand>;
+[[nodiscard]] std::vector<CompileCommand> planCompileCommands(const BuildSettings& settings,
+                                                              const std::vector<Project::TargetSources>& targets);
 
 /**
  * @brief Decide the command that links each executable.
@@ -63,7 +63,7 @@ struct BuildSettings {
  * @param targets Each target with its sources, as collectSources() returned them.
  * @return One command per executable, in the order the targets were given.
  */
-[[nodiscard]] auto planLinkCommands(const BuildSettings& settings,
-                                    const std::vector<Project::TargetSources>& targets) -> std::vector<LinkCommand>;
+[[nodiscard]] std::vector<LinkCommand> planLinkCommands(const BuildSettings& settings,
+                                                        const std::vector<Project::TargetSources>& targets);
 
 }  // namespace scrap::Compile

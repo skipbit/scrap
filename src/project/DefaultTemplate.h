@@ -16,6 +16,6 @@ namespace scrap::Project {
  * @param projectName A name accepted by isValidProjectName().
  * @return Files to create, relative to the project root.
  */
-[[nodiscard]] auto defaultTemplateFiles(std::string_view projectName) -> std::vector<TemplateFile>;
+[[nodiscard]] std::vector<TemplateFile> defaultTemplateFiles(std::string_view projectName);
 
 }  // namespace scrap::Project

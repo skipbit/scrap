@@ -25,7 +25,7 @@ using scrap::TestSupport::TempDirectory;
 namespace {
 
 /// The real file system, which these tests create projects on.
-auto diskFileSystem() -> DiskProjectFileSystem&
+DiskProjectFileSystem& diskFileSystem()
 {
     static DiskProjectFileSystem files;
     return files;
@@ -45,7 +45,7 @@ public:
     std::error_code removeError;
     int removeCalls = 0;
 
-    [[nodiscard]] auto absolute(const std::filesystem::path& path) const -> std::expected<std::filesystem::path, std::error_code> override
+    [[nodiscard]] std::expected<std::filesystem::path, std::error_code> absolute(const std::filesystem::path& path) const override
     {
         if (absoluteError) {
             return std::unexpected(absoluteError);
@@ -53,22 +53,22 @@ public:
         return std::filesystem::path{ "/absolute" } / path.filename();
     }
 
-    [[nodiscard]] auto createDirectory(const std::filesystem::path&) -> std::error_code override
+    [[nodiscard]] std::error_code createDirectory(const std::filesystem::path&) override
     {
         return createDirectoryError;
     }
 
-    [[nodiscard]] auto createDirectories(const std::filesystem::path&) -> std::error_code override
+    [[nodiscard]] std::error_code createDirectories(const std::filesystem::path&) override
     {
         return createDirectoriesError;
     }
 
-    [[nodiscard]] auto writeNewFile(const std::filesystem::path&, std::string_view) -> std::error_code override
+    [[nodiscard]] std::error_code writeNewFile(const std::filesystem::path&, std::string_view) override
     {
         return writeError;
     }
 
-    [[nodiscard]] auto removeAll(const std::filesystem::path&) -> std::error_code override
+    [[nodiscard]] std::error_code removeAll(const std::filesystem::path&) override
     {
         ++removeCalls;
         return removeError;

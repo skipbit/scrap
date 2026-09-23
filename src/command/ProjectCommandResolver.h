@@ -32,7 +32,7 @@ public:
      * @param env Runtime environment; scripts are read from its working directory.
      * @return CommandEntry list for project-scoped script commands.
      */
-    auto resolve(const RuntimeEnvironment& env) -> std::vector<CommandEntry> override;
+    std::vector<CommandEntry> resolve(const RuntimeEnvironment& env) override;
 
 private:
     std::unique_ptr<ScriptsReader> _scriptsReader;

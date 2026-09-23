@@ -50,7 +50,7 @@ struct StringField {
 /**
  * Convert a toml++ source position to the one reported to the user.
  */
-auto toPosition(const toml::source_position& from) -> SourcePosition
+SourcePosition toPosition(const toml::source_position& from)
 {
     return SourcePosition{ .line = static_cast<std::uint32_t>(from.line), .column = static_cast<std::uint32_t>(from.column) };
 }
@@ -58,7 +58,7 @@ auto toPosition(const toml::source_position& from) -> SourcePosition
 /**
  * Join a table name and a key into the dotted form used in diagnostics.
  */
-auto dotted(std::string_view table, std::string_view key) -> std::string
+std::string dotted(std::string_view table, std::string_view key)
 {
     std::string joined{ table };
     joined += '.';
@@ -69,7 +69,7 @@ auto dotted(std::string_view table, std::string_view key) -> std::string
 /**
  * Build an error pointing at where @p node starts.
  */
-auto errorAt(const std::filesystem::path& file, const toml::node& node, std::string key, std::string message) -> ManifestError
+ManifestError errorAt(const std::filesystem::path& file, const toml::node& node, std::string key, std::string message)
 {
     return ManifestError{ .file = file,
                           .position = toPosition(node.source().begin),
@@ -81,7 +81,7 @@ auto errorAt(const std::filesystem::path& file, const toml::node& node, std::str
 /**
  * Build an error that cannot be tied to a position in the file.
  */
-auto errorWithoutPosition(const std::filesystem::path& file, std::string key, std::string message) -> ManifestError
+ManifestError errorWithoutPosition(const std::filesystem::path& file, std::string key, std::string message)
 {
     return ManifestError{
         .file = file, .position = std::nullopt, .key = std::move(key), .message = std::move(message), .kind = ManifestErrorKind::Invalid
@@ -91,7 +91,7 @@ auto errorWithoutPosition(const std::filesystem::path& file, std::string key, st
 /**
  * Build an error for a manifest file that could not be opened or read.
  */
-auto unreadable(const std::filesystem::path& file, std::string message) -> ManifestError
+ManifestError unreadable(const std::filesystem::path& file, std::string message)
 {
     return ManifestError{
         .file = file, .position = std::nullopt, .key = {}, .message = std::move(message), .kind = ManifestErrorKind::Unreadable
@@ -101,7 +101,7 @@ auto unreadable(const std::filesystem::path& file, std::string message) -> Manif
 /**
  * Read @p node as a non-empty string.
  */
-auto readString(const std::filesystem::path& file, const toml::node& node, std::string key) -> std::expected<StringField, ManifestError>
+std::expected<StringField, ManifestError> readString(const std::filesystem::path& file, const toml::node& node, std::string key)
 {
     const auto value = node.value<std::string>();
     if (! value.has_value()) {
@@ -116,10 +116,10 @@ auto readString(const std::filesystem::path& file, const toml::node& node, std::
 /**
  * Read a string key that must be present.
  */
-auto requireString(const std::filesystem::path& file,
-                   const toml::table& table,
-                   std::string_view tableName,
-                   std::string_view key) -> std::expected<StringField, ManifestError>
+std::expected<StringField, ManifestError> requireString(const std::filesystem::path& file,
+                                                        const toml::table& table,
+                                                        std::string_view tableName,
+                                                        std::string_view key)
 {
     const toml::node* node = table.get(key);
     if (node == nullptr) {
@@ -135,7 +135,7 @@ auto requireString(const std::filesystem::path& file,
  * reported here: handed to the compiler, it would be rejected without saying
  * what to write instead.
  */
-auto parseStandard(const std::filesystem::path& file, const toml::table& package) -> std::expected<LanguageStandard, ManifestError>
+std::expected<LanguageStandard, ManifestError> parseStandard(const std::filesystem::path& file, const toml::table& package)
 {
     const toml::node* node = package.get("std");
     if (node == nullptr) {
@@ -164,7 +164,7 @@ auto parseStandard(const std::filesystem::path& file, const toml::table& package
 /**
  * True when @p text holds a character that has no place in a file name.
  */
-auto hasControlCharacter(std::string_view text) -> bool
+bool hasControlCharacter(std::string_view text)
 {
     return std::ranges::any_of(text, [](const char ch) {
         return (static_cast<unsigned char>(ch) < 0x20);
@@ -178,7 +178,7 @@ auto hasControlCharacter(std::string_view text) -> bool
  * one carrying a separator or a parent-directory reference would place the
  * artifact outside the directory the caller chose.
  */
-auto validateName(const std::filesystem::path& file, const StringField& field, std::string key) -> std::expected<void, ManifestError>
+std::expected<void, ManifestError> validateName(const std::filesystem::path& file, const StringField& field, std::string key)
 {
     if (field.node == nullptr) {
         return {};
@@ -198,7 +198,7 @@ auto validateName(const std::filesystem::path& file, const StringField& field, s
 /**
  * Reject an entry point that does not stay inside the project.
  */
-auto validateEntryPoint(const std::filesystem::path& file, const StringField& field, std::string key) -> std::expected<void, ManifestError>
+std::expected<void, ManifestError> validateEntryPoint(const std::filesystem::path& file, const StringField& field, std::string key)
 {
     const std::filesystem::path entryPoint{ field.value };
     if (entryPoint.is_absolute() || entryPoint.has_root_name() || entryPoint.has_root_directory()) {
@@ -228,10 +228,10 @@ auto validateEntryPoint(const std::filesystem::path& file, const StringField& fi
  * @param prefix Dotted prefix for reported keys; empty at the top level.
  * @param known Keys this version reads or reserves.
  */
-auto rejectUnknownKeys(const std::filesystem::path& file,
-                       const toml::table& table,
-                       std::string_view prefix,
-                       std::span<const std::string_view> known) -> std::expected<void, ManifestError>
+std::expected<void, ManifestError> rejectUnknownKeys(const std::filesystem::path& file,
+                                                     const toml::table& table,
+                                                     std::string_view prefix,
+                                                     std::span<const std::string_view> known)
 {
     for (const auto& [key, value] : table) {
         const std::string_view name = key.str();
@@ -253,7 +253,7 @@ auto rejectUnknownKeys(const std::filesystem::path& file,
 /**
  * Parse the [package] table.
  */
-auto parsePackage(const std::filesystem::path& file, const toml::table& root) -> std::expected<Package, ManifestError>
+std::expected<Package, ManifestError> parsePackage(const std::filesystem::path& file, const toml::table& root)
 {
     const toml::node* node = root.get("package");
     if (node == nullptr) {
@@ -292,11 +292,11 @@ auto parsePackage(const std::filesystem::path& file, const toml::table& root) ->
 /**
  * Parse one [[bin]] or [[lib]] entry and append it to @p targets.
  */
-auto parseTargetEntry(const std::filesystem::path& file,
-                      const toml::table& table,
-                      std::string_view key,
-                      TargetKind kind,
-                      std::vector<Target>& targets) -> std::expected<void, ManifestError>
+std::expected<void, ManifestError> parseTargetEntry(const std::filesystem::path& file,
+                                                    const toml::table& table,
+                                                    std::string_view key,
+                                                    TargetKind kind,
+                                                    std::vector<Target>& targets)
 {
     if (auto known = rejectUnknownKeys(file, table, key, KnownTargetKeys); ! known.has_value()) {
         return std::unexpected(known.error());
@@ -330,11 +330,11 @@ auto parseTargetEntry(const std::filesystem::path& file,
 /**
  * Parse the array of tables named @p key, if the manifest has one.
  */
-auto parseTargetArray(const std::filesystem::path& file,
-                      const toml::table& root,
-                      std::string_view key,
-                      TargetKind kind,
-                      std::vector<Target>& targets) -> std::expected<void, ManifestError>
+std::expected<void, ManifestError> parseTargetArray(const std::filesystem::path& file,
+                                                    const toml::table& root,
+                                                    std::string_view key,
+                                                    TargetKind kind,
+                                                    std::vector<Target>& targets)
 {
     const toml::node* node = root.get(key);
     if (node == nullptr) {
@@ -367,7 +367,7 @@ auto parseTargetArray(const std::filesystem::path& file,
  * opened as a manifest and a zero-byte manifest both arrive as empty text.
  * Reading a known length and comparing what arrived keeps them apart.
  */
-auto readWholeFile(const std::filesystem::path& file) -> std::expected<std::string, ManifestError>
+std::expected<std::string, ManifestError> readWholeFile(const std::filesystem::path& file)
 {
     std::error_code ec;
     if (! std::filesystem::is_regular_file(file, ec)) {
@@ -399,7 +399,7 @@ auto readWholeFile(const std::filesystem::path& file) -> std::expected<std::stri
 /**
  * Parse manifest text into a Manifest.
  */
-auto parseManifest(std::string_view text, const std::filesystem::path& file) -> std::expected<Manifest, ManifestError>
+std::expected<Manifest, ManifestError> parseManifest(std::string_view text, const std::filesystem::path& file)
 {
     const toml::parse_result parsed = toml::parse(text);
     if (! parsed) {
@@ -439,7 +439,7 @@ auto parseManifest(std::string_view text, const std::filesystem::path& file) -> 
 /**
  * Read a manifest file from disk and parse it.
  */
-auto loadManifest(const std::filesystem::path& file) -> std::expected<Manifest, ManifestError>
+std::expected<Manifest, ManifestError> loadManifest(const std::filesystem::path& file)
 {
     const auto text = readWholeFile(file);
     if (! text.has_value()) {

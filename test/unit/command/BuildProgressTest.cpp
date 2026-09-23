@@ -15,7 +15,7 @@ using scrap::Command::StreamBuildReporter;
 
 namespace {
 
-auto compileStep() -> BuildStep
+BuildStep compileStep()
 {
     return BuildStep{ .kind = StepKind::Compile,
                       .target = "hello",
@@ -25,7 +25,7 @@ auto compileStep() -> BuildStep
                       .arguments = {} };
 }
 
-auto linkStep() -> BuildStep
+BuildStep linkStep()
 {
     return BuildStep{ .kind = StepKind::Link,
                       .target = "hello",

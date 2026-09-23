@@ -25,9 +25,9 @@ namespace scrap::Command {
  *                  preferredCompiler.
  * @return Constructed RuntimeEnvironment.
  */
-[[nodiscard]] auto makeRuntimeEnvironment(const std::filesystem::path& cwd,
-                                          const std::string& scrapHome,
-                                          const std::string& pathEnv,
-                                          const std::string& compilerEnv) -> RuntimeEnvironment;
+[[nodiscard]] RuntimeEnvironment makeRuntimeEnvironment(const std::filesystem::path& cwd,
+                                                        const std::string& scrapHome,
+                                                        const std::string& pathEnv,
+                                                        const std::string& compilerEnv);
 
 }  // namespace scrap::Command

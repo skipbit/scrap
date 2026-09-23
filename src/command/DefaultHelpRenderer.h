@@ -22,7 +22,7 @@ public:
      * @param entries HelpEntry list (typically from CommandCatalog::helpEntries()).
      * @return Formatted help string with USAGE header and footer.
      */
-    [[nodiscard]] auto renderGlobal(std::span<const HelpEntry> entries) const -> std::string override;
+    [[nodiscard]] std::string renderGlobal(std::span<const HelpEntry> entries) const override;
 
     /**
      * @brief Render help for a single command.
@@ -34,7 +34,7 @@ public:
      * @param spec CommandSpec with subcommands and options populated.
      * @return Formatted command help string.
      */
-    [[nodiscard]] auto renderCommand(const CommandSpec& spec) const -> std::string override;
+    [[nodiscard]] std::string renderCommand(const CommandSpec& spec) const override;
 };
 
 }  // namespace scrap::Command

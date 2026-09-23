@@ -11,8 +11,8 @@
 
 namespace scrap::Build {
 
-auto buildSteps(const std::vector<Compile::CompileCommand>& compiles,
-                const std::vector<Compile::LinkCommand>& links) -> std::vector<BuildStep>
+std::vector<BuildStep> buildSteps(const std::vector<Compile::CompileCommand>& compiles,
+                                  const std::vector<Compile::LinkCommand>& links)
 {
     std::vector<BuildStep> steps;
     steps.reserve(compiles.size() + links.size());
@@ -35,7 +35,7 @@ auto buildSteps(const std::vector<Compile::CompileCommand>& compiles,
     return steps;
 }
 
-auto runSerially(const std::vector<BuildStep>& steps, StepRunner& runner, BuildReporter& reporter) -> std::expected<void, FailedStep>
+std::expected<void, FailedStep> runSerially(const std::vector<BuildStep>& steps, StepRunner& runner, BuildReporter& reporter)
 {
     for (const BuildStep& step : steps) {
         reporter.started(step);

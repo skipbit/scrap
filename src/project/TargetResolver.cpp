@@ -11,7 +11,7 @@ namespace scrap::Project {
 /**
  * Return the manifest's targets, or the one inferred from the default layout.
  */
-auto resolveTargets(const std::filesystem::path& projectRoot, const Manifest& manifest) -> std::vector<Target>
+std::vector<Target> resolveTargets(const std::filesystem::path& projectRoot, const Manifest& manifest)
 {
     if (manifest.declaresTargets) {
         return manifest.targets;

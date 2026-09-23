@@ -17,7 +17,7 @@ namespace scrap::Command {
  * @param text Text to render.
  * @return The text for a terminal.
  */
-[[nodiscard]] auto printableText(std::string_view text) -> std::string;
+[[nodiscard]] std::string printableText(std::string_view text);
 
 /**
  * @brief A path made safe to print.
@@ -28,7 +28,7 @@ namespace scrap::Command {
  * @param path Path to render.
  * @return The path as text for a terminal.
  */
-[[nodiscard]] auto printablePath(const std::filesystem::path& path) -> std::string;
+[[nodiscard]] std::string printablePath(const std::filesystem::path& path);
 
 /**
  * @brief A name made safe to print.
@@ -42,6 +42,6 @@ namespace scrap::Command {
  * @param name Name to render.
  * @return The name as text for a terminal.
  */
-[[nodiscard]] auto printableName(std::string_view name) -> std::string;
+[[nodiscard]] std::string printableName(std::string_view name);
 
 }  // namespace scrap::Command

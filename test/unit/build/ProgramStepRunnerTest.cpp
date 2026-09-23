@@ -19,7 +19,7 @@ namespace {
  * A step that runs @p script in the system shell, in @p directory, and is
  * said to write @p output.
  */
-auto shellStep(const std::filesystem::path& directory, const char* output, const std::string& script) -> BuildStep
+BuildStep shellStep(const std::filesystem::path& directory, const char* output, const std::string& script)
 {
     return BuildStep{ .kind = StepKind::Compile,
                       .target = "hello",

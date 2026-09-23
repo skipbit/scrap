@@ -39,7 +39,7 @@ public:
      *
      * @param entries CommandEntry trees to merge.
      */
-    auto addEntries(std::vector<CommandEntry> entries) -> void;
+    void addEntries(std::vector<CommandEntry> entries);
 
     /**
      * @brief Look up a CommandEntry by dot-separated command path.
@@ -51,7 +51,7 @@ public:
      * @param commandPath Dot-separated path, e.g. "toolchain.install".
      * @return Pointer to the found entry, or @c nullptr if not found.
      */
-    [[nodiscard]] auto find(const std::string& commandPath) const -> const CommandEntry*;
+    [[nodiscard]] const CommandEntry* find(const std::string& commandPath) const;
 
     /**
      * @brief Derive a CommandSpec tree from the stored entries.
@@ -62,7 +62,7 @@ public:
      * always empty) is preserved; only the derived specs carry
      * children.
      */
-    [[nodiscard]] auto specs() const -> std::vector<CommandSpec>;
+    [[nodiscard]] std::vector<CommandSpec> specs() const;
 
     /**
      * @brief Derive a flat HelpEntry list for HelpRenderer.
@@ -71,7 +71,7 @@ public:
      * recursive subcommands) and the originating CommandSource,
      * so the renderer can group entries by source category.
      */
-    [[nodiscard]] auto helpEntries() const -> std::vector<HelpEntry>;
+    [[nodiscard]] std::vector<HelpEntry> helpEntries() const;
 
 private:
     std::vector<CommandEntry> _entries;
@@ -82,7 +82,7 @@ private:
      * Copies spec fields and populates subcommands by walking the
      * entry's subcommand tree depth-first.
      */
-    static auto buildSpec(const CommandEntry& entry) -> CommandSpec;
+    static CommandSpec buildSpec(const CommandEntry& entry);
 };
 
 }  // namespace scrap::Command

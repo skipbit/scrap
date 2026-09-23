@@ -18,7 +18,7 @@ namespace {
 /**
  * A command line that runs @p script in the system shell.
  */
-auto shell(const std::string& script) -> std::vector<std::string>
+std::vector<std::string> shell(const std::string& script)
 {
     return { "/bin/sh", "-c", script };
 }

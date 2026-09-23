@@ -51,7 +51,7 @@ constexpr std::string_view CompilerRunHint = "hint: check that the compiler can 
  * The rule a new project name follows, as scrap::Project::isValidProjectName()
  * checks it.
  */
-auto projectNameHint() -> std::string
+std::string projectNameHint()
 {
     std::string text = "hint: use up to ";
     text += std::to_string(Project::MaxProjectNameLength);
@@ -59,7 +59,7 @@ auto projectNameHint() -> std::string
     return text;
 }
 
-auto render(const Project::NotADirectory& error) -> std::string
+std::string render(const Project::NotADirectory& error)
 {
     std::string text = "error: '";
     text += error.path.string();
@@ -68,7 +68,7 @@ auto render(const Project::NotADirectory& error) -> std::string
     return text;
 }
 
-auto render(const Project::PathInaccessible& error) -> std::string
+std::string render(const Project::PathInaccessible& error)
 {
     std::string text = "error: cannot access '";
     text += error.path.string();
@@ -79,7 +79,7 @@ auto render(const Project::PathInaccessible& error) -> std::string
     return text;
 }
 
-auto render(const Project::ProjectNotFound& error) -> std::string
+std::string render(const Project::ProjectNotFound& error)
 {
     std::string text = "error: could not find ";
     text += Project::ManifestFileName;
@@ -94,7 +94,7 @@ auto render(const Project::ProjectNotFound& error) -> std::string
  * A manifest that could not be read points at the file itself; one whose
  * contents are wrong points at editing it.
  */
-auto render(const Project::ManifestError& error) -> std::string
+std::string render(const Project::ManifestError& error)
 {
     std::string text = Project::describe(error);
     if (error.kind == Project::ManifestErrorKind::Unreadable) {
@@ -121,7 +121,7 @@ constexpr std::size_t EchoedNameLimit = Project::MaxProjectNameLength;
  * enough for the message. A target name is not cut: it names something the
  * manifest declares, and a message has to name it as the manifest does.
  */
-auto printableEcho(const std::string_view text) -> std::string
+std::string printableEcho(const std::string_view text)
 {
     if (text.size() <= EchoedNameLimit) {
         return printableName(text);
@@ -129,7 +129,7 @@ auto printableEcho(const std::string_view text) -> std::string
     return printableName(text.substr(0, EchoedNameLimit)) + "...";
 }
 
-auto render(const Project::InvalidProjectName& error) -> std::string
+std::string render(const Project::InvalidProjectName& error)
 {
     std::string text;
     if (error.name.empty()) {
@@ -143,7 +143,7 @@ auto render(const Project::InvalidProjectName& error) -> std::string
     return text;
 }
 
-auto render(const Project::PathExists& error) -> std::string
+std::string render(const Project::PathExists& error)
 {
     std::string text = "error: '";
     text += printablePath(error.path);
@@ -155,7 +155,7 @@ auto render(const Project::PathExists& error) -> std::string
 /**
  * Whether @p code is the quota failure, which std::errc does not name.
  */
-auto isQuotaExceeded(const std::error_code& code) -> bool
+bool isQuotaExceeded(const std::error_code& code)
 {
 #ifdef EDQUOT
     return ((code.value() == EDQUOT) && ((code.category() == std::generic_category()) || (code.category() == std::system_category())));
@@ -169,7 +169,7 @@ auto isQuotaExceeded(const std::error_code& code) -> bool
  * The next step every write failure shares: the permissions, or the space
  * left. Any other reason is left to the caller.
  */
-auto sharedWriteHint(const std::error_code& code) -> std::optional<std::string_view>
+std::optional<std::string_view> sharedWriteHint(const std::error_code& code)
 {
     if (code == std::errc::permission_denied || code == std::errc::operation_not_permitted) {
         return PermissionHint;
@@ -184,7 +184,7 @@ auto sharedWriteHint(const std::error_code& code) -> std::optional<std::string_v
  * The next step for a directory or file that could not be created, chosen by
  * what the operating system reported.
  */
-auto cannotCreateHint(const std::error_code& code) -> std::string_view
+std::string_view cannotCreateHint(const std::error_code& code)
 {
     if (const auto shared = sharedWriteHint(code)) {
         return *shared;
@@ -206,7 +206,7 @@ auto cannotCreateHint(const std::error_code& code) -> std::string_view
  * the operating system reported. The output goes inside the project, so the
  * last resort points at the project directory.
  */
-auto cannotWriteBuildHint(const std::error_code& code) -> std::string_view
+std::string_view cannotWriteBuildHint(const std::error_code& code)
 {
     if (const auto shared = sharedWriteHint(code)) {
         return *shared;
@@ -220,7 +220,7 @@ auto cannotWriteBuildHint(const std::error_code& code) -> std::string_view
 /**
  * What the failed step was doing to its path, in the words the output uses.
  */
-auto describeStep(const Compile::DatabaseWriteStep step) -> std::string_view
+std::string_view describeStep(const Compile::DatabaseWriteStep step)
 {
     switch (step) {
     case Compile::DatabaseWriteStep::CreateDirectory:
@@ -233,7 +233,7 @@ auto describeStep(const Compile::DatabaseWriteStep step) -> std::string_view
     std::unreachable();
 }
 
-auto render(const Project::CannotCreate& error) -> std::string
+std::string render(const Project::CannotCreate& error)
 {
     std::string text = "error: cannot create '";
     text += printablePath(error.path);
@@ -254,7 +254,7 @@ auto render(const Project::CannotCreate& error) -> std::string
  * Render whichever alternative @p error holds.
  */
 template <typename... Alternatives>
-auto renderAlternative(const std::variant<Alternatives...>& error) -> std::string
+std::string renderAlternative(const std::variant<Alternatives...>& error)
 {
     return std::visit([](const auto& alternative) -> std::string {
         return render(alternative);
@@ -263,19 +263,19 @@ auto renderAlternative(const std::variant<Alternatives...>& error) -> std::strin
 
 }  // anonymous namespace
 
-auto renderProjectError(const Project::ProjectError& error) -> std::string
+std::string renderProjectError(const Project::ProjectError& error)
 {
     return renderAlternative(error);
 }
 
-auto renderEmptyPathArgument() -> std::string
+std::string renderEmptyPathArgument()
 {
     std::string text = "error: the path argument is empty\n";
     text += PathHint;
     return text;
 }
 
-auto renderNoCompilerFound() -> std::string
+std::string renderNoCompilerFound()
 {
     return "error: no C++ compiler found\n"
            "hint: install a C++ compiler, or set CXX to the one to use\n";
@@ -285,7 +285,7 @@ auto renderNoCompilerFound() -> std::string
  * The value is echoed through printableEcho(), since the environment can hold any
  * byte and the answer is read in a terminal.
  */
-auto renderUnusableCompilerRequest(const std::string_view requested) -> std::string
+std::string renderUnusableCompilerRequest(const std::string_view requested)
 {
     std::string text = "error: CXX names '";
     text += printableEcho(requested);
@@ -294,7 +294,7 @@ auto renderUnusableCompilerRequest(const std::string_view requested) -> std::str
     return text;
 }
 
-auto renderNoTargetToBuild(const std::filesystem::path& projectRoot) -> std::string
+std::string renderNoTargetToBuild(const std::filesystem::path& projectRoot)
 {
     std::string text = "error: no target to build in '";
     text += printablePath(projectRoot);
@@ -306,7 +306,7 @@ auto renderNoTargetToBuild(const std::filesystem::path& projectRoot) -> std::str
     return text;
 }
 
-auto renderSourceScanFailure(const Project::SourceScanFailure& failure) -> std::string
+std::string renderSourceScanFailure(const Project::SourceScanFailure& failure)
 {
     std::string text = "error: cannot read '";
     text += printablePath(failure.directory);
@@ -317,7 +317,7 @@ auto renderSourceScanFailure(const Project::SourceScanFailure& failure) -> std::
     return text;
 }
 
-auto renderCompilationDatabaseFailure(const Compile::DatabaseWriteFailure& failure) -> std::string
+std::string renderCompilationDatabaseFailure(const Compile::DatabaseWriteFailure& failure)
 {
     std::string text = "error: cannot ";
     text += describeStep(failure.step);
@@ -336,7 +336,7 @@ namespace {
  * The first line of a step that failed: which file the build stopped at, and
  * for a compilation, the target it was building.
  */
-auto describeFailedStep(const Build::BuildStep& step) -> std::string
+std::string describeFailedStep(const Build::BuildStep& step)
 {
     if (step.kind == Build::StepKind::Link) {
         std::string text = "error: failed to link '";
@@ -354,7 +354,7 @@ auto describeFailedStep(const Build::BuildStep& step) -> std::string
 
 }  // anonymous namespace
 
-auto renderUnsupportedStandard(const std::filesystem::path& compiler, const Project::LanguageStandard standard) -> std::string
+std::string renderUnsupportedStandard(const std::filesystem::path& compiler, const Project::LanguageStandard standard)
 {
     std::string text = "error: '";
     text += printablePath(compiler);
@@ -366,7 +366,7 @@ auto renderUnsupportedStandard(const std::filesystem::path& compiler, const Proj
     return text;
 }
 
-auto renderLibraryNotBuilt(const std::string_view name) -> std::string
+std::string renderLibraryNotBuilt(const std::string_view name)
 {
     std::string text = "error: building the library '";
     text += printableName(name);
@@ -376,7 +376,7 @@ auto renderLibraryNotBuilt(const std::string_view name) -> std::string
     return text;
 }
 
-auto renderStepFailure(const Build::FailedStep& failed) -> std::string
+std::string renderStepFailure(const Build::FailedStep& failed)
 {
     switch (failed.failure.kind) {
     case Build::StepFailureKind::CannotCreateDirectory: {
@@ -413,7 +413,7 @@ auto renderStepFailure(const Build::FailedStep& failed) -> std::string
     std::unreachable();
 }
 
-auto renderCreateProjectError(const Project::CreateProjectError& error) -> std::string
+std::string renderCreateProjectError(const Project::CreateProjectError& error)
 {
     return renderAlternative(error);
 }

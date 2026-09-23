@@ -6,10 +6,10 @@ using namespace scrap::Command;
 
 namespace {
 
-auto makeEntry(const std::string& name,
-               CommandSource source,
-               const std::string& category = "",
-               const std::string& description = "") -> CommandEntry
+CommandEntry makeEntry(const std::string& name,
+                       CommandSource source,
+                       const std::string& category = "",
+                       const std::string& description = "")
 {
     CommandEntry entry;
     entry.spec.name = name;
@@ -22,7 +22,7 @@ auto makeEntry(const std::string& name,
     return entry;
 }
 
-auto makeEntryWithSubs(const std::string& name, CommandSource source, std::vector<CommandEntry> subs) -> CommandEntry
+CommandEntry makeEntryWithSubs(const std::string& name, CommandSource source, std::vector<CommandEntry> subs)
 {
     auto entry = makeEntry(name, source);
     entry.subcommands = std::move(subs);

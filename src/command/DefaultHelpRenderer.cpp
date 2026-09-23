@@ -20,7 +20,7 @@ namespace {
 /**
  * Compute the maximum command name length for column alignment.
  */
-auto maxNameLength(std::span<const HelpEntry> entries) -> std::size_t
+std::size_t maxNameLength(std::span<const HelpEntry> entries)
 {
     std::size_t maxLen = 0;
     for (const auto& entry : entries) {
@@ -84,7 +84,7 @@ void appendUsageLine(std::ostringstream& out, const CommandSpec& spec)
 /**
  * Render the top-level help listing all commands grouped by source.
  */
-auto DefaultHelpRenderer::renderGlobal(std::span<const HelpEntry> entries) const -> std::string
+std::string DefaultHelpRenderer::renderGlobal(std::span<const HelpEntry> entries) const
 {
     std::ostringstream out;
     out << "USAGE: scrap [OPTIONS] <COMMAND>\n";
@@ -150,7 +150,7 @@ auto DefaultHelpRenderer::renderGlobal(std::span<const HelpEntry> entries) const
 /**
  * Render help for a single command with usage, subcommands, and options.
  */
-auto DefaultHelpRenderer::renderCommand(const CommandSpec& spec) const -> std::string
+std::string DefaultHelpRenderer::renderCommand(const CommandSpec& spec) const
 {
     std::ostringstream out;
 

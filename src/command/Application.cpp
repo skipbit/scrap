@@ -41,7 +41,7 @@ Application& Application::operator=(Application&&) noexcept = default;
 /**
  * Register a command resolver for the Resolve phase.
  */
-auto Application::addResolver(std::unique_ptr<CommandResolver> resolver) -> void
+void Application::addResolver(std::unique_ptr<CommandResolver> resolver)
 {
     _resolvers.push_back(std::move(resolver));
 }
@@ -49,7 +49,7 @@ auto Application::addResolver(std::unique_ptr<CommandResolver> resolver) -> void
 /**
  * Execute the four-phase CLI pipeline: Resolve, Configure, Parse, Execute.
  */
-auto Application::run(std::span<const char* const> argv, const RuntimeEnvironment& env) -> int
+int Application::run(std::span<const char* const> argv, const RuntimeEnvironment& env)
 {
     // Phase 1: Resolve - collect CommandEntry trees from all resolvers.
     CommandCatalog catalog;
@@ -95,7 +95,7 @@ auto Application::run(std::span<const char* const> argv, const RuntimeEnvironmen
 /**
  * Handle a ParseDirective (help or version request).
  */
-auto Application::handleDirective(const CommandCatalog& catalog, const ParseDirective& directive) -> int
+int Application::handleDirective(const CommandCatalog& catalog, const ParseDirective& directive)
 {
     switch (directive.kind) {
     case ParseDirectiveKind::HelpRequested:
@@ -110,7 +110,7 @@ auto Application::handleDirective(const CommandCatalog& catalog, const ParseDire
 /**
  * Render help for a specific command or the global listing.
  */
-auto Application::handleHelp(const CommandCatalog& catalog, const std::optional<std::string>& target) -> int
+int Application::handleHelp(const CommandCatalog& catalog, const std::optional<std::string>& target)
 {
     if (! target.has_value()) {
         std::cout << _helpRenderer->renderGlobal(catalog.helpEntries());
@@ -133,7 +133,7 @@ auto Application::handleHelp(const CommandCatalog& catalog, const std::optional<
  * The parser writes what the user typed into its message, so the message
  * reaches the terminal as text rather than as instructions.
  */
-auto Application::handleFailure(const ParseFailure& failure) -> int
+int Application::handleFailure(const ParseFailure& failure)
 {
     std::cerr << printableText(failure.message) << "\n";
     std::cerr << "Run 'scrap --help' for usage information.\n";

@@ -15,7 +15,7 @@ namespace {
  * The entries of a colon-separated list, in order, without the empty ones a
  * leading, trailing, or doubled colon produces.
  */
-auto splitSearchPaths(const std::string& pathEnv) -> std::vector<std::filesystem::path>
+std::vector<std::filesystem::path> splitSearchPaths(const std::string& pathEnv)
 {
     std::vector<std::filesystem::path> paths;
     std::size_t start = 0;
@@ -39,10 +39,10 @@ auto splitSearchPaths(const std::string& pathEnv) -> std::vector<std::filesystem
  * Build a RuntimeEnvironment from the given cwd, SCRAP_HOME, PATH and CXX
  * values.
  */
-auto makeRuntimeEnvironment(const std::filesystem::path& cwd,
-                            const std::string& scrapHome,
-                            const std::string& pathEnv,
-                            const std::string& compilerEnv) -> RuntimeEnvironment
+RuntimeEnvironment makeRuntimeEnvironment(const std::filesystem::path& cwd,
+                                          const std::string& scrapHome,
+                                          const std::string& pathEnv,
+                                          const std::string& compilerEnv)
 {
     RuntimeEnvironment env;
     env.workingDirectory = cwd;

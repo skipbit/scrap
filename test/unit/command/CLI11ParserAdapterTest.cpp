@@ -9,7 +9,7 @@ namespace {
 /**
  * Helper: build a minimal CommandSpec with no options.
  */
-auto makeSpec(const std::string& name, const std::string& desc = "") -> CommandSpec
+CommandSpec makeSpec(const std::string& name, const std::string& desc = "")
 {
     CommandSpec spec;
     spec.name = name;
@@ -20,7 +20,7 @@ auto makeSpec(const std::string& name, const std::string& desc = "") -> CommandS
 /**
  * Helper: build a CommandSpec with child subcommands.
  */
-auto makeSpecWithSubs(const std::string& name, std::vector<CommandSpec> subs, const std::string& desc = "") -> CommandSpec
+CommandSpec makeSpecWithSubs(const std::string& name, std::vector<CommandSpec> subs, const std::string& desc = "")
 {
     auto spec = makeSpec(name, desc);
     spec.subcommands = std::move(subs);
@@ -41,15 +41,15 @@ public:
     {
     }
 
-    [[nodiscard]] auto data() const -> const char* const*
+    [[nodiscard]] const char* const* data() const
     {
         return _args.data();
     }
-    [[nodiscard]] auto size() const -> std::size_t
+    [[nodiscard]] std::size_t size() const
     {
         return _args.size();
     }
-    [[nodiscard]] auto span() const -> std::span<const char* const>
+    [[nodiscard]] std::span<const char* const> span() const
     {
         return { _args.data(), _args.size() };
     }

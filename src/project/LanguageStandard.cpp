@@ -14,12 +14,12 @@ constexpr std::array<LanguageStandard, 6> SupportedStandards{ LanguageStandard::
 
 }  // anonymous namespace
 
-auto supportedLanguageStandards() -> std::span<const LanguageStandard>
+std::span<const LanguageStandard> supportedLanguageStandards()
 {
     return SupportedStandards;
 }
 
-auto parseLanguageStandard(std::string_view text) -> std::optional<LanguageStandard>
+std::optional<LanguageStandard> parseLanguageStandard(std::string_view text)
 {
     for (const LanguageStandard standard : SupportedStandards) {
         if (standardNumber(standard) == text) {
@@ -29,7 +29,7 @@ auto parseLanguageStandard(std::string_view text) -> std::optional<LanguageStand
     return std::nullopt;
 }
 
-auto standardNumber(const LanguageStandard standard) -> std::string_view
+std::string_view standardNumber(const LanguageStandard standard)
 {
     switch (standard) {
     case LanguageStandard::Cxx11:

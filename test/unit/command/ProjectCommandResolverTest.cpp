@@ -25,7 +25,7 @@ public:
     /**
      * Return the pre-configured result.
      */
-    auto read([[maybe_unused]] const std::filesystem::path& projectRoot) -> std::expected<std::vector<ScriptDef>, std::string> override
+    std::expected<std::vector<ScriptDef>, std::string> read([[maybe_unused]] const std::filesystem::path& projectRoot) override
     {
         return _result;
     }

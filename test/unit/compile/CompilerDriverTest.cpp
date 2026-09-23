@@ -29,7 +29,7 @@ struct Expectation {
     std::optional<std::string> option;
 };
 
-auto describe(const Expectation& expected) -> std::string
+std::string describe(const Expectation& expected)
 {
     static constexpr std::array<const char*, 4> Families{ "gcc", "clang", "AppleClang", "unknown" };
     return std::string{ Families.at(static_cast<std::size_t>(expected.family)) } + ' ' + std::to_string(expected.major) + '.'

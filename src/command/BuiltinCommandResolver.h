@@ -35,7 +35,7 @@ public:
      * @param env Runtime environment (unused by this resolver).
      * @return CommandEntry trees for all built-in commands.
      */
-    auto resolve(const RuntimeEnvironment& env) -> std::vector<CommandEntry> override;
+    std::vector<CommandEntry> resolve(const RuntimeEnvironment& env) override;
 
 private:
     HelpRenderer* _helpRenderer;

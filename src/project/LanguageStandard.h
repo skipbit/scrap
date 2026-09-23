@@ -22,7 +22,7 @@ enum class LanguageStandard : std::uint8_t {
 /**
  * @brief Every standard scrap.toml accepts, oldest first.
  */
-[[nodiscard]] auto supportedLanguageStandards() -> std::span<const LanguageStandard>;
+[[nodiscard]] std::span<const LanguageStandard> supportedLanguageStandards();
 
 /**
  * @brief Read the value package.std is written with.
@@ -34,11 +34,11 @@ enum class LanguageStandard : std::uint8_t {
  * @return The standard, or nothing when the value names none this version
  *         accepts.
  */
-[[nodiscard]] auto parseLanguageStandard(std::string_view text) -> std::optional<LanguageStandard>;
+[[nodiscard]] std::optional<LanguageStandard> parseLanguageStandard(std::string_view text);
 
 /**
  * @brief The number scrap.toml writes the standard as, such as "23".
  */
-[[nodiscard]] auto standardNumber(LanguageStandard standard) -> std::string_view;
+[[nodiscard]] std::string_view standardNumber(LanguageStandard standard);
 
 }  // namespace scrap::Project

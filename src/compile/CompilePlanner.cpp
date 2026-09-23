@@ -37,7 +37,7 @@ constexpr std::array<std::string_view, 5> DebugOptions{ "-g", "-O0", "-Wall", "-
  * argument starting with '@' names a file of options the compiler reads
  * before anything else, which would let a source name decide the command.
  */
-auto asArgument(const std::filesystem::path& path) -> std::filesystem::path
+std::filesystem::path asArgument(const std::filesystem::path& path)
 {
     if (path.is_relative() && (path.native().starts_with('-') || path.native().starts_with('@'))) {
         return std::filesystem::path{ "." } / path;
@@ -48,7 +48,7 @@ auto asArgument(const std::filesystem::path& path) -> std::filesystem::path
 /**
  * Where @p source is compiled to for @p target.
  */
-auto objectFile(const BuildSettings& settings, const std::string& target, const std::filesystem::path& source) -> std::filesystem::path
+std::filesystem::path objectFile(const BuildSettings& settings, const std::string& target, const std::filesystem::path& source)
 {
     std::filesystem::path output = settings.buildDirectory / ObjectDirectory / target / source;
     output += ".o";
@@ -58,7 +58,7 @@ auto objectFile(const BuildSettings& settings, const std::string& target, const 
 /**
  * The command line every compilation shares, up to the source it compiles.
  */
-auto sharedCompileArguments(const BuildSettings& settings) -> std::vector<std::string>
+std::vector<std::string> sharedCompileArguments(const BuildSettings& settings)
 {
     std::vector<std::string> arguments{ settings.compiler.string(),
                                         settings.driver.standardOption(settings.standard).value_or(standardNameOption(settings.standard)) };
@@ -72,7 +72,7 @@ auto sharedCompileArguments(const BuildSettings& settings) -> std::vector<std::s
 
 }  // anonymous namespace
 
-auto planCompileCommands(const BuildSettings& settings, const std::vector<Project::TargetSources>& targets) -> std::vector<CompileCommand>
+std::vector<CompileCommand> planCompileCommands(const BuildSettings& settings, const std::vector<Project::TargetSources>& targets)
 {
     const std::vector<std::string> shared = sharedCompileArguments(settings);
 
@@ -94,7 +94,7 @@ auto planCompileCommands(const BuildSettings& settings, const std::vector<Projec
     return commands;
 }
 
-auto planLinkCommands(const BuildSettings& settings, const std::vector<Project::TargetSources>& targets) -> std::vector<LinkCommand>
+std::vector<LinkCommand> planLinkCommands(const BuildSettings& settings, const std::vector<Project::TargetSources>& targets)
 {
     std::vector<LinkCommand> commands;
     for (const Project::TargetSources& entry : targets) {

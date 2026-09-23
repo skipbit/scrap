@@ -23,7 +23,7 @@ namespace {
 /**
  * A step named by its subject alone.
  */
-auto stepFor(const char* subject) -> BuildStep
+BuildStep stepFor(const char* subject)
 {
     return BuildStep{ .kind = StepKind::Compile,
                       .target = "hello",
@@ -41,7 +41,7 @@ public:
     std::map<std::filesystem::path, StepResult> results;
     std::vector<std::filesystem::path> ran;
 
-    auto run(const BuildStep& step) -> StepResult override
+    StepResult run(const BuildStep& step) override
     {
         ran.push_back(step.subject);
         const auto found = results.find(step.subject);

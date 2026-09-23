@@ -559,7 +559,7 @@ namespace {
 /**
  * A step that compiles @p source for the target "hello".
  */
-auto compileStep(const char* source) -> BuildStep
+BuildStep compileStep(const char* source)
 {
     return BuildStep{ .kind = StepKind::Compile,
                       .target = "hello",
@@ -572,7 +572,7 @@ auto compileStep(const char* source) -> BuildStep
 /**
  * A step that links the executable of the target "hello".
  */
-auto linkStep() -> BuildStep
+BuildStep linkStep()
 {
     return BuildStep{ .kind = StepKind::Link,
                       .target = "hello",

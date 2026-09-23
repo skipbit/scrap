@@ -48,6 +48,6 @@ struct ManifestError {
  * @param error Error to render.
  * @return Diagnostic line, without a trailing newline.
  */
-[[nodiscard]] auto describe(const ManifestError& error) -> std::string;
+[[nodiscard]] std::string describe(const ManifestError& error);
 
 }  // namespace scrap::Project

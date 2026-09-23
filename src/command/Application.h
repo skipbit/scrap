@@ -54,7 +54,7 @@ public:
      *
      * @param resolver Resolver to add (ownership transferred).
      */
-    auto addResolver(std::unique_ptr<CommandResolver> resolver) -> void;
+    void addResolver(std::unique_ptr<CommandResolver> resolver);
 
     /**
      * @brief Execute the four-phase CLI pipeline.
@@ -63,23 +63,23 @@ public:
      * @param env  Runtime environment with working directory and search paths.
      * @return Exit code (0 for success, non-zero for failure).
      */
-    auto run(std::span<const char* const> argv, const RuntimeEnvironment& env) -> int;
+    int run(std::span<const char* const> argv, const RuntimeEnvironment& env);
 
 private:
     /**
      * @brief Handle a ParseDirective (help or version request).
      */
-    auto handleDirective(const CommandCatalog& catalog, const ParseDirective& directive) -> int;
+    int handleDirective(const CommandCatalog& catalog, const ParseDirective& directive);
 
     /**
      * @brief Render help for a specific command or the global listing.
      */
-    auto handleHelp(const CommandCatalog& catalog, const std::optional<std::string>& target) -> int;
+    int handleHelp(const CommandCatalog& catalog, const std::optional<std::string>& target);
 
     /**
      * @brief Handle a ParseFailure (error message + help suggestion).
      */
-    static auto handleFailure(const ParseFailure& failure) -> int;
+    static int handleFailure(const ParseFailure& failure);
 
     std::unique_ptr<ParserAdapter> _parser;
     std::unique_ptr<HelpRenderer> _helpRenderer;

@@ -20,7 +20,7 @@ public:
     /**
      * Store the configured specs (unused but required by interface).
      */
-    auto configure([[maybe_unused]] std::span<const CommandSpec> specs) -> void override
+    void configure([[maybe_unused]] std::span<const CommandSpec> specs) override
     {
     }
 
@@ -35,7 +35,7 @@ public:
     /**
      * Return the pre-configured ParseResult.
      */
-    [[nodiscard]] auto parse([[maybe_unused]] std::span<const char* const> argv) const -> ParseResult override
+    [[nodiscard]] ParseResult parse([[maybe_unused]] std::span<const char* const> argv) const override
     {
         return _result;
     }
@@ -52,7 +52,7 @@ public:
     /**
      * Return a fixed global help string.
      */
-    auto renderGlobal([[maybe_unused]] std::span<const HelpEntry> entries) const -> std::string override
+    std::string renderGlobal([[maybe_unused]] std::span<const HelpEntry> entries) const override
     {
         return "mock global help\n";
     }
@@ -60,7 +60,7 @@ public:
     /**
      * Return a fixed command help string including the command name.
      */
-    auto renderCommand(const CommandSpec& spec) const -> std::string override
+    std::string renderCommand(const CommandSpec& spec) const override
     {
         return "mock help for: " + spec.name + "\n";
     }
@@ -74,7 +74,7 @@ public:
     /**
      * Return a test version string.
      */
-    auto render() const -> std::string override
+    std::string render() const override
     {
         return "scrap 0.0.1-test";
     }
@@ -96,7 +96,7 @@ public:
     /**
      * Return the pre-configured entry list.
      */
-    auto resolve([[maybe_unused]] const RuntimeEnvironment& env) -> std::vector<CommandEntry> override
+    std::vector<CommandEntry> resolve([[maybe_unused]] const RuntimeEnvironment& env) override
     {
         return std::move(_entries);
     }
@@ -121,7 +121,7 @@ public:
     /**
      * Record execution and return the pre-configured exit code.
      */
-    auto execute([[maybe_unused]] const InvocationContext& ctx) -> int override
+    int execute([[maybe_unused]] const InvocationContext& ctx) override
     {
         _executed = true;
         return _exitCode;
@@ -130,7 +130,7 @@ public:
     /**
      * Check whether execute() was called.
      */
-    [[nodiscard]] auto wasExecuted() const -> bool
+    [[nodiscard]] bool wasExecuted() const
     {
         return _executed;
     }
@@ -143,7 +143,7 @@ private:
 /**
  * Build a CommandEntry with a StubHandler returning the given exit code.
  */
-auto makeEntry(const std::string& name, int exitCode = 0) -> CommandEntry
+CommandEntry makeEntry(const std::string& name, int exitCode = 0)
 {
     CommandEntry entry;
     entry.spec.name = name;
@@ -158,7 +158,7 @@ auto makeEntry(const std::string& name, int exitCode = 0) -> CommandEntry
 /**
  * Build a CommandEntry with subcommands.
  */
-auto makeEntryWithSubs(const std::string& name, std::vector<CommandEntry> subs) -> CommandEntry
+CommandEntry makeEntryWithSubs(const std::string& name, std::vector<CommandEntry> subs)
 {
     auto entry = makeEntry(name);
     entry.subcommands = std::move(subs);
@@ -192,7 +192,7 @@ public:
     /**
      * Return captured output as a string.
      */
-    [[nodiscard]] auto str() const -> std::string
+    [[nodiscard]] std::string str() const
     {
         return _captured.str();
     }
@@ -229,7 +229,7 @@ public:
     /**
      * Return captured output as a string.
      */
-    [[nodiscard]] auto str() const -> std::string
+    [[nodiscard]] std::string str() const
     {
         return _captured.str();
     }

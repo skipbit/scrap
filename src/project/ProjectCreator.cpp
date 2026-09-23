@@ -17,12 +17,12 @@ namespace scrap::Project {
 
 namespace {
 
-auto isAsciiLetter(const char ch) -> bool
+bool isAsciiLetter(const char ch)
 {
     return (((ch >= 'a') && (ch <= 'z')) || ((ch >= 'A') && (ch <= 'Z')));
 }
 
-auto isAsciiDigit(const char ch) -> bool
+bool isAsciiDigit(const char ch)
 {
     return ((ch >= '0') && (ch <= '9'));
 }
@@ -30,7 +30,7 @@ auto isAsciiDigit(const char ch) -> bool
 /**
  * Build the error for a path the file system refused.
  */
-auto cannotCreate(const std::filesystem::path& path, const std::error_code& code) -> CannotCreate
+CannotCreate cannotCreate(const std::filesystem::path& path, const std::error_code& code)
 {
     return CannotCreate{ .path = path, .reason = code.message(), .code = code, .leftBehind = std::nullopt };
 }
@@ -40,7 +40,7 @@ auto cannotCreate(const std::filesystem::path& path, const std::error_code& code
  * at no point. The same rule holds an entry point in a manifest, and it is
  * what keeps joining the path onto the project root from reaching past it.
  */
-auto staysInsideProject(const std::filesystem::path& path) -> bool
+bool staysInsideProject(const std::filesystem::path& path)
 {
     if (path.is_absolute() || path.has_root_name() || path.has_root_directory()) {
         return false;
@@ -54,9 +54,9 @@ auto staysInsideProject(const std::filesystem::path& path) -> bool
  * Write one file of the template into @p root, or say why it could not be
  * written.
  */
-auto writeTemplateFile(ProjectFileSystem& fileSystem,
-                       const std::filesystem::path& root,
-                       const TemplateFile& file) -> std::optional<CannotCreate>
+std::optional<CannotCreate> writeTemplateFile(ProjectFileSystem& fileSystem,
+                                              const std::filesystem::path& root,
+                                              const TemplateFile& file)
 {
     const std::filesystem::path target = root / file.path;
     if (! staysInsideProject(file.path)) {
@@ -79,7 +79,7 @@ auto writeTemplateFile(ProjectFileSystem& fileSystem,
 
 }  // anonymous namespace
 
-auto isValidProjectName(std::string_view name) -> bool
+bool isValidProjectName(std::string_view name)
 {
     if (name.empty() || (name.size() > MaxProjectNameLength) || (! isAsciiLetter(name.front()))) {
         return false;
@@ -89,10 +89,10 @@ auto isValidProjectName(std::string_view name) -> bool
     });
 }
 
-auto createProject(ProjectFileSystem& fileSystem,
-                   const std::filesystem::path& parentDir,
-                   std::string_view name,
-                   const TemplateFiles& templateFiles) -> std::expected<std::filesystem::path, CreateProjectError>
+std::expected<std::filesystem::path, CreateProjectError> createProject(ProjectFileSystem& fileSystem,
+                                                                       const std::filesystem::path& parentDir,
+                                                                       std::string_view name,
+                                                                       const TemplateFiles& templateFiles)
 {
     if (! isValidProjectName(name)) {
         return std::unexpected(CreateProjectError{ InvalidProjectName{ .name = std::string{ name } } });

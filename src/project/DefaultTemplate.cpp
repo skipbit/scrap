@@ -29,7 +29,7 @@ constexpr std::string_view MainSource = "#include <iostream>\n"
  * string escapes. A name that fails that rule gets no files, so the rule is
  * kept where the manifest is written and not only by the caller's order.
  */
-auto defaultTemplateFiles(std::string_view projectName) -> std::vector<TemplateFile>
+std::vector<TemplateFile> defaultTemplateFiles(std::string_view projectName)
 {
     if (! isValidProjectName(projectName)) {
         return {};
