@@ -97,12 +97,14 @@ jobs:
           restore-keys: |
             ccache-ubuntu-24.04-gcc-release-
 
+      # CCACHE_DIR is set here rather than in env:, which does not expand the
+      # tilde, so the cache lands where actions/cache saved it.
       - name: Build
         env:
-          CCACHE_DIR: ~/.ccache
           CCACHE_BASEDIR: ${{ github.workspace }}
           CMAKE_CXX_COMPILER_LAUNCHER: ccache
         run: |
+          export CCACHE_DIR="$HOME/.ccache"
           sudo apt-get update -qq && sudo apt-get install -y -qq ccache
           cmake --preset release-no-tests
           cmake --build --preset release-no-tests -j"$(nproc)"

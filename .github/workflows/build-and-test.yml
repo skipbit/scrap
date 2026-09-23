@@ -53,7 +53,6 @@ jobs:
       CXX: ${{ matrix.cxx }}
       CXXFLAGS: ${{ matrix.cxxflags }}
       CMAKE_CXX_COMPILER_LAUNCHER: ccache
-      CCACHE_DIR: ~/.ccache
       CCACHE_BASEDIR: ${{ github.workspace }}
     steps:
       - name: Checkout
@@ -88,6 +87,12 @@ jobs:
               brew install ccache
             fi
           fi
+
+      # The cache lives where actions/cache saves and restores it. A tilde in
+      # env: is not expanded: ccache would read it as a directory named '~'
+      # under wherever it runs, and nothing would be saved.
+      - name: Set the ccache directory
+        run: echo "CCACHE_DIR=$HOME/.ccache" >> "$GITHUB_ENV"
 
       - name: Restore ccache
         uses: actions/cache@v6
