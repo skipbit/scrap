@@ -25,10 +25,10 @@ constexpr std::string_view ExternalPrefix = "scrap-";
 /**
  * Check if a directory entry is an executable scrap-* command.
  */
-auto isScrapExecutable(const std::filesystem::directory_entry& entry) -> bool
+bool isScrapExecutable(const std::filesystem::directory_entry& entry)
 {
     std::error_code ec;
-    if (! entry.is_regular_file(ec) || ec) {
+    if ((! entry.is_regular_file(ec)) || ec) {
         return false;
     }
     auto filename = entry.path().filename().string();
@@ -39,13 +39,13 @@ auto isScrapExecutable(const std::filesystem::directory_entry& entry) -> bool
     if (ec) {
         return false;
     }
-    return (status.permissions() & std::filesystem::perms::owner_exec) != std::filesystem::perms::none;
+    return ((status.permissions() & std::filesystem::perms::owner_exec) != std::filesystem::perms::none);
 }
 
 /**
  * Extract the command name from a scrap-* filename.
  */
-auto commandNameFrom(const std::filesystem::path& path) -> std::string
+std::string commandNameFrom(const std::filesystem::path& path)
 {
     return path.filename().string().substr(ExternalPrefix.size());
 }
@@ -53,7 +53,7 @@ auto commandNameFrom(const std::filesystem::path& path) -> std::string
 /**
  * Build a CommandEntry from a discovered executable, fetching metadata if available.
  */
-auto buildEntry(const std::filesystem::path& executablePath, ExternalMetadataProvider* provider) -> CommandEntry
+CommandEntry buildEntry(const std::filesystem::path& executablePath, ExternalMetadataProvider* provider)
 {
     auto name = commandNameFrom(executablePath);
     std::string description;
@@ -88,25 +88,25 @@ auto buildEntry(const std::filesystem::path& executablePath, ExternalMetadataPro
  * Construct with an ExternalMetadataProvider for fetching command metadata.
  */
 ExternalCommandResolver::ExternalCommandResolver(std::unique_ptr<ExternalMetadataProvider> metadataProvider)
-    : metadataProvider_(std::move(metadataProvider))
+    : _metadataProvider(std::move(metadataProvider))
 {
 }
 
 /**
  * Scan env.searchPaths for scrap-* executables and build CommandEntry list.
  */
-auto ExternalCommandResolver::resolve(const RuntimeEnvironment& env) -> std::vector<CommandEntry>
+std::vector<CommandEntry> ExternalCommandResolver::resolve(const RuntimeEnvironment& env)
 {
     std::vector<CommandEntry> entries;
 
     for (const auto& searchPath : env.searchPaths) {
         std::error_code ec;
-        if (! std::filesystem::is_directory(searchPath, ec) || ec) {
+        if ((! std::filesystem::is_directory(searchPath, ec)) || ec) {
             continue;
         }
-        for (std::filesystem::directory_iterator it(searchPath, ec), end; ! ec && it != end; it.increment(ec)) {
+        for (std::filesystem::directory_iterator it(searchPath, ec), end; (! ec) && (it != end); it.increment(ec)) {
             if (isScrapExecutable(*it)) {
-                entries.push_back(buildEntry(it->path(), metadataProvider_.get()));
+                entries.push_back(buildEntry(it->path(), _metadataProvider.get()));
             }
         }
     }

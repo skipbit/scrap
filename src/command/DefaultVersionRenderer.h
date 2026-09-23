@@ -16,7 +16,7 @@ public:
      *
      * @return Version banner (e.g. "scrap 0.1.0").
      */
-    [[nodiscard]] auto render() const -> std::string override;
+    [[nodiscard]] std::string render() const override;
 };
 
 }  // namespace scrap::Command

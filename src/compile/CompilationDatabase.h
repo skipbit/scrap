@@ -43,7 +43,7 @@ struct DatabaseWriteFailure {
  * @param commands Commands in the order to write them.
  * @return The document, ending in a newline.
  */
-[[nodiscard]] auto renderCompilationDatabase(const std::vector<CompileCommand>& commands) -> std::string;
+[[nodiscard]] std::string renderCompilationDatabase(const std::vector<CompileCommand>& commands);
 
 /**
  * @brief Write the compilation database into a build directory.
@@ -57,8 +57,7 @@ struct DatabaseWriteFailure {
  * @param commands Commands to write, possibly none.
  * @return Nothing on success, or the step that failed.
  */
-[[nodiscard]] auto
-writeCompilationDatabase(const std::filesystem::path& buildDirectory,
-                         const std::vector<CompileCommand>& commands) -> std::expected<void, DatabaseWriteFailure>;
+[[nodiscard]] std::expected<void, DatabaseWriteFailure> writeCompilationDatabase(const std::filesystem::path& buildDirectory,
+                                                                                 const std::vector<CompileCommand>& commands);
 
 }  // namespace scrap::Compile

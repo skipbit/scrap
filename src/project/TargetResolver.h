@@ -30,7 +30,6 @@ inline constexpr std::string_view DefaultEntryPoint = "src/main.cpp";
  * @param manifest Parsed manifest.
  * @return Targets to build, empty when there are none.
  */
-[[nodiscard]] auto resolveTargets(const std::filesystem::path& projectRoot,
-                                  const Manifest& manifest) -> std::vector<Target>;
+[[nodiscard]] std::vector<Target> resolveTargets(const std::filesystem::path& projectRoot, const Manifest& manifest);
 
 }  // namespace scrap::Project

@@ -17,7 +17,7 @@ namespace scrap::Command {
  * Construct with a ScriptsReader for parsing project script definitions.
  */
 ProjectCommandResolver::ProjectCommandResolver(std::unique_ptr<ScriptsReader> scriptsReader) noexcept
-    : scriptsReader_(std::move(scriptsReader))
+    : _scriptsReader(std::move(scriptsReader))
 {
 }
 
@@ -25,9 +25,9 @@ ProjectCommandResolver::ProjectCommandResolver(std::unique_ptr<ScriptsReader> sc
  * Read project scripts and convert them to CommandEntry list.
  * Returns empty on any read error (graceful degradation).
  */
-auto ProjectCommandResolver::resolve(const RuntimeEnvironment& env) -> std::vector<CommandEntry>
+std::vector<CommandEntry> ProjectCommandResolver::resolve(const RuntimeEnvironment& env)
 {
-    auto result = scriptsReader_->read(env.workingDirectory);
+    auto result = _scriptsReader->read(env.workingDirectory);
     if (! result.has_value()) {
         return {};
     }

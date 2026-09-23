@@ -28,7 +28,9 @@ namespace scrap::Command {
 Application::Application(std::unique_ptr<ParserAdapter> parser,
                          std::unique_ptr<HelpRenderer> helpRenderer,
                          std::unique_ptr<VersionRenderer> versionRenderer)
-    : parser_(std::move(parser)), helpRenderer_(std::move(helpRenderer)), versionRenderer_(std::move(versionRenderer))
+    : _parser(std::move(parser))
+    , _helpRenderer(std::move(helpRenderer))
+    , _versionRenderer(std::move(versionRenderer))
 {
 }
 
@@ -39,28 +41,28 @@ Application& Application::operator=(Application&&) noexcept = default;
 /**
  * Register a command resolver for the Resolve phase.
  */
-auto Application::addResolver(std::unique_ptr<CommandResolver> resolver) -> void
+void Application::addResolver(std::unique_ptr<CommandResolver> resolver)
 {
-    resolvers_.push_back(std::move(resolver));
+    _resolvers.push_back(std::move(resolver));
 }
 
 /**
  * Execute the four-phase CLI pipeline: Resolve, Configure, Parse, Execute.
  */
-auto Application::run(std::span<const char* const> argv, const RuntimeEnvironment& env) -> int
+int Application::run(std::span<const char* const> argv, const RuntimeEnvironment& env)
 {
     // Phase 1: Resolve - collect CommandEntry trees from all resolvers.
     CommandCatalog catalog;
-    for (auto& resolver : resolvers_) {
+    for (auto& resolver : _resolvers) {
         catalog.addEntries(resolver->resolve(env));
     }
 
     // Phase 2: Configure - derive CommandSpec tree and feed to parser.
     auto specTree = catalog.specs();
-    parser_->configure(specTree);
+    _parser->configure(specTree);
 
     // Phase 3: Parse - parse argv into a ParseResult.
-    auto result = parser_->parse(argv);
+    auto result = _parser->parse(argv);
 
     // Phase 4: Execute - dispatch based on ParseResult.
     if (result.has_value()) {
@@ -76,33 +78,31 @@ auto Application::run(std::span<const char* const> argv, const RuntimeEnvironmen
             std::cerr << "Run 'scrap --help' for usage information.\n";
             return 1;
         }
-        const InvocationContext ctx{invocation.options, &env, &catalog};
+        const InvocationContext ctx{ invocation.options, &env, &catalog };
         return handler->execute(ctx);
     }
 
-    return std::visit(
-        [&](const auto& value) -> int {
-            using T = std::decay_t<decltype(value)>;
-            if constexpr (std::is_same_v<T, ParseDirective>) {
-                return handleDirective(catalog, value);
-            } else {
-                return handleFailure(value);
-            }
-        },
-        result.error());
+    return std::visit([&](const auto& value) -> int {
+        using T = std::decay_t<decltype(value)>;
+        if constexpr (std::is_same_v<T, ParseDirective>) {
+            return handleDirective(catalog, value);
+        } else {
+            return handleFailure(value);
+        }
+    }, result.error());
 }
 
 /**
  * Handle a ParseDirective (help or version request).
  */
-auto Application::handleDirective(const CommandCatalog& catalog, const ParseDirective& directive) -> int
+int Application::handleDirective(const CommandCatalog& catalog, const ParseDirective& directive)
 {
     switch (directive.kind) {
-        case ParseDirectiveKind::HelpRequested:
-            return handleHelp(catalog, directive.target);
-        case ParseDirectiveKind::VersionRequested:
-            std::cout << versionRenderer_->render() << "\n";
-            return 0;
+    case ParseDirectiveKind::HelpRequested:
+        return handleHelp(catalog, directive.target);
+    case ParseDirectiveKind::VersionRequested:
+        std::cout << _versionRenderer->render() << "\n";
+        return 0;
     }
     return 1;
 }
@@ -110,15 +110,15 @@ auto Application::handleDirective(const CommandCatalog& catalog, const ParseDire
 /**
  * Render help for a specific command or the global listing.
  */
-auto Application::handleHelp(const CommandCatalog& catalog, const std::optional<std::string>& target) -> int
+int Application::handleHelp(const CommandCatalog& catalog, const std::optional<std::string>& target)
 {
     if (! target.has_value()) {
-        std::cout << helpRenderer_->renderGlobal(catalog.helpEntries());
+        std::cout << _helpRenderer->renderGlobal(catalog.helpEntries());
         return 0;
     }
     for (const auto& spec : catalog.specs()) {
         if (spec.name == *target) {
-            std::cout << helpRenderer_->renderCommand(spec);
+            std::cout << _helpRenderer->renderCommand(spec);
             return 0;
         }
     }
@@ -133,7 +133,7 @@ auto Application::handleHelp(const CommandCatalog& catalog, const std::optional<
  * The parser writes what the user typed into its message, so the message
  * reaches the terminal as text rather than as instructions.
  */
-auto Application::handleFailure(const ParseFailure& failure) -> int
+int Application::handleFailure(const ParseFailure& failure)
 {
     std::cerr << printableText(failure.message) << "\n";
     std::cerr << "Run 'scrap --help' for usage information.\n";

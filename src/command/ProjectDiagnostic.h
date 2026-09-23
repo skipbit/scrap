@@ -23,21 +23,21 @@ namespace scrap::Command {
  * @param error Error returned by scrap::Project::loadProject().
  * @return Text for standard error, each line ending in a newline.
  */
-[[nodiscard]] auto renderProjectError(const Project::ProjectError& error) -> std::string;
+[[nodiscard]] std::string renderProjectError(const Project::ProjectError& error);
 
 /**
  * @brief Describe an explicitly empty path argument, and what to do next.
  *
  * @return Text for standard error, each line ending in a newline.
  */
-[[nodiscard]] auto renderEmptyPathArgument() -> std::string;
+[[nodiscard]] std::string renderEmptyPathArgument();
 
 /**
  * @brief Describe a system with no C++ compiler, and what to do next.
  *
  * @return Text for standard error, each line ending in a newline.
  */
-[[nodiscard]] auto renderNoCompilerFound() -> std::string;
+[[nodiscard]] std::string renderNoCompilerFound();
 
 /**
  * @brief Describe a compiler the environment asked for and cannot be run.
@@ -45,7 +45,7 @@ namespace scrap::Command {
  * @param requested The value CXX gave.
  * @return Text for standard error, each line ending in a newline.
  */
-[[nodiscard]] auto renderUnusableCompilerRequest(std::string_view requested) -> std::string;
+[[nodiscard]] std::string renderUnusableCompilerRequest(std::string_view requested);
 
 /**
  * @brief Describe a project that has nothing to build, and what to do next.
@@ -53,7 +53,7 @@ namespace scrap::Command {
  * @param projectRoot Directory the manifest was read from.
  * @return Text for standard error, each line ending in a newline.
  */
-[[nodiscard]] auto renderNoTargetToBuild(const std::filesystem::path& projectRoot) -> std::string;
+[[nodiscard]] std::string renderNoTargetToBuild(const std::filesystem::path& projectRoot);
 
 /**
  * @brief Describe a source directory that could not be read, and what to do next.
@@ -61,7 +61,7 @@ namespace scrap::Command {
  * @param failure Failure returned by scrap::Project::collectSources().
  * @return Text for standard error, each line ending in a newline.
  */
-[[nodiscard]] auto renderSourceScanFailure(const Project::SourceScanFailure& failure) -> std::string;
+[[nodiscard]] std::string renderSourceScanFailure(const Project::SourceScanFailure& failure);
 
 /**
  * @brief Describe a compilation database that could not be written, and what
@@ -70,7 +70,7 @@ namespace scrap::Command {
  * @param failure Failure returned by scrap::Compile::writeCompilationDatabase().
  * @return Text for standard error, each line ending in a newline.
  */
-[[nodiscard]] auto renderCompilationDatabaseFailure(const Compile::DatabaseWriteFailure& failure) -> std::string;
+[[nodiscard]] std::string renderCompilationDatabaseFailure(const Compile::DatabaseWriteFailure& failure);
 
 /**
  * @brief Describe a standard the compiler in use cannot build, and what to do
@@ -80,8 +80,7 @@ namespace scrap::Command {
  * @param standard The standard scrap.toml states.
  * @return Text for standard error, each line ending in a newline.
  */
-[[nodiscard]] auto renderUnsupportedStandard(const std::filesystem::path& compiler,
-                                             Project::LanguageStandard standard) -> std::string;
+[[nodiscard]] std::string renderUnsupportedStandard(const std::filesystem::path& compiler, Project::LanguageStandard standard);
 
 /**
  * @brief Describe a library this version does not build, and what to do next.
@@ -89,7 +88,7 @@ namespace scrap::Command {
  * @param name The library target the manifest declares.
  * @return Text for standard error, each line ending in a newline.
  */
-[[nodiscard]] auto renderLibraryNotBuilt(std::string_view name) -> std::string;
+[[nodiscard]] std::string renderLibraryNotBuilt(std::string_view name);
 
 /**
  * @brief Describe a step of the build that failed, and what to do next.
@@ -100,7 +99,7 @@ namespace scrap::Command {
  * @param failed The step returned by scrap::Build::runSerially().
  * @return Text for standard error, each line ending in a newline.
  */
-[[nodiscard]] auto renderStepFailure(const Build::FailedStep& failed) -> std::string;
+[[nodiscard]] std::string renderStepFailure(const Build::FailedStep& failed);
 
 /**
  * @brief Describe why a project could not be created, and what to do next.
@@ -108,6 +107,6 @@ namespace scrap::Command {
  * @param error Error returned by scrap::Project::createProject().
  * @return Text for standard error, each line ending in a newline.
  */
-[[nodiscard]] auto renderCreateProjectError(const Project::CreateProjectError& error) -> std::string;
+[[nodiscard]] std::string renderCreateProjectError(const Project::CreateProjectError& error);
 
 }  // namespace scrap::Command

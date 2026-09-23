@@ -17,10 +17,14 @@ namespace scrap::Command {
 
 namespace {
 
+/// The newline a section starts with. clang-format breaks a stream after a
+/// leading '\n' literal; named, it stays on the line it belongs to.
+constexpr char Newline = '\n';
+
 /**
  * Compute the maximum command name length for column alignment.
  */
-auto maxNameLength(std::span<const HelpEntry> entries) -> std::size_t
+std::size_t maxNameLength(std::span<const HelpEntry> entries)
 {
     std::size_t maxLen = 0;
     for (const auto& entry : entries) {
@@ -35,14 +39,11 @@ auto maxNameLength(std::span<const HelpEntry> entries) -> std::size_t
  * Output: "    <name>    <description>\n"
  * The name is padded to @p columnWidth for alignment.
  */
-void appendCommandLine(std::ostringstream& out,
-                       const std::string& name,
-                       const std::string& description,
-                       std::size_t columnWidth)
+void appendCommandLine(std::ostringstream& out, const std::string& name, const std::string& description, std::size_t columnWidth)
 {
     out << "    " << name;
     if (! description.empty()) {
-        auto padding = columnWidth - name.size() + 4;
+        auto padding = (columnWidth - name.size() + 4);
         for (std::size_t i = 0; i < padding; ++i) {
             out << ' ';
         }
@@ -56,7 +57,7 @@ void appendCommandLine(std::ostringstream& out,
  */
 void appendSectionHeader(std::ostringstream& out, const std::string& title)
 {
-    out << '\n' << title << ":\n";
+    out << Newline << title << ":\n";
 }
 
 /**
@@ -86,7 +87,7 @@ void appendUsageLine(std::ostringstream& out, const CommandSpec& spec)
 /**
  * Render the top-level help listing all commands grouped by source.
  */
-auto DefaultHelpRenderer::renderGlobal(std::span<const HelpEntry> entries) const -> std::string
+std::string DefaultHelpRenderer::renderGlobal(std::span<const HelpEntry> entries) const
 {
     std::ostringstream out;
     out << "USAGE: scrap [OPTIONS] <COMMAND>\n";
@@ -105,15 +106,15 @@ auto DefaultHelpRenderer::renderGlobal(std::span<const HelpEntry> entries) const
 
     for (const auto& entry : entries) {
         switch (entry.source) {
-            case CommandSource::Builtin:
-                builtinCategories[entry.spec.category].push_back(&entry);
-                break;
-            case CommandSource::External:
-                externalEntries.push_back(&entry);
-                break;
-            case CommandSource::Project:
-                projectEntries.push_back(&entry);
-                break;
+        case CommandSource::Builtin:
+            builtinCategories[entry.spec.category].push_back(&entry);
+            break;
+        case CommandSource::External:
+            externalEntries.push_back(&entry);
+            break;
+        case CommandSource::Project:
+            projectEntries.push_back(&entry);
+            break;
         }
     }
 
@@ -152,14 +153,14 @@ auto DefaultHelpRenderer::renderGlobal(std::span<const HelpEntry> entries) const
 /**
  * Render help for a single command with usage, subcommands, and options.
  */
-auto DefaultHelpRenderer::renderCommand(const CommandSpec& spec) const -> std::string
+std::string DefaultHelpRenderer::renderCommand(const CommandSpec& spec) const
 {
     std::ostringstream out;
 
     appendUsageLine(out, spec);
 
     if (! spec.description.empty()) {
-        out << '\n' << spec.description << '\n';
+        out << Newline << spec.description << '\n';
     }
 
     // Subcommands section.
@@ -179,7 +180,7 @@ auto DefaultHelpRenderer::renderCommand(const CommandSpec& spec) const -> std::s
         out << "\nOPTIONS:\n";
         std::size_t maxLen = 0;
         for (const auto& opt : spec.options.named) {
-            std::size_t len = 2 + opt.longName.size();
+            std::size_t len = (2 + opt.longName.size());
             if (opt.shortName.has_value()) {
                 len += 4;
             }

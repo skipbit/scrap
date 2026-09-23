@@ -25,9 +25,7 @@ public:
      * @param versionRenderer Renderer used by the version command handler.
      * @param fileSystem      File operations used by the new command handler.
      */
-    BuiltinCommandResolver(HelpRenderer& helpRenderer,
-                           VersionRenderer& versionRenderer,
-                           Project::ProjectFileSystem& fileSystem);
+    BuiltinCommandResolver(HelpRenderer& helpRenderer, VersionRenderer& versionRenderer, Project::ProjectFileSystem& fileSystem);
 
     /**
      * @brief Return the fixed set of built-in command entries.
@@ -37,12 +35,12 @@ public:
      * @param env Runtime environment (unused by this resolver).
      * @return CommandEntry trees for all built-in commands.
      */
-    auto resolve(const RuntimeEnvironment& env) -> std::vector<CommandEntry> override;
+    std::vector<CommandEntry> resolve(const RuntimeEnvironment& env) override;
 
 private:
-    HelpRenderer* helpRenderer_;
-    VersionRenderer* versionRenderer_;
-    Project::ProjectFileSystem* fileSystem_;
+    HelpRenderer* _helpRenderer;
+    VersionRenderer* _versionRenderer;
+    Project::ProjectFileSystem* _fileSystem;
 };
 
 }  // namespace scrap::Command

@@ -1,8 +1,8 @@
-#include <gtest/gtest.h>
-
 #include "process/Subprocess.h"
 
 #include "support/TempDirectory.h"
+
+#include <gtest/gtest.h>
 
 #include <csignal>
 #include <filesystem>
@@ -18,9 +18,9 @@ namespace {
 /**
  * A command line that runs @p script in the system shell.
  */
-auto shell(const std::string& script) -> std::vector<std::string>
+std::vector<std::string> shell(const std::string& script)
 {
-    return {"/bin/sh", "-c", script};
+    return { "/bin/sh", "-c", script };
 }
 
 }  // namespace
@@ -91,7 +91,7 @@ TEST(SubprocessTest, RunsInTheDirectoryGiven)
  */
 TEST(SubprocessTest, PassesEachArgumentAsWritten)
 {
-    const std::vector<std::string> arguments{"/bin/sh", "-c", R"(printf '%s|' "$@")", "sh", "a b", "", "$HOME", "-c"};
+    const std::vector<std::string> arguments{ "/bin/sh", "-c", R"(printf '%s|' "$@")", "sh", "a b", "", "$HOME", "-c" };
 
     const auto completion = runProgram(arguments, {}, OutputCapture::StandardOutput);
 
@@ -119,7 +119,7 @@ TEST(SubprocessTest, ReportsAProgramThatCannotBeStarted)
     const TempDirectory temp;
     const std::string absent = (temp.path() / "absent").string();
 
-    const auto completion = runProgram({absent}, {}, OutputCapture::Combined);
+    const auto completion = runProgram({ absent }, {}, OutputCapture::Combined);
 
     ASSERT_FALSE(completion.has_value());
     EXPECT_EQ(completion.error(), std::errc::no_such_file_or_directory);

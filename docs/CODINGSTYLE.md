@@ -62,12 +62,12 @@ public:
 ```cpp
 class TemplateService {
 private:
-    std::string name_;              // private member
-    std::filesystem::path templatePath_;
+    std::string _name;              // private member
+    std::filesystem::path _templatePath;
 
 public:
     void processTemplate() {
-        const auto fileName = templatePath_.filename();  // local variable
+        const auto fileName = _templatePath.filename();  // local variable
         const std::string templateName = "default";     // const-qualified
         // ...
     }
@@ -75,7 +75,7 @@ public:
 ```
 
 - **Format**: `lowerCamelCase`
-- **Private members**: Trailing underscore `name_`
+- **Private members**: Leading underscore `_name`
 - **Public members**: No underscore
 
 ### Namespaces
@@ -165,8 +165,8 @@ public:
     bool isValid() const noexcept;                 // Declaration only
 
 private:
-    std::string name_;
-    bool isValid_;
+    std::string _name;
+    bool _isValid;
 };
 
 } // namespace scrap::Template::Model
@@ -192,18 +192,18 @@ Template& Template::operator=(Template&& other) noexcept = default;
 
 std::string Template::name() const noexcept       // Implementation in .cpp
 {
-    return name_;
+    return _name;
 }
 
 void Template::setName(const std::string& name)   // Implementation in .cpp
 {
-    name_ = name;
-    isValid_ = !name.empty();
+    _name = name;
+    _isValid = !name.empty();
 }
 
 bool Template::isValid() const noexcept           // Implementation in .cpp
 {
-    return isValid_;
+    return _isValid;
 }
 
 } // namespace scrap::Template::Model
@@ -220,14 +220,14 @@ public:
     Template() = default;                          // ❌ WRONG: Implementation in header
     ~Template() = default;                         // ❌ WRONG: Implementation in header
 
-    std::string name() const { return name_; }     // ❌ WRONG: Implementation in header
+    std::string name() const { return _name; }     // ❌ WRONG: Implementation in header
 
     void setName(const std::string& name) {        // ❌ WRONG: Implementation in header
-        name_ = name;
+        _name = name;
     }
 
 private:
-    std::string name_;
+    std::string _name;
 };
 ```
 
@@ -244,7 +244,7 @@ virtual void process() = 0;                       // ✅ OK: Pure virtual
 ```cpp
 constexpr int getValue() const noexcept           // ✅ OK: constexpr requirement
 {
-    return value_;
+    return _value;
 }
 ```
 
@@ -285,8 +285,8 @@ public:
     ~Template();
 
 private:
-    std::string name_;
-    int value_;
+    std::string _name;
+    int _value;
 };
 
 void function()
@@ -329,7 +329,7 @@ void functionDefinition()
 
 // Constructor with initializer list
 MyClass::MyClass(const std::string& name, int value)
-    : name_(name), value_(value)
+    : _name(name), _value(value)
 {
     // constructor implementation
 }
@@ -353,7 +353,7 @@ class Example {
 - **File endings**: Must end with a newline
 - **Empty lines**: Do not indent
 - **Trailing whitespace**: Remove
-- **Line width**: 120 characters recommended
+- **Line width**: aim for 140 characters, with no hard limit. `.clang-format` sets no `ColumnLimit`, so a line is never rewrapped to fit a width; go past 140 where breaking would hurt readability
 
 ## Error Handling
 
@@ -433,7 +433,7 @@ public:
     void setName(const std::string& name) noexcept;
 
 private:
-    mutable std::string cachedData_;              // mutable when needed
+    mutable std::string _cachedData;              // mutable when needed
 };
 ```
 
@@ -470,7 +470,7 @@ public:
 
 private:
     class Impl;                    // forward declaration
-    std::unique_ptr<Impl> impl_;   // PIMPL
+    std::unique_ptr<Impl> _impl;   // PIMPL
 };
 
 } // Repository
@@ -497,7 +497,7 @@ public:
 };
 
 GitDriver::GitDriver()
-    : impl_(std::make_unique<Impl>())
+    : _impl(std::make_unique<Impl>())
 {
 }
 GitDriver::~GitDriver() = default;
@@ -596,7 +596,7 @@ void callback([[maybe_unused]] int errorCode, const std::string& message) {
 void setName(const std::string&);  // declaration in header
 
 void ClassName::setName(const std::string& name) {  // name in implementation
-    name_ = name;
+    _name = name;
 }
 ```
 
@@ -628,7 +628,7 @@ public:
     std::expected<Template, Error> loadTemplate(const std::string& name) noexcept;
 
 private:
-    std::string defaultSource_;  ///< Default template source name
+    std::string _defaultSource;  ///< Default template source name
 };
 ```
 
@@ -665,9 +665,9 @@ void processTemplate() {
 ```cpp
 class ResourceManager {
 private:
-    std::unique_ptr<Resource> resource_;              // exclusive ownership
-    std::shared_ptr<SharedResource> sharedResource_;  // shared ownership
-    std::weak_ptr<Observer> observer_;                // weak reference
+    std::unique_ptr<Resource> _resource;              // exclusive ownership
+    std::shared_ptr<SharedResource> _sharedResource;  // shared ownership
+    std::weak_ptr<Observer> _observer;                // weak reference
 
 public:
     std::unique_ptr<Resource> createResource() {
@@ -710,16 +710,16 @@ void processTemplates(const std::vector<Template>& templates) {
 class Template {
 public:
     void setName(std::string name) {  // pass by value
-        name_ = std::move(name);      // move
+        _name = std::move(name);      // move
     }
 
     std::vector<std::string> getTags() && {  // rvalue-only
-        return std::move(tags_);
+        return std::move(_tags);
     }
 
 private:
-    std::string name_;
-    std::vector<std::string> tags_;
+    std::string _name;
+    std::vector<std::string> _tags;
 };
 ```
 

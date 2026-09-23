@@ -12,7 +12,7 @@ public:
     CommandHandler(CommandHandler&&) = default;
     CommandHandler& operator=(CommandHandler&&) = default;
 
-    virtual auto execute(const InvocationContext& ctx) -> int = 0;
+    virtual int execute(const InvocationContext& ctx) = 0;
 
 protected:
     CommandHandler() = default;

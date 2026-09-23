@@ -60,6 +60,6 @@ using ProjectError = std::variant<NotADirectory, PathInaccessible, ProjectNotFou
  *         start are canonical; a path that could not be resolved is reported
  *         absolute, as given.
  */
-[[nodiscard]] auto loadProject(const std::filesystem::path& startDir) -> std::expected<LoadedProject, ProjectError>;
+[[nodiscard]] std::expected<LoadedProject, ProjectError> loadProject(const std::filesystem::path& startDir);
 
 }  // namespace scrap::Project

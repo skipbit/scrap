@@ -29,10 +29,10 @@ public:
      * @param env Runtime environment containing searchPaths to scan.
      * @return CommandEntry list for discovered external commands.
      */
-    auto resolve(const RuntimeEnvironment& env) -> std::vector<CommandEntry> override;
+    std::vector<CommandEntry> resolve(const RuntimeEnvironment& env) override;
 
 private:
-    std::unique_ptr<ExternalMetadataProvider> metadataProvider_;
+    std::unique_ptr<ExternalMetadataProvider> _metadataProvider;
 };
 
 }  // namespace scrap::Command

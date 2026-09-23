@@ -18,7 +18,7 @@ namespace {
 constexpr std::string_view DefaultCompilerName = "c++";
 
 /// Compilers looked for by name once the default does not answer.
-constexpr std::array<std::string_view, 2> KnownCompilerNames{"g++", "clang++"};
+constexpr std::array<std::string_view, 2> KnownCompilerNames{ "g++", "clang++" };
 
 /**
  * Whether the path names a file this process can run.
@@ -28,14 +28,14 @@ constexpr std::array<std::string_view, 2> KnownCompilerNames{"g++", "clang++"};
  * still be reached through its group. The system is asked instead, which is
  * the same question the build will ask when it runs the program.
  */
-auto isExecutableFile(const std::filesystem::path& path) -> bool
+bool isExecutableFile(const std::filesystem::path& path)
 {
     std::error_code ec;
     const std::filesystem::file_status status = std::filesystem::status(path, ec);
-    if (ec || ! std::filesystem::is_regular_file(status)) {
+    if (ec || (! std::filesystem::is_regular_file(status))) {
         return false;
     }
-    return ::access(path.c_str(), X_OK) == 0;
+    return (::access(path.c_str(), X_OK) == 0);
 }
 
 /**
@@ -45,7 +45,7 @@ auto isExecutableFile(const std::filesystem::path& path) -> bool
  * such as clang++ or a ccache link, acts on the name it is run by. A path
  * that cannot be made absolute is kept as it was found.
  */
-auto resolved(const std::filesystem::path& path) -> std::filesystem::path
+std::filesystem::path resolved(const std::filesystem::path& path)
 {
     std::error_code ec;
     std::filesystem::path absolute = std::filesystem::absolute(path, ec);
@@ -58,8 +58,7 @@ auto resolved(const std::filesystem::path& path) -> std::filesystem::path
 /**
  * The first of the directories holding an executable of that name.
  */
-auto findOnSearchPaths(std::string_view name,
-                       const std::vector<std::filesystem::path>& searchPaths) -> std::optional<std::filesystem::path>
+std::optional<std::filesystem::path> findOnSearchPaths(std::string_view name, const std::vector<std::filesystem::path>& searchPaths)
 {
     for (const std::filesystem::path& directory : searchPaths) {
         std::filesystem::path candidate = directory / name;
@@ -75,36 +74,35 @@ auto findOnSearchPaths(std::string_view name,
  * names one program rather than a program to look for; a bare name is looked
  * for on the search paths.
  */
-auto findNamedCompiler(const std::string& preferredCompiler,
-                       const std::vector<std::filesystem::path>& searchPaths) -> std::optional<std::filesystem::path>
+std::optional<std::filesystem::path> findNamedCompiler(const std::string& preferredCompiler,
+                                                       const std::vector<std::filesystem::path>& searchPaths)
 {
-    const std::filesystem::path named{preferredCompiler};
+    const std::filesystem::path named{ preferredCompiler };
     if (named.has_parent_path()) {
-        return isExecutableFile(named) ? std::optional{named} : std::nullopt;
+        return isExecutableFile(named) ? std::optional{ named } : std::nullopt;
     }
     return findOnSearchPaths(preferredCompiler, searchPaths);
 }
 
 }  // anonymous namespace
 
-auto detectSystemCompiler(const std::string& preferredCompiler,
-                          const std::vector<std::filesystem::path>& systemSearchPaths)
-    -> std::expected<SystemCompiler, NoCompiler>
+std::expected<SystemCompiler, NoCompiler> detectSystemCompiler(const std::string& preferredCompiler,
+                                                               const std::vector<std::filesystem::path>& systemSearchPaths)
 {
     if (! preferredCompiler.empty()) {
         const auto named = findNamedCompiler(preferredCompiler, systemSearchPaths);
         if (! named.has_value()) {
-            return std::unexpected(NoCompiler{.requested = preferredCompiler});
+            return std::unexpected(NoCompiler{ .requested = preferredCompiler });
         }
-        return SystemCompiler{.path = resolved(*named), .origin = CompilerOrigin::CompilerVariable};
+        return SystemCompiler{ .path = resolved(*named), .origin = CompilerOrigin::CompilerVariable };
     }
 
     if (const auto standard = findOnSearchPaths(DefaultCompilerName, systemSearchPaths)) {
-        return SystemCompiler{.path = resolved(*standard), .origin = CompilerOrigin::DefaultOnPath};
+        return SystemCompiler{ .path = resolved(*standard), .origin = CompilerOrigin::DefaultOnPath };
     }
     for (const std::string_view name : KnownCompilerNames) {
         if (const auto known = findOnSearchPaths(name, systemSearchPaths)) {
-            return SystemCompiler{.path = resolved(*known), .origin = CompilerOrigin::KnownName};
+            return SystemCompiler{ .path = resolved(*known), .origin = CompilerOrigin::KnownName };
         }
     }
     return std::unexpected(NoCompiler{});

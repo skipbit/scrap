@@ -31,17 +31,17 @@ constexpr std::string_view ColorSequenceStart = "\x1b[";
  * attribute, and gcc clears the rest of the line after each of them. Every
  * other sequence is one this has no reason to pass on.
  */
-auto colorSequenceEnd(std::string_view text, std::size_t index) -> std::size_t
+std::size_t colorSequenceEnd(std::string_view text, std::size_t index)
 {
     if (! text.substr(index).starts_with(ColorSequenceStart)) {
         return index;
     }
-    std::size_t end = index + ColorSequenceStart.size();
-    while (end < text.size() && text[end] >= '0' && text[end] <= '?') {
+    std::size_t end = (index + ColorSequenceStart.size());
+    while ((end < text.size()) && (text[end] >= '0') && (text[end] <= '?')) {
         ++end;
     }
-    if (end < text.size() && (text[end] == 'm' || text[end] == 'K')) {
-        return end + 1;
+    if ((end < text.size()) && ((text[end] == 'm') || (text[end] == 'K'))) {
+        return (end + 1);
     }
     return index;
 }
@@ -49,7 +49,7 @@ auto colorSequenceEnd(std::string_view text, std::size_t index) -> std::size_t
 /**
  * The word for what @p step does.
  */
-auto verbFor(const Build::BuildStep& step) -> std::string_view
+std::string_view verbFor(const Build::BuildStep& step)
 {
     return step.kind == Build::StepKind::Compile ? "Compiling" : "Linking";
 }
@@ -59,7 +59,7 @@ auto verbFor(const Build::BuildStep& step) -> std::string_view
  * width is written as it is, so the lines lose their alignment rather than
  * the count wrapping.
  */
-auto alignedVerb(std::string_view verb) -> std::string
+std::string alignedVerb(std::string_view verb)
 {
     std::string text(VerbWidth - std::min(VerbWidth, verb.size()), ' ');
     text += verb;
@@ -69,14 +69,14 @@ auto alignedVerb(std::string_view verb) -> std::string
 }  // anonymous namespace
 
 StreamBuildReporter::StreamBuildReporter(std::ostream& out, const bool keepColor)
-    : out_(&out), keepColor_(keepColor)
+    : _out(&out)
+    , _keepColor(keepColor)
 {
 }
 
 void StreamBuildReporter::started(const Build::BuildStep& step)
 {
-    *out_ << alignedVerb(verbFor(step)) << ' ' << printableName(step.target) << " (" << printablePath(step.subject)
-          << ")\n";
+    *_out << alignedVerb(verbFor(step)) << ' ' << printableName(step.target) << " (" << printablePath(step.subject) << ")\n";
 }
 
 void StreamBuildReporter::finished(const Build::BuildStep& /*step*/, const std::string_view output)
@@ -84,19 +84,19 @@ void StreamBuildReporter::finished(const Build::BuildStep& /*step*/, const std::
     if (output.empty()) {
         return;
     }
-    const std::string text = printableOutput(output, keepColor_);
-    *out_ << text;
+    const std::string text = printableOutput(output, _keepColor);
+    *_out << text;
     if (! text.ends_with('\n')) {
-        *out_ << '\n';
+        *_out << '\n';
     }
 }
 
-auto renderBuildFinished() -> std::string
+std::string renderBuildFinished()
 {
     return alignedVerb("Finished") + " debug build\n";
 }
 
-auto printableOutput(const std::string_view text, const bool keepColor) -> std::string
+std::string printableOutput(const std::string_view text, const bool keepColor)
 {
     std::string result;
     result.reserve(text.size());
@@ -123,9 +123,9 @@ auto printableOutput(const std::string_view text, const bool keepColor) -> std::
     return result;
 }
 
-auto standardErrorIsTerminal() -> bool
+bool standardErrorIsTerminal()
 {
-    return ::isatty(STDERR_FILENO) == 1;
+    return (::isatty(STDERR_FILENO) == 1);
 }
 
 }  // namespace scrap::Command

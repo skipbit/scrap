@@ -1,6 +1,6 @@
-#include <gtest/gtest.h>
-
 #include "command/MetadataProtocolProvider.h"
+
+#include <gtest/gtest.h>
 
 #include <chrono>
 #include <filesystem>
@@ -16,7 +16,7 @@ namespace {
  * probe. Short enough to keep the suite fast, long enough to never be
  * mistaken for the deliberately short timeout used by the Timeout test.
  */
-constexpr std::chrono::milliseconds FastTimeout{2000};
+constexpr std::chrono::milliseconds FastTimeout{ 2000 };
 
 }  // namespace
 
@@ -34,9 +34,9 @@ protected:
     void SetUp() override
     {
         const auto* info = ::testing::UnitTest::GetInstance()->current_test_info();
-        tempDir_ = std::filesystem::temp_directory_path() / (std::string("scrap_provider_test_") + info->name());
-        std::filesystem::remove_all(tempDir_);
-        std::filesystem::create_directories(tempDir_);
+        _tempDir = std::filesystem::temp_directory_path() / (std::string("scrap_provider_test_") + info->name());
+        std::filesystem::remove_all(_tempDir);
+        std::filesystem::create_directories(_tempDir);
     }
 
     /**
@@ -44,21 +44,22 @@ protected:
      */
     void TearDown() override
     {
-        std::filesystem::remove_all(tempDir_);
+        std::filesystem::remove_all(_tempDir);
     }
 
     /**
      * Create a shell script with execute permission.
      */
-    auto createExecutable(const std::string& name, const std::string& body) -> std::filesystem::path
+    std::filesystem::path createExecutable(const std::string& name, const std::string& body)
     {
-        auto path = tempDir_ / name;
-        std::ofstream(path) << "#!/bin/sh\n" << body << "\n";
+        auto path = _tempDir / name;
+        std::ofstream(path) << "#!/bin/sh\n"
+                            << body << "\n";
         std::filesystem::permissions(path, std::filesystem::perms::owner_exec, std::filesystem::perm_options::add);
         return path;
     }
 
-    std::filesystem::path tempDir_;
+    std::filesystem::path _tempDir;
 };
 
 /**
@@ -122,7 +123,7 @@ TEST_F(MetadataProtocolProviderTest, Timeout)
 {
     auto script = createExecutable("scrap-x", "sleep 10");
 
-    constexpr std::chrono::milliseconds shortTimeout{200};
+    constexpr std::chrono::milliseconds shortTimeout{ 200 };
     MetadataProtocolProvider provider(shortTimeout);
 
     auto start = std::chrono::steady_clock::now();
@@ -152,7 +153,7 @@ TEST_F(MetadataProtocolProviderTest, CapThenHang)
 esac
 exit 1)");
 
-    constexpr std::chrono::milliseconds shortTimeout{200};
+    constexpr std::chrono::milliseconds shortTimeout{ 200 };
     MetadataProtocolProvider provider(shortTimeout);
 
     auto start = std::chrono::steady_clock::now();
@@ -178,7 +179,7 @@ TEST_F(MetadataProtocolProviderTest, ClosesStdoutThenHang)
 {
     auto script = createExecutable("scrap-x", "exec 1>&-; sleep 30");
 
-    constexpr std::chrono::milliseconds shortTimeout{200};
+    constexpr std::chrono::milliseconds shortTimeout{ 200 };
     MetadataProtocolProvider provider(shortTimeout);
 
     auto start = std::chrono::steady_clock::now();
@@ -226,10 +227,10 @@ TEST_F(MetadataProtocolProviderTest, NonExecutableOrMissing)
 {
     MetadataProtocolProvider provider(FastTimeout);
 
-    auto missingResult = provider.fetch(tempDir_ / "does-not-exist");
+    auto missingResult = provider.fetch(_tempDir / "does-not-exist");
     EXPECT_FALSE(missingResult.has_value());
 
-    auto nonExecPath = tempDir_ / "scrap-not-exec";
+    auto nonExecPath = _tempDir / "scrap-not-exec";
     std::ofstream(nonExecPath) << "#!/bin/sh\necho unreachable\n";
     auto nonExecResult = provider.fetch(nonExecPath);
     EXPECT_FALSE(nonExecResult.has_value());

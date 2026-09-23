@@ -12,7 +12,7 @@ namespace scrap::Build {
 
 StepRunner::~StepRunner() = default;
 
-auto ProgramStepRunner::run(const BuildStep& step) -> StepResult
+StepResult ProgramStepRunner::run(const BuildStep& step)
 {
     const std::filesystem::path outputDirectory = (step.directory / step.output).parent_path();
     std::error_code ec;
@@ -20,27 +20,24 @@ auto ProgramStepRunner::run(const BuildStep& step) -> StepResult
     if (ec) {
         return StepResult{
             .output = {},
-            .failure = StepFailure{
-                .kind = StepFailureKind::CannotCreateDirectory, .path = outputDirectory, .code = ec, .status = 0}};
+            .failure = StepFailure{ .kind = StepFailureKind::CannotCreateDirectory, .path = outputDirectory, .code = ec, .status = 0 }
+        };
     }
 
     auto completion = Process::runProgram(step.arguments, step.directory, Process::OutputCapture::Combined);
     if (! completion.has_value()) {
+        const std::filesystem::path failedPath = step.arguments.empty() ? std::filesystem::path{} : std::filesystem::path{ step.arguments.front() };
         return StepResult{
             .output = {},
-            .failure = StepFailure{.kind = StepFailureKind::CannotStart,
-                                   .path = step.arguments.empty() ? std::filesystem::path{}
-                                                                  : std::filesystem::path{step.arguments.front()},
-                                   .code = completion.error(),
-                                   .status = 0}};
+            .failure = StepFailure{ .kind = StepFailureKind::CannotStart, .path = failedPath, .code = completion.error(), .status = 0 }
+        };
     }
 
-    StepResult result{.output = std::move(completion->output), .failure = std::nullopt};
+    StepResult result{ .output = std::move(completion->output), .failure = std::nullopt };
     if (const std::optional<int> signal = completion->signal; signal.has_value()) {
-        result.failure = StepFailure{.kind = StepFailureKind::Signalled, .path = {}, .code = {}, .status = *signal};
+        result.failure = StepFailure{ .kind = StepFailureKind::Signalled, .path = {}, .code = {}, .status = *signal };
     } else if (completion->exitCode != 0) {
-        result.failure = StepFailure{
-            .kind = StepFailureKind::Exited, .path = {}, .code = {}, .status = completion->exitCode.value_or(-1)};
+        result.failure = StepFailure{ .kind = StepFailureKind::Exited, .path = {}, .code = {}, .status = completion->exitCode.value_or(-1) };
     }
     return result;
 }

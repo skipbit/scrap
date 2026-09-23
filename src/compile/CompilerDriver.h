@@ -29,7 +29,7 @@ public:
      * @return The option, or nothing when this version cannot build the
      *         standard.
      */
-    [[nodiscard]] auto standardOption(Project::LanguageStandard standard) const -> std::optional<std::string>;
+    [[nodiscard]] std::optional<std::string> standardOption(Project::LanguageStandard standard) const;
 
     /**
      * @brief The option that keeps colour in diagnostics read through a pipe.
@@ -37,16 +37,16 @@ public:
      * @return The option, or nothing for a compiler whose family is unknown,
      *         which might reject it.
      */
-    [[nodiscard]] auto colorOption() const -> std::optional<std::string>;
+    [[nodiscard]] std::optional<std::string> colorOption() const;
 
 private:
-    Toolchain::CompilerIdentity identity_;
+    Toolchain::CompilerIdentity _identity;
 };
 
 /**
  * @brief The option naming @p standard as the standard itself is named, such
  *        as -std=c++23.
  */
-[[nodiscard]] auto standardNameOption(Project::LanguageStandard standard) -> std::string;
+[[nodiscard]] std::string standardNameOption(Project::LanguageStandard standard);
 
 }  // namespace scrap::Compile

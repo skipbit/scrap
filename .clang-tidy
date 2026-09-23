@@ -92,11 +92,11 @@ CheckOptions:
     value: camelBack
   - key: readability-identifier-naming.PrivateMemberCase
     value: camelBack
-  - key: readability-identifier-naming.PrivateMemberSuffix
+  - key: readability-identifier-naming.PrivateMemberPrefix
     value: '_'
   - key: readability-identifier-naming.ProtectedMemberCase
     value: camelBack
-  - key: readability-identifier-naming.ProtectedMemberSuffix
+  - key: readability-identifier-naming.ProtectedMemberPrefix
     value: '_'
   - key: readability-identifier-naming.EnumConstantCase
     value: CamelCase

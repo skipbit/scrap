@@ -1,8 +1,9 @@
-#include <gtest/gtest.h>
-
 #include "command/ProjectCommandResolver.h"
+
 #include "command/ScriptsReader.h"
 #include "command/StubScriptsReader.h"
+
+#include <gtest/gtest.h>
 
 using namespace scrap::Command;
 
@@ -17,21 +18,20 @@ public:
      * Construct with the result to return from read().
      */
     explicit MockScriptsReader(std::expected<std::vector<ScriptDef>, std::string> result)
-        : result_(std::move(result))
+        : _result(std::move(result))
     {
     }
 
     /**
      * Return the pre-configured result.
      */
-    auto read([[maybe_unused]] const std::filesystem::path& projectRoot)
-        -> std::expected<std::vector<ScriptDef>, std::string> override
+    std::expected<std::vector<ScriptDef>, std::string> read([[maybe_unused]] const std::filesystem::path& projectRoot) override
     {
-        return result_;
+        return _result;
     }
 
 private:
-    std::expected<std::vector<ScriptDef>, std::string> result_;
+    std::expected<std::vector<ScriptDef>, std::string> _result;
 };
 
 }  // namespace
@@ -56,7 +56,7 @@ TEST(ProjectCommandResolverTest, StubReaderReturnsEmpty)
  */
 TEST(ProjectCommandResolverTest, ErrorReaderReturnsEmpty)
 {
-    auto reader = std::make_unique<MockScriptsReader>(std::unexpected(std::string{"file not found"}));
+    auto reader = std::make_unique<MockScriptsReader>(std::unexpected(std::string{ "file not found" }));
     ProjectCommandResolver resolver(std::move(reader));
 
     RuntimeEnvironment env;
@@ -72,8 +72,8 @@ TEST(ProjectCommandResolverTest, ErrorReaderReturnsEmpty)
 TEST(ProjectCommandResolverTest, ScriptDefsConvertToEntries)
 {
     std::vector<ScriptDef> scripts = {
-        {.name = "deploy", .description = "Deploy the project", .command = "make deploy"},
-        {.name = "lint", .description = "Run linter", .command = "make lint"},
+        { .name = "deploy", .description = "Deploy the project", .command = "make deploy" },
+        { .name = "lint", .description = "Run linter", .command = "make lint" },
     };
     auto reader = std::make_unique<MockScriptsReader>(std::move(scripts));
     ProjectCommandResolver resolver(std::move(reader));

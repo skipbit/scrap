@@ -1,6 +1,6 @@
-#include <gtest/gtest.h>
-
 #include "command/RuntimeEnvironmentFactory.h"
+
+#include <gtest/gtest.h>
 
 #include <filesystem>
 
@@ -96,8 +96,7 @@ TEST(RuntimeEnvironmentFactoryTest, SystemSearchPathsHoldPathAlone)
 TEST(RuntimeEnvironmentFactoryTest, PreferredCompilerCarriesTheCompilerVariable)
 {
     EXPECT_EQ(makeRuntimeEnvironment("/project", "", "/usr/bin", "clang++").preferredCompiler, "clang++");
-    EXPECT_EQ(makeRuntimeEnvironment("/project", "", "/usr/bin", "/opt/gcc/bin/g++").preferredCompiler,
-              "/opt/gcc/bin/g++");
+    EXPECT_EQ(makeRuntimeEnvironment("/project", "", "/usr/bin", "/opt/gcc/bin/g++").preferredCompiler, "/opt/gcc/bin/g++");
 }
 
 /**

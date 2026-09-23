@@ -1,9 +1,9 @@
-#include <gtest/gtest.h>
-
-#include "project/Manifest.h"
 #include "project/SourceCollector.h"
 
+#include "project/Manifest.h"
 #include "support/TempDirectory.h"
+
+#include <gtest/gtest.h>
 
 #include <filesystem>
 #include <system_error>
@@ -18,12 +18,12 @@ constexpr const char* SourceText = "int value() { return 0; }\n";
 
 Target executableNamed(const char* name, const char* entryPoint)
 {
-    return Target{.kind = TargetKind::Executable, .name = name, .entryPoint = entryPoint};
+    return Target{ .kind = TargetKind::Executable, .name = name, .entryPoint = entryPoint };
 }
 
 Target libraryNamed(const char* name, const char* entryPoint)
 {
-    return Target{.kind = TargetKind::Library, .name = name, .entryPoint = entryPoint};
+    return Target{ .kind = TargetKind::Library, .name = name, .entryPoint = entryPoint };
 }
 
 }  // namespace
@@ -39,12 +39,11 @@ TEST(SourceCollectorTest, CollectsEverySourceBelowSrc)
     temp.writeFile("src/util.cpp", SourceText);
     temp.writeFile("src/detail/helper.cpp", SourceText);
 
-    const auto collected = collectSources(temp.path(), {executableNamed("app", "src/main.cpp")});
+    const auto collected = collectSources(temp.path(), { executableNamed("app", "src/main.cpp") });
 
     ASSERT_TRUE(collected.has_value());
     ASSERT_EQ(collected->size(), 1);
-    EXPECT_EQ((*collected)[0].sources,
-              (std::vector<std::filesystem::path>{"src/detail/helper.cpp", "src/main.cpp", "src/util.cpp"}));
+    EXPECT_EQ((*collected)[0].sources, (std::vector<std::filesystem::path>{ "src/detail/helper.cpp", "src/main.cpp", "src/util.cpp" }));
 }
 
 /**
@@ -59,12 +58,11 @@ TEST(SourceCollectorTest, RecognisesTheAcceptedExtensions)
     temp.writeFile("src/interface.h", "#pragma once\n");
     temp.writeFile("src/notes.txt", "not a source\n");
 
-    const auto collected = collectSources(temp.path(), {executableNamed("app", "src/main.cpp")});
+    const auto collected = collectSources(temp.path(), { executableNamed("app", "src/main.cpp") });
 
     ASSERT_TRUE(collected.has_value());
     ASSERT_EQ(collected->size(), 1);
-    EXPECT_EQ((*collected)[0].sources,
-              (std::vector<std::filesystem::path>{"src/legacy.cc", "src/main.cpp", "src/other.cxx"}));
+    EXPECT_EQ((*collected)[0].sources, (std::vector<std::filesystem::path>{ "src/legacy.cc", "src/main.cpp", "src/other.cxx" }));
 }
 
 /**
@@ -78,15 +76,14 @@ TEST(SourceCollectorTest, ExcludesTheEntryPointOfAnotherTarget)
     temp.writeFile("src/tool.cpp", SourceText);
     temp.writeFile("src/shared.cpp", SourceText);
 
-    const auto collected =
-        collectSources(temp.path(), {executableNamed("app", "src/main.cpp"), executableNamed("tool", "src/tool.cpp")});
+    const auto collected = collectSources(temp.path(), { executableNamed("app", "src/main.cpp"), executableNamed("tool", "src/tool.cpp") });
 
     ASSERT_TRUE(collected.has_value());
     ASSERT_EQ(collected->size(), 2);
     EXPECT_EQ((*collected)[0].target.name, "app");
-    EXPECT_EQ((*collected)[0].sources, (std::vector<std::filesystem::path>{"src/main.cpp", "src/shared.cpp"}));
+    EXPECT_EQ((*collected)[0].sources, (std::vector<std::filesystem::path>{ "src/main.cpp", "src/shared.cpp" }));
     EXPECT_EQ((*collected)[1].target.name, "tool");
-    EXPECT_EQ((*collected)[1].sources, (std::vector<std::filesystem::path>{"src/shared.cpp", "src/tool.cpp"}));
+    EXPECT_EQ((*collected)[1].sources, (std::vector<std::filesystem::path>{ "src/shared.cpp", "src/tool.cpp" }));
 }
 
 /**
@@ -99,11 +96,11 @@ TEST(SourceCollectorTest, MatchesAnEntryPointWrittenWithADotComponent)
     temp.writeFile("src/main.cpp", SourceText);
     temp.writeFile("src/util.cpp", SourceText);
 
-    const auto collected = collectSources(temp.path(), {executableNamed("app", "./src/main.cpp")});
+    const auto collected = collectSources(temp.path(), { executableNamed("app", "./src/main.cpp") });
 
     ASSERT_TRUE(collected.has_value());
     ASSERT_EQ(collected->size(), 1);
-    EXPECT_EQ((*collected)[0].sources, (std::vector<std::filesystem::path>{"src/main.cpp", "src/util.cpp"}));
+    EXPECT_EQ((*collected)[0].sources, (std::vector<std::filesystem::path>{ "src/main.cpp", "src/util.cpp" }));
 }
 
 /**
@@ -116,13 +113,13 @@ TEST(SourceCollectorTest, ExcludesAnEntryPointWrittenWithADotComponent)
     temp.writeFile("src/main.cpp", SourceText);
     temp.writeFile("src/tool.cpp", SourceText);
 
-    const auto collected = collectSources(
-        temp.path(), {executableNamed("app", "./src/main.cpp"), executableNamed("tool", "src/tool.cpp")});
+    const auto collected
+        = collectSources(temp.path(), { executableNamed("app", "./src/main.cpp"), executableNamed("tool", "src/tool.cpp") });
 
     ASSERT_TRUE(collected.has_value());
     ASSERT_EQ(collected->size(), 2);
-    EXPECT_EQ((*collected)[0].sources, (std::vector<std::filesystem::path>{"src/main.cpp"}));
-    EXPECT_EQ((*collected)[1].sources, (std::vector<std::filesystem::path>{"src/tool.cpp"}));
+    EXPECT_EQ((*collected)[0].sources, (std::vector<std::filesystem::path>{ "src/main.cpp" }));
+    EXPECT_EQ((*collected)[1].sources, (std::vector<std::filesystem::path>{ "src/tool.cpp" }));
 }
 
 /**
@@ -135,11 +132,11 @@ TEST(SourceCollectorTest, KeepsAnEntryPointOutsideTheSourceDirectory)
     temp.writeFile("src/util.cpp", SourceText);
     temp.writeFile("app/start.cpp", SourceText);
 
-    const auto collected = collectSources(temp.path(), {executableNamed("app", "app/start.cpp")});
+    const auto collected = collectSources(temp.path(), { executableNamed("app", "app/start.cpp") });
 
     ASSERT_TRUE(collected.has_value());
     ASSERT_EQ(collected->size(), 1);
-    EXPECT_EQ((*collected)[0].sources, (std::vector<std::filesystem::path>{"app/start.cpp", "src/util.cpp"}));
+    EXPECT_EQ((*collected)[0].sources, (std::vector<std::filesystem::path>{ "app/start.cpp", "src/util.cpp" }));
 }
 
 /**
@@ -150,11 +147,11 @@ TEST(SourceCollectorTest, ReturnsTheEntryPointWhenThereIsNoSourceDirectory)
 {
     const TempDirectory temp;
 
-    const auto collected = collectSources(temp.path(), {executableNamed("app", "src/main.cpp")});
+    const auto collected = collectSources(temp.path(), { executableNamed("app", "src/main.cpp") });
 
     ASSERT_TRUE(collected.has_value());
     ASSERT_EQ(collected->size(), 1);
-    EXPECT_EQ((*collected)[0].sources, (std::vector<std::filesystem::path>{"src/main.cpp"}));
+    EXPECT_EQ((*collected)[0].sources, (std::vector<std::filesystem::path>{ "src/main.cpp" }));
 }
 
 /**
@@ -181,7 +178,7 @@ TEST(SourceCollectorTest, ReportsASourceDirectoryItCannotRead)
         GTEST_SKIP() << "this user reads a directory with no permissions";
     }
 
-    const auto collected = collectSources(temp.path(), {executableNamed("app", "src/main.cpp")});
+    const auto collected = collectSources(temp.path(), { executableNamed("app", "src/main.cpp") });
 
     std::filesystem::permissions(locked, std::filesystem::perms::owner_all, ec);
 
@@ -199,7 +196,7 @@ TEST(SourceCollectorTest, ReportsASourceDirectoryItCannotExamine)
     const TempDirectory temp;
     std::filesystem::create_directory_symlink("src", temp.path() / "src");
 
-    const auto collected = collectSources(temp.path(), {executableNamed("app", "src/main.cpp")});
+    const auto collected = collectSources(temp.path(), { executableNamed("app", "src/main.cpp") });
 
     ASSERT_FALSE(collected.has_value());
     EXPECT_EQ(collected.error().directory, temp.path() / "src");
@@ -218,13 +215,12 @@ TEST(SourceCollectorTest, GivesAnExecutableTheSourcesBesideALibrary)
     temp.writeFile("src/core.cpp", SourceText);
     temp.writeFile("src/detail.cpp", SourceText);
 
-    const auto collected =
-        collectSources(temp.path(), {executableNamed("app", "src/main.cpp"), libraryNamed("core", "src/core.cpp")});
+    const auto collected = collectSources(temp.path(), { executableNamed("app", "src/main.cpp"), libraryNamed("core", "src/core.cpp") });
 
     ASSERT_TRUE(collected.has_value());
     ASSERT_EQ(collected->size(), 2);
-    EXPECT_EQ((*collected)[0].sources, (std::vector<std::filesystem::path>{"src/detail.cpp", "src/main.cpp"}));
-    EXPECT_EQ((*collected)[1].sources, (std::vector<std::filesystem::path>{"src/core.cpp", "src/detail.cpp"}));
+    EXPECT_EQ((*collected)[0].sources, (std::vector<std::filesystem::path>{ "src/detail.cpp", "src/main.cpp" }));
+    EXPECT_EQ((*collected)[1].sources, (std::vector<std::filesystem::path>{ "src/core.cpp", "src/detail.cpp" }));
 }
 
 /**

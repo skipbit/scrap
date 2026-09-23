@@ -32,8 +32,7 @@ public:
      * @param path Path to resolve.
      * @return The absolute path, or the failure the system reported.
      */
-    [[nodiscard]] virtual auto
-    absolute(const std::filesystem::path& path) const -> std::expected<std::filesystem::path, std::error_code> = 0;
+    [[nodiscard]] virtual std::expected<std::filesystem::path, std::error_code> absolute(const std::filesystem::path& path) const = 0;
 
     /**
      * @brief Create @p directory alone, and only where nothing exists yet.
@@ -42,7 +41,7 @@ public:
      * @return An empty code on success, std::errc::file_exists when anything
      *         is already at that path, or the failure the system reported.
      */
-    [[nodiscard]] virtual auto createDirectory(const std::filesystem::path& directory) -> std::error_code = 0;
+    [[nodiscard]] virtual std::error_code createDirectory(const std::filesystem::path& directory) = 0;
 
     /**
      * @brief Create @p directory together with any missing parent.
@@ -50,7 +49,7 @@ public:
      * @param directory Directory to create.
      * @return An empty code on success, or the failure the system reported.
      */
-    [[nodiscard]] virtual auto createDirectories(const std::filesystem::path& directory) -> std::error_code = 0;
+    [[nodiscard]] virtual std::error_code createDirectories(const std::filesystem::path& directory) = 0;
 
     /**
      * @brief Write @p content to @p file, which must not exist yet.
@@ -59,8 +58,7 @@ public:
      * @param content Bytes to write.
      * @return An empty code on success, or the failure the system reported.
      */
-    [[nodiscard]] virtual auto writeNewFile(const std::filesystem::path& file,
-                                            std::string_view content) -> std::error_code = 0;
+    [[nodiscard]] virtual std::error_code writeNewFile(const std::filesystem::path& file, std::string_view content) = 0;
 
     /**
      * @brief Remove @p directory and everything below it.
@@ -68,7 +66,7 @@ public:
      * @param directory Directory to remove.
      * @return An empty code on success, or the failure the system reported.
      */
-    [[nodiscard]] virtual auto removeAll(const std::filesystem::path& directory) -> std::error_code = 0;
+    [[nodiscard]] virtual std::error_code removeAll(const std::filesystem::path& directory) = 0;
 
 protected:
     ProjectFileSystem() = default;

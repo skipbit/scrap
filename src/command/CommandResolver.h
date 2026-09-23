@@ -15,7 +15,7 @@ public:
     CommandResolver(CommandResolver&&) = default;
     CommandResolver& operator=(CommandResolver&&) = default;
 
-    virtual auto resolve(const RuntimeEnvironment& env) -> std::vector<CommandEntry> = 0;
+    virtual std::vector<CommandEntry> resolve(const RuntimeEnvironment& env) = 0;
 
 protected:
     CommandResolver() = default;

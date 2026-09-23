@@ -29,7 +29,7 @@ constexpr std::string_view HeaderDirectory = "include";
 
 /// What a debug build asks of the compiler: debugging information, no
 /// optimisation, and the common warnings.
-constexpr std::array<std::string_view, 5> DebugOptions{"-g", "-O0", "-Wall", "-Wextra", "-Wpedantic"};
+constexpr std::array<std::string_view, 5> DebugOptions{ "-g", "-O0", "-Wall", "-Wextra", "-Wpedantic" };
 
 /**
  * @p path as it goes on the command line: a relative path that starts with
@@ -37,10 +37,10 @@ constexpr std::array<std::string_view, 5> DebugOptions{"-g", "-O0", "-Wall", "-W
  * argument starting with '@' names a file of options the compiler reads
  * before anything else, which would let a source name decide the command.
  */
-auto asArgument(const std::filesystem::path& path) -> std::filesystem::path
+std::filesystem::path asArgument(const std::filesystem::path& path)
 {
     if (path.is_relative() && (path.native().starts_with('-') || path.native().starts_with('@'))) {
-        return std::filesystem::path{"."} / path;
+        return std::filesystem::path{ "." } / path;
     }
     return path;
 }
@@ -48,9 +48,7 @@ auto asArgument(const std::filesystem::path& path) -> std::filesystem::path
 /**
  * Where @p source is compiled to for @p target.
  */
-auto objectFile(const BuildSettings& settings,
-                const std::string& target,
-                const std::filesystem::path& source) -> std::filesystem::path
+std::filesystem::path objectFile(const BuildSettings& settings, const std::string& target, const std::filesystem::path& source)
 {
     std::filesystem::path output = settings.buildDirectory / ObjectDirectory / target / source;
     output += ".o";
@@ -60,23 +58,23 @@ auto objectFile(const BuildSettings& settings,
 /**
  * The command line every compilation shares, up to the source it compiles.
  */
-auto sharedCompileArguments(const BuildSettings& settings) -> std::vector<std::string>
+std::vector<std::string> sharedCompileArguments(const BuildSettings& settings)
 {
     std::vector<std::string> arguments{
         settings.compiler.string(),
-        settings.driver.standardOption(settings.standard).value_or(standardNameOption(settings.standard))};
+        settings.driver.standardOption(settings.standard).value_or(standardNameOption(settings.standard))
+    };
     arguments.insert(arguments.end(), DebugOptions.begin(), DebugOptions.end());
     if (const auto color = settings.driver.colorOption(); color.has_value()) {
         arguments.push_back(*color);
     }
-    arguments.insert(arguments.end(), {"-I", std::string{HeaderDirectory}});
+    arguments.insert(arguments.end(), { "-I", std::string{ HeaderDirectory } });
     return arguments;
 }
 
 }  // anonymous namespace
 
-auto planCompileCommands(const BuildSettings& settings,
-                         const std::vector<Project::TargetSources>& targets) -> std::vector<CompileCommand>
+std::vector<CompileCommand> planCompileCommands(const BuildSettings& settings, const std::vector<Project::TargetSources>& targets)
 {
     const std::vector<std::string> shared = sharedCompileArguments(settings);
 
@@ -87,19 +85,14 @@ auto planCompileCommands(const BuildSettings& settings,
             const std::filesystem::path file = asArgument(source);
 
             std::vector<std::string> arguments = shared;
-            arguments.insert(arguments.end(), {"-c", file.string(), "-o", output.string()});
-            commands.push_back(CompileCommand{.target = entry.target.name,
-                                              .directory = settings.projectRoot,
-                                              .file = file,
-                                              .output = output,
-                                              .arguments = std::move(arguments)});
+            arguments.insert(arguments.end(), { "-c", file.string(), "-o", output.string() });
+            commands.push_back(CompileCommand{ .target = entry.target.name, .directory = settings.projectRoot, .file = file, .output = output, .arguments = std::move(arguments) });
         }
     }
     return commands;
 }
 
-auto planLinkCommands(const BuildSettings& settings,
-                      const std::vector<Project::TargetSources>& targets) -> std::vector<LinkCommand>
+std::vector<LinkCommand> planLinkCommands(const BuildSettings& settings, const std::vector<Project::TargetSources>& targets)
 {
     std::vector<LinkCommand> commands;
     for (const Project::TargetSources& entry : targets) {
@@ -108,18 +101,15 @@ auto planLinkCommands(const BuildSettings& settings,
         }
         const std::filesystem::path output = settings.buildDirectory / ExecutableDirectory / entry.target.name;
 
-        std::vector<std::string> arguments{settings.compiler.string()};
+        std::vector<std::string> arguments{ settings.compiler.string() };
         if (const auto color = settings.driver.colorOption(); color.has_value()) {
             arguments.push_back(*color);
         }
         for (const std::filesystem::path& source : entry.sources) {
             arguments.push_back(objectFile(settings, entry.target.name, source).string());
         }
-        arguments.insert(arguments.end(), {"-o", output.string()});
-        commands.push_back(LinkCommand{.target = entry.target.name,
-                                       .directory = settings.projectRoot,
-                                       .output = output,
-                                       .arguments = std::move(arguments)});
+        arguments.insert(arguments.end(), { "-o", output.string() });
+        commands.push_back(LinkCommand{ .target = entry.target.name, .directory = settings.projectRoot, .output = output, .arguments = std::move(arguments) });
     }
     return commands;
 }

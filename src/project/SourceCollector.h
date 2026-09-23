@@ -55,7 +55,7 @@ struct SourceScanFailure {
  * @return Each target with its sources, in the order the targets were given,
  *         or the directory that could not be read.
  */
-[[nodiscard]] auto collectSources(const std::filesystem::path& projectRoot, const std::vector<Target>& targets)
-    -> std::expected<std::vector<TargetSources>, SourceScanFailure>;
+[[nodiscard]] std::expected<std::vector<TargetSources>, SourceScanFailure> collectSources(const std::filesystem::path& projectRoot,
+                                                                                          const std::vector<Target>& targets);
 
 }  // namespace scrap::Project

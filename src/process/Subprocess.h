@@ -43,8 +43,8 @@ struct Completion {
  * @param capture Which output streams are read back.
  * @return How the program ended, or why it could not be started.
  */
-[[nodiscard]] auto runProgram(const std::vector<std::string>& arguments,
-                              const std::filesystem::path& workingDirectory,
-                              OutputCapture capture) -> std::expected<Completion, std::error_code>;
+[[nodiscard]] std::expected<Completion, std::error_code> runProgram(const std::vector<std::string>& arguments,
+                                                                    const std::filesystem::path& workingDirectory,
+                                                                    OutputCapture capture);
 
 }  // namespace scrap::Process

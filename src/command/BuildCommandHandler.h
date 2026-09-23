@@ -22,7 +22,7 @@ public:
      * @param ctx Invocation context. Its first positional is the optional path.
      * @return 0 on success, 1 when it reports a failure.
      */
-    auto execute(const InvocationContext& ctx) -> int override;
+    int execute(const InvocationContext& ctx) override;
 };
 
 }  // namespace scrap::Command

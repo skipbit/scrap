@@ -31,15 +31,15 @@ namespace {
 /**
  * How the compiler in use was arrived at, in the words the output uses.
  */
-auto describeOrigin(const Toolchain::CompilerOrigin origin) -> std::string_view
+std::string_view describeOrigin(const Toolchain::CompilerOrigin origin)
 {
     switch (origin) {
-        case Toolchain::CompilerOrigin::CompilerVariable:
-            return "from CXX";
-        case Toolchain::CompilerOrigin::DefaultOnPath:
-            return "found on PATH";
-        case Toolchain::CompilerOrigin::KnownName:
-            return "found on PATH as a known name";
+    case Toolchain::CompilerOrigin::CompilerVariable:
+        return "from CXX";
+    case Toolchain::CompilerOrigin::DefaultOnPath:
+        return "found on PATH";
+    case Toolchain::CompilerOrigin::KnownName:
+        return "found on PATH as a known name";
     }
     // Every origin is answered above, so an origin added without a word here
     // fails the build rather than being described as one of the others.
@@ -50,7 +50,7 @@ auto describeOrigin(const Toolchain::CompilerOrigin origin) -> std::string_view
  * The path argument taken against the working directory, or the working
  * directory itself.
  */
-auto startDirectory(const InvocationContext& ctx) -> std::filesystem::path
+std::filesystem::path startDirectory(const InvocationContext& ctx)
 {
     if (ctx.options.positional.empty()) {
         return ctx.env->workingDirectory;
@@ -65,7 +65,7 @@ auto startDirectory(const InvocationContext& ctx) -> std::filesystem::path
  * database is emptied so an editor stops reading the commands of targets the
  * project no longer has.
  */
-auto finishWithNothingToBuild(const std::filesystem::path& databaseDirectory) -> int
+int finishWithNothingToBuild(const std::filesystem::path& databaseDirectory)
 {
     const auto written = Compile::writeCompilationDatabase(databaseDirectory, {});
     if (! written.has_value()) {
@@ -80,7 +80,7 @@ auto finishWithNothingToBuild(const std::filesystem::path& databaseDirectory) ->
  * The first library among @p targets, or nothing when they are all
  * executables.
  */
-auto libraryAmong(const std::vector<Project::Target>& targets) -> const Project::Target*
+const Project::Target* libraryAmong(const std::vector<Project::Target>& targets)
 {
     for (const Project::Target& target : targets) {
         if (target.kind == Project::TargetKind::Library) {
@@ -94,14 +94,13 @@ auto libraryAmong(const std::vector<Project::Target>& targets) -> const Project:
  * Compile and link what @p compiles and the targets state, reporting each
  * step as it runs.
  */
-auto runBuild(const Compile::BuildSettings& settings,
-              const std::vector<Project::TargetSources>& targets,
-              const std::vector<Compile::CompileCommand>& compiles) -> int
+int runBuild(const Compile::BuildSettings& settings,
+             const std::vector<Project::TargetSources>& targets,
+             const std::vector<Compile::CompileCommand>& compiles)
 {
     Build::ProgramStepRunner runner;
-    StreamBuildReporter reporter{std::cerr, standardErrorIsTerminal()};
-    const auto built =
-        Build::runSerially(Build::buildSteps(compiles, Compile::planLinkCommands(settings, targets)), runner, reporter);
+    StreamBuildReporter reporter{ std::cerr, standardErrorIsTerminal() };
+    const auto built = Build::runSerially(Build::buildSteps(compiles, Compile::planLinkCommands(settings, targets)), runner, reporter);
     if (! built.has_value()) {
         std::cerr << renderStepFailure(built.error());
         return 1;
@@ -112,11 +111,11 @@ auto runBuild(const Compile::BuildSettings& settings,
 
 }  // anonymous namespace
 
-auto BuildCommandHandler::execute(const InvocationContext& ctx) -> int
+int BuildCommandHandler::execute(const InvocationContext& ctx)
 {
     // An explicitly empty argument is usually an unset variable, so it is
     // reported as an error instead of standing for the working directory.
-    if (! ctx.options.positional.empty() && ctx.options.positional.front().empty()) {
+    if ((! ctx.options.positional.empty()) && ctx.options.positional.front().empty()) {
         std::cerr << renderEmptyPathArgument();
         return 1;
     }
@@ -130,12 +129,12 @@ auto BuildCommandHandler::execute(const InvocationContext& ctx) -> int
     // An empty declaration states that the project builds nothing, which is a
     // different answer from finding nothing where no declaration was written.
     const auto targets = Project::resolveTargets(project->root, project->manifest);
-    if (targets.empty() && ! project->manifest.declaresTargets) {
+    if (targets.empty() && (! project->manifest.declaresTargets)) {
         std::cerr << renderNoTargetToBuild(project->root);
         return 1;
     }
 
-    const std::filesystem::path buildDirectory{Compile::DebugBuildDirectory};
+    const std::filesystem::path buildDirectory{ Compile::DebugBuildDirectory };
     if (targets.empty()) {
         return finishWithNothingToBuild(project->root / buildDirectory);
     }
@@ -155,15 +154,15 @@ auto BuildCommandHandler::execute(const InvocationContext& ctx) -> int
         }
         return 1;
     }
-    std::cerr << "Using the system compiler '" << printablePath(compiler->path) << "' ("
-              << describeOrigin(compiler->origin) << ")\n";
+    std::cerr << "Using the system compiler '" << printablePath(compiler->path) << "' (" << describeOrigin(compiler->origin) << ")\n";
 
     const Compile::BuildSettings settings{
         .projectRoot = project->root,
         .buildDirectory = buildDirectory,
         .compiler = compiler->path,
-        .driver = Compile::CompilerDriver{Toolchain::identifyCompiler(compiler->path)},
-        .standard = project->manifest.package.standard};
+        .driver = Compile::CompilerDriver{ Toolchain::identifyCompiler(compiler->path) },
+        .standard = project->manifest.package.standard
+    };
     const auto compiles = Compile::planCompileCommands(settings, *sources);
     const auto written = Compile::writeCompilationDatabase(project->root / buildDirectory, compiles);
     if (! written.has_value()) {

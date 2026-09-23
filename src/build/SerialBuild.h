@@ -28,8 +28,8 @@ struct FailedStep {
  * @param compiles The compile commands, in the order to run them.
  * @param links The link commands, in the order to run them.
  */
-[[nodiscard]] auto buildSteps(const std::vector<Compile::CompileCommand>& compiles,
-                              const std::vector<Compile::LinkCommand>& links) -> std::vector<BuildStep>;
+[[nodiscard]] std::vector<BuildStep> buildSteps(const std::vector<Compile::CompileCommand>& compiles,
+                                                const std::vector<Compile::LinkCommand>& links);
 
 /**
  * @brief Run @p steps one after another, stopping at the first that fails.
@@ -44,8 +44,8 @@ struct FailedStep {
  * @param reporter Told of each step as it runs.
  * @return Nothing when every step succeeded, or the step that failed.
  */
-[[nodiscard]] auto runSerially(const std::vector<BuildStep>& steps,
-                               StepRunner& runner,
-                               BuildReporter& reporter) -> std::expected<void, FailedStep>;
+[[nodiscard]] std::expected<void, FailedStep> runSerially(const std::vector<BuildStep>& steps,
+                                                          StepRunner& runner,
+                                                          BuildReporter& reporter);
 
 }  // namespace scrap::Build

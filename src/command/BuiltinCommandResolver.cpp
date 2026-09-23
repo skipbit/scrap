@@ -35,7 +35,7 @@ public:
      * Construct with the command name shown in the placeholder message.
      */
     explicit PlaceholderHandler(std::string commandName)
-        : commandName_(std::move(commandName))
+        : _commandName(std::move(commandName))
     {
     }
 
@@ -44,14 +44,14 @@ public:
      * the state of the command rather than answering it, so it goes to
      * standard error.
      */
-    auto execute([[maybe_unused]] const InvocationContext& ctx) -> int override
+    int execute([[maybe_unused]] const InvocationContext& ctx) override
     {
-        std::cerr << commandName_ << ": not yet implemented\n";
+        std::cerr << _commandName << ": not yet implemented\n";
         return 0;
     }
 
 private:
-    std::string commandName_;
+    std::string _commandName;
 };
 
 /**
@@ -64,24 +64,24 @@ public:
      * Construct with a non-owning pointer to the shared HelpRenderer.
      */
     explicit HelpCommandHandler(HelpRenderer* renderer)
-        : renderer_(renderer)
+        : _renderer(renderer)
     {
     }
 
     /**
      * Render help for a specific command, or global help if no target given.
      */
-    auto execute(const InvocationContext& ctx) -> int override
+    int execute(const InvocationContext& ctx) override
     {
         if (ctx.options.positional.empty()) {
-            std::cout << renderer_->renderGlobal(ctx.catalog->helpEntries());
+            std::cout << _renderer->renderGlobal(ctx.catalog->helpEntries());
             return 0;
         }
 
         auto target = ctx.options.positional[0];
         for (const auto& spec : ctx.catalog->specs()) {
             if (spec.name == target) {
-                std::cout << renderer_->renderCommand(spec);
+                std::cout << _renderer->renderCommand(spec);
                 return 0;
             }
         }
@@ -91,7 +91,7 @@ public:
     }
 
 private:
-    HelpRenderer* renderer_;
+    HelpRenderer* _renderer;
 };
 
 /**
@@ -104,29 +104,27 @@ public:
      * Construct with a non-owning pointer to the shared VersionRenderer.
      */
     explicit VersionCommandHandler(VersionRenderer* renderer)
-        : renderer_(renderer)
+        : _renderer(renderer)
     {
     }
 
     /**
      * Print the version string and return success.
      */
-    auto execute([[maybe_unused]] const InvocationContext& ctx) -> int override
+    int execute([[maybe_unused]] const InvocationContext& ctx) override
     {
-        std::cout << renderer_->render() << "\n";
+        std::cout << _renderer->render() << "\n";
         return 0;
     }
 
 private:
-    VersionRenderer* renderer_;
+    VersionRenderer* _renderer;
 };
 
 /**
  * Create a placeholder CommandEntry with a no-op handler.
  */
-auto makePlaceholder(const std::string& name,
-                     const std::string& description,
-                     const std::string& category) -> CommandEntry
+CommandEntry makePlaceholder(const std::string& name, const std::string& description, const std::string& category)
 {
     CommandEntry entry;
     entry.spec.name = name;
@@ -142,10 +140,10 @@ auto makePlaceholder(const std::string& name,
 /**
  * Create a project command that takes one positional argument.
  */
-auto makeProjectEntry(std::string name,
-                      std::string description,
-                      PositionalDef positional,
-                      CommandEntry::HandlerFactory createHandler) -> CommandEntry
+CommandEntry makeProjectEntry(std::string name,
+                              std::string description,
+                              PositionalDef positional,
+                              CommandEntry::HandlerFactory createHandler)
 {
     CommandEntry entry;
     entry.spec.name = std::move(name);
@@ -160,33 +158,30 @@ auto makeProjectEntry(std::string name,
 /**
  * Create the entry for "new", which takes the name of the project to create.
  */
-auto makeNewEntry(Project::ProjectFileSystem& fileSystem) -> CommandEntry
+CommandEntry makeNewEntry(Project::ProjectFileSystem& fileSystem)
 {
     auto* files = &fileSystem;
     return makeProjectEntry(
         "new",
         "Create a new C++ project",
-        PositionalDef{
-            .name = "project-name", .description = "Name of the project directory to create", .required = true},
+        PositionalDef{ .name = "project-name", .description = "Name of the project directory to create", .required = true },
         [files](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
-            return std::make_unique<NewCommandHandler>(*files);
-        });
+        return std::make_unique<NewCommandHandler>(*files);
+    });
 }
 
 /**
  * Create the entry for "build", which takes an optional path into the project.
  */
-auto makeBuildEntry() -> CommandEntry
+CommandEntry makeBuildEntry()
 {
     return makeProjectEntry(
         "build",
         "Compile the project",
-        PositionalDef{.name = "path",
-                      .description = "Directory inside the project (default: the current directory)",
-                      .required = false},
+        PositionalDef{ .name = "path", .description = "Directory inside the project (default: the current directory)", .required = false },
         [](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
-            return std::make_unique<BuildCommandHandler>();
-        });
+        return std::make_unique<BuildCommandHandler>();
+    });
 }
 
 }  // anonymous namespace
@@ -197,14 +192,16 @@ auto makeBuildEntry() -> CommandEntry
 BuiltinCommandResolver::BuiltinCommandResolver(HelpRenderer& helpRenderer,
                                                VersionRenderer& versionRenderer,
                                                Project::ProjectFileSystem& fileSystem)
-    : helpRenderer_(&helpRenderer), versionRenderer_(&versionRenderer), fileSystem_(&fileSystem)
+    : _helpRenderer(&helpRenderer)
+    , _versionRenderer(&versionRenderer)
+    , _fileSystem(&fileSystem)
 {
 }
 
 /**
  * Return the fixed set of built-in command entries.
  */
-auto BuiltinCommandResolver::resolve([[maybe_unused]] const RuntimeEnvironment& env) -> std::vector<CommandEntry>
+std::vector<CommandEntry> BuiltinCommandResolver::resolve([[maybe_unused]] const RuntimeEnvironment& env)
 {
     std::vector<CommandEntry> entries;
 
@@ -215,9 +212,9 @@ auto BuiltinCommandResolver::resolve([[maybe_unused]] const RuntimeEnvironment& 
         entry.spec.description = "Display help information";
         entry.spec.category = "Built-in Commands";
         entry.spec.options.positional.push_back(
-            PositionalDef{.name = "command", .description = "Command to get help for", .required = false});
+            PositionalDef{ .name = "command", .description = "Command to get help for", .required = false });
         entry.source = CommandSource::Builtin;
-        auto* renderer = helpRenderer_;
+        auto* renderer = _helpRenderer;
         entry.createHandler = [renderer](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
             return std::make_unique<HelpCommandHandler>(renderer);
         };
@@ -231,7 +228,7 @@ auto BuiltinCommandResolver::resolve([[maybe_unused]] const RuntimeEnvironment& 
         entry.spec.description = "Display version information";
         entry.spec.category = "Built-in Commands";
         entry.source = CommandSource::Builtin;
-        auto* renderer = versionRenderer_;
+        auto* renderer = _versionRenderer;
         entry.createHandler = [renderer](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
             return std::make_unique<VersionCommandHandler>(renderer);
         };
@@ -239,7 +236,7 @@ auto BuiltinCommandResolver::resolve([[maybe_unused]] const RuntimeEnvironment& 
     }
 
     // Project commands
-    entries.push_back(makeNewEntry(*fileSystem_));
+    entries.push_back(makeNewEntry(*_fileSystem));
     entries.push_back(makeBuildEntry());
     entries.push_back(makePlaceholder("run", "Run the current project executable", "Project Commands"));
     entries.push_back(makePlaceholder("clean", "Remove build artifacts and cached files", "Project Commands"));
@@ -249,8 +246,7 @@ auto BuiltinCommandResolver::resolve([[maybe_unused]] const RuntimeEnvironment& 
         auto toolchain = makePlaceholder("toolchain", "Manage toolchains", "Toolchain Commands");
         toolchain.subcommands.push_back(makePlaceholder("list", "Display installed toolchains", "Toolchain Commands"));
         toolchain.subcommands.push_back(makePlaceholder("install", "Install a new toolchain", "Toolchain Commands"));
-        toolchain.subcommands.push_back(
-            makePlaceholder("select", "Select a toolchain as the default", "Toolchain Commands"));
+        toolchain.subcommands.push_back(makePlaceholder("select", "Select a toolchain as the default", "Toolchain Commands"));
         entries.push_back(std::move(toolchain));
     }
 

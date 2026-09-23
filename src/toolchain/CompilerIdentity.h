@@ -36,7 +36,7 @@ struct CompilerIdentity {
 /**
  * @brief Whether @p version is @p major.@p minor or later.
  */
-[[nodiscard]] auto isAtLeast(const CompilerVersion& version, int major, int minor = 0) -> bool;
+[[nodiscard]] bool isAtLeast(const CompilerVersion& version, int major, int minor = 0);
 
 /**
  * @brief Tell which compiler wrote @p predefinedMacros.
@@ -47,7 +47,7 @@ struct CompilerIdentity {
  * @param predefinedMacros What the compiler prints for -dM -E: one
  *        "#define NAME VALUE" line per macro.
  */
-[[nodiscard]] auto readCompilerIdentity(std::string_view predefinedMacros) -> CompilerIdentity;
+[[nodiscard]] CompilerIdentity readCompilerIdentity(std::string_view predefinedMacros);
 
 /**
  * @brief Ask @p compiler which compiler it is.
@@ -56,6 +56,6 @@ struct CompilerIdentity {
  * be run, fails, or defines none of the macros read is Unknown rather than an
  * error: it may still compile, and whether it does is the build's to report.
  */
-[[nodiscard]] auto identifyCompiler(const std::filesystem::path& compiler) -> CompilerIdentity;
+[[nodiscard]] CompilerIdentity identifyCompiler(const std::filesystem::path& compiler);
 
 }  // namespace scrap::Toolchain

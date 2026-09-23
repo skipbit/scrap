@@ -24,6 +24,6 @@ inline constexpr std::string_view ManifestFileName = "scrap.toml";
  *         nothing if the search reached the filesystem root without finding
  *         a manifest.
  */
-[[nodiscard]] auto findProjectRoot(const std::filesystem::path& startDir) -> std::optional<std::filesystem::path>;
+[[nodiscard]] std::optional<std::filesystem::path> findProjectRoot(const std::filesystem::path& startDir);
 
 }  // namespace scrap::Project

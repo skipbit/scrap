@@ -1,9 +1,9 @@
-#include <gtest/gtest.h>
-
 #include "project/ProjectLocator.h"
 
 #include "ManifestSearch.h"
 #include "support/TempDirectory.h"
+
+#include <gtest/gtest.h>
 
 #include <filesystem>
 #include <string_view>

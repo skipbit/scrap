@@ -29,13 +29,13 @@ constexpr int StagingAttempts = 16;
  * Append @p text to @p out as a JSON string. A quote, a backslash and the
  * control characters are escaped; every other byte is copied as it is.
  */
-auto appendJsonString(std::string& out, std::string_view text) -> void
+void appendJsonString(std::string& out, std::string_view text)
 {
     static constexpr std::string_view HexDigits = "0123456789abcdef";
     out += '"';
     for (const char ch : text) {
         const unsigned byte = static_cast<unsigned char>(ch);
-        if (ch == '"' || ch == '\\') {
+        if ((ch == '"') || (ch == '\\')) {
             out += '\\';
             out += ch;
         } else if (byte < 0x20U) {
@@ -49,7 +49,7 @@ auto appendJsonString(std::string& out, std::string_view text) -> void
     out += '"';
 }
 
-auto appendEntry(std::string& out, const CompileCommand& command) -> void
+void appendEntry(std::string& out, const CompileCommand& command)
 {
     out += "  {\n    \"directory\": ";
     appendJsonString(out, command.directory.string());
@@ -70,15 +70,15 @@ auto appendEntry(std::string& out, const CompileCommand& command) -> void
 /**
  * The failure the last system call reported.
  */
-auto lastFailure() -> std::error_code
+std::error_code lastFailure()
 {
-    return {errno, std::generic_category()};
+    return { errno, std::generic_category() };
 }
 
 /**
  * Write the whole of @p content to @p descriptor.
  */
-auto writeAll(const int descriptor, std::string_view content) -> std::error_code
+std::error_code writeAll(const int descriptor, std::string_view content)
 {
     const char* data = content.data();
     std::size_t remaining = content.size();
@@ -108,14 +108,13 @@ auto writeAll(const int descriptor, std::string_view content) -> std::error_code
  * count when another build, one in another container with the same id among
  * them, already holds it. The staged file is removed when a later step fails.
  */
-auto replaceFile(const std::filesystem::path& file, std::string_view content) -> std::error_code
+std::error_code replaceFile(const std::filesystem::path& file, std::string_view content)
 {
     const std::string prefix = file.string() + "." + std::to_string(::getpid()) + ".";
     for (int attempt = 0; attempt < StagingAttempts; ++attempt) {
         const std::filesystem::path staged = prefix + std::to_string(attempt) + ".tmp";
         // NOLINTNEXTLINE(hicpp-signed-bitwise) - POSIX open() flag combination
-        const int descriptor =
-            ::open(staged.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, DatabaseFileMode);
+        const int descriptor = ::open(staged.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, DatabaseFileMode);
         if (descriptor < 0) {
             if (errno == EEXIST) {
                 continue;
@@ -124,10 +123,10 @@ auto replaceFile(const std::filesystem::path& file, std::string_view content) ->
         }
 
         std::error_code failure = writeAll(descriptor, content);
-        if (::close(descriptor) != 0 && ! failure) {
+        if ((::close(descriptor) != 0) && (! failure)) {
             failure = lastFailure();
         }
-        if (! failure && ::rename(staged.c_str(), file.c_str()) != 0) {
+        if ((! failure) && (::rename(staged.c_str(), file.c_str()) != 0)) {
             failure = lastFailure();
         }
         if (failure) {
@@ -140,7 +139,7 @@ auto replaceFile(const std::filesystem::path& file, std::string_view content) ->
 
 }  // anonymous namespace
 
-auto renderCompilationDatabase(const std::vector<CompileCommand>& commands) -> std::string
+std::string renderCompilationDatabase(const std::vector<CompileCommand>& commands)
 {
     if (commands.empty()) {
         return "[]\n";
@@ -157,20 +156,18 @@ auto renderCompilationDatabase(const std::vector<CompileCommand>& commands) -> s
     return out;
 }
 
-auto writeCompilationDatabase(const std::filesystem::path& buildDirectory,
-                              const std::vector<CompileCommand>& commands) -> std::expected<void, DatabaseWriteFailure>
+std::expected<void, DatabaseWriteFailure> writeCompilationDatabase(const std::filesystem::path& buildDirectory,
+                                                                   const std::vector<CompileCommand>& commands)
 {
     std::error_code ec;
     std::filesystem::create_directories(buildDirectory, ec);
     if (ec) {
-        return std::unexpected(
-            DatabaseWriteFailure{.step = DatabaseWriteStep::CreateDirectory, .path = buildDirectory, .code = ec});
+        return std::unexpected(DatabaseWriteFailure{ .step = DatabaseWriteStep::CreateDirectory, .path = buildDirectory, .code = ec });
     }
 
     const std::filesystem::path file = buildDirectory / CompilationDatabaseFileName;
     if (const std::error_code failure = replaceFile(file, renderCompilationDatabase(commands))) {
-        return std::unexpected(
-            DatabaseWriteFailure{.step = DatabaseWriteStep::WriteFile, .path = file, .code = failure});
+        return std::unexpected(DatabaseWriteFailure{ .step = DatabaseWriteStep::WriteFile, .path = file, .code = failure });
     }
     return {};
 }

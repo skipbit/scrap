@@ -21,8 +21,8 @@ public:
     HelpRenderer(HelpRenderer&&) = default;
     HelpRenderer& operator=(HelpRenderer&&) = default;
 
-    [[nodiscard]] virtual auto renderGlobal(std::span<const HelpEntry> entries) const -> std::string = 0;
-    [[nodiscard]] virtual auto renderCommand(const CommandSpec& spec) const -> std::string = 0;
+    [[nodiscard]] virtual std::string renderGlobal(std::span<const HelpEntry> entries) const = 0;
+    [[nodiscard]] virtual std::string renderCommand(const CommandSpec& spec) const = 0;
 
 protected:
     HelpRenderer() = default;

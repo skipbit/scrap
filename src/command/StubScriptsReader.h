@@ -18,8 +18,7 @@ public:
      * @param projectRoot Project root path (unused).
      * @return Empty ScriptDef vector.
      */
-    [[nodiscard]] auto
-    read(const std::filesystem::path& projectRoot) -> std::expected<std::vector<ScriptDef>, std::string> override;
+    [[nodiscard]] std::expected<std::vector<ScriptDef>, std::string> read(const std::filesystem::path& projectRoot) override;
 };
 
 }  // namespace scrap::Command

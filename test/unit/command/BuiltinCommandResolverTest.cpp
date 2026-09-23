@@ -1,8 +1,9 @@
-#include <gtest/gtest.h>
-
 #include "command/BuiltinCommandResolver.h"
+
 #include "command/CommandCatalog.h"
 #include "project/driver/DiskProjectFileSystem.h"
+
+#include <gtest/gtest.h>
 
 #include <algorithm>
 
@@ -11,7 +12,7 @@ using namespace scrap::Command;
 namespace {
 
 /// File system the resolver hands to the new command handler.
-auto diskFileSystem() -> scrap::Project::DiskProjectFileSystem&
+scrap::Project::DiskProjectFileSystem& diskFileSystem()
 {
     static scrap::Project::DiskProjectFileSystem files;
     return files;
@@ -25,7 +26,7 @@ public:
     /**
      * Return a fixed global help string.
      */
-    auto renderGlobal([[maybe_unused]] std::span<const HelpEntry> entries) const -> std::string override
+    std::string renderGlobal([[maybe_unused]] std::span<const HelpEntry> entries) const override
     {
         return "global help";
     }
@@ -33,7 +34,7 @@ public:
     /**
      * Return a fixed command help string.
      */
-    auto renderCommand([[maybe_unused]] const CommandSpec& spec) const -> std::string override
+    std::string renderCommand([[maybe_unused]] const CommandSpec& spec) const override
     {
         return "command help";
     }
@@ -47,7 +48,7 @@ public:
     /**
      * Return a fixed version string.
      */
-    auto render() const -> std::string override
+    std::string render() const override
     {
         return "scrap 0.0.1-test";
     }
@@ -56,7 +57,7 @@ public:
 /**
  * Find an entry by name in a flat vector.
  */
-auto findByName(const std::vector<CommandEntry>& entries, const std::string& name) -> const CommandEntry*
+const CommandEntry* findByName(const std::vector<CommandEntry>& entries, const std::string& name)
 {
     auto it = std::ranges::find_if(entries, [&](const CommandEntry& e) {
         return e.spec.name == name;

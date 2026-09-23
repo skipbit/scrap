@@ -1,8 +1,8 @@
-#include <gtest/gtest.h>
-
 #include "project/driver/DiskProjectFileSystem.h"
 
 #include "support/TempDirectory.h"
+
+#include <gtest/gtest.h>
 
 #include <filesystem>
 #include <system_error>
