@@ -20,9 +20,9 @@ namespace scrap::TestSupport {
  * directory in place of the trailing "XXXXXX". Picking a name and then
  * creating it leaves a window in which another process can take the same
  * name, and under ctest --parallel each test is its own process, so that
- * window is real. This mirrors the scheme the end-to-end fixture uses.
+ * window is real.
  */
-TempDirectory::TempDirectory()
+TempDirectory::TempDirectory(std::string_view prefix)
 {
     std::error_code ec;
     const std::filesystem::path base = std::filesystem::temp_directory_path(ec);
@@ -31,7 +31,7 @@ TempDirectory::TempDirectory()
         return;
     }
 
-    std::string dirTemplate = (base / "scrap_test_XXXXXX").string();
+    std::string dirTemplate = (base / (std::string{ prefix } + "_XXXXXX")).string();
     const char* created = ::mkdtemp(dirTemplate.data());
     if (created == nullptr) {
         ADD_FAILURE() << "mkdtemp failed: " << std::strerror(errno);

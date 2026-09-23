@@ -14,7 +14,13 @@ namespace scrap::TestSupport {
  */
 class TempDirectory {
 public:
-    TempDirectory();
+    /**
+     * @brief Create the directory.
+     *
+     * @param prefix Start of the directory name, followed by a unique
+     *        suffix. It must be usable as a single path component.
+     */
+    explicit TempDirectory(std::string_view prefix = "scrap_test");
     ~TempDirectory();
 
     TempDirectory(const TempDirectory&) = delete;
