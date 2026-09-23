@@ -1,9 +1,12 @@
 # The formatting and analysis tools, at the version the checks use.
 #
-# The LLVM packages are pinned so that a later archive update cannot change how
-# the sources are laid out or what the analyser reports. `.clang-format` sets no
-# column limit, so a line broken on purpose survives; a different clang-format
-# would still disagree about everything else.
+# The LLVM packages are pinned to one upstream release so that a later archive
+# update cannot move to another one, which would change how the sources are
+# laid out or what the analyser reports. `.clang-format` sets no column limit,
+# so a line broken on purpose survives; a different clang-format would still
+# disagree about everything else. The Ubuntu revision is left open: the
+# updates pocket keeps only its latest one, so pinning it would break the
+# build at the next update.
 #
 # clang-tidy reads a compilation database, which records the compiler and the
 # standard library headers the build used. The image carries both, with CMake
@@ -12,7 +15,7 @@
 FROM ubuntu:24.04
 
 ARG LLVM_VERSION=18
-ARG LLVM_PACKAGE_VERSION=1:18.1.3-1ubuntu1
+ARG LLVM_PACKAGE_VERSION=1:18.1.3-*
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
