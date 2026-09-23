@@ -78,7 +78,7 @@ bool isAtLeast(const CompilerVersion& version, const int major, const int minor)
 
 CompilerIdentity readCompilerIdentity(std::string_view predefinedMacros)
 {
-    const auto clangVersion = [predefinedMacros] {
+    const auto clangVersion = [predefinedMacros]() {
         return versionFrom(predefinedMacros, "__clang_major__", "__clang_minor__", "__clang_patchlevel__");
     };
     if (macroValue(predefinedMacros, "__apple_build_version__").has_value()) {

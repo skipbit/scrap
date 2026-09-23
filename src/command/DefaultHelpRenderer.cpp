@@ -17,6 +17,10 @@ namespace scrap::Command {
 
 namespace {
 
+/// The newline a section starts with. clang-format breaks a stream after a
+/// leading '\n' literal; named, it stays on the line it belongs to.
+constexpr char Newline = '\n';
+
 /**
  * Compute the maximum command name length for column alignment.
  */
@@ -53,8 +57,7 @@ void appendCommandLine(std::ostringstream& out, const std::string& name, const s
  */
 void appendSectionHeader(std::ostringstream& out, const std::string& title)
 {
-    out << '\n'
-        << title << ":\n";
+    out << Newline << title << ":\n";
 }
 
 /**
@@ -157,8 +160,7 @@ std::string DefaultHelpRenderer::renderCommand(const CommandSpec& spec) const
     appendUsageLine(out, spec);
 
     if (! spec.description.empty()) {
-        out << '\n'
-            << spec.description << '\n';
+        out << Newline << spec.description << '\n';
     }
 
     // Subcommands section.

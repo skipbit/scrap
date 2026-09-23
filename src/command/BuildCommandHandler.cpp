@@ -156,11 +156,13 @@ int BuildCommandHandler::execute(const InvocationContext& ctx)
     }
     std::cerr << "Using the system compiler '" << printablePath(compiler->path) << "' (" << describeOrigin(compiler->origin) << ")\n";
 
-    const Compile::BuildSettings settings{ .projectRoot = project->root,
-                                           .buildDirectory = buildDirectory,
-                                           .compiler = compiler->path,
-                                           .driver = Compile::CompilerDriver{ Toolchain::identifyCompiler(compiler->path) },
-                                           .standard = project->manifest.package.standard };
+    const Compile::BuildSettings settings{
+        .projectRoot = project->root,
+        .buildDirectory = buildDirectory,
+        .compiler = compiler->path,
+        .driver = Compile::CompilerDriver{ Toolchain::identifyCompiler(compiler->path) },
+        .standard = project->manifest.package.standard
+    };
     const auto compiles = Compile::planCompileCommands(settings, *sources);
     const auto written = Compile::writeCompilationDatabase(project->root / buildDirectory, compiles);
     if (! written.has_value()) {

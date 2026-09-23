@@ -84,11 +84,7 @@ std::vector<CompileCommand> planCompileCommands(const BuildSettings& settings, c
 
             std::vector<std::string> arguments = shared;
             arguments.insert(arguments.end(), { "-c", file.string(), "-o", output.string() });
-            commands.push_back(CompileCommand{ .target = entry.target.name,
-                                               .directory = settings.projectRoot,
-                                               .file = file,
-                                               .output = output,
-                                               .arguments = std::move(arguments) });
+            commands.push_back(CompileCommand{ .target = entry.target.name, .directory = settings.projectRoot, .file = file, .output = output, .arguments = std::move(arguments) });
         }
     }
     return commands;
@@ -111,8 +107,7 @@ std::vector<LinkCommand> planLinkCommands(const BuildSettings& settings, const s
             arguments.push_back(objectFile(settings, entry.target.name, source).string());
         }
         arguments.insert(arguments.end(), { "-o", output.string() });
-        commands.push_back(LinkCommand{
-            .target = entry.target.name, .directory = settings.projectRoot, .output = output, .arguments = std::move(arguments) });
+        commands.push_back(LinkCommand{ .target = entry.target.name, .directory = settings.projectRoot, .output = output, .arguments = std::move(arguments) });
     }
     return commands;
 }

@@ -25,11 +25,11 @@ CommandCatalog& CommandCatalog::operator=(CommandCatalog&&) noexcept = default;
 void CommandCatalog::addEntries(std::vector<CommandEntry> entries)
 {
     for (auto& incoming : entries) {
-        auto it = std::ranges::find_if(_entries, [&](const CommandEntry& existing) {
+        const auto i = std::ranges::find_if(_entries, [&](const CommandEntry& existing) {
             return existing.spec.name == incoming.spec.name;
         });
 
-        if (it != _entries.end()) {
+        if (i != _entries.end()) {
             std::cerr << "warning: command '" << incoming.spec.name << "' already registered; ignoring duplicate\n";
             continue;
         }
@@ -66,7 +66,7 @@ const CommandEntry* CommandCatalog::find(const std::string& commandPath) const
     const CommandEntry* found = nullptr;
 
     for (const auto& seg : segments) {
-        auto it = std::ranges::find_if(*currentLevel, [&](const CommandEntry& entry) {
+        const auto it = std::ranges::find_if(*currentLevel, [&](const CommandEntry& entry) {
             return entry.spec.name == seg;
         });
 

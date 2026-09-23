@@ -71,11 +71,13 @@ std::string dotted(std::string_view table, std::string_view key)
  */
 ManifestError errorAt(const std::filesystem::path& file, const toml::node& node, std::string key, std::string message)
 {
-    return ManifestError{ .file = file,
-                          .position = toPosition(node.source().begin),
-                          .key = std::move(key),
-                          .message = std::move(message),
-                          .kind = ManifestErrorKind::Invalid };
+    return ManifestError{
+        .file = file,
+        .position = toPosition(node.source().begin),
+        .key = std::move(key),
+        .message = std::move(message),
+        .kind = ManifestErrorKind::Invalid
+    };
 }
 
 /**
@@ -404,11 +406,7 @@ std::expected<Manifest, ManifestError> parseManifest(std::string_view text, cons
     const toml::parse_result parsed = toml::parse(text);
     if (! parsed) {
         const toml::parse_error& error = parsed.error();
-        return std::unexpected(ManifestError{ .file = file,
-                                              .position = toPosition(error.source().begin),
-                                              .key = {},
-                                              .message = std::string{ error.description() },
-                                              .kind = ManifestErrorKind::Invalid });
+        return std::unexpected(ManifestError{ .file = file, .position = toPosition(error.source().begin), .key = {}, .message = std::string{ error.description() }, .kind = ManifestErrorKind::Invalid });
     }
 
     if (auto known = rejectUnknownKeys(file, parsed.table(), {}, KnownTopLevelKeys); ! known.has_value()) {
