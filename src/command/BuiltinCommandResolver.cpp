@@ -1,23 +1,24 @@
 #include "command/BuiltinCommandResolver.h"
 
 #include "command/BuildCommandHandler.h"
-#include "command/CommandCatalog.h"
 #include "command/CommandEntry.h"
 #include "command/CommandHandler.h"
 #include "command/CommandSource.h"
 #include "command/HelpRenderer.h"
+#include "command/HelpRequest.h"
 #include "command/InvocationContext.h"
 #include "command/NewCommandHandler.h"
 #include "command/OptionSchema.h"
 #include "command/ParsedOptions.h"
-#include "command/PrintableText.h"
 #include "command/RuntimeEnvironment.h"
 #include "command/VersionRenderer.h"
 #include "project/ProjectFileSystem.h"
 
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -73,21 +74,11 @@ public:
      */
     int execute(const InvocationContext& ctx) override
     {
-        if (ctx.options.positional.empty()) {
-            std::cout << _renderer->renderGlobal(ctx.catalog->helpEntries());
-            return 0;
+        std::optional<std::string_view> target;
+        if (! ctx.options.positional.empty()) {
+            target = ctx.options.positional[0];
         }
-
-        auto target = ctx.options.positional[0];
-        for (const auto& spec : ctx.catalog->specs()) {
-            if (spec.name == target) {
-                std::cout << _renderer->renderCommand(spec);
-                return 0;
-            }
-        }
-
-        std::cerr << "Unknown command: " << printableText(target) << "\n";
-        return 1;
+        return showHelp(*_renderer, *ctx.catalog, target);
     }
 
 private:

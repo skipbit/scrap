@@ -524,8 +524,19 @@ TEST_F(CliE2ETest, HelpForAnUnknownCommandFails)
     auto result = runScrap({ "help", "nosuch" }, {}, _root);
 
     ASSERT_TRUE(result.exitedNormally);
-    EXPECT_EQ(result.exitCode, 1);
-    EXPECT_NE(result.stderrText.find("Unknown command: nosuch"), std::string::npos) << result.stderrText;
+    EXPECT_EQ(result.exitCode, 2);
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    EXPECT_EQ(result.stderrText, "error: unknown command 'nosuch'\nhint: run 'scrap --help' to list the commands\n");
+}
+
+TEST_F(CliE2ETest, HelpForAnEmptyCommandNameFails)
+{
+    auto result = runScrap({ "help", "" }, {}, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 2);
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    EXPECT_EQ(result.stderrText, "error: unknown command ''\nhint: run 'scrap --help' to list the commands\n");
 }
 
 /**
@@ -539,9 +550,9 @@ TEST_F(CliE2ETest, HelpForAnUnknownCommandWritesTheNameAsText)
     auto result = runScrap({ "help", "\xe6\x97\xa5x\x1b]0;pwn\x07" }, {}, _root);
 
     ASSERT_TRUE(result.exitedNormally);
-    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_EQ(result.exitCode, 2);
     EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
-    EXPECT_NE(result.stderrText.find("Unknown command: \xe6\x97\xa5x\\x1B]0;pwn\\x07"), std::string::npos) << result.stderrText;
+    EXPECT_NE(result.stderrText.find("error: unknown command '\xe6\x97\xa5x\\x1B]0;pwn\\x07'"), std::string::npos) << result.stderrText;
     EXPECT_EQ(result.stderrText.find('\x1b'), std::string::npos);
     EXPECT_EQ(result.stderrText.find('\x07'), std::string::npos);
 }

@@ -7,7 +7,6 @@
 #include "command/VersionRenderer.h"
 
 #include <memory>
-#include <optional>
 #include <span>
 #include <string>
 #include <vector>
@@ -70,11 +69,6 @@ private:
      * @brief Handle a ParseDirective (help or version request).
      */
     int handleDirective(const CommandCatalog& catalog, const ParseDirective& directive);
-
-    /**
-     * @brief Render help for a specific command or the global listing.
-     */
-    int handleHelp(const CommandCatalog& catalog, const std::optional<std::string>& target);
 
     /**
      * @brief Handle a ParseFailure (error message + help suggestion).
