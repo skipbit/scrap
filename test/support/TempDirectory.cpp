@@ -20,7 +20,7 @@ namespace scrap::TestSupport {
  * directory in place of the trailing "XXXXXX". Picking a name and then
  * creating it leaves a window in which another process can take the same
  * name, and under ctest --parallel each test is its own process, so that
- * window is real. This mirrors the scheme the end-to-end fixture uses.
+ * window is real.
  */
 TempDirectory::TempDirectory(std::string_view prefix)
 {

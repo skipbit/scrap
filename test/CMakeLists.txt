@@ -119,7 +119,10 @@ target_compile_definitions(scrap_e2e PRIVATE
     SCRAP_TEST_CXX="${CMAKE_CXX_COMPILER}"
 )
 
-target_link_libraries(scrap_e2e PRIVATE GTest::gtest_main)
+target_link_libraries(scrap_e2e PRIVATE
+    scrap_test_support
+    GTest::gtest_main
+)
 scrap_apply_compile_settings(scrap_e2e)
 
 # The e2e tests spawn the scrap binary itself, so it must be built first.

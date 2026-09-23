@@ -1,6 +1,8 @@
 // End-to-end tests that spawn the built `scrap` binary as a real subprocess
 // and assert on its externally observable behavior (exit code, stdout,
-// stderr). These are black-box tests: no scrap:: headers are used here.
+// stderr). These are black-box tests: no headers from src/ are used here.
+
+#include "support/TempDirectory.h"
 
 #include <gtest/gtest.h>
 
@@ -10,12 +12,11 @@
 #include <chrono>
 #include <csignal>
 #include <cstddef>
-#include <cstdlib>
-#include <cstring>
 #include <fcntl.h>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <optional>
 #include <poll.h>
 #include <regex>
 #include <string>
@@ -230,29 +231,22 @@ bool drainBoth(int fd1, int fd2, std::chrono::steady_clock::time_point deadline,
 class CliE2ETest : public ::testing::Test {
 protected:
     /**
-     * Create a per-test temp directory. Each test case runs as its own
-     * ctest entry and ctest may run them in parallel, so the directory
-     * name must be unique per test case (and per process, for reruns).
+     * Create a per-test temp directory, named after the test so that one
+     * left behind by a killed test can be traced back to it.
      */
     void SetUp() override
     {
         const auto* info = ::testing::UnitTest::GetInstance()->current_test_info();
-        auto dirTemplate = (std::filesystem::temp_directory_path() / (std::string("scrap_e2e_") + info->name() + "_XXXXXX")).string();
-        // mkdtemp(3) atomically creates a uniquely-named directory in place
-        // of the trailing "XXXXXX", removing the /tmp symlink-preplacement
-        // race inherent in "pick a name, then create_directories(name)".
-        const char* created = ::mkdtemp(dirTemplate.data());
-        ASSERT_NE(created, nullptr) << "mkdtemp failed: " << std::strerror(errno);
-        _root = std::filesystem::path(created);
-        std::filesystem::create_directories(_root / "bin");
+        _temp.emplace(std::string("scrap_e2e_") + info->name());
+        // An empty path would put the fixture's files in the working directory.
+        ASSERT_FALSE(_temp->path().empty());
+        _root = _temp->path();
+        _temp->makeDirectory("bin");
     }
 
-    /**
-     * Clean up the temp directory.
-     */
     void TearDown() override
     {
-        std::filesystem::remove_all(_root);
+        _temp.reset();
     }
 
     /**
@@ -261,12 +255,7 @@ protected:
      */
     void makeDummy(const std::string& name, const std::string& body) const
     {
-        auto path = _root / "bin" / name;
-        {
-            std::ofstream out(path);
-            out << "#!/bin/sh\n"
-                << body << "\n";
-        }
+        const auto path = _temp->writeFile("bin/" + name, "#!/bin/sh\n" + body + "\n");
         std::filesystem::permissions(path, std::filesystem::perms::owner_exec, std::filesystem::perm_options::add);
     }
 
@@ -288,19 +277,7 @@ protected:
      */
     void writeFile(const std::filesystem::path& relative, std::string_view content) const
     {
-        const auto path = _root / relative;
-        std::error_code ec;
-        std::filesystem::create_directories(path.parent_path(), ec);
-        if (ec) {
-            ADD_FAILURE() << "cannot create " << path.parent_path() << ": " << ec.message();
-            return;
-        }
-        std::ofstream out(path, std::ios::binary);
-        out << content;
-        out.close();
-        if (! out) {
-            ADD_FAILURE() << "cannot write " << path;
-        }
+        _temp->writeFile(relative.string(), content);
     }
 
     /**
@@ -309,8 +286,7 @@ protected:
      */
     [[nodiscard]] std::string readFile(const std::filesystem::path& relative) const
     {
-        std::ifstream in(_root / relative, std::ios::binary);
-        return std::string{ std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>() };
+        return _temp->readFile(relative);
     }
 
     /**
@@ -436,6 +412,7 @@ protected:
         return result;
     }
 
+    std::optional<scrap::TestSupport::TempDirectory> _temp;
     std::filesystem::path _root;
 };
 
