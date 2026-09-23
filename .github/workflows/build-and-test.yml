@@ -10,6 +10,10 @@
 #
 # Default matrix runs Release only (3 jobs). Debug builds are handled
 # separately by coverage jobs in pr-checks.yml and main-checks.yml.
+#
+# The build type comes from CMakePresets.json. The toolchain goes through the
+# environment so that the presets stay free of CMAKE_CXX_FLAGS: CMake ignores
+# CXXFLAGS once the cache sets it.
 
 name: Build and Test
 
@@ -35,18 +39,20 @@ jobs:
     name: ${{ matrix.compiler }}
     # Note: build-type filtering removed - matrix context is not available
     # in job-level if conditions. Current matrix is Release-only; callers
-    # needing Debug should build directly (e.g. coverage jobs).
+    # needing Debug use a preset of their own (e.g. coverage jobs).
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-24.04, compiler: gcc, cc: gcc, cxx: g++, profile: Release, cxxflags: '' }
-          - { os: ubuntu-24.04, compiler: clang, cc: clang, cxx: clang++, profile: Release, cxxflags: '-stdlib=libc++' }
-          - { os: macos-14, compiler: apple-clang, cc: clang, cxx: clang++, profile: Release, cxxflags: '' }
+          - { os: ubuntu-24.04, compiler: gcc, cc: gcc, cxx: g++, preset: release, cxxflags: '' }
+          - { os: ubuntu-24.04, compiler: clang, cc: clang, cxx: clang++, preset: release, cxxflags: '-stdlib=libc++' }
+          - { os: macos-14, compiler: apple-clang, cc: clang, cxx: clang++, preset: release, cxxflags: '' }
     runs-on: ${{ matrix.os }}
     env:
       CC: ${{ matrix.cc }}
       CXX: ${{ matrix.cxx }}
+      CXXFLAGS: ${{ matrix.cxxflags }}
+      CMAKE_CXX_COMPILER_LAUNCHER: ccache
       CCACHE_DIR: ~/.ccache
       CCACHE_BASEDIR: ${{ github.workspace }}
     steps:
@@ -87,9 +93,9 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/.ccache
-          key: ccache-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.profile }}-${{ github.run_id }}
+          key: ccache-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.preset }}-${{ github.run_id }}
           restore-keys: |
-            ccache-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.profile }}-
+            ccache-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.preset }}-
 
       - name: Configure ccache
         run: |
@@ -98,37 +104,26 @@ jobs:
           ccache --set-config=compiler_check=content
           ccache --zero-stats
 
-      - name: Configure (CMake)
+      - name: Build and test (CMake)
         if: inputs.build-system == 'cmake'
+        # macOS runners hit posix_spawn limits with unlimited parallelism;
+        # use sequential build on macOS, full parallelism elsewhere. The test
+        # preset fails on an empty test set (noTestsAction): the gtest
+        # placeholder covers an unbuilt binary, this covers a tree that
+        # registered nothing at all.
         run: |
-          cmake_flags=(-B build
-            -DCMAKE_BUILD_TYPE=${{ matrix.profile }}
-            -DCMAKE_C_COMPILER_LAUNCHER=ccache
-            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-            -DBUILD_TESTS=ON)
-          if [ -n "${{ matrix.cxxflags }}" ]; then
-            cmake_flags+=(-DCMAKE_CXX_FLAGS="${{ matrix.cxxflags }}")
-          fi
-          cmake "${cmake_flags[@]}"
-
-      - name: Build (CMake)
-        if: inputs.build-system == 'cmake'
-        run: |
-          # macOS runners hit posix_spawn limits with unlimited parallelism;
-          # use sequential build on macOS, full parallelism elsewhere.
+          jobs=$(getconf _NPROCESSORS_ONLN)
           if [ "$RUNNER_OS" = "macOS" ]; then
-            cmake --build build --parallel 1
+            build_jobs=1
           else
-            jobs=$(nproc 2>/dev/null || echo 4)
-            cmake --build build --parallel "$jobs"
+            build_jobs=$jobs
           fi
+          CMAKE_BUILD_PARALLEL_LEVEL=$build_jobs CTEST_PARALLEL_LEVEL=$jobs cmake --workflow --preset ${{ matrix.preset }}
 
-      - name: Test (CTest)
+      # What the build was configured with, as CMake recorded it.
+      - name: Report the configuration the build used
         if: inputs.build-system == 'cmake'
-        # --no-tests=error: an empty test set exits 0 by default. The
-        # gtest placeholder covers an unbuilt binary, this covers a
-        # tree that registered nothing at all.
-        run: ctest --test-dir build --output-on-failure --parallel --no-tests=error
+        run: grep -E '^(CMAKE_CXX_COMPILER|CMAKE_BUILD_TYPE|CMAKE_CXX_FLAGS|BUILD_TESTS):' build/${{ matrix.preset }}/CMakeCache.txt
 
       - name: Print ccache statistics
         if: always()

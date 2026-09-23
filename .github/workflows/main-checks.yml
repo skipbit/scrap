@@ -32,26 +32,23 @@ jobs:
       - name: Install coverage tools
         run: pip install gcovr==8.5
 
-      - name: Build with coverage
+      - name: Build and test with coverage
+        # The test preset fails on an empty test set (noTestsAction): the
+        # gtest placeholder covers an unbuilt binary, this covers a tree that
+        # registered nothing at all.
         run: |
-          cmake -B build \
-            -DCMAKE_BUILD_TYPE=Debug \
-            -DCMAKE_CXX_FLAGS="--coverage" \
-            -DCMAKE_EXE_LINKER_FLAGS="--coverage" \
-            -DBUILD_TESTS=ON
-          cmake --build build --parallel
+          jobs=$(getconf _NPROCESSORS_ONLN)
+          CMAKE_BUILD_PARALLEL_LEVEL=$jobs CTEST_PARALLEL_LEVEL=$jobs cmake --workflow --preset coverage
 
-      - name: Run tests
-        # --no-tests=error: an empty test set exits 0 by default. The
-        # gtest placeholder covers an unbuilt binary, this covers a
-        # tree that registered nothing at all.
-        run: ctest --test-dir build --output-on-failure --parallel --no-tests=error
+      # What the build was configured with, as CMake recorded it.
+      - name: Report the configuration the build used
+        run: grep -E '^(CMAKE_CXX_COMPILER|CMAKE_BUILD_TYPE|CMAKE_CXX_FLAGS|BUILD_TESTS):' build/coverage/CMakeCache.txt
 
       - name: Generate coverage report
         run: |
           gcovr --cobertura coverage.xml \
             --root . \
-            --exclude 'build/_deps/.*' \
+            --exclude 'build/coverage/_deps/.*' \
             --exclude 'test/.*' \
             --gcov-ignore-errors=source_not_found \
             --gcov-ignore-errors=no_working_dir_found
