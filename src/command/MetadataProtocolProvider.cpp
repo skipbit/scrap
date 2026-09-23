@@ -82,7 +82,7 @@ auto firstNonEmptyLine(std::string_view text) -> std::string
         }
 
         if (! line.empty()) {
-            return std::string{line};
+            return std::string{ line };
         }
         if (newlinePos == std::string_view::npos) {
             break;
@@ -100,8 +100,7 @@ auto firstNonEmptyLine(std::string_view text) -> std::string
  */
 auto setCloseOnExec(int fd) -> bool
 {
-    auto flags =
-        ::fcntl(fd, F_GETFD);  // NOLINT(hicpp-signed-bitwise) - POSIX fcntl(F_GETFD) result, not a flag combination
+    auto flags = ::fcntl(fd, F_GETFD);  // NOLINT(hicpp-signed-bitwise) - POSIX fcntl(F_GETFD) result, not a flag combination
     if (flags < 0) {
         return false;
     }
@@ -312,16 +311,14 @@ auto reapBounded(pid_t childPid, std::chrono::steady_clock::time_point deadline)
  * Every path below closes any fds it opened (via UniqueFd's RAII) and, once
  * posix_spawn has created a child, reaps it - no fd leaks, no zombies.
  */
-auto runOnce(const std::filesystem::path& executable,
-             const char* flag,
-             std::chrono::milliseconds timeout) -> SubprocessResult
+auto runOnce(const std::filesystem::path& executable, const char* flag, std::chrono::milliseconds timeout) -> SubprocessResult
 {
-    std::array<int, 2> pipeFds{-1, -1};
+    std::array<int, 2> pipeFds{ -1, -1 };
     if (::pipe(pipeFds.data()) != 0) {
         return {};
     }
-    UniqueFd readFd{pipeFds[0]};
-    UniqueFd writeFd{pipeFds[1]};
+    UniqueFd readFd{ pipeFds[0] };
+    UniqueFd writeFd{ pipeFds[1] };
 
     if (! setCloseOnExec(readFd.get()) || ! setCloseOnExec(writeFd.get())) {
         return {};
@@ -342,7 +339,7 @@ auto runOnce(const std::filesystem::path& executable,
     posix_spawnattr_setpgroup(&attr, 0);  // New, independent process group (pgid == child pid).
 
     const std::string exePath = executable.string();
-    std::array<const char*, 3> argv{exePath.c_str(), flag, nullptr};
+    std::array<const char*, 3> argv{ exePath.c_str(), flag, nullptr };
     // posix_spawn's argv parameter is char* const[] for historical POSIX
     // reasons; the spawned process never mutates argv.
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
@@ -408,19 +405,18 @@ MetadataProtocolProvider::MetadataProtocolProvider(std::chrono::milliseconds tim
  * Only a plain-text first-line description is extracted; structured
  * (name/options) metadata is not yet part of the protocol.
  */
-auto MetadataProtocolProvider::fetch(const std::filesystem::path& executable)
-    -> std::expected<ExternalCommandMetadata, std::string>
+auto MetadataProtocolProvider::fetch(const std::filesystem::path& executable) -> std::expected<ExternalCommandMetadata, std::string>
 {
     std::error_code ec;
     auto canonicalized = std::filesystem::weakly_canonical(executable, ec);
     const std::filesystem::path& exe = ec ? executable : canonicalized;
 
     if (auto description = probe(exe, ProtocolFlag, timeout_); ! description.empty()) {
-        return ExternalCommandMetadata{.name = "", .description = std::move(description), .options = {}};
+        return ExternalCommandMetadata{ .name = "", .description = std::move(description), .options = {} };
     }
 
     if (auto description = probe(exe, HelpFlag, timeout_); ! description.empty()) {
-        return ExternalCommandMetadata{.name = "", .description = std::move(description), .options = {}};
+        return ExternalCommandMetadata{ .name = "", .description = std::move(description), .options = {} };
     }
 
     return std::unexpected("no usable metadata from '" + exe.string() + "' via --scrap-metadata or --help");

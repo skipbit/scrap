@@ -25,9 +25,7 @@ public:
      * @param versionRenderer Renderer used by the version command handler.
      * @param fileSystem      File operations used by the new command handler.
      */
-    BuiltinCommandResolver(HelpRenderer& helpRenderer,
-                           VersionRenderer& versionRenderer,
-                           Project::ProjectFileSystem& fileSystem);
+    BuiltinCommandResolver(HelpRenderer& helpRenderer, VersionRenderer& versionRenderer, Project::ProjectFileSystem& fileSystem);
 
     /**
      * @brief Return the fixed set of built-in command entries.

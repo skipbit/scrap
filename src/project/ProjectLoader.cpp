@@ -26,23 +26,23 @@ auto resolveStart(const std::filesystem::path& startDir) -> std::expected<std::f
     std::error_code ec;
     const std::filesystem::path absolute = std::filesystem::absolute(startDir, ec);
     if (ec) {
-        return std::unexpected(ProjectError{PathInaccessible{.path = startDir, .reason = ec.message()}});
+        return std::unexpected(ProjectError{ PathInaccessible{ .path = startDir, .reason = ec.message() } });
     }
 
     const std::filesystem::file_status status = std::filesystem::status(absolute, ec);
     if (status.type() == std::filesystem::file_type::not_found) {
-        return std::unexpected(ProjectError{NotADirectory{.path = absolute}});
+        return std::unexpected(ProjectError{ NotADirectory{ .path = absolute } });
     }
     if (ec) {
-        return std::unexpected(ProjectError{PathInaccessible{.path = absolute, .reason = ec.message()}});
+        return std::unexpected(ProjectError{ PathInaccessible{ .path = absolute, .reason = ec.message() } });
     }
     if (! std::filesystem::is_directory(status)) {
-        return std::unexpected(ProjectError{NotADirectory{.path = absolute}});
+        return std::unexpected(ProjectError{ NotADirectory{ .path = absolute } });
     }
 
     std::filesystem::path resolved = std::filesystem::canonical(absolute, ec);
     if (ec) {
-        return std::unexpected(ProjectError{PathInaccessible{.path = absolute, .reason = ec.message()}});
+        return std::unexpected(ProjectError{ PathInaccessible{ .path = absolute, .reason = ec.message() } });
     }
     return resolved;
 }
@@ -58,14 +58,14 @@ auto loadProject(const std::filesystem::path& startDir) -> std::expected<LoadedP
 
     const std::optional<std::filesystem::path> root = findProjectRoot(*start);
     if (! root.has_value()) {
-        return std::unexpected(ProjectError{ProjectNotFound{.startDir = *start}});
+        return std::unexpected(ProjectError{ ProjectNotFound{ .startDir = *start } });
     }
 
     auto manifest = loadManifest(*root / ManifestFileName);
     if (! manifest.has_value()) {
-        return std::unexpected(ProjectError{std::move(manifest.error())});
+        return std::unexpected(ProjectError{ std::move(manifest.error()) });
     }
-    return LoadedProject{.root = *root, .manifest = std::move(*manifest)};
+    return LoadedProject{ .root = *root, .manifest = std::move(*manifest) };
 }
 
 }  // namespace scrap::Project

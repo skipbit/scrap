@@ -1,10 +1,10 @@
-#include <gtest/gtest.h>
+#include "project/TargetResolver.h"
 
 #include "project/LanguageStandard.h"
 #include "project/Manifest.h"
-#include "project/TargetResolver.h"
-
 #include "support/TempDirectory.h"
+
+#include <gtest/gtest.h>
 
 using namespace scrap::Project;
 using scrap::TestSupport::TempDirectory;
@@ -35,8 +35,7 @@ TEST(TargetResolverTest, ReturnsDeclaredTargetsUnchanged)
 
     Manifest manifest = manifestNamed("my-app");
     manifest.declaresTargets = true;
-    manifest.targets.push_back(
-        Target{.kind = TargetKind::Library, .name = "declared", .entryPoint = "other/entry.cpp"});
+    manifest.targets.push_back(Target{ .kind = TargetKind::Library, .name = "declared", .entryPoint = "other/entry.cpp" });
 
     const auto targets = resolveTargets(temp.path(), manifest);
 
@@ -112,7 +111,7 @@ TEST(TargetResolverTest, ReturnsADeclaredEntryPointThatIsNotOnDisk)
 
     Manifest manifest = manifestNamed("my-app");
     manifest.declaresTargets = true;
-    manifest.targets.push_back(Target{.kind = TargetKind::Executable, .name = "my-app", .entryPoint = "src/typo.cpp"});
+    manifest.targets.push_back(Target{ .kind = TargetKind::Executable, .name = "my-app", .entryPoint = "src/typo.cpp" });
 
     const auto targets = resolveTargets(temp.path(), manifest);
 

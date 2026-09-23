@@ -49,9 +49,8 @@ struct BuildSettings {
  * @param targets Each target with its sources, as collectSources() returned them.
  * @return One command per source of each target, targets in the order given.
  */
-[[nodiscard]] auto
-planCompileCommands(const BuildSettings& settings,
-                    const std::vector<Project::TargetSources>& targets) -> std::vector<CompileCommand>;
+[[nodiscard]] auto planCompileCommands(const BuildSettings& settings,
+                                       const std::vector<Project::TargetSources>& targets) -> std::vector<CompileCommand>;
 
 /**
  * @brief Decide the command that links each executable.

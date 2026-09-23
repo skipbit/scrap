@@ -1,9 +1,8 @@
-#include <gtest/gtest.h>
-
 #include "build/BuildStep.h"
 #include "build/StepRunner.h"
-
 #include "support/TempDirectory.h"
+
+#include <gtest/gtest.h>
 
 #include <csignal>
 #include <filesystem>
@@ -22,12 +21,12 @@ namespace {
  */
 auto shellStep(const std::filesystem::path& directory, const char* output, const std::string& script) -> BuildStep
 {
-    return BuildStep{.kind = StepKind::Compile,
-                     .target = "hello",
-                     .subject = "src/main.cpp",
-                     .directory = directory,
-                     .output = output,
-                     .arguments = {"/bin/sh", "-c", script}};
+    return BuildStep{ .kind = StepKind::Compile,
+                      .target = "hello",
+                      .subject = "src/main.cpp",
+                      .directory = directory,
+                      .output = output,
+                      .arguments = { "/bin/sh", "-c", script } };
 }
 
 }  // namespace
@@ -102,7 +101,7 @@ TEST(ProgramStepRunnerTest, ReportsAProgramThatCannotStart)
     const TempDirectory temp;
     ProgramStepRunner runner;
     BuildStep step = shellStep(temp.path(), "a.o", "");
-    step.arguments = {(temp.path() / "absent").string()};
+    step.arguments = { (temp.path() / "absent").string() };
 
     const auto result = runner.run(step);
 

@@ -17,13 +17,13 @@ auto resolveTargets(const std::filesystem::path& projectRoot, const Manifest& ma
         return manifest.targets;
     }
 
-    const std::filesystem::path entryPoint{DefaultEntryPoint};
+    const std::filesystem::path entryPoint{ DefaultEntryPoint };
     std::error_code ec;
     if (! std::filesystem::is_regular_file(projectRoot / entryPoint, ec)) {
         return {};
     }
 
-    return {Target{.kind = TargetKind::Executable, .name = manifest.package.name, .entryPoint = entryPoint}};
+    return { Target{ .kind = TargetKind::Executable, .name = manifest.package.name, .entryPoint = entryPoint } };
 }
 
 }  // namespace scrap::Project

@@ -1,13 +1,14 @@
-#include <gtest/gtest.h>
+#include "command/ProjectDiagnostic.h"
 
 #include "build/BuildStep.h"
 #include "build/SerialBuild.h"
-#include "command/ProjectDiagnostic.h"
 #include "compile/CompilationDatabase.h"
 #include "project/LanguageStandard.h"
 #include "project/ManifestError.h"
 #include "project/ProjectLoader.h"
 #include "project/SourceCollector.h"
+
+#include <gtest/gtest.h>
 
 #include <cerrno>
 #include <optional>
@@ -45,7 +46,7 @@ using scrap::Project::SourceScanFailure;
  */
 TEST(ProjectDiagnosticTest, RendersAPathThatIsNotADirectory)
 {
-    const ProjectError error = NotADirectory{.path = "/home/me/typo"};
+    const ProjectError error = NotADirectory{ .path = "/home/me/typo" };
 
     EXPECT_EQ(renderProjectError(error),
               "error: '/home/me/typo' is not a directory\n"
@@ -57,7 +58,7 @@ TEST(ProjectDiagnosticTest, RendersAPathThatIsNotADirectory)
  */
 TEST(ProjectDiagnosticTest, RendersAPathThatCannotBeAccessed)
 {
-    const ProjectError error = PathInaccessible{.path = "/root/proj", .reason = "Permission denied"};
+    const ProjectError error = PathInaccessible{ .path = "/root/proj", .reason = "Permission denied" };
 
     EXPECT_EQ(renderProjectError(error),
               "error: cannot access '/root/proj': Permission denied\n"
@@ -69,7 +70,7 @@ TEST(ProjectDiagnosticTest, RendersAPathThatCannotBeAccessed)
  */
 TEST(ProjectDiagnosticTest, RendersAMissingProject)
 {
-    const ProjectError error = ProjectNotFound{.startDir = "/home/me/work"};
+    const ProjectError error = ProjectNotFound{ .startDir = "/home/me/work" };
 
     EXPECT_EQ(renderProjectError(error),
               "error: could not find scrap.toml in '/home/me/work' or any parent directory\n"
@@ -126,7 +127,7 @@ TEST(ProjectDiagnosticTest, RendersAProjectWithNoTargetToBuild)
  */
 TEST(ProjectDiagnosticTest, RendersASourceDirectoryThatCannotBeRead)
 {
-    const SourceScanFailure failure{.directory = "/home/me/hello/src/private", .reason = "Permission denied"};
+    const SourceScanFailure failure{ .directory = "/home/me/hello/src/private", .reason = "Permission denied" };
 
     EXPECT_EQ(renderSourceScanFailure(failure),
               "error: cannot read '/home/me/hello/src/private': Permission denied\n"
@@ -138,7 +139,7 @@ TEST(ProjectDiagnosticTest, RendersASourceDirectoryThatCannotBeRead)
  */
 TEST(ProjectDiagnosticTest, EscapesAControlCharacterInASourceDirectory)
 {
-    const SourceScanFailure failure{.directory = "/home/me/hello/src/a\x1b[31m", .reason = "Permission denied"};
+    const SourceScanFailure failure{ .directory = "/home/me/hello/src/a\x1b[31m", .reason = "Permission denied" };
 
     EXPECT_EQ(renderSourceScanFailure(failure),
               "error: cannot read '/home/me/hello/src/a\\x1B[31m': Permission denied\n"
@@ -152,13 +153,12 @@ TEST(ProjectDiagnosticTest, EscapesAControlCharacterInASourceDirectory)
 TEST(ProjectDiagnosticTest, RendersABuildDirectoryThatCannotBeCreated)
 {
     const auto code = std::make_error_code(std::errc::permission_denied);
-    const DatabaseWriteFailure failure{
-        .step = DatabaseWriteStep::CreateDirectory, .path = "/home/me/hello/build/debug", .code = code};
+    const DatabaseWriteFailure failure{ .step = DatabaseWriteStep::CreateDirectory, .path = "/home/me/hello/build/debug", .code = code };
 
     EXPECT_EQ(renderCompilationDatabaseFailure(failure),
-              "error: cannot create '/home/me/hello/build/debug': " + code.message() +
-                  "\n"
-                  "hint: check the permissions of the path\n");
+              "error: cannot create '/home/me/hello/build/debug': " + code.message()
+                  + "\n"
+                    "hint: check the permissions of the path\n");
 }
 
 /**
@@ -168,13 +168,14 @@ TEST(ProjectDiagnosticTest, RendersABuildDirectoryThatCannotBeCreated)
 TEST(ProjectDiagnosticTest, RendersADatabaseThatCannotBeWritten)
 {
     const auto code = std::make_error_code(std::errc::no_space_on_device);
-    const DatabaseWriteFailure failure{
-        .step = DatabaseWriteStep::WriteFile, .path = "/home/me/hello/build/debug/compile_commands.json", .code = code};
+    const DatabaseWriteFailure failure{ .step = DatabaseWriteStep::WriteFile,
+                                        .path = "/home/me/hello/build/debug/compile_commands.json",
+                                        .code = code };
 
     EXPECT_EQ(renderCompilationDatabaseFailure(failure),
-              "error: cannot write '/home/me/hello/build/debug/compile_commands.json': " + code.message() +
-                  "\n"
-                  "hint: free some disk space and run the command again\n");
+              "error: cannot write '/home/me/hello/build/debug/compile_commands.json': " + code.message()
+                  + "\n"
+                    "hint: free some disk space and run the command again\n");
 }
 
 /**
@@ -185,20 +186,17 @@ TEST(ProjectDiagnosticTest, ChoosesTheHintForABuildOutputByTheReason)
 {
     const auto hintFor = [](const std::error_code& code) {
         const std::string text = renderCompilationDatabaseFailure(
-            DatabaseWriteFailure{.step = DatabaseWriteStep::CreateDirectory, .path = "/p/build/debug", .code = code});
+            DatabaseWriteFailure{ .step = DatabaseWriteStep::CreateDirectory, .path = "/p/build/debug", .code = code });
         return text.substr(text.find("\nhint: ") + 1);
     };
 
     EXPECT_EQ(hintFor(std::make_error_code(std::errc::not_a_directory)), "hint: check what is already at that path\n");
     EXPECT_EQ(hintFor(std::make_error_code(std::errc::file_exists)), "hint: check what is already at that path\n");
     EXPECT_EQ(hintFor(std::make_error_code(std::errc::is_a_directory)), "hint: check what is already at that path\n");
-    EXPECT_EQ(hintFor(std::make_error_code(std::errc::operation_not_permitted)),
-              "hint: check the permissions of the path\n");
-    EXPECT_EQ(hintFor(std::make_error_code(std::errc::read_only_file_system)),
-              "hint: check that the project directory can be written\n");
+    EXPECT_EQ(hintFor(std::make_error_code(std::errc::operation_not_permitted)), "hint: check the permissions of the path\n");
+    EXPECT_EQ(hintFor(std::make_error_code(std::errc::read_only_file_system)), "hint: check that the project directory can be written\n");
 #ifdef EDQUOT
-    EXPECT_EQ(hintFor(std::error_code(EDQUOT, std::generic_category())),
-              "hint: free some disk space and run the command again\n");
+    EXPECT_EQ(hintFor(std::error_code(EDQUOT, std::generic_category())), "hint: free some disk space and run the command again\n");
 #endif
 }
 
@@ -209,13 +207,14 @@ TEST(ProjectDiagnosticTest, ChoosesTheHintForABuildOutputByTheReason)
 TEST(ProjectDiagnosticTest, EscapesAControlCharacterInABuildOutputPath)
 {
     const auto code = std::make_error_code(std::errc::permission_denied);
-    const DatabaseWriteFailure failure{
-        .step = DatabaseWriteStep::CreateDirectory, .path = "/home/me/a\x1b[31m/build/debug", .code = code};
+    const DatabaseWriteFailure failure{ .step = DatabaseWriteStep::CreateDirectory,
+                                        .path = "/home/me/a\x1b[31m/build/debug",
+                                        .code = code };
 
     EXPECT_EQ(renderCompilationDatabaseFailure(failure),
-              "error: cannot create '/home/me/a\\x1B[31m/build/debug': " + code.message() +
-                  "\n"
-                  "hint: check the permissions of the path\n");
+              "error: cannot create '/home/me/a\\x1B[31m/build/debug': " + code.message()
+                  + "\n"
+                    "hint: check the permissions of the path\n");
 }
 
 /**
@@ -223,11 +222,11 @@ TEST(ProjectDiagnosticTest, EscapesAControlCharacterInABuildOutputPath)
  */
 TEST(ProjectDiagnosticTest, RendersAManifestErrorWithItsLocation)
 {
-    const ProjectError error = ManifestError{.file = "/home/me/app/scrap.toml",
-                                             .position = SourcePosition{.line = 1, .column = 1},
-                                             .key = "package.name",
-                                             .message = "required key is missing",
-                                             .kind = ManifestErrorKind::Invalid};
+    const ProjectError error = ManifestError{ .file = "/home/me/app/scrap.toml",
+                                              .position = SourcePosition{ .line = 1, .column = 1 },
+                                              .key = "package.name",
+                                              .message = "required key is missing",
+                                              .kind = ManifestErrorKind::Invalid };
 
     EXPECT_EQ(renderProjectError(error),
               "/home/me/app/scrap.toml:1:1: error: package.name: required key is missing\n"
@@ -239,11 +238,11 @@ TEST(ProjectDiagnosticTest, RendersAManifestErrorWithItsLocation)
  */
 TEST(ProjectDiagnosticTest, RendersAnUnreadableManifest)
 {
-    const ProjectError error = ManifestError{.file = "/home/me/app/scrap.toml",
-                                             .position = std::nullopt,
-                                             .key = {},
-                                             .message = "cannot open the manifest",
-                                             .kind = ManifestErrorKind::Unreadable};
+    const ProjectError error = ManifestError{ .file = "/home/me/app/scrap.toml",
+                                              .position = std::nullopt,
+                                              .key = {},
+                                              .message = "cannot open the manifest",
+                                              .kind = ManifestErrorKind::Unreadable };
 
     EXPECT_EQ(renderProjectError(error),
               "/home/me/app/scrap.toml: error: cannot open the manifest\n"
@@ -256,11 +255,11 @@ TEST(ProjectDiagnosticTest, RendersAnUnreadableManifest)
  */
 TEST(ProjectDiagnosticTest, RendersAMissingTableAsAContentsError)
 {
-    const ProjectError error = ManifestError{.file = "/home/me/app/scrap.toml",
-                                             .position = std::nullopt,
-                                             .key = "package",
-                                             .message = "required table is missing",
-                                             .kind = ManifestErrorKind::Invalid};
+    const ProjectError error = ManifestError{ .file = "/home/me/app/scrap.toml",
+                                              .position = std::nullopt,
+                                              .key = "package",
+                                              .message = "required table is missing",
+                                              .kind = ManifestErrorKind::Invalid };
 
     EXPECT_EQ(renderProjectError(error),
               "/home/me/app/scrap.toml: error: package: required table is missing\n"
@@ -282,7 +281,7 @@ TEST(ProjectDiagnosticTest, RendersAnEmptyPathArgument)
  */
 TEST(ProjectDiagnosticTest, RendersAnEmptyProjectName)
 {
-    const scrap::Project::CreateProjectError error = scrap::Project::InvalidProjectName{.name = ""};
+    const scrap::Project::CreateProjectError error = scrap::Project::InvalidProjectName{ .name = "" };
 
     EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
               "error: the project name is empty\n"
@@ -294,7 +293,7 @@ TEST(ProjectDiagnosticTest, RendersAnEmptyProjectName)
  */
 TEST(ProjectDiagnosticTest, RendersAnInvalidProjectName)
 {
-    const scrap::Project::CreateProjectError error = scrap::Project::InvalidProjectName{.name = "a/b"};
+    const scrap::Project::CreateProjectError error = scrap::Project::InvalidProjectName{ .name = "a/b" };
 
     EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
               "error: 'a/b' is not a valid project name\n"
@@ -306,7 +305,7 @@ TEST(ProjectDiagnosticTest, RendersAnInvalidProjectName)
  */
 TEST(ProjectDiagnosticTest, EscapesControlCharactersInAProjectName)
 {
-    const scrap::Project::CreateProjectError error = scrap::Project::InvalidProjectName{.name = "a\nb\x1b[2J"};
+    const scrap::Project::CreateProjectError error = scrap::Project::InvalidProjectName{ .name = "a\nb\x1b[2J" };
 
     EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
               "error: 'a\\x0Ab\\x1B[2J' is not a valid project name\n"
@@ -318,7 +317,7 @@ TEST(ProjectDiagnosticTest, EscapesControlCharactersInAProjectName)
  */
 TEST(ProjectDiagnosticTest, EscapesNonAsciiBytesInAProjectName)
 {
-    const scrap::Project::CreateProjectError error = scrap::Project::InvalidProjectName{.name = "caf\xc3\xa9"};
+    const scrap::Project::CreateProjectError error = scrap::Project::InvalidProjectName{ .name = "caf\xc3\xa9" };
 
     EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
               "error: 'caf\\xC3\\xA9' is not a valid project name\n"
@@ -331,7 +330,7 @@ TEST(ProjectDiagnosticTest, EscapesNonAsciiBytesInAProjectName)
  */
 TEST(ProjectDiagnosticTest, EscapesABackslashInAProjectName)
 {
-    const scrap::Project::CreateProjectError error = scrap::Project::InvalidProjectName{.name = "a\\x0Ab"};
+    const scrap::Project::CreateProjectError error = scrap::Project::InvalidProjectName{ .name = "a\\x0Ab" };
 
     EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
               "error: 'a\\x5Cx0Ab' is not a valid project name\n"
@@ -343,7 +342,7 @@ TEST(ProjectDiagnosticTest, EscapesABackslashInAProjectName)
  */
 TEST(ProjectDiagnosticTest, EscapesControlCharactersInAPath)
 {
-    const scrap::Project::CreateProjectError error = scrap::Project::PathExists{.path = "/home/me/w\nork/hello"};
+    const scrap::Project::CreateProjectError error = scrap::Project::PathExists{ .path = "/home/me/w\nork/hello" };
 
     EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
               "error: '/home/me/w\\x0Aork/hello' already exists\n"
@@ -355,8 +354,8 @@ TEST(ProjectDiagnosticTest, EscapesControlCharactersInAPath)
  */
 TEST(ProjectDiagnosticTest, EscapesAC1ControlCharacterInAPath)
 {
-    const scrap::Project::CreateProjectError error = scrap::Project::PathExists{.path = "/home/me/a\xc2\x9b"
-                                                                                        "b/hello"};
+    const scrap::Project::CreateProjectError error = scrap::Project::PathExists{ .path = "/home/me/a\xc2\x9b"
+                                                                                         "b/hello" };
 
     EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
               "error: '/home/me/a\\xC2\\x9Bb/hello' already exists\n"
@@ -369,8 +368,8 @@ TEST(ProjectDiagnosticTest, EscapesAC1ControlCharacterInAPath)
  */
 TEST(ProjectDiagnosticTest, EscapesALoneByteInTheC1Range)
 {
-    const scrap::Project::CreateProjectError error = scrap::Project::PathExists{.path = "/home/me/a\x9b"
-                                                                                        "b/hello"};
+    const scrap::Project::CreateProjectError error = scrap::Project::PathExists{ .path = "/home/me/a\x9b"
+                                                                                         "b/hello" };
 
     EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
               "error: '/home/me/a\\x9Bb/hello' already exists\n"
@@ -383,12 +382,11 @@ TEST(ProjectDiagnosticTest, EscapesALoneByteInTheC1Range)
 TEST(ProjectDiagnosticTest, CutsALongNameInTheMessage)
 {
     const std::string name(scrap::Project::MaxProjectNameLength + 20, 'a');
-    const scrap::Project::CreateProjectError error = scrap::Project::InvalidProjectName{.name = name};
+    const scrap::Project::CreateProjectError error = scrap::Project::InvalidProjectName{ .name = name };
 
     const std::string message = scrap::Command::renderCreateProjectError(error);
 
-    EXPECT_NE(message.find("error: '" + std::string(scrap::Project::MaxProjectNameLength, 'a') + "...' is not a valid"),
-              std::string::npos)
+    EXPECT_NE(message.find("error: '" + std::string(scrap::Project::MaxProjectNameLength, 'a') + "...' is not a valid"), std::string::npos)
         << message;
 }
 
@@ -397,8 +395,7 @@ TEST(ProjectDiagnosticTest, CutsALongNameInTheMessage)
  */
 TEST(ProjectDiagnosticTest, KeepsLettersOutsideAsciiInAPath)
 {
-    const scrap::Project::CreateProjectError error =
-        scrap::Project::PathExists{.path = "/home/me/\xe4\xbd\x9c\xe6\xa5\xad/hello"};
+    const scrap::Project::CreateProjectError error = scrap::Project::PathExists{ .path = "/home/me/\xe4\xbd\x9c\xe6\xa5\xad/hello" };
 
     EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
               "error: '/home/me/\xe4\xbd\x9c\xe6\xa5\xad/hello' already exists\n"
@@ -411,11 +408,10 @@ TEST(ProjectDiagnosticTest, KeepsLettersOutsideAsciiInAPath)
 TEST(ProjectDiagnosticTest, RendersAnExceededQuotaWithTheDiskSpaceHint)
 {
 #ifdef EDQUOT
-    const scrap::Project::CreateProjectError error =
-        scrap::Project::CannotCreate{.path = "/home/me/work/hello/src/main.cpp",
-                                     .reason = "Disk quota exceeded",
-                                     .code = std::error_code(EDQUOT, std::generic_category()),
-                                     .leftBehind = std::nullopt};
+    const scrap::Project::CreateProjectError error = scrap::Project::CannotCreate{ .path = "/home/me/work/hello/src/main.cpp",
+                                                                                   .reason = "Disk quota exceeded",
+                                                                                   .code = std::error_code(EDQUOT, std::generic_category()),
+                                                                                   .leftBehind = std::nullopt };
 
     EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
               "error: cannot create '/home/me/work/hello/src/main.cpp': Disk quota exceeded\n"
@@ -430,7 +426,7 @@ TEST(ProjectDiagnosticTest, RendersAnExceededQuotaWithTheDiskSpaceHint)
  */
 TEST(ProjectDiagnosticTest, RendersAnExistingPath)
 {
-    const scrap::Project::CreateProjectError error = scrap::Project::PathExists{.path = "/home/me/work/hello"};
+    const scrap::Project::CreateProjectError error = scrap::Project::PathExists{ .path = "/home/me/work/hello" };
 
     EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
               "error: '/home/me/work/hello' already exists\n"
@@ -443,11 +439,11 @@ TEST(ProjectDiagnosticTest, RendersAnExistingPath)
  */
 TEST(ProjectDiagnosticTest, RendersAPathThatCannotBeCreated)
 {
-    const scrap::Project::CreateProjectError error =
-        scrap::Project::CannotCreate{.path = "/home/me/work/hello",
-                                     .reason = "Permission denied",
-                                     .code = std::make_error_code(std::errc::permission_denied),
-                                     .leftBehind = std::nullopt};
+    const scrap::Project::CreateProjectError error
+        = scrap::Project::CannotCreate{ .path = "/home/me/work/hello",
+                                        .reason = "Permission denied",
+                                        .code = std::make_error_code(std::errc::permission_denied),
+                                        .leftBehind = std::nullopt };
 
     EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
               "error: cannot create '/home/me/work/hello': Permission denied\n"
@@ -459,11 +455,11 @@ TEST(ProjectDiagnosticTest, RendersAPathThatCannotBeCreated)
  */
 TEST(ProjectDiagnosticTest, RendersAFullDiskWithItsOwnHint)
 {
-    const scrap::Project::CreateProjectError error =
-        scrap::Project::CannotCreate{.path = "/home/me/work/hello",
-                                     .reason = "No space left on device",
-                                     .code = std::make_error_code(std::errc::no_space_on_device),
-                                     .leftBehind = std::nullopt};
+    const scrap::Project::CreateProjectError error
+        = scrap::Project::CannotCreate{ .path = "/home/me/work/hello",
+                                        .reason = "No space left on device",
+                                        .code = std::make_error_code(std::errc::no_space_on_device),
+                                        .leftBehind = std::nullopt };
 
     EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
               "error: cannot create '/home/me/work/hello': No space left on device\n"
@@ -475,11 +471,11 @@ TEST(ProjectDiagnosticTest, RendersAFullDiskWithItsOwnHint)
  */
 TEST(ProjectDiagnosticTest, RendersAReadOnlyFileSystemWithItsOwnHint)
 {
-    const scrap::Project::CreateProjectError error =
-        scrap::Project::CannotCreate{.path = "/mnt/cdrom/hello",
-                                     .reason = "Read-only file system",
-                                     .code = std::make_error_code(std::errc::read_only_file_system),
-                                     .leftBehind = std::nullopt};
+    const scrap::Project::CreateProjectError error
+        = scrap::Project::CannotCreate{ .path = "/mnt/cdrom/hello",
+                                        .reason = "Read-only file system",
+                                        .code = std::make_error_code(std::errc::read_only_file_system),
+                                        .leftBehind = std::nullopt };
 
     EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
               "error: cannot create '/mnt/cdrom/hello': Read-only file system\n"
@@ -492,11 +488,11 @@ TEST(ProjectDiagnosticTest, RendersAReadOnlyFileSystemWithItsOwnHint)
  */
 TEST(ProjectDiagnosticTest, RendersAPartlyCreatedProjectLeftBehind)
 {
-    const scrap::Project::CreateProjectError error =
-        scrap::Project::CannotCreate{.path = "/home/me/work/hello/src/main.cpp",
-                                     .reason = "No space left on device",
-                                     .code = std::make_error_code(std::errc::no_space_on_device),
-                                     .leftBehind = "/home/me/work/hello"};
+    const scrap::Project::CreateProjectError error
+        = scrap::Project::CannotCreate{ .path = "/home/me/work/hello/src/main.cpp",
+                                        .reason = "No space left on device",
+                                        .code = std::make_error_code(std::errc::no_space_on_device),
+                                        .leftBehind = "/home/me/work/hello" };
 
     EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
               "error: cannot create '/home/me/work/hello/src/main.cpp': No space left on device\n"
@@ -509,11 +505,10 @@ TEST(ProjectDiagnosticTest, RendersAPartlyCreatedProjectLeftBehind)
  */
 TEST(ProjectDiagnosticTest, RendersAFileAlreadyAtThePath)
 {
-    const scrap::Project::CreateProjectError error =
-        scrap::Project::CannotCreate{.path = "/home/me/work/hello/src/main.cpp",
-                                     .reason = "File exists",
-                                     .code = std::make_error_code(std::errc::file_exists),
-                                     .leftBehind = std::nullopt};
+    const scrap::Project::CreateProjectError error = scrap::Project::CannotCreate{ .path = "/home/me/work/hello/src/main.cpp",
+                                                                                   .reason = "File exists",
+                                                                                   .code = std::make_error_code(std::errc::file_exists),
+                                                                                   .leftBehind = std::nullopt };
 
     EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
               "error: cannot create '/home/me/work/hello/src/main.cpp': File exists\n"
@@ -525,11 +520,11 @@ TEST(ProjectDiagnosticTest, RendersAFileAlreadyAtThePath)
  */
 TEST(ProjectDiagnosticTest, RendersATemplateFileOutsideTheProject)
 {
-    const scrap::Project::CreateProjectError error =
-        scrap::Project::CannotCreate{.path = "/home/me/work/hello/../outside.txt",
-                                     .reason = "the template file path leaves the project directory",
-                                     .code = std::make_error_code(std::errc::invalid_argument),
-                                     .leftBehind = std::nullopt};
+    const scrap::Project::CreateProjectError error
+        = scrap::Project::CannotCreate{ .path = "/home/me/work/hello/../outside.txt",
+                                        .reason = "the template file path leaves the project directory",
+                                        .code = std::make_error_code(std::errc::invalid_argument),
+                                        .leftBehind = std::nullopt };
 
     EXPECT_EQ(scrap::Command::renderCreateProjectError(error),
               "error: cannot create '/home/me/work/hello/../outside.txt': the template file path leaves the project "
@@ -542,16 +537,14 @@ TEST(ProjectDiagnosticTest, RendersATemplateFileOutsideTheProject)
  */
 TEST(ProjectDiagnosticTest, RendersAnyOtherFailureWithTheGeneralHint)
 {
-    const scrap::Project::CreateProjectError missing =
-        scrap::Project::CannotCreate{.path = "/home/me/gone/hello",
-                                     .reason = "No such file or directory",
-                                     .code = std::make_error_code(std::errc::no_such_file_or_directory),
-                                     .leftBehind = std::nullopt};
-    const scrap::Project::CreateProjectError uncoded =
-        scrap::Project::CannotCreate{.path = "/home/me/work/hello/scrap.toml",
-                                     .reason = "the file could not be written",
-                                     .code = {},
-                                     .leftBehind = std::nullopt};
+    const scrap::Project::CreateProjectError missing
+        = scrap::Project::CannotCreate{ .path = "/home/me/gone/hello",
+                                        .reason = "No such file or directory",
+                                        .code = std::make_error_code(std::errc::no_such_file_or_directory),
+                                        .leftBehind = std::nullopt };
+    const scrap::Project::CreateProjectError uncoded = scrap::Project::CannotCreate{
+        .path = "/home/me/work/hello/scrap.toml", .reason = "the file could not be written", .code = {}, .leftBehind = std::nullopt
+    };
 
     EXPECT_EQ(scrap::Command::renderCreateProjectError(missing),
               "error: cannot create '/home/me/gone/hello': No such file or directory\n"
@@ -568,12 +561,12 @@ namespace {
  */
 auto compileStep(const char* source) -> BuildStep
 {
-    return BuildStep{.kind = StepKind::Compile,
-                     .target = "hello",
-                     .subject = source,
-                     .directory = "/home/me/hello",
-                     .output = "build/debug/obj/hello/src/main.cpp.o",
-                     .arguments = {"/usr/bin/c++"}};
+    return BuildStep{ .kind = StepKind::Compile,
+                      .target = "hello",
+                      .subject = source,
+                      .directory = "/home/me/hello",
+                      .output = "build/debug/obj/hello/src/main.cpp.o",
+                      .arguments = { "/usr/bin/c++" } };
 }
 
 /**
@@ -581,12 +574,12 @@ auto compileStep(const char* source) -> BuildStep
  */
 auto linkStep() -> BuildStep
 {
-    return BuildStep{.kind = StepKind::Link,
-                     .target = "hello",
-                     .subject = "build/debug/bin/hello",
-                     .directory = "/home/me/hello",
-                     .output = "build/debug/bin/hello",
-                     .arguments = {"/usr/bin/c++"}};
+    return BuildStep{ .kind = StepKind::Link,
+                      .target = "hello",
+                      .subject = "build/debug/bin/hello",
+                      .directory = "/home/me/hello",
+                      .output = "build/debug/bin/hello",
+                      .arguments = { "/usr/bin/c++" } };
 }
 
 }  // namespace
@@ -597,9 +590,8 @@ auto linkStep() -> BuildStep
  */
 TEST(ProjectDiagnosticTest, RendersASourceThatFailedToCompile)
 {
-    const FailedStep failed{
-        .step = compileStep("src/main.cpp"),
-        .failure = StepFailure{.kind = StepFailureKind::Exited, .path = {}, .code = {}, .status = 1}};
+    const FailedStep failed{ .step = compileStep("src/main.cpp"),
+                             .failure = StepFailure{ .kind = StepFailureKind::Exited, .path = {}, .code = {}, .status = 1 } };
 
     EXPECT_EQ(renderStepFailure(failed),
               "error: failed to compile '/home/me/hello/src/main.cpp' for 'hello'\n"
@@ -612,9 +604,8 @@ TEST(ProjectDiagnosticTest, RendersASourceThatFailedToCompile)
  */
 TEST(ProjectDiagnosticTest, RendersASourceThatLooksLikeAnOption)
 {
-    const FailedStep failed{
-        .step = compileStep("./-x.cpp"),
-        .failure = StepFailure{.kind = StepFailureKind::Exited, .path = {}, .code = {}, .status = 1}};
+    const FailedStep failed{ .step = compileStep("./-x.cpp"),
+                             .failure = StepFailure{ .kind = StepFailureKind::Exited, .path = {}, .code = {}, .status = 1 } };
 
     EXPECT_NE(renderStepFailure(failed).find("'/home/me/hello/-x.cpp'"), std::string::npos);
 }
@@ -624,9 +615,8 @@ TEST(ProjectDiagnosticTest, RendersASourceThatLooksLikeAnOption)
  */
 TEST(ProjectDiagnosticTest, RendersAnExecutableThatFailedToLink)
 {
-    const FailedStep failed{
-        .step = linkStep(),
-        .failure = StepFailure{.kind = StepFailureKind::Exited, .path = {}, .code = {}, .status = 1}};
+    const FailedStep failed{ .step = linkStep(),
+                             .failure = StepFailure{ .kind = StepFailureKind::Exited, .path = {}, .code = {}, .status = 1 } };
 
     EXPECT_EQ(renderStepFailure(failed),
               "error: failed to link '/home/me/hello/build/debug/bin/hello'\n"
@@ -639,9 +629,8 @@ TEST(ProjectDiagnosticTest, RendersAnExecutableThatFailedToLink)
  */
 TEST(ProjectDiagnosticTest, RendersACompilerASignalStopped)
 {
-    const FailedStep failed{
-        .step = compileStep("src/main.cpp"),
-        .failure = StepFailure{.kind = StepFailureKind::Signalled, .path = {}, .code = {}, .status = 9}};
+    const FailedStep failed{ .step = compileStep("src/main.cpp"),
+                             .failure = StepFailure{ .kind = StepFailureKind::Signalled, .path = {}, .code = {}, .status = 9 } };
 
     EXPECT_EQ(renderStepFailure(failed),
               "error: failed to compile '/home/me/hello/src/main.cpp' for 'hello': "
@@ -654,15 +643,15 @@ TEST(ProjectDiagnosticTest, RendersACompilerASignalStopped)
  */
 TEST(ProjectDiagnosticTest, RendersACompilerThatCouldNotStart)
 {
-    const FailedStep failed{.step = compileStep("src/main.cpp"),
-                            .failure = StepFailure{.kind = StepFailureKind::CannotStart,
-                                                   .path = "/usr/bin/c++",
-                                                   .code = std::make_error_code(std::errc::permission_denied),
-                                                   .status = 0}};
+    const FailedStep failed{ .step = compileStep("src/main.cpp"),
+                             .failure = StepFailure{ .kind = StepFailureKind::CannotStart,
+                                                     .path = "/usr/bin/c++",
+                                                     .code = std::make_error_code(std::errc::permission_denied),
+                                                     .status = 0 } };
 
     EXPECT_EQ(renderStepFailure(failed),
-              "error: cannot run '/usr/bin/c++': " + std::make_error_code(std::errc::permission_denied).message() +
-                  "\nhint: check that the compiler can be run, or set CXX to another one\n");
+              "error: cannot run '/usr/bin/c++': " + std::make_error_code(std::errc::permission_denied).message()
+                  + "\nhint: check that the compiler can be run, or set CXX to another one\n");
 }
 
 /**
@@ -671,11 +660,11 @@ TEST(ProjectDiagnosticTest, RendersACompilerThatCouldNotStart)
  */
 TEST(ProjectDiagnosticTest, RendersADirectoryAStepCouldNotCreate)
 {
-    const FailedStep failed{.step = compileStep("src/main.cpp"),
-                            .failure = StepFailure{.kind = StepFailureKind::CannotCreateDirectory,
-                                                   .path = "/home/me/hello/build/debug/obj",
-                                                   .code = std::make_error_code(std::errc::not_a_directory),
-                                                   .status = 0}};
+    const FailedStep failed{ .step = compileStep("src/main.cpp"),
+                             .failure = StepFailure{ .kind = StepFailureKind::CannotCreateDirectory,
+                                                     .path = "/home/me/hello/build/debug/obj",
+                                                     .code = std::make_error_code(std::errc::not_a_directory),
+                                                     .status = 0 } };
 
     const std::string text = renderStepFailure(failed);
 

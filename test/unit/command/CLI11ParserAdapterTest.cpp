@@ -1,6 +1,6 @@
-#include <gtest/gtest.h>
-
 #include "command/driver/CLI11ParserAdapter.h"
+
+#include <gtest/gtest.h>
 
 using namespace scrap::Command;
 
@@ -20,9 +20,7 @@ auto makeSpec(const std::string& name, const std::string& desc = "") -> CommandS
 /**
  * Helper: build a CommandSpec with child subcommands.
  */
-auto makeSpecWithSubs(const std::string& name,
-                      std::vector<CommandSpec> subs,
-                      const std::string& desc = "") -> CommandSpec
+auto makeSpecWithSubs(const std::string& name, std::vector<CommandSpec> subs, const std::string& desc = "") -> CommandSpec
 {
     auto spec = makeSpec(name, desc);
     spec.subcommands = std::move(subs);
@@ -53,7 +51,7 @@ public:
     }
     [[nodiscard]] auto span() const -> std::span<const char* const>
     {
-        return {args_.data(), args_.size()};
+        return { args_.data(), args_.size() };
     }
 
 private:
@@ -70,10 +68,10 @@ TEST(CLI11ParserAdapterTest, Parse_SimpleCommand)
 {
     CLI11ParserAdapter adapter;
 
-    std::vector<CommandSpec> specs = {makeSpec("build", "Build the project")};
+    std::vector<CommandSpec> specs = { makeSpec("build", "Build the project") };
     adapter.configure(specs);
 
-    ArgvBuilder argv{"scrap", "build"};
+    ArgvBuilder argv{ "scrap", "build" };
     auto result = adapter.parse(argv.span());
 
     ASSERT_TRUE(result.has_value());
@@ -84,11 +82,10 @@ TEST(CLI11ParserAdapterTest, Parse_SubcommandPath)
 {
     CLI11ParserAdapter adapter;
 
-    std::vector<CommandSpec> specs = {
-        makeSpecWithSubs("toolchain", {makeSpec("install", "Install"), makeSpec("list", "List")})};
+    std::vector<CommandSpec> specs = { makeSpecWithSubs("toolchain", { makeSpec("install", "Install"), makeSpec("list", "List") }) };
     adapter.configure(specs);
 
-    ArgvBuilder argv{"scrap", "toolchain", "install"};
+    ArgvBuilder argv{ "scrap", "toolchain", "install" };
     auto result = adapter.parse(argv.span());
 
     ASSERT_TRUE(result.has_value());
@@ -110,9 +107,9 @@ TEST(CLI11ParserAdapterTest, Parse_BoolFlag)
         .type = OptionValueType::Bool,
     });
 
-    adapter.configure(std::vector{spec});
+    adapter.configure(std::vector{ spec });
 
-    ArgvBuilder argv{"scrap", "build", "--verbose"};
+    ArgvBuilder argv{ "scrap", "build", "--verbose" };
     auto result = adapter.parse(argv.span());
 
     ASSERT_TRUE(result.has_value());
@@ -133,9 +130,9 @@ TEST(CLI11ParserAdapterTest, Parse_BoolFlag_ShortForm)
         .type = OptionValueType::Bool,
     });
 
-    adapter.configure(std::vector{spec});
+    adapter.configure(std::vector{ spec });
 
-    ArgvBuilder argv{"scrap", "build", "-v"};
+    ArgvBuilder argv{ "scrap", "build", "-v" };
     auto result = adapter.parse(argv.span());
 
     ASSERT_TRUE(result.has_value());
@@ -155,9 +152,9 @@ TEST(CLI11ParserAdapterTest, Parse_StringOption)
         .type = OptionValueType::String,
     });
 
-    adapter.configure(std::vector{spec});
+    adapter.configure(std::vector{ spec });
 
-    ArgvBuilder argv{"scrap", "new", "--template", "library"};
+    ArgvBuilder argv{ "scrap", "new", "--template", "library" };
     auto result = adapter.parse(argv.span());
 
     ASSERT_TRUE(result.has_value());
@@ -177,9 +174,9 @@ TEST(CLI11ParserAdapterTest, Parse_Int64Option)
         .type = OptionValueType::Int64,
     });
 
-    adapter.configure(std::vector{spec});
+    adapter.configure(std::vector{ spec });
 
-    ArgvBuilder argv{"scrap", "build", "--jobs", "8"};
+    ArgvBuilder argv{ "scrap", "build", "--jobs", "8" };
     auto result = adapter.parse(argv.span());
 
     ASSERT_TRUE(result.has_value());
@@ -203,9 +200,9 @@ TEST(CLI11ParserAdapterTest, Parse_Positional)
         .required = true,
     });
 
-    adapter.configure(std::vector{spec});
+    adapter.configure(std::vector{ spec });
 
-    ArgvBuilder argv{"scrap", "new", "myproject"};
+    ArgvBuilder argv{ "scrap", "new", "myproject" };
     auto result = adapter.parse(argv.span());
 
     ASSERT_TRUE(result.has_value());
@@ -229,9 +226,9 @@ TEST(CLI11ParserAdapterTest, Parse_MultiplePositionals)
         .required = false,
     });
 
-    adapter.configure(std::vector{spec});
+    adapter.configure(std::vector{ spec });
 
-    ArgvBuilder argv{"scrap", "new", "myproject", "/tmp/dest"};
+    ArgvBuilder argv{ "scrap", "new", "myproject", "/tmp/dest" };
     auto result = adapter.parse(argv.span());
 
     ASSERT_TRUE(result.has_value());
@@ -251,9 +248,9 @@ TEST(CLI11ParserAdapterTest, Parse_OmittedOptionalPositionalIsAbsent)
         .required = false,
     });
 
-    adapter.configure(std::vector{spec});
+    adapter.configure(std::vector{ spec });
 
-    ArgvBuilder argv{"scrap", "help"};
+    ArgvBuilder argv{ "scrap", "help" };
     auto result = adapter.parse(argv.span());
 
     ASSERT_TRUE(result.has_value());
@@ -276,9 +273,9 @@ TEST(CLI11ParserAdapterTest, Parse_OmittedTrailingPositionalKeepsTheGivenOnes)
         .required = false,
     });
 
-    adapter.configure(std::vector{spec});
+    adapter.configure(std::vector{ spec });
 
-    ArgvBuilder argv{"scrap", "new", "myproject"};
+    ArgvBuilder argv{ "scrap", "new", "myproject" };
     auto result = adapter.parse(argv.span());
 
     ASSERT_TRUE(result.has_value());
@@ -297,9 +294,9 @@ TEST(CLI11ParserAdapterTest, Parse_ExplicitEmptyPositionalIsKept)
         .required = false,
     });
 
-    adapter.configure(std::vector{spec});
+    adapter.configure(std::vector{ spec });
 
-    ArgvBuilder argv{"scrap", "build", ""};
+    ArgvBuilder argv{ "scrap", "build", "" };
     auto result = adapter.parse(argv.span());
 
     ASSERT_TRUE(result.has_value());
@@ -315,9 +312,9 @@ TEST(CLI11ParserAdapterTest, Parse_NoSubcommand)
 {
     CLI11ParserAdapter adapter;
 
-    adapter.configure(std::vector{makeSpec("build")});
+    adapter.configure(std::vector{ makeSpec("build") });
 
-    ArgvBuilder argv{"scrap"};
+    ArgvBuilder argv{ "scrap" };
     auto result = adapter.parse(argv.span());
 
     ASSERT_FALSE(result.has_value());
@@ -332,11 +329,10 @@ TEST(CLI11ParserAdapterTest, Parse_NestedSubcommandHelp)
 {
     CLI11ParserAdapter adapter;
 
-    std::vector<CommandSpec> specs = {
-        makeSpecWithSubs("toolchain", {makeSpec("install", "Install"), makeSpec("list", "List")})};
+    std::vector<CommandSpec> specs = { makeSpecWithSubs("toolchain", { makeSpec("install", "Install"), makeSpec("list", "List") }) };
     adapter.configure(specs);
 
-    ArgvBuilder argv{"scrap", "toolchain", "install", "--help"};
+    ArgvBuilder argv{ "scrap", "toolchain", "install", "--help" };
     auto result = adapter.parse(argv.span());
 
     ASSERT_FALSE(result.has_value());
@@ -354,9 +350,9 @@ TEST(CLI11ParserAdapterTest, Parse_GlobalHelp)
 {
     CLI11ParserAdapter adapter;
 
-    adapter.configure(std::vector{makeSpec("build")});
+    adapter.configure(std::vector{ makeSpec("build") });
 
-    ArgvBuilder argv{"scrap", "--help"};
+    ArgvBuilder argv{ "scrap", "--help" };
     auto result = adapter.parse(argv.span());
 
     ASSERT_FALSE(result.has_value());
@@ -372,9 +368,9 @@ TEST(CLI11ParserAdapterTest, Parse_CommandHelp)
 {
     CLI11ParserAdapter adapter;
 
-    adapter.configure(std::vector{makeSpec("build", "Build the project")});
+    adapter.configure(std::vector{ makeSpec("build", "Build the project") });
 
-    ArgvBuilder argv{"scrap", "build", "--help"};
+    ArgvBuilder argv{ "scrap", "build", "--help" };
     auto result = adapter.parse(argv.span());
 
     ASSERT_FALSE(result.has_value());
@@ -388,9 +384,9 @@ TEST(CLI11ParserAdapterTest, Parse_VersionFlag)
 {
     CLI11ParserAdapter adapter;
 
-    adapter.configure(std::vector{makeSpec("build")});
+    adapter.configure(std::vector{ makeSpec("build") });
 
-    ArgvBuilder argv{"scrap", "--version"};
+    ArgvBuilder argv{ "scrap", "--version" };
     auto result = adapter.parse(argv.span());
 
     ASSERT_FALSE(result.has_value());
@@ -403,9 +399,9 @@ TEST(CLI11ParserAdapterTest, Parse_VersionShortFlag)
 {
     CLI11ParserAdapter adapter;
 
-    adapter.configure(std::vector{makeSpec("build")});
+    adapter.configure(std::vector{ makeSpec("build") });
 
-    ArgvBuilder argv{"scrap", "-V"};
+    ArgvBuilder argv{ "scrap", "-V" };
     auto result = adapter.parse(argv.span());
 
     ASSERT_FALSE(result.has_value());
@@ -421,9 +417,9 @@ TEST(CLI11ParserAdapterTest, Parse_UnknownCommand)
 {
     CLI11ParserAdapter adapter;
 
-    adapter.configure(std::vector{makeSpec("build")});
+    adapter.configure(std::vector{ makeSpec("build") });
 
-    ArgvBuilder argv{"scrap", "nonexistent"};
+    ArgvBuilder argv{ "scrap", "nonexistent" };
     auto result = adapter.parse(argv.span());
 
     ASSERT_FALSE(result.has_value());
@@ -442,12 +438,12 @@ TEST(CLI11ParserAdapterTest, Parse_ChoiceValidation)
         .required = false,
         .description = "Build profile",
         .defaultValue = std::nullopt,
-        .choices = {"debug", "release"},
+        .choices = { "debug", "release" },
     });
 
-    adapter.configure(std::vector{spec});
+    adapter.configure(std::vector{ spec });
 
-    ArgvBuilder argv{"scrap", "build", "--profile", "invalid"};
+    ArgvBuilder argv{ "scrap", "build", "--profile", "invalid" };
     auto result = adapter.parse(argv.span());
 
     ASSERT_FALSE(result.has_value());
@@ -469,14 +465,14 @@ TEST(CLI11ParserAdapterTest, Parse_DefaultValue)
         .type = OptionValueType::String,
         .required = false,
         .description = "Build profile",
-        .defaultValue = OptionValue{std::string{"debug"}},
+        .defaultValue = OptionValue{ std::string{ "debug" } },
         .choices = {},
     });
 
-    adapter.configure(std::vector{spec});
+    adapter.configure(std::vector{ spec });
 
     // Parse without providing --profile; the default should apply.
-    ArgvBuilder argv{"scrap", "build"};
+    ArgvBuilder argv{ "scrap", "build" };
     auto result = adapter.parse(argv.span());
 
     ASSERT_TRUE(result.has_value());

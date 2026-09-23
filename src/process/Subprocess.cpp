@@ -31,7 +31,7 @@ constexpr std::size_t ReadChunkBytes = 4096;
  */
 auto lastError() -> std::error_code
 {
-    return {errno, std::generic_category()};
+    return { errno, std::generic_category() };
 }
 
 /**
@@ -99,16 +99,15 @@ auto recordActions(posix_spawn_file_actions_t& actions,
                    OutputCapture capture,
                    const std::filesystem::path& workingDirectory) -> int
 {
-    if (const int result = ::posix_spawn_file_actions_addopen(&actions, STDIN_FILENO, "/dev/null", O_RDONLY, 0);
-        result != 0) {
+    if (const int result = ::posix_spawn_file_actions_addopen(&actions, STDIN_FILENO, "/dev/null", O_RDONLY, 0); result != 0) {
         return result;
     }
     if (const int result = ::posix_spawn_file_actions_adddup2(&actions, writeEnd, STDOUT_FILENO); result != 0) {
         return result;
     }
     const int errorResult = capture == OutputCapture::Combined
-        ? ::posix_spawn_file_actions_adddup2(&actions, writeEnd, STDERR_FILENO)
-        : ::posix_spawn_file_actions_addopen(&actions, STDERR_FILENO, "/dev/null", O_WRONLY, 0);
+                                ? ::posix_spawn_file_actions_adddup2(&actions, writeEnd, STDERR_FILENO)
+                                : ::posix_spawn_file_actions_addopen(&actions, STDERR_FILENO, "/dev/null", O_WRONLY, 0);
     if (errorResult != 0) {
         return errorResult;
     }
@@ -193,7 +192,7 @@ auto startProgram(const std::vector<std::string>& arguments,
 
     posix_spawn_file_actions_t actions;
     if (const int result = ::posix_spawn_file_actions_init(&actions); result != 0) {
-        return std::unexpected(std::error_code{result, std::generic_category()});
+        return std::unexpected(std::error_code{ result, std::generic_category() });
     }
     pid_t child = -1;
     int result = recordActions(actions, writeEnd, capture, workingDirectory);
@@ -202,7 +201,7 @@ auto startProgram(const std::vector<std::string>& arguments,
     }
     ::posix_spawn_file_actions_destroy(&actions);
     if (result != 0) {
-        return std::unexpected(std::error_code{result, std::generic_category()});
+        return std::unexpected(std::error_code{ result, std::generic_category() });
     }
     return child;
 }
@@ -241,12 +240,12 @@ auto runProgram(const std::vector<std::string>& arguments,
         return std::unexpected(std::make_error_code(std::errc::invalid_argument));
     }
 
-    std::array<int, 2> pipeEnds{-1, -1};
+    std::array<int, 2> pipeEnds{ -1, -1 };
     if (const std::error_code failed = openPipe(pipeEnds)) {
         return std::unexpected(failed);
     }
-    OwnedDescriptor readEnd{pipeEnds[0]};
-    OwnedDescriptor writeEnd{pipeEnds[1]};
+    OwnedDescriptor readEnd{ pipeEnds[0] };
+    OwnedDescriptor writeEnd{ pipeEnds[1] };
 
     const auto child = startProgram(arguments, writeEnd.get(), capture, workingDirectory);
     // The parent's copy is closed so the read below ends once the child and

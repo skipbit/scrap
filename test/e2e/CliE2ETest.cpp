@@ -41,7 +41,7 @@ namespace {
  */
 auto isVersionBanner(const std::string& text) -> bool
 {
-    static const std::regex Pattern{R"(^scrap [0-9]+\.[0-9]+\.[0-9]+( \(.+\))?$)"};
+    static const std::regex Pattern{ R"(^scrap [0-9]+\.[0-9]+\.[0-9]+( \(.+\))?$)" };
     return std::regex_match(text, Pattern);
 }
 
@@ -73,11 +73,11 @@ auto insideAProject(const std::filesystem::path& directory) -> bool
     }
 }
 
-constexpr std::chrono::milliseconds HarnessTimeout{5000};
+constexpr std::chrono::milliseconds HarnessTimeout{ 5000 };
 
 /// A real compiler takes longer than the commands that only read files, and
 /// longer again on a loaded machine.
-constexpr std::chrono::milliseconds BuildTimeout{120000};
+constexpr std::chrono::milliseconds BuildTimeout{ 120000 };
 constexpr std::size_t ReadChunkBytes = 4096;
 
 /**
@@ -103,7 +103,7 @@ auto trim(std::string_view text) -> std::string
     while (end > begin && (std::isspace(static_cast<unsigned char>(text[end - 1])) != 0)) {
         --end;
     }
-    return std::string{text.substr(begin, end - begin)};
+    return std::string{ text.substr(begin, end - begin) };
 }
 
 /**
@@ -111,8 +111,7 @@ auto trim(std::string_view text) -> std::string
  * LC_ALL) so external-command discovery only ever sees this test's fixture
  * directory, plus any caller-supplied "KEY=VALUE" overrides.
  */
-auto buildEnv(const std::filesystem::path& scrapHome,
-              const std::vector<std::string>& overrides) -> std::vector<std::string>
+auto buildEnv(const std::filesystem::path& scrapHome, const std::vector<std::string>& overrides) -> std::vector<std::string>
 {
     std::vector<std::string> env{
         "SCRAP_HOME=" + scrapHome.string(),
@@ -152,8 +151,7 @@ auto buildEnv(const std::filesystem::path& scrapHome,
  *
  * @return true if @p deadline was reached before both fds closed.
  */
-auto drainBoth(int fd1, int fd2, std::chrono::steady_clock::time_point deadline, std::string& out1, std::string& out2)
-    -> bool
+auto drainBoth(int fd1, int fd2, std::chrono::steady_clock::time_point deadline, std::string& out1, std::string& out2) -> bool
 {
     std::array<char, ReadChunkBytes> buffer{};
     bool open1 = true;
@@ -172,12 +170,12 @@ auto drainBoth(int fd1, int fd2, std::chrono::steady_clock::time_point deadline,
         int idx2 = -1;
         if (open1) {
             idx1 = count;
-            pfds[static_cast<std::size_t>(count)] = {.fd = fd1, .events = POLLIN, .revents = 0};
+            pfds[static_cast<std::size_t>(count)] = { .fd = fd1, .events = POLLIN, .revents = 0 };
             ++count;
         }
         if (open2) {
             idx2 = count;
-            pfds[static_cast<std::size_t>(count)] = {.fd = fd2, .events = POLLIN, .revents = 0};
+            pfds[static_cast<std::size_t>(count)] = { .fd = fd2, .events = POLLIN, .revents = 0 };
             ++count;
         }
 
@@ -239,8 +237,7 @@ protected:
     void SetUp() override
     {
         const auto* info = ::testing::UnitTest::GetInstance()->current_test_info();
-        auto dirTemplate =
-            (std::filesystem::temp_directory_path() / (std::string("scrap_e2e_") + info->name() + "_XXXXXX")).string();
+        auto dirTemplate = (std::filesystem::temp_directory_path() / (std::string("scrap_e2e_") + info->name() + "_XXXXXX")).string();
         // mkdtemp(3) atomically creates a uniquely-named directory in place
         // of the trailing "XXXXXX", removing the /tmp symlink-preplacement
         // race inherent in "pick a name, then create_directories(name)".
@@ -267,7 +264,8 @@ protected:
         auto path = root_ / "bin" / name;
         {
             std::ofstream out(path);
-            out << "#!/bin/sh\n" << body << "\n";
+            out << "#!/bin/sh\n"
+                << body << "\n";
         }
         std::filesystem::permissions(path, std::filesystem::perms::owner_exec, std::filesystem::perm_options::add);
     }
@@ -312,7 +310,7 @@ protected:
     [[nodiscard]] auto readFile(const std::filesystem::path& relative) const -> std::string
     {
         std::ifstream in(root_ / relative, std::ios::binary);
-        return std::string{std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};
+        return std::string{ std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>() };
     }
 
     /**
@@ -322,7 +320,7 @@ protected:
      */
     [[nodiscard]] static auto realCompiler() -> std::string
     {
-        return std::string{"CXX="} + SCRAP_TEST_CXX;
+        return std::string{ "CXX=" } + SCRAP_TEST_CXX;
     }
 
     /**
@@ -335,7 +333,7 @@ protected:
                                 const std::filesystem::path& cwd,
                                 std::chrono::milliseconds timeout = HarnessTimeout) const -> ProcessOutput
     {
-        std::vector<std::string> command{SCRAP_BINARY_PATH};
+        std::vector<std::string> command{ SCRAP_BINARY_PATH };
         command.insert(command.end(), args.begin(), args.end());
         return runProgram(command, envOverrides, cwd, timeout);
     }
@@ -349,8 +347,8 @@ protected:
                                   const std::filesystem::path& cwd,
                                   std::chrono::milliseconds timeout = HarnessTimeout) const -> ProcessOutput
     {
-        std::array<int, 2> outPipe{-1, -1};
-        std::array<int, 2> errPipe{-1, -1};
+        std::array<int, 2> outPipe{ -1, -1 };
+        std::array<int, 2> errPipe{ -1, -1 };
         if (::pipe(outPipe.data()) != 0) {
             return {};
         }
@@ -445,7 +443,7 @@ protected:
 
 TEST_F(CliE2ETest, BuiltinResolveExecute)
 {
-    auto result = runScrap({"version"}, {}, root_);
+    auto result = runScrap({ "version" }, {}, root_);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
@@ -463,7 +461,7 @@ TEST_F(CliE2ETest, ExternalDiscovery)
   *) echo "greet called" ;;
 esac)");
 
-    auto result = runScrap({"--help"}, {}, root_);
+    auto result = runScrap({ "--help" }, {}, root_);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
@@ -480,7 +478,7 @@ TEST_F(CliE2ETest, ProjectScopeNoConfig)
     // a config-less project run does not crash and still lists builtins -
     // it does NOT exercise dynamic [scripts] parsing. That is covered by the
     // unit-level ProjectCommandResolverTest against a real ScriptsReader.
-    auto result = runScrap({"--help"}, {}, root_);
+    auto result = runScrap({ "--help" }, {}, root_);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
@@ -495,29 +493,28 @@ TEST_F(CliE2ETest, Priority)
     makeDummy("scrap-greet", "echo \"greet called\"");
     makeDummy("scrap-version", "echo \"external version\"");
 
-    auto result = runScrap({"version"}, {}, root_);
+    auto result = runScrap({ "version" }, {}, root_);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
     EXPECT_TRUE(isVersionBanner(trim(result.stdoutText))) << "stdout: " << result.stdoutText;
-    EXPECT_NE(result.stderrText.find("warning: command 'version' already registered; ignoring duplicate"),
-              std::string::npos);
+    EXPECT_NE(result.stderrText.find("warning: command 'version' already registered; ignoring duplicate"), std::string::npos);
 }
 
 // --- TS-05: global help integration ---------------------------------------------
 
 TEST_F(CliE2ETest, HelpIntegration)
 {
-    auto result = runScrap({"--help"}, {}, root_);
+    auto result = runScrap({ "--help" }, {}, root_);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
-    for (const auto* expected : {"USAGE: scrap",
-                                 "Built-in Commands",
-                                 "Project Commands",
-                                 "Toolchain Commands",
-                                 "Template Commands",
-                                 "See 'scrap help <command>'"}) {
+    for (const auto* expected : { "USAGE: scrap",
+                                  "Built-in Commands",
+                                  "Project Commands",
+                                  "Toolchain Commands",
+                                  "Template Commands",
+                                  "See 'scrap help <command>'" }) {
         EXPECT_NE(result.stdoutText.find(expected), std::string::npos) << "missing: " << expected;
     }
 }
@@ -526,8 +523,8 @@ TEST_F(CliE2ETest, HelpIntegration)
 
 TEST_F(CliE2ETest, HelpWithoutArgumentListsCommands)
 {
-    auto result = runScrap({"help"}, {}, root_);
-    auto flag = runScrap({"--help"}, {}, root_);
+    auto result = runScrap({ "help" }, {}, root_);
+    auto flag = runScrap({ "--help" }, {}, root_);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
@@ -538,7 +535,7 @@ TEST_F(CliE2ETest, HelpWithoutArgumentListsCommands)
 
 TEST_F(CliE2ETest, HelpForACommandShowsItsUsage)
 {
-    auto result = runScrap({"help", "build"}, {}, root_);
+    auto result = runScrap({ "help", "build" }, {}, root_);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
@@ -547,7 +544,7 @@ TEST_F(CliE2ETest, HelpForACommandShowsItsUsage)
 
 TEST_F(CliE2ETest, HelpForAnUnknownCommandFails)
 {
-    auto result = runScrap({"help", "nosuch"}, {}, root_);
+    auto result = runScrap({ "help", "nosuch" }, {}, root_);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 1);
@@ -562,13 +559,12 @@ TEST_F(CliE2ETest, HelpForAnUnknownCommandFails)
 TEST_F(CliE2ETest, HelpForAnUnknownCommandWritesTheNameAsText)
 {
     // The name holds U+65E5 and an escape sequence that names a terminal.
-    auto result = runScrap({"help", "\xe6\x97\xa5x\x1b]0;pwn\x07"}, {}, root_);
+    auto result = runScrap({ "help", "\xe6\x97\xa5x\x1b]0;pwn\x07" }, {}, root_);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 1);
     EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
-    EXPECT_NE(result.stderrText.find("Unknown command: \xe6\x97\xa5x\\x1B]0;pwn\\x07"), std::string::npos)
-        << result.stderrText;
+    EXPECT_NE(result.stderrText.find("Unknown command: \xe6\x97\xa5x\\x1B]0;pwn\\x07"), std::string::npos) << result.stderrText;
     EXPECT_EQ(result.stderrText.find('\x1b'), std::string::npos);
     EXPECT_EQ(result.stderrText.find('\x07'), std::string::npos);
 }
@@ -577,7 +573,7 @@ TEST_F(CliE2ETest, HelpForAnUnknownCommandWritesTheNameAsText)
 
 TEST_F(CliE2ETest, UnknownCommand)
 {
-    auto result = runScrap({"nonexistent"}, {}, root_);
+    auto result = runScrap({ "nonexistent" }, {}, root_);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 1);
@@ -591,7 +587,7 @@ TEST_F(CliE2ETest, UnknownCommand)
 TEST_F(CliE2ETest, AnUnexpectedArgumentIsWrittenAsText)
 {
     // The argument holds U+65E5 and an escape sequence that names a terminal.
-    auto result = runScrap({"new", "hello", "\xe6\x97\xa5x\x1b]0;pwn\x07"}, {}, root_);
+    auto result = runScrap({ "new", "hello", "\xe6\x97\xa5x\x1b]0;pwn\x07" }, {}, root_);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 1);
@@ -606,7 +602,7 @@ TEST_F(CliE2ETest, AnUnexpectedArgumentIsWrittenAsText)
 
 TEST_F(CliE2ETest, RealCli11Nested)
 {
-    auto result = runScrap({"toolchain", "install"}, {}, root_);
+    auto result = runScrap({ "toolchain", "install" }, {}, root_);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
@@ -630,7 +626,7 @@ TEST_F(CliE2ETest, MetadataFetch)
   *) echo "greet called" ;;
 esac)");
 
-    auto result = runScrap({"--help"}, {}, root_);
+    auto result = runScrap({ "--help" }, {}, root_);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
@@ -645,7 +641,7 @@ TEST_F(CliE2ETest, VersionForms)
     std::vector<std::string> banners;
 
     for (const auto& args :
-         {std::vector<std::string>{"version"}, std::vector<std::string>{"--version"}, std::vector<std::string>{"-V"}}) {
+         { std::vector<std::string>{ "version" }, std::vector<std::string>{ "--version" }, std::vector<std::string>{ "-V" } }) {
         auto result = runScrap(args, {}, root_);
 
         ASSERT_TRUE(result.exitedNormally);
@@ -670,14 +666,12 @@ TEST_F(CliE2ETest, BuildOutsideAProject)
     }
     const std::string searched = std::filesystem::canonical(root_).string();
 
-    auto result = runScrap({"build"}, {}, root_);
+    auto result = runScrap({ "build" }, {}, root_);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 1);
     EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
-    EXPECT_NE(
-        result.stderrText.find("error: could not find scrap.toml in '" + searched + "' or any parent directory\n"),
-        std::string::npos)
+    EXPECT_NE(result.stderrText.find("error: could not find scrap.toml in '" + searched + "' or any parent directory\n"), std::string::npos)
         << result.stderrText;
     EXPECT_NE(result.stderrText.find("\nhint: "), std::string::npos) << result.stderrText;
 }
@@ -687,13 +681,12 @@ TEST_F(CliE2ETest, BuildReportsAManifestErrorWithItsLocation)
     writeFile("scrap.toml", "[package]\nversion = \"0.1.0\"\n");
     const std::string manifest = (std::filesystem::canonical(root_) / "scrap.toml").string();
 
-    auto result = runScrap({"build"}, {}, root_);
+    auto result = runScrap({ "build" }, {}, root_);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 1);
     EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
-    EXPECT_NE(result.stderrText.find(manifest + ":1:1: error: package.name: required key is missing\n"),
-              std::string::npos)
+    EXPECT_NE(result.stderrText.find(manifest + ":1:1: error: package.name: required key is missing\n"), std::string::npos)
         << result.stderrText;
     EXPECT_NE(result.stderrText.find("\nhint: "), std::string::npos) << result.stderrText;
 }
@@ -704,7 +697,7 @@ TEST_F(CliE2ETest, BuildFindsTheProjectAboveTheWorkingDirectory)
     writeFile("src/main.cpp", MainSource);
     std::filesystem::create_directories(root_ / "src" / "detail");
 
-    auto result = runScrap({"build"}, {dummyCompiler()}, root_ / "src" / "detail");
+    auto result = runScrap({ "build" }, { dummyCompiler() }, root_ / "src" / "detail");
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
@@ -722,7 +715,7 @@ TEST_F(CliE2ETest, BuildTakesAPathRelativeToTheWorkingDirectory)
     writeFile("app/src/main.cpp", MainSource);
     std::filesystem::create_directories(root_ / "elsewhere");
 
-    auto result = runScrap({"build", "../app"}, {dummyCompiler()}, root_ / "elsewhere");
+    auto result = runScrap({ "build", "../app" }, { dummyCompiler() }, root_ / "elsewhere");
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
@@ -736,13 +729,12 @@ TEST_F(CliE2ETest, BuildRejectsAPathThatIsNotADirectory)
     writeFile("scrap.toml", ValidManifest);
     const std::string missing = (std::filesystem::canonical(root_) / "missing").string();
 
-    auto result = runScrap({"build", "missing"}, {}, root_);
+    auto result = runScrap({ "build", "missing" }, {}, root_);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 1);
     EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
-    EXPECT_NE(result.stderrText.find("error: '" + missing + "' is not a directory\n"), std::string::npos)
-        << result.stderrText;
+    EXPECT_NE(result.stderrText.find("error: '" + missing + "' is not a directory\n"), std::string::npos) << result.stderrText;
 }
 
 TEST_F(CliE2ETest, BuildReportsAPathItCannotAccess)
@@ -752,14 +744,13 @@ TEST_F(CliE2ETest, BuildReportsAPathItCannotAccess)
     std::filesystem::create_symlink("loop-a", root_ / "loop-b");
     const std::string loop = (std::filesystem::canonical(root_) / "loop-a").string();
 
-    auto result = runScrap({"build", "loop-a"}, {}, root_);
+    auto result = runScrap({ "build", "loop-a" }, {}, root_);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 1);
     EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
     EXPECT_NE(result.stderrText.find("error: cannot access '" + loop + "': "), std::string::npos) << result.stderrText;
-    EXPECT_NE(result.stderrText.find("\nhint: check the permissions of the path\n"), std::string::npos)
-        << result.stderrText;
+    EXPECT_NE(result.stderrText.find("\nhint: check the permissions of the path\n"), std::string::npos) << result.stderrText;
 }
 
 TEST_F(CliE2ETest, BuildRejectsAnEmptyPath)
@@ -767,7 +758,7 @@ TEST_F(CliE2ETest, BuildRejectsAnEmptyPath)
     // Inside a project, so reading the empty path as the working directory would succeed.
     writeFile("scrap.toml", ValidManifest);
 
-    auto result = runScrap({"build", ""}, {}, root_);
+    auto result = runScrap({ "build", "" }, {}, root_);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 1);
@@ -782,13 +773,12 @@ TEST_F(CliE2ETest, BuildReportsAProjectWithNothingToBuild)
     writeFile("scrap.toml", ValidManifest);
     const std::string project = std::filesystem::canonical(root_).string();
 
-    auto result = runScrap({"build"}, {}, root_);
+    auto result = runScrap({ "build" }, {}, root_);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 1);
     EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
-    EXPECT_NE(result.stderrText.find("error: no target to build in '" + project + "'\n"), std::string::npos)
-        << result.stderrText;
+    EXPECT_NE(result.stderrText.find("error: no target to build in '" + project + "'\n"), std::string::npos) << result.stderrText;
     EXPECT_NE(result.stderrText.find("\nhint: "), std::string::npos) << result.stderrText;
 }
 
@@ -799,7 +789,7 @@ TEST_F(CliE2ETest, BuildAcceptsAManifestThatDeclaresNothingToBuild)
     writeFile("scrap.toml", ManifestWithoutTargets);
     std::filesystem::create_directories(root_ / "empty");
 
-    auto result = runScrap({"build"}, {"PATH=" + (root_ / "empty").string()}, root_);
+    auto result = runScrap({ "build" }, { "PATH=" + (root_ / "empty").string() }, root_);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
@@ -830,17 +820,15 @@ TEST_F(CliE2ETest, BuildReportsASourceDirectoryItCannotRead)
         GTEST_SKIP() << "this user reads a directory with no permissions";
     }
 
-    auto result = runScrap({"build"}, {dummyCompiler()}, root_);
+    auto result = runScrap({ "build" }, { dummyCompiler() }, root_);
 
     std::filesystem::permissions(locked, std::filesystem::perms::owner_all, ec);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 1);
     EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
-    EXPECT_NE(result.stderrText.find("error: cannot read '" + lockedPath + "': "), std::string::npos)
-        << result.stderrText;
-    EXPECT_NE(result.stderrText.find("\nhint: check the permissions of the path\n"), std::string::npos)
-        << result.stderrText;
+    EXPECT_NE(result.stderrText.find("error: cannot read '" + lockedPath + "': "), std::string::npos) << result.stderrText;
+    EXPECT_NE(result.stderrText.find("\nhint: check the permissions of the path\n"), std::string::npos) << result.stderrText;
 }
 
 // --- build: choosing the compiler ----------------------------------------------
@@ -852,13 +840,12 @@ TEST_F(CliE2ETest, BuildReportsTheCompilerTheVariableNames)
     makeDummy("my-compiler", "exit 0");
     const std::string compiler = (std::filesystem::canonical(root_) / "bin" / "my-compiler").string();
 
-    auto result = runScrap({"build"}, {"CXX=" + compiler}, root_);
+    auto result = runScrap({ "build" }, { "CXX=" + compiler }, root_);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
     EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
-    EXPECT_NE(result.stderrText.find("Using the system compiler '" + compiler + "' (from CXX)\n"), std::string::npos)
-        << result.stderrText;
+    EXPECT_NE(result.stderrText.find("Using the system compiler '" + compiler + "' (from CXX)\n"), std::string::npos) << result.stderrText;
 }
 
 TEST_F(CliE2ETest, BuildReportsThatNoCompilerIsAvailable)
@@ -867,7 +854,7 @@ TEST_F(CliE2ETest, BuildReportsThatNoCompilerIsAvailable)
     writeFile("src/main.cpp", MainSource);
     std::filesystem::create_directories(root_ / "empty");
 
-    auto result = runScrap({"build"}, {"PATH=" + (root_ / "empty").string()}, root_);
+    auto result = runScrap({ "build" }, { "PATH=" + (root_ / "empty").string() }, root_);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 1);
@@ -882,13 +869,12 @@ TEST_F(CliE2ETest, BuildReportsACompilerRequestItCannotRun)
     writeFile("scrap.toml", ValidManifest);
     writeFile("src/main.cpp", MainSource);
 
-    auto result = runScrap({"build"}, {"CXX=ccache g++"}, root_);
+    auto result = runScrap({ "build" }, { "CXX=ccache g++" }, root_);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 1);
     EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
-    EXPECT_NE(result.stderrText.find("error: CXX names 'ccache g++', which cannot be run\n"), std::string::npos)
-        << result.stderrText;
+    EXPECT_NE(result.stderrText.find("error: CXX names 'ccache g++', which cannot be run\n"), std::string::npos) << result.stderrText;
     EXPECT_NE(result.stderrText.find("\nhint: "), std::string::npos) << result.stderrText;
 }
 
@@ -901,7 +887,7 @@ TEST_F(CliE2ETest, BuildDoesNotReadItsOwnDirectoryForTheSystemCompiler)
     makeDummy("c++", "exit 0");
     std::filesystem::create_directories(root_ / "empty");
 
-    auto result = runScrap({"build"}, {"PATH=" + (root_ / "empty").string()}, root_);
+    auto result = runScrap({ "build" }, { "PATH=" + (root_ / "empty").string() }, root_);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 1);
@@ -919,7 +905,7 @@ TEST_F(CliE2ETest, BuildWritesTheCommandForEachSource)
     const std::string compiler = (std::filesystem::canonical(root_) / "bin" / "dummy-c++").string();
     const std::string project = std::filesystem::canonical(root_).string();
 
-    auto result = runScrap({"build"}, {compilerOverride}, root_);
+    auto result = runScrap({ "build" }, { compilerOverride }, root_);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
@@ -927,39 +913,39 @@ TEST_F(CliE2ETest, BuildWritesTheCommandForEachSource)
     EXPECT_EQ(readFile("build/debug/compile_commands.json"),
               "[\n"
               "  {\n"
-              "    \"directory\": \"" +
-                  project +
-                  "\",\n"
-                  "    \"file\": \"src/main.cpp\",\n"
-                  "    \"arguments\": [\"" +
-                  compiler +
-                  "\", \"-std=c++23\", \"-g\", \"-O0\", \"-Wall\", \"-Wextra\", \"-Wpedantic\", \"-I\", \"include\", "
-                  "\"-c\", \"src/main.cpp\", \"-o\", "
-                  "\"build/debug/obj/app/src/main.cpp.o\"],\n"
-                  "    \"output\": \"build/debug/obj/app/src/main.cpp.o\"\n"
-                  "  },\n"
-                  "  {\n"
-                  "    \"directory\": \"" +
-                  project +
-                  "\",\n"
-                  "    \"file\": \"src/util.cpp\",\n"
-                  "    \"arguments\": [\"" +
-                  compiler +
-                  "\", \"-std=c++23\", \"-g\", \"-O0\", \"-Wall\", \"-Wextra\", \"-Wpedantic\", \"-I\", \"include\", "
-                  "\"-c\", \"src/util.cpp\", \"-o\", "
-                  "\"build/debug/obj/app/src/util.cpp.o\"],\n"
-                  "    \"output\": \"build/debug/obj/app/src/util.cpp.o\"\n"
-                  "  }\n"
-                  "]\n");
+              "    \"directory\": \""
+                  + project
+                  + "\",\n"
+                    "    \"file\": \"src/main.cpp\",\n"
+                    "    \"arguments\": [\""
+                  + compiler
+                  + "\", \"-std=c++23\", \"-g\", \"-O0\", \"-Wall\", \"-Wextra\", \"-Wpedantic\", \"-I\", \"include\", "
+                    "\"-c\", \"src/main.cpp\", \"-o\", "
+                    "\"build/debug/obj/app/src/main.cpp.o\"],\n"
+                    "    \"output\": \"build/debug/obj/app/src/main.cpp.o\"\n"
+                    "  },\n"
+                    "  {\n"
+                    "    \"directory\": \""
+                  + project
+                  + "\",\n"
+                    "    \"file\": \"src/util.cpp\",\n"
+                    "    \"arguments\": [\""
+                  + compiler
+                  + "\", \"-std=c++23\", \"-g\", \"-O0\", \"-Wall\", \"-Wextra\", \"-Wpedantic\", \"-I\", \"include\", "
+                    "\"-c\", \"src/util.cpp\", \"-o\", "
+                    "\"build/debug/obj/app/src/util.cpp.o\"],\n"
+                    "    \"output\": \"build/debug/obj/app/src/util.cpp.o\"\n"
+                    "  }\n"
+                    "]\n");
 }
 
 TEST_F(CliE2ETest, NewProjectBuildsWithACompilationDatabase)
 {
     std::filesystem::create_directories(root_ / "work");
-    auto created = runScrap({"new", "hello"}, {}, root_ / "work");
+    auto created = runScrap({ "new", "hello" }, {}, root_ / "work");
     ASSERT_EQ(created.exitCode, 0) << created.stderrText;
 
-    auto result = runScrap({"build"}, {dummyCompiler()}, root_ / "work" / "hello");
+    auto result = runScrap({ "build" }, { dummyCompiler() }, root_ / "work" / "hello");
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
@@ -976,12 +962,12 @@ TEST_F(CliE2ETest, BuildEmptiesTheDatabaseOfAProjectThatNowBuildsNothing)
     writeFile("scrap.toml", ValidManifest);
     writeFile("src/main.cpp", MainSource);
     const std::string compilerOverride = dummyCompiler();
-    auto first = runScrap({"build"}, {compilerOverride}, root_);
+    auto first = runScrap({ "build" }, { compilerOverride }, root_);
     ASSERT_EQ(first.exitCode, 0) << first.stderrText;
     ASSERT_NE(readFile("build/debug/compile_commands.json"), "[]\n");
 
     writeFile("scrap.toml", ManifestWithoutTargets);
-    auto result = runScrap({"build"}, {compilerOverride}, root_);
+    auto result = runScrap({ "build" }, { compilerOverride }, root_);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
@@ -995,15 +981,13 @@ TEST_F(CliE2ETest, BuildReportsABuildDirectoryItCannotCreate)
     writeFile("build", "a file where the build directory belongs\n");
     const std::string buildDirectory = (std::filesystem::canonical(root_) / "build" / "debug").string();
 
-    auto result = runScrap({"build"}, {dummyCompiler()}, root_);
+    auto result = runScrap({ "build" }, { dummyCompiler() }, root_);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 1);
     EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
-    EXPECT_NE(result.stderrText.find("error: cannot create '" + buildDirectory + "': "), std::string::npos)
-        << result.stderrText;
-    EXPECT_NE(result.stderrText.find("\nhint: check what is already at that path\n"), std::string::npos)
-        << result.stderrText;
+    EXPECT_NE(result.stderrText.find("error: cannot create '" + buildDirectory + "': "), std::string::npos) << result.stderrText;
+    EXPECT_NE(result.stderrText.find("\nhint: check what is already at that path\n"), std::string::npos) << result.stderrText;
 }
 
 // --- build: compiling and linking ----------------------------------------------
@@ -1016,16 +1000,14 @@ TEST_F(CliE2ETest, BuildReportsASourceItCannotCompile)
     const std::string compiler = (std::filesystem::canonical(root_) / "bin" / "failing-c++").string();
     const std::string source = (std::filesystem::canonical(root_) / "src" / "main.cpp").string();
 
-    auto result = runScrap({"build"}, {"CXX=" + compiler}, root_);
+    auto result = runScrap({ "build" }, { "CXX=" + compiler }, root_);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 1);
     EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
     EXPECT_NE(result.stderrText.find("src/main.cpp:1:1: error: boom\n"), std::string::npos) << result.stderrText;
-    EXPECT_NE(result.stderrText.find("error: failed to compile '" + source + "' for 'app'\n"), std::string::npos)
-        << result.stderrText;
-    EXPECT_NE(result.stderrText.find("\nhint: fix the errors reported above and run the command again\n"),
-              std::string::npos)
+    EXPECT_NE(result.stderrText.find("error: failed to compile '" + source + "' for 'app'\n"), std::string::npos) << result.stderrText;
+    EXPECT_NE(result.stderrText.find("\nhint: fix the errors reported above and run the command again\n"), std::string::npos)
         << result.stderrText;
     EXPECT_NE(readFile("build/debug/compile_commands.json"), "");
 }
@@ -1041,7 +1023,7 @@ TEST_F(CliE2ETest, BuildStopsAtTheFirstSourceThatFails)
               "exit 0");
     const std::string compiler = (std::filesystem::canonical(root_) / "bin" / "picky-c++").string();
 
-    auto result = runScrap({"build"}, {"CXX=" + compiler}, root_);
+    auto result = runScrap({ "build" }, { "CXX=" + compiler }, root_);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 1);
@@ -1064,7 +1046,7 @@ TEST_F(CliE2ETest, BuildReadsASourceNamedLikeAFileOfOptionsAsASource)
     makeDummy("echoing-c++", "printf '%s\\n' \"$*\" >> calls.log\nexit 0");
     const std::string compiler = (std::filesystem::canonical(root_) / "bin" / "echoing-c++").string();
 
-    auto result = runScrap({"build"}, {"CXX=" + compiler}, root_);
+    auto result = runScrap({ "build" }, { "CXX=" + compiler }, root_);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0) << result.stderrText;
@@ -1082,7 +1064,7 @@ TEST_F(CliE2ETest, BuildWritesWhatTheCompilerSaysWithoutLettingItDriveTheTermina
     makeDummy("shouting-c++", "printf 'title\\033]0;pwned\\007 and \\033[2J\\n' >&2\nexit 1");
     const std::string compiler = (std::filesystem::canonical(root_) / "bin" / "shouting-c++").string();
 
-    auto result = runScrap({"build"}, {"CXX=" + compiler}, root_);
+    auto result = runScrap({ "build" }, { "CXX=" + compiler }, root_);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 1);
@@ -1099,7 +1081,7 @@ TEST_F(CliE2ETest, BuildLeavesColorOutOfOutputThatIsNotATerminal)
     makeDummy("colorful-c++", "printf '\\033[01;31mred\\033[m\\033[K\\n' >&2\nexit 1");
     const std::string compiler = (std::filesystem::canonical(root_) / "bin" / "colorful-c++").string();
 
-    auto result = runScrap({"build"}, {"CXX=" + compiler}, root_);
+    auto result = runScrap({ "build" }, { "CXX=" + compiler }, root_);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 1);
@@ -1111,17 +1093,15 @@ TEST_F(CliE2ETest, BuildReportsALibraryItCannotBuild)
 {
     // The database is written first, so an editor still reads the library's
     // sources while the build itself stops.
-    writeFile("scrap.toml",
-              "[package]\nname = \"app\"\nversion = \"0.1.0\"\n\n[[lib]]\nname = \"core\"\nsrc = \"src/core.cpp\"\n");
+    writeFile("scrap.toml", "[package]\nname = \"app\"\nversion = \"0.1.0\"\n\n[[lib]]\nname = \"core\"\nsrc = \"src/core.cpp\"\n");
     writeFile("src/core.cpp", "int answer() { return 42; }\n");
 
-    auto result = runScrap({"build"}, {dummyCompiler()}, root_);
+    auto result = runScrap({ "build" }, { dummyCompiler() }, root_);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 1);
     EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
-    EXPECT_NE(result.stderrText.find("error: building the library 'core' is not supported yet\n"), std::string::npos)
-        << result.stderrText;
+    EXPECT_NE(result.stderrText.find("error: building the library 'core' is not supported yet\n"), std::string::npos) << result.stderrText;
     EXPECT_NE(readFile("build/debug/compile_commands.json").find("\"file\": \"src/core.cpp\""), std::string::npos);
 }
 
@@ -1135,14 +1115,12 @@ TEST_F(CliE2ETest, BuildReportsAStandardTheCompilerCannotBuild)
               "exit 0");
     const std::string compiler = (std::filesystem::canonical(root_) / "bin" / "gcc13-c++").string();
 
-    auto result = runScrap({"build"}, {"CXX=" + compiler}, root_);
+    auto result = runScrap({ "build" }, { "CXX=" + compiler }, root_);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 1);
-    EXPECT_NE(result.stderrText.find("error: '" + compiler + "' does not support C++26\n"), std::string::npos)
-        << result.stderrText;
-    EXPECT_NE(result.stderrText.find("\nhint: use a newer compiler, or set std in scrap.toml to an older standard\n"),
-              std::string::npos)
+    EXPECT_NE(result.stderrText.find("error: '" + compiler + "' does not support C++26\n"), std::string::npos) << result.stderrText;
+    EXPECT_NE(result.stderrText.find("\nhint: use a newer compiler, or set std in scrap.toml to an older standard\n"), std::string::npos)
         << result.stderrText;
     EXPECT_NE(readFile("build/debug/compile_commands.json").find("\"-std=c++26\""), std::string::npos);
 }
@@ -1152,11 +1130,11 @@ TEST_F(CliE2ETest, BuildReportsAStandardTheCompilerCannotBuild)
 TEST_F(CliE2ETest, BuildsAndRunsAProjectWithTheRealCompiler)
 {
     std::filesystem::create_directories(root_ / "work");
-    auto created = runScrap({"new", "hello"}, {}, root_ / "work");
+    auto created = runScrap({ "new", "hello" }, {}, root_ / "work");
     ASSERT_EQ(created.exitCode, 0) << created.stderrText;
     const std::filesystem::path project = root_ / "work" / "hello";
 
-    auto result = runScrap({"build"}, {realCompiler()}, project, BuildTimeout);
+    auto result = runScrap({ "build" }, { realCompiler() }, project, BuildTimeout);
 
     ASSERT_TRUE(result.exitedNormally) << result.stderrText;
     ASSERT_EQ(result.exitCode, 0) << result.stderrText;
@@ -1164,7 +1142,7 @@ TEST_F(CliE2ETest, BuildsAndRunsAProjectWithTheRealCompiler)
     EXPECT_NE(result.stderrText.find("Finished debug build\n"), std::string::npos) << result.stderrText;
     ASSERT_TRUE(std::filesystem::is_regular_file(project / "build" / "debug" / "bin" / "hello"));
 
-    auto ran = runProgram({(project / "build" / "debug" / "bin" / "hello").string()}, {}, project);
+    auto ran = runProgram({ (project / "build" / "debug" / "bin" / "hello").string() }, {}, project);
 
     ASSERT_TRUE(ran.exitedNormally);
     EXPECT_EQ(ran.exitCode, 0);
@@ -1177,13 +1155,13 @@ TEST_F(CliE2ETest, BuildsSeveralSourcesIntoOneExecutable)
     writeFile("src/main.cpp", "int answer();\nint main() { return answer() == 42 ? 0 : 1; }\n");
     writeFile("src/answer.cpp", "int answer() { return 42; }\n");
 
-    auto result = runScrap({"build"}, {realCompiler()}, root_, BuildTimeout);
+    auto result = runScrap({ "build" }, { realCompiler() }, root_, BuildTimeout);
 
     ASSERT_TRUE(result.exitedNormally) << result.stderrText;
     ASSERT_EQ(result.exitCode, 0) << result.stderrText;
     EXPECT_TRUE(std::filesystem::is_regular_file(root_ / "build" / "debug" / "obj" / "app" / "src" / "answer.cpp.o"));
 
-    auto ran = runProgram({(root_ / "build" / "debug" / "bin" / "app").string()}, {}, root_);
+    auto ran = runProgram({ (root_ / "build" / "debug" / "bin" / "app").string() }, {}, root_);
 
     ASSERT_TRUE(ran.exitedNormally);
     EXPECT_EQ(ran.exitCode, 0);
@@ -1195,13 +1173,12 @@ TEST_F(CliE2ETest, BuildKeepsTheDatabaseWhenTheRealCompilerReportsAnError)
     writeFile("src/main.cpp", "int main() { return 0 }\n");
     const std::string source = (std::filesystem::canonical(root_) / "src" / "main.cpp").string();
 
-    auto result = runScrap({"build"}, {realCompiler()}, root_, BuildTimeout);
+    auto result = runScrap({ "build" }, { realCompiler() }, root_, BuildTimeout);
 
     ASSERT_TRUE(result.exitedNormally) << result.stderrText;
     EXPECT_EQ(result.exitCode, 1) << result.stderrText;
     EXPECT_NE(result.stderrText.find("src/main.cpp:1:"), std::string::npos) << result.stderrText;
-    EXPECT_NE(result.stderrText.find("error: failed to compile '" + source + "' for 'app'\n"), std::string::npos)
-        << result.stderrText;
+    EXPECT_NE(result.stderrText.find("error: failed to compile '" + source + "' for 'app'\n"), std::string::npos) << result.stderrText;
     EXPECT_NE(readFile("build/debug/compile_commands.json").find("\"file\": \"src/main.cpp\""), std::string::npos);
     EXPECT_FALSE(std::filesystem::exists(root_ / "build" / "debug" / "bin" / "app"));
 }
@@ -1213,7 +1190,7 @@ TEST_F(CliE2ETest, NewCreatesAProject)
     std::filesystem::create_directories(root_ / "work");
     const std::string project = (std::filesystem::canonical(root_ / "work") / "hello").string();
 
-    auto result = runScrap({"new", "hello"}, {}, root_ / "work");
+    auto result = runScrap({ "new", "hello" }, {}, root_ / "work");
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
@@ -1226,10 +1203,10 @@ TEST_F(CliE2ETest, NewCreatesAProject)
 TEST_F(CliE2ETest, NewProjectLoadsInBuild)
 {
     std::filesystem::create_directories(root_ / "work");
-    auto created = runScrap({"new", "hello"}, {}, root_ / "work");
+    auto created = runScrap({ "new", "hello" }, {}, root_ / "work");
     ASSERT_EQ(created.exitCode, 0) << created.stderrText;
 
-    auto result = runScrap({"build"}, {dummyCompiler()}, root_ / "work" / "hello");
+    auto result = runScrap({ "build" }, { dummyCompiler() }, root_ / "work" / "hello");
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0) << result.stderrText;
@@ -1240,13 +1217,12 @@ TEST_F(CliE2ETest, NewLeavesAnExistingDirectoryUntouched)
     writeFile("work/hello/marker.txt", "keep me\n");
     const std::string project = (std::filesystem::canonical(root_ / "work") / "hello").string();
 
-    auto result = runScrap({"new", "hello"}, {}, root_ / "work");
+    auto result = runScrap({ "new", "hello" }, {}, root_ / "work");
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 1);
     EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
-    EXPECT_NE(result.stderrText.find("error: '" + project + "' already exists\n"), std::string::npos)
-        << result.stderrText;
+    EXPECT_NE(result.stderrText.find("error: '" + project + "' already exists\n"), std::string::npos) << result.stderrText;
     std::ifstream marker(root_ / "work" / "hello" / "marker.txt", std::ios::binary);
     EXPECT_EQ(std::string(std::istreambuf_iterator<char>(marker), std::istreambuf_iterator<char>()), "keep me\n");
     EXPECT_FALSE(std::filesystem::exists(root_ / "work" / "hello" / "scrap.toml"));
@@ -1256,15 +1232,14 @@ TEST_F(CliE2ETest, NewRejectsNamesItCannotUse)
 {
     std::filesystem::create_directories(root_ / "work");
 
-    for (const char* name : {"", "../x", "a/b"}) {
-        auto result = runScrap({"new", name}, {}, root_ / "work");
+    for (const char* name : { "", "../x", "a/b" }) {
+        auto result = runScrap({ "new", name }, {}, root_ / "work");
 
         ASSERT_TRUE(result.exitedNormally) << name;
         EXPECT_EQ(result.exitCode, 1) << name;
         EXPECT_TRUE(result.stdoutText.empty()) << name << ": " << result.stdoutText;
         EXPECT_NE(result.stderrText.find("error: "), std::string::npos) << name << ": " << result.stderrText;
-        EXPECT_NE(result.stderrText.find("\nhint: use up to 64 letters, digits, '-' and '_', starting with a letter\n"),
-                  std::string::npos)
+        EXPECT_NE(result.stderrText.find("\nhint: use up to 64 letters, digits, '-' and '_', starting with a letter\n"), std::string::npos)
             << name << ": " << result.stderrText;
     }
     EXPECT_TRUE(std::filesystem::is_empty(root_ / "work"));

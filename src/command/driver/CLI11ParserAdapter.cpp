@@ -6,6 +6,7 @@
 #include "command/ParsedOptions.h"
 
 #include <CLI/CLI.hpp>
+
 #include <cstdint>
 #include <deque>
 #include <exception>
@@ -85,45 +86,45 @@ void addOption(CLI::App& app, const OptionDef& def, OptionStorage& storage)
     }
 
     switch (def.type) {
-        case OptionValueType::Bool: {
-            storage.bools[def.longName] = false;
-            app.add_flag(nameStr, storage.bools[def.longName], def.description);
-            break;
+    case OptionValueType::Bool: {
+        storage.bools[def.longName] = false;
+        app.add_flag(nameStr, storage.bools[def.longName], def.description);
+        break;
+    }
+    case OptionValueType::Int64: {
+        storage.ints[def.longName] = 0;
+        auto* opt = app.add_option(nameStr, storage.ints[def.longName], def.description);
+        if (def.required) {
+            opt->required();
         }
-        case OptionValueType::Int64: {
-            storage.ints[def.longName] = 0;
-            auto* opt = app.add_option(nameStr, storage.ints[def.longName], def.description);
-            if (def.required) {
-                opt->required();
-            }
-            if (def.defaultValue.has_value()) {
-                opt->default_val(std::get<std::int64_t>(*def.defaultValue));
-            }
-            break;
+        if (def.defaultValue.has_value()) {
+            opt->default_val(std::get<std::int64_t>(*def.defaultValue));
         }
-        case OptionValueType::String: {
-            storage.strings[def.longName] = "";
-            auto* opt = app.add_option(nameStr, storage.strings[def.longName], def.description);
-            if (def.required) {
-                opt->required();
-            }
-            if (def.defaultValue.has_value()) {
-                opt->default_val(std::get<std::string>(*def.defaultValue));
-            }
-            if (! def.choices.empty()) {
-                opt->check(CLI::IsMember(def.choices));
-            }
-            break;
+        break;
+    }
+    case OptionValueType::String: {
+        storage.strings[def.longName] = "";
+        auto* opt = app.add_option(nameStr, storage.strings[def.longName], def.description);
+        if (def.required) {
+            opt->required();
         }
-        case OptionValueType::StringList: {
-            storage.stringLists[def.longName] = {};
-            auto* opt = app.add_option(nameStr, storage.stringLists[def.longName], def.description);
-            opt->expected(-1);
-            if (def.required) {
-                opt->required();
-            }
-            break;
+        if (def.defaultValue.has_value()) {
+            opt->default_val(std::get<std::string>(*def.defaultValue));
         }
+        if (! def.choices.empty()) {
+            opt->check(CLI::IsMember(def.choices));
+        }
+        break;
+    }
+    case OptionValueType::StringList: {
+        storage.stringLists[def.longName] = {};
+        auto* opt = app.add_option(nameStr, storage.stringLists[def.longName], def.description);
+        opt->expected(-1);
+        if (def.required) {
+            opt->required();
+        }
+        break;
+    }
     }
 }
 
@@ -156,7 +157,7 @@ void addSubcommands(CLI::App& root,
     };
 
     std::vector<Pending> current;
-    current.push_back({&root, &rootSpecs, ""});
+    current.push_back({ &root, &rootSpecs, "" });
 
     while (! current.empty()) {
         std::vector<Pending> next;
@@ -176,7 +177,7 @@ void addSubcommands(CLI::App& root,
                 storageMap[path] = std::move(storage);
 
                 if (! spec.subcommands.empty()) {
-                    next.push_back({sub, &spec.subcommands, path});
+                    next.push_back({ sub, &spec.subcommands, path });
                 }
             }
         }
@@ -302,7 +303,7 @@ auto CLI11ParserAdapter::parse(std::span<const char* const> argv) const -> Parse
 {
     // Build a temporary CLI::App from the stored specs.
     // Defined outside try so that catch blocks can inspect parsed state.
-    CLI::App app{"Modern C++ development tool", "scrap"};
+    CLI::App app{ "Modern C++ development tool", "scrap" };
     app.set_version_flag("--version,-V", "");
     app.require_subcommand(1);
 
@@ -317,18 +318,17 @@ auto CLI11ParserAdapter::parse(std::span<const char* const> argv) const -> Parse
         app.parse(static_cast<int>(argv.size()), argv.data());
 
     } catch (const CLI::CallForHelp&) {
-        return std::unexpected(
-            ParseInterruption{ParseDirective{ParseDirectiveKind::HelpRequested, determineHelpTarget(app)}});
+        return std::unexpected(ParseInterruption{ ParseDirective{ ParseDirectiveKind::HelpRequested, determineHelpTarget(app) } });
     } catch (const CLI::CallForVersion&) {
-        return std::unexpected(ParseInterruption{ParseDirective{ParseDirectiveKind::VersionRequested, std::nullopt}});
+        return std::unexpected(ParseInterruption{ ParseDirective{ ParseDirectiveKind::VersionRequested, std::nullopt } });
     } catch (const CLI::CallForAllHelp&) {
-        return std::unexpected(ParseInterruption{ParseDirective{ParseDirectiveKind::HelpRequested, std::nullopt}});
+        return std::unexpected(ParseInterruption{ ParseDirective{ ParseDirectiveKind::HelpRequested, std::nullopt } });
     } catch (const CLI::ParseError& e) {
-        return std::unexpected(ParseInterruption{ParseFailure{e.what()}});
+        return std::unexpected(ParseInterruption{ ParseFailure{ e.what() } });
     } catch (const std::exception& e) {
         // Catch remaining exceptions (e.g. bad_variant_access from
         // misconfigured OptionDef default values) and convert to failure.
-        return std::unexpected(ParseInterruption{ParseFailure{e.what()}});
+        return std::unexpected(ParseInterruption{ ParseFailure{ e.what() } });
     }
 
     // --- Harvest results ---------------------------------------------------------
@@ -340,7 +340,7 @@ auto CLI11ParserAdapter::parse(std::span<const char* const> argv) const -> Parse
         options = harvestOptions(*storageIt->second);
     }
 
-    return CommandInvocation{std::move(commandPath), std::move(options)};
+    return CommandInvocation{ std::move(commandPath), std::move(options) };
 }
 
 }  // namespace scrap::Command

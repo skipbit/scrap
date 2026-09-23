@@ -44,8 +44,7 @@ struct FailedStep {
  * @param reporter Told of each step as it runs.
  * @return Nothing when every step succeeded, or the step that failed.
  */
-[[nodiscard]] auto runSerially(const std::vector<BuildStep>& steps,
-                               StepRunner& runner,
-                               BuildReporter& reporter) -> std::expected<void, FailedStep>;
+[[nodiscard]] auto
+runSerially(const std::vector<BuildStep>& steps, StepRunner& runner, BuildReporter& reporter) -> std::expected<void, FailedStep>;
 
 }  // namespace scrap::Build

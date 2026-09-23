@@ -72,7 +72,7 @@ auto appendEntry(std::string& out, const CompileCommand& command) -> void
  */
 auto lastFailure() -> std::error_code
 {
-    return {errno, std::generic_category()};
+    return { errno, std::generic_category() };
 }
 
 /**
@@ -114,8 +114,7 @@ auto replaceFile(const std::filesystem::path& file, std::string_view content) ->
     for (int attempt = 0; attempt < StagingAttempts; ++attempt) {
         const std::filesystem::path staged = prefix + std::to_string(attempt) + ".tmp";
         // NOLINTNEXTLINE(hicpp-signed-bitwise) - POSIX open() flag combination
-        const int descriptor =
-            ::open(staged.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, DatabaseFileMode);
+        const int descriptor = ::open(staged.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, DatabaseFileMode);
         if (descriptor < 0) {
             if (errno == EEXIST) {
                 continue;
@@ -163,14 +162,12 @@ auto writeCompilationDatabase(const std::filesystem::path& buildDirectory,
     std::error_code ec;
     std::filesystem::create_directories(buildDirectory, ec);
     if (ec) {
-        return std::unexpected(
-            DatabaseWriteFailure{.step = DatabaseWriteStep::CreateDirectory, .path = buildDirectory, .code = ec});
+        return std::unexpected(DatabaseWriteFailure{ .step = DatabaseWriteStep::CreateDirectory, .path = buildDirectory, .code = ec });
     }
 
     const std::filesystem::path file = buildDirectory / CompilationDatabaseFileName;
     if (const std::error_code failure = replaceFile(file, renderCompilationDatabase(commands))) {
-        return std::unexpected(
-            DatabaseWriteFailure{.step = DatabaseWriteStep::WriteFile, .path = file, .code = failure});
+        return std::unexpected(DatabaseWriteFailure{ .step = DatabaseWriteStep::WriteFile, .path = file, .code = failure });
     }
     return {};
 }

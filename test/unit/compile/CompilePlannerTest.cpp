@@ -1,13 +1,14 @@
-#include <gtest/gtest.h>
+#include "compile/CompilePlanner.h"
 
 #include "compile/CompileCommand.h"
-#include "compile/CompilePlanner.h"
 #include "compile/CompilerDriver.h"
 #include "compile/LinkCommand.h"
 #include "project/LanguageStandard.h"
 #include "project/Manifest.h"
 #include "project/SourceCollector.h"
 #include "toolchain/CompilerIdentity.h"
+
+#include <gtest/gtest.h>
 
 #include <filesystem>
 #include <string>
@@ -26,28 +27,25 @@ namespace {
 
 const std::filesystem::path ProjectRoot = "/home/me/hello";
 const std::filesystem::path Compiler = "/usr/bin/c++";
-const CompilerIdentity Gcc13{.family = CompilerFamily::Gcc, .version = {.major = 13, .minor = 3, .patch = 0}};
+const CompilerIdentity Gcc13{ .family = CompilerFamily::Gcc, .version = { .major = 13, .minor = 3, .patch = 0 } };
 
 BuildSettings settingsFor(const CompilerIdentity& identity,
                           LanguageStandard standard = LanguageStandard::Cxx23,
                           const std::filesystem::path& buildDirectory = "build/debug")
 {
-    return BuildSettings{.projectRoot = ProjectRoot,
-                         .buildDirectory = buildDirectory,
-                         .compiler = Compiler,
-                         .driver = CompilerDriver{identity},
-                         .standard = standard};
+    return BuildSettings{ .projectRoot = ProjectRoot,
+                          .buildDirectory = buildDirectory,
+                          .compiler = Compiler,
+                          .driver = CompilerDriver{ identity },
+                          .standard = standard };
 }
 
-TargetSources
-targetWithSources(TargetKind kind, const char* name, const char* entryPoint, std::vector<std::filesystem::path> sources)
+TargetSources targetWithSources(TargetKind kind, const char* name, const char* entryPoint, std::vector<std::filesystem::path> sources)
 {
-    return TargetSources{.target = Target{.kind = kind, .name = name, .entryPoint = entryPoint},
-                         .sources = std::move(sources)};
+    return TargetSources{ .target = Target{ .kind = kind, .name = name, .entryPoint = entryPoint }, .sources = std::move(sources) };
 }
 
-TargetSources
-executableWithSources(const char* name, const char* entryPoint, std::vector<std::filesystem::path> sources)
+TargetSources executableWithSources(const char* name, const char* entryPoint, std::vector<std::filesystem::path> sources)
 {
     return targetWithSources(TargetKind::Executable, name, entryPoint, std::move(sources));
 }
@@ -71,8 +69,7 @@ std::vector<std::filesystem::path> outputsOf(const std::vector<CompileCommand>& 
  */
 TEST(CompilePlannerTest, CompilesASourceFromTheProjectRoot)
 {
-    const auto commands =
-        planCompileCommands(settingsFor(Gcc13), {executableWithSources("hello", "src/main.cpp", {"src/main.cpp"})});
+    const auto commands = planCompileCommands(settingsFor(Gcc13), { executableWithSources("hello", "src/main.cpp", { "src/main.cpp" }) });
 
     ASSERT_EQ(commands.size(), 1);
     EXPECT_EQ(commands[0].target, "hello");
@@ -80,20 +77,20 @@ TEST(CompilePlannerTest, CompilesASourceFromTheProjectRoot)
     EXPECT_EQ(commands[0].file, "src/main.cpp");
     EXPECT_EQ(commands[0].output, "build/debug/obj/hello/src/main.cpp.o");
     EXPECT_EQ(commands[0].arguments,
-              (std::vector<std::string>{"/usr/bin/c++",
-                                        "-std=c++23",
-                                        "-g",
-                                        "-O0",
-                                        "-Wall",
-                                        "-Wextra",
-                                        "-Wpedantic",
-                                        "-fdiagnostics-color=always",
-                                        "-I",
-                                        "include",
-                                        "-c",
-                                        "src/main.cpp",
-                                        "-o",
-                                        "build/debug/obj/hello/src/main.cpp.o"}));
+              (std::vector<std::string>{ "/usr/bin/c++",
+                                         "-std=c++23",
+                                         "-g",
+                                         "-O0",
+                                         "-Wall",
+                                         "-Wextra",
+                                         "-Wpedantic",
+                                         "-fdiagnostics-color=always",
+                                         "-I",
+                                         "include",
+                                         "-c",
+                                         "src/main.cpp",
+                                         "-o",
+                                         "build/debug/obj/hello/src/main.cpp.o" }));
 }
 
 /**
@@ -102,10 +99,10 @@ TEST(CompilePlannerTest, CompilesASourceFromTheProjectRoot)
  */
 TEST(CompilePlannerTest, SpellsTheStandardAsTheDriverDoes)
 {
-    const CompilerIdentity clang16{.family = CompilerFamily::Clang, .version = {.major = 16, .minor = 0, .patch = 6}};
+    const CompilerIdentity clang16{ .family = CompilerFamily::Clang, .version = { .major = 16, .minor = 0, .patch = 6 } };
 
     const auto commands = planCompileCommands(settingsFor(clang16, LanguageStandard::Cxx23),
-                                              {executableWithSources("hello", "src/main.cpp", {"src/main.cpp"})});
+                                              { executableWithSources("hello", "src/main.cpp", { "src/main.cpp" }) });
 
     ASSERT_EQ(commands.size(), 1);
     ASSERT_GE(commands[0].arguments.size(), 2);
@@ -119,7 +116,7 @@ TEST(CompilePlannerTest, SpellsTheStandardAsTheDriverDoes)
 TEST(CompilePlannerTest, NamesAStandardTheCompilerCannotBuild)
 {
     const auto commands = planCompileCommands(settingsFor(Gcc13, LanguageStandard::Cxx26),
-                                              {executableWithSources("hello", "src/main.cpp", {"src/main.cpp"})});
+                                              { executableWithSources("hello", "src/main.cpp", { "src/main.cpp" }) });
 
     ASSERT_EQ(commands.size(), 1);
     ASSERT_GE(commands[0].arguments.size(), 2);
@@ -132,24 +129,24 @@ TEST(CompilePlannerTest, NamesAStandardTheCompilerCannotBuild)
  */
 TEST(CompilePlannerTest, GivesAnUnknownCompilerNoColorOption)
 {
-    const auto commands = planCompileCommands(settingsFor(CompilerIdentity{}),
-                                              {executableWithSources("hello", "src/main.cpp", {"src/main.cpp"})});
+    const auto commands
+        = planCompileCommands(settingsFor(CompilerIdentity{}), { executableWithSources("hello", "src/main.cpp", { "src/main.cpp" }) });
 
     ASSERT_EQ(commands.size(), 1);
     EXPECT_EQ(commands[0].arguments,
-              (std::vector<std::string>{"/usr/bin/c++",
-                                        "-std=c++23",
-                                        "-g",
-                                        "-O0",
-                                        "-Wall",
-                                        "-Wextra",
-                                        "-Wpedantic",
-                                        "-I",
-                                        "include",
-                                        "-c",
-                                        "src/main.cpp",
-                                        "-o",
-                                        "build/debug/obj/hello/src/main.cpp.o"}));
+              (std::vector<std::string>{ "/usr/bin/c++",
+                                         "-std=c++23",
+                                         "-g",
+                                         "-O0",
+                                         "-Wall",
+                                         "-Wextra",
+                                         "-Wpedantic",
+                                         "-I",
+                                         "include",
+                                         "-c",
+                                         "src/main.cpp",
+                                         "-o",
+                                         "build/debug/obj/hello/src/main.cpp.o" }));
 }
 
 /**
@@ -158,16 +155,15 @@ TEST(CompilePlannerTest, GivesAnUnknownCompilerNoColorOption)
  */
 TEST(CompilePlannerTest, CompilesASharedSourceOnceForEachTarget)
 {
-    const auto commands =
-        planCompileCommands(settingsFor(Gcc13),
-                            {executableWithSources("app", "src/main.cpp", {"src/main.cpp", "src/shared.cpp"}),
-                             executableWithSources("tool", "src/tool.cpp", {"src/shared.cpp", "src/tool.cpp"})});
+    const auto commands = planCompileCommands(settingsFor(Gcc13),
+                                              { executableWithSources("app", "src/main.cpp", { "src/main.cpp", "src/shared.cpp" }),
+                                                executableWithSources("tool", "src/tool.cpp", { "src/shared.cpp", "src/tool.cpp" }) });
 
     EXPECT_EQ(outputsOf(commands),
-              (std::vector<std::filesystem::path>{"build/debug/obj/app/src/main.cpp.o",
-                                                  "build/debug/obj/app/src/shared.cpp.o",
-                                                  "build/debug/obj/tool/src/shared.cpp.o",
-                                                  "build/debug/obj/tool/src/tool.cpp.o"}));
+              (std::vector<std::filesystem::path>{ "build/debug/obj/app/src/main.cpp.o",
+                                                   "build/debug/obj/app/src/shared.cpp.o",
+                                                   "build/debug/obj/tool/src/shared.cpp.o",
+                                                   "build/debug/obj/tool/src/tool.cpp.o" }));
     ASSERT_EQ(commands.size(), 4);
     EXPECT_EQ(commands[1].target, "app");
     EXPECT_EQ(commands[2].target, "tool");
@@ -181,13 +177,13 @@ TEST(CompilePlannerTest, KeepsSourcesThatShareAStemApart)
 {
     const auto commands = planCompileCommands(
         settingsFor(Gcc13),
-        {executableWithSources("hello", "src/main.cpp", {"src/a/x.cpp", "src/b/x.cpp", "src/main.cpp", "src/x.cc"})});
+        { executableWithSources("hello", "src/main.cpp", { "src/a/x.cpp", "src/b/x.cpp", "src/main.cpp", "src/x.cc" }) });
 
     EXPECT_EQ(outputsOf(commands),
-              (std::vector<std::filesystem::path>{"build/debug/obj/hello/src/a/x.cpp.o",
-                                                  "build/debug/obj/hello/src/b/x.cpp.o",
-                                                  "build/debug/obj/hello/src/main.cpp.o",
-                                                  "build/debug/obj/hello/src/x.cc.o"}));
+              (std::vector<std::filesystem::path>{ "build/debug/obj/hello/src/a/x.cpp.o",
+                                                   "build/debug/obj/hello/src/b/x.cpp.o",
+                                                   "build/debug/obj/hello/src/main.cpp.o",
+                                                   "build/debug/obj/hello/src/x.cc.o" }));
 }
 
 /**
@@ -196,8 +192,7 @@ TEST(CompilePlannerTest, KeepsSourcesThatShareAStemApart)
  */
 TEST(CompilePlannerTest, CompilesAnEntryPointOutsideTheSourceDirectory)
 {
-    const auto commands =
-        planCompileCommands(settingsFor(Gcc13), {executableWithSources("gen", "tools/gen.cpp", {"tools/gen.cpp"})});
+    const auto commands = planCompileCommands(settingsFor(Gcc13), { executableWithSources("gen", "tools/gen.cpp", { "tools/gen.cpp" }) });
 
     ASSERT_EQ(commands.size(), 1);
     EXPECT_EQ(commands[0].file, "tools/gen.cpp");
@@ -221,7 +216,7 @@ TEST(CompilePlannerTest, PlansNothingWithoutATarget)
 TEST(CompilePlannerTest, WritesBelowTheBuildDirectoryGiven)
 {
     const auto settings = settingsFor(Gcc13, LanguageStandard::Cxx23, "build/release");
-    const std::vector<TargetSources> targets{executableWithSources("hello", "src/main.cpp", {"src/main.cpp"})};
+    const std::vector<TargetSources> targets{ executableWithSources("hello", "src/main.cpp", { "src/main.cpp" }) };
 
     const auto compiles = planCompileCommands(settings, targets);
     const auto links = planLinkCommands(settings, targets);
@@ -239,8 +234,8 @@ TEST(CompilePlannerTest, WritesBelowTheBuildDirectoryGiven)
  */
 TEST(CompilePlannerTest, PassesASourceThatLooksLikeAnOptionAsAFile)
 {
-    const auto commands =
-        planCompileCommands(settingsFor(Gcc13), {executableWithSources("x", "-fplugin=evil.so", {"-fplugin=evil.so"})});
+    const auto commands
+        = planCompileCommands(settingsFor(Gcc13), { executableWithSources("x", "-fplugin=evil.so", { "-fplugin=evil.so" }) });
 
     ASSERT_EQ(commands.size(), 1);
     EXPECT_EQ(commands[0].file, "./-fplugin=evil.so");
@@ -257,8 +252,7 @@ TEST(CompilePlannerTest, PassesASourceThatLooksLikeAnOptionAsAFile)
  */
 TEST(CompilePlannerTest, PassesASourceThatLooksLikeAFileOfOptionsAsAFile)
 {
-    const auto commands =
-        planCompileCommands(settingsFor(Gcc13), {executableWithSources("x", "@options.cpp", {"@options.cpp"})});
+    const auto commands = planCompileCommands(settingsFor(Gcc13), { executableWithSources("x", "@options.cpp", { "@options.cpp" }) });
 
     ASSERT_EQ(commands.size(), 1);
     EXPECT_EQ(commands[0].file, "./@options.cpp");
@@ -273,20 +267,20 @@ TEST(CompilePlannerTest, PassesASourceThatLooksLikeAFileOfOptionsAsAFile)
  */
 TEST(CompilePlannerTest, LinksTheObjectFilesOfAnExecutable)
 {
-    const auto commands = planLinkCommands(
-        settingsFor(Gcc13), {executableWithSources("hello", "src/main.cpp", {"src/main.cpp", "src/util.cpp"})});
+    const auto commands
+        = planLinkCommands(settingsFor(Gcc13), { executableWithSources("hello", "src/main.cpp", { "src/main.cpp", "src/util.cpp" }) });
 
     ASSERT_EQ(commands.size(), 1);
     EXPECT_EQ(commands[0].target, "hello");
     EXPECT_EQ(commands[0].directory, ProjectRoot);
     EXPECT_EQ(commands[0].output, "build/debug/bin/hello");
     EXPECT_EQ(commands[0].arguments,
-              (std::vector<std::string>{"/usr/bin/c++",
-                                        "-fdiagnostics-color=always",
-                                        "build/debug/obj/hello/src/main.cpp.o",
-                                        "build/debug/obj/hello/src/util.cpp.o",
-                                        "-o",
-                                        "build/debug/bin/hello"}));
+              (std::vector<std::string>{ "/usr/bin/c++",
+                                         "-fdiagnostics-color=always",
+                                         "build/debug/obj/hello/src/main.cpp.o",
+                                         "build/debug/obj/hello/src/util.cpp.o",
+                                         "-o",
+                                         "build/debug/bin/hello" }));
 }
 
 /**
@@ -295,10 +289,9 @@ TEST(CompilePlannerTest, LinksTheObjectFilesOfAnExecutable)
  */
 TEST(CompilePlannerTest, LinksEachExecutableFromItsOwnObjectFiles)
 {
-    const auto commands =
-        planLinkCommands(settingsFor(Gcc13),
-                         {executableWithSources("app", "src/main.cpp", {"src/main.cpp", "src/shared.cpp"}),
-                          executableWithSources("tool", "src/tool.cpp", {"src/shared.cpp", "src/tool.cpp"})});
+    const auto commands = planLinkCommands(settingsFor(Gcc13),
+                                           { executableWithSources("app", "src/main.cpp", { "src/main.cpp", "src/shared.cpp" }),
+                                             executableWithSources("tool", "src/tool.cpp", { "src/shared.cpp", "src/tool.cpp" }) });
 
     ASSERT_EQ(commands.size(), 2);
     EXPECT_EQ(commands[0].output, "build/debug/bin/app");
@@ -314,10 +307,9 @@ TEST(CompilePlannerTest, LinksEachExecutableFromItsOwnObjectFiles)
  */
 TEST(CompilePlannerTest, LinksNoLibrary)
 {
-    const auto commands =
-        planLinkCommands(settingsFor(Gcc13),
-                         {executableWithSources("app", "src/main.cpp", {"src/main.cpp"}),
-                          targetWithSources(TargetKind::Library, "core", "src/core.cpp", {"src/core.cpp"})});
+    const auto commands = planLinkCommands(settingsFor(Gcc13),
+                                           { executableWithSources("app", "src/main.cpp", { "src/main.cpp" }),
+                                             targetWithSources(TargetKind::Library, "core", "src/core.cpp", { "src/core.cpp" }) });
 
     ASSERT_EQ(commands.size(), 1);
     EXPECT_EQ(commands[0].target, "app");
@@ -328,11 +320,10 @@ TEST(CompilePlannerTest, LinksNoLibrary)
  */
 TEST(CompilePlannerTest, LinksWithoutColorForAnUnknownCompiler)
 {
-    const auto commands = planLinkCommands(settingsFor(CompilerIdentity{}),
-                                           {executableWithSources("hello", "src/main.cpp", {"src/main.cpp"})});
+    const auto commands
+        = planLinkCommands(settingsFor(CompilerIdentity{}), { executableWithSources("hello", "src/main.cpp", { "src/main.cpp" }) });
 
     ASSERT_EQ(commands.size(), 1);
     EXPECT_EQ(commands[0].arguments,
-              (std::vector<std::string>{
-                  "/usr/bin/c++", "build/debug/obj/hello/src/main.cpp.o", "-o", "build/debug/bin/hello"}));
+              (std::vector<std::string>{ "/usr/bin/c++", "build/debug/obj/hello/src/main.cpp.o", "-o", "build/debug/bin/hello" }));
 }

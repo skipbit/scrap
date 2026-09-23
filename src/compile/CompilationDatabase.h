@@ -57,8 +57,7 @@ struct DatabaseWriteFailure {
  * @param commands Commands to write, possibly none.
  * @return Nothing on success, or the step that failed.
  */
-[[nodiscard]] auto
-writeCompilationDatabase(const std::filesystem::path& buildDirectory,
-                         const std::vector<CompileCommand>& commands) -> std::expected<void, DatabaseWriteFailure>;
+[[nodiscard]] auto writeCompilationDatabase(const std::filesystem::path& buildDirectory,
+                                            const std::vector<CompileCommand>& commands) -> std::expected<void, DatabaseWriteFailure>;
 
 }  // namespace scrap::Compile

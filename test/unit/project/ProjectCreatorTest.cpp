@@ -1,16 +1,16 @@
-#include <gtest/gtest.h>
+#include "project/ProjectCreator.h"
 
 #include "project/DefaultTemplate.h"
 #include "project/Manifest.h"
-#include "project/ProjectCreator.h"
 #include "project/ProjectFileSystem.h"
 #include "project/ProjectLoader.h"
 #include "project/ProjectLocator.h"
 #include "project/TargetResolver.h"
 #include "project/TemplateFile.h"
 #include "project/driver/DiskProjectFileSystem.h"
-
 #include "support/TempDirectory.h"
+
+#include <gtest/gtest.h>
 
 #include <filesystem>
 #include <string>
@@ -45,13 +45,12 @@ public:
     std::error_code removeError;
     int removeCalls = 0;
 
-    [[nodiscard]] auto
-    absolute(const std::filesystem::path& path) const -> std::expected<std::filesystem::path, std::error_code> override
+    [[nodiscard]] auto absolute(const std::filesystem::path& path) const -> std::expected<std::filesystem::path, std::error_code> override
     {
         if (absoluteError) {
             return std::unexpected(absoluteError);
         }
-        return std::filesystem::path{"/absolute"} / path.filename();
+        return std::filesystem::path{ "/absolute" } / path.filename();
     }
 
     [[nodiscard]] auto createDirectory(const std::filesystem::path&) -> std::error_code override
@@ -83,7 +82,7 @@ public:
  */
 TEST(ProjectCreatorTest, AcceptsLettersDigitsHyphensAndUnderscores)
 {
-    for (const char* name : {"a", "hello", "my-app", "my_app", "App2", "x-1_y"}) {
+    for (const char* name : { "a", "hello", "my-app", "my_app", "App2", "x-1_y" }) {
         EXPECT_TRUE(isValidProjectName(name)) << name;
     }
 }
@@ -93,20 +92,8 @@ TEST(ProjectCreatorTest, AcceptsLettersDigitsHyphensAndUnderscores)
  */
 TEST(ProjectCreatorTest, RejectsNamesOutsideTheRule)
 {
-    for (const char* name : {"",
-                             "../x",
-                             "a/b",
-                             "a\\b",
-                             ".",
-                             "..",
-                             ".hidden",
-                             "1app",
-                             "-app",
-                             "_app",
-                             "my app",
-                             "a.b",
-                             "a\"b",
-                             "caf\u00e9"}) {
+    for (const char* name :
+         { "", "../x", "a/b", "a\\b", ".", "..", ".hidden", "1app", "-app", "_app", "my app", "a.b", "a\"b", "caf\u00e9" }) {
         EXPECT_FALSE(isValidProjectName(name)) << name;
     }
 }
@@ -245,8 +232,8 @@ TEST(ProjectCreatorTest, RemovesThePartialProjectWhenAFileCannotBeWritten)
     const TempDirectory temp;
 
     const auto root = createProject(diskFileSystem(), temp.path(), "hello", [](std::string_view) {
-        return std::vector<TemplateFile>{TemplateFile{.path = "a", .content = "a file\n"},
-                                         TemplateFile{.path = "a/b", .content = "under a file\n"}};
+        return std::vector<TemplateFile>{ TemplateFile{ .path = "a", .content = "a file\n" },
+                                          TemplateFile{ .path = "a/b", .content = "under a file\n" } };
     });
 
     ASSERT_FALSE(root.has_value());
@@ -285,11 +272,11 @@ TEST(ProjectCreatorTest, AsksTheTemplateOnlyAfterTheDirectoryExists)
  */
 TEST(ProjectCreatorTest, RefusesATemplateFileOutsideTheProject)
 {
-    for (const char* path : {"../outside.txt", "/tmp/outside.txt", "nested/../../outside.txt"}) {
+    for (const char* path : { "../outside.txt", "/tmp/outside.txt", "nested/../../outside.txt" }) {
         FailingFileSystem files;
 
         const auto root = createProject(files, "/work", "hello", [path](std::string_view) {
-            return std::vector<TemplateFile>{TemplateFile{.path = path, .content = "outside\n"}};
+            return std::vector<TemplateFile>{ TemplateFile{ .path = path, .content = "outside\n" } };
         });
 
         ASSERT_FALSE(root.has_value()) << path;
@@ -325,7 +312,7 @@ TEST(ProjectCreatorTest, RemovesTheProjectWhenTheFileSystemRefusesAWrite)
     ASSERT_FALSE(root.has_value());
     const auto* error = std::get_if<CannotCreate>(&root.error());
     ASSERT_NE(error, nullptr);
-    EXPECT_EQ(error->path, std::filesystem::path{"/absolute/work/hello/scrap.toml"});
+    EXPECT_EQ(error->path, std::filesystem::path{ "/absolute/work/hello/scrap.toml" });
     EXPECT_EQ(error->code, std::errc::no_space_on_device);
     EXPECT_FALSE(error->leftBehind.has_value());
     EXPECT_EQ(files.removeCalls, 1);
@@ -347,7 +334,7 @@ TEST(ProjectCreatorTest, NamesTheDirectoryLeftBehindByAFailedRemoval)
     const auto* error = std::get_if<CannotCreate>(&root.error());
     ASSERT_NE(error, nullptr);
     ASSERT_TRUE(error->leftBehind.has_value());
-    EXPECT_EQ(*error->leftBehind, std::filesystem::path{"/absolute/work/hello"});
+    EXPECT_EQ(*error->leftBehind, std::filesystem::path{ "/absolute/work/hello" });
 }
 
 /**
@@ -387,7 +374,7 @@ TEST(ProjectCreatorTest, ReportsAWorkingDirectoryThatCannotBeResolved)
     ASSERT_FALSE(root.has_value());
     const auto* error = std::get_if<CannotCreate>(&root.error());
     ASSERT_NE(error, nullptr);
-    EXPECT_EQ(error->path, std::filesystem::path{"/gone/hello"});
+    EXPECT_EQ(error->path, std::filesystem::path{ "/gone/hello" });
     EXPECT_EQ(error->code, std::errc::no_such_file_or_directory);
 }
 

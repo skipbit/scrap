@@ -1,6 +1,6 @@
-#include <gtest/gtest.h>
-
 #include "command/PrintableText.h"
+
+#include <gtest/gtest.h>
 
 #include <string>
 #include <string_view>
@@ -25,7 +25,7 @@ TEST(PrintableTextTest, KeepsLettersOutsideAscii)
  */
 TEST(PrintableTextTest, EscapesWhatATerminalActsOn)
 {
-    EXPECT_EQ(printableText(std::string_view{"a\x1b[31m\x07\x7f\\b"}), "a\\x1B[31m\\x07\\x7F\\x5Cb");
+    EXPECT_EQ(printableText(std::string_view{ "a\x1b[31m\x07\x7f\\b" }), "a\\x1B[31m\\x07\\x7F\\x5Cb");
 }
 
 /**
@@ -56,7 +56,7 @@ TEST(PrintableTextTest, EscapesBytesThatFormNoUtf8Sequence)
 TEST(PrintableTextTest, EscapesWhatANameCannotPrint)
 {
     EXPECT_EQ(printableName("core"), "core");
-    EXPECT_EQ(printableName(std::string_view{"a\x1b[31m\x7f\\b"}), "a\\x1B[31m\\x7F\\x5Cb");
+    EXPECT_EQ(printableName(std::string_view{ "a\x1b[31m\x7f\\b" }), "a\\x1B[31m\\x7F\\x5Cb");
     EXPECT_EQ(printableName("\xe6\x97\xa5"), "\\xE6\\x97\\xA5");
     EXPECT_EQ(printableName(std::string(100, 'n')), std::string(100, 'n'));
 }

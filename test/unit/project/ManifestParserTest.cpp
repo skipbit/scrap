@@ -1,11 +1,11 @@
-#include <gtest/gtest.h>
+#include "project/ManifestParser.h"
 
 #include "project/LanguageStandard.h"
 #include "project/Manifest.h"
 #include "project/ManifestError.h"
-#include "project/ManifestParser.h"
-
 #include "support/TempDirectory.h"
+
+#include <gtest/gtest.h>
 
 #include <string>
 #include <string_view>
@@ -103,7 +103,7 @@ TEST(ManifestParserTest, ReportsAStandardItDoesNotAccept)
  */
 TEST(ManifestParserTest, ReadsOnlyTheNumberOfAStandard)
 {
-    for (const std::string_view value : {"c++23", "2b", "98", "24", " 23", "23 "}) {
+    for (const std::string_view value : { "c++23", "2b", "98", "24", " 23", "23 " }) {
         std::string text = "[package]\nname = \"a\"\nversion = \"0.1.0\"\nstd = \"";
         text += value;
         text += "\"\n";
@@ -358,20 +358,17 @@ TEST(ManifestParserTest, ReportsManifestThatCannotBeOpened)
  */
 TEST(ManifestParserTest, DescribeRendersWhatIsKnown)
 {
-    const ManifestError withEverything{.file = "scrap.toml",
-                                       .position = SourcePosition{.line = 4, .column = 9},
-                                       .key = "bin.name",
-                                       .message = "must be a string"};
+    const ManifestError withEverything{
+        .file = "scrap.toml", .position = SourcePosition{ .line = 4, .column = 9 }, .key = "bin.name", .message = "must be a string"
+    };
     EXPECT_EQ(describe(withEverything), "scrap.toml:4:9: error: bin.name: must be a string");
 
-    const ManifestError withoutKey{.file = "scrap.toml",
-                                   .position = SourcePosition{.line = 2, .column = 1},
-                                   .key = {},
-                                   .message = "unexpected token"};
+    const ManifestError withoutKey{
+        .file = "scrap.toml", .position = SourcePosition{ .line = 2, .column = 1 }, .key = {}, .message = "unexpected token"
+    };
     EXPECT_EQ(describe(withoutKey), "scrap.toml:2:1: error: unexpected token");
 
-    const ManifestError fileOnly{
-        .file = "a/scrap.toml", .position = std::nullopt, .key = {}, .message = "cannot open the manifest"};
+    const ManifestError fileOnly{ .file = "a/scrap.toml", .position = std::nullopt, .key = {}, .message = "cannot open the manifest" };
     EXPECT_EQ(describe(fileOnly), "a/scrap.toml: error: cannot open the manifest");
 }
 

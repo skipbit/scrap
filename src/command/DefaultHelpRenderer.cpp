@@ -35,10 +35,7 @@ auto maxNameLength(std::span<const HelpEntry> entries) -> std::size_t
  * Output: "    <name>    <description>\n"
  * The name is padded to @p columnWidth for alignment.
  */
-void appendCommandLine(std::ostringstream& out,
-                       const std::string& name,
-                       const std::string& description,
-                       std::size_t columnWidth)
+void appendCommandLine(std::ostringstream& out, const std::string& name, const std::string& description, std::size_t columnWidth)
 {
     out << "    " << name;
     if (! description.empty()) {
@@ -56,7 +53,8 @@ void appendCommandLine(std::ostringstream& out,
  */
 void appendSectionHeader(std::ostringstream& out, const std::string& title)
 {
-    out << '\n' << title << ":\n";
+    out << '\n'
+        << title << ":\n";
 }
 
 /**
@@ -105,15 +103,15 @@ auto DefaultHelpRenderer::renderGlobal(std::span<const HelpEntry> entries) const
 
     for (const auto& entry : entries) {
         switch (entry.source) {
-            case CommandSource::Builtin:
-                builtinCategories[entry.spec.category].push_back(&entry);
-                break;
-            case CommandSource::External:
-                externalEntries.push_back(&entry);
-                break;
-            case CommandSource::Project:
-                projectEntries.push_back(&entry);
-                break;
+        case CommandSource::Builtin:
+            builtinCategories[entry.spec.category].push_back(&entry);
+            break;
+        case CommandSource::External:
+            externalEntries.push_back(&entry);
+            break;
+        case CommandSource::Project:
+            projectEntries.push_back(&entry);
+            break;
         }
     }
 
@@ -159,7 +157,8 @@ auto DefaultHelpRenderer::renderCommand(const CommandSpec& spec) const -> std::s
     appendUsageLine(out, spec);
 
     if (! spec.description.empty()) {
-        out << '\n' << spec.description << '\n';
+        out << '\n'
+            << spec.description << '\n';
     }
 
     // Subcommands section.

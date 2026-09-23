@@ -32,8 +32,8 @@ public:
      * @param path Path to resolve.
      * @return The absolute path, or the failure the system reported.
      */
-    [[nodiscard]] virtual auto
-    absolute(const std::filesystem::path& path) const -> std::expected<std::filesystem::path, std::error_code> = 0;
+    [[nodiscard]] virtual auto absolute(const std::filesystem::path& path) const -> std::expected<std::filesystem::path, std::error_code>
+                                                                                    = 0;
 
     /**
      * @brief Create @p directory alone, and only where nothing exists yet.
@@ -59,8 +59,7 @@ public:
      * @param content Bytes to write.
      * @return An empty code on success, or the failure the system reported.
      */
-    [[nodiscard]] virtual auto writeNewFile(const std::filesystem::path& file,
-                                            std::string_view content) -> std::error_code = 0;
+    [[nodiscard]] virtual auto writeNewFile(const std::filesystem::path& file, std::string_view content) -> std::error_code = 0;
 
     /**
      * @brief Remove @p directory and everything below it.

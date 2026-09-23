@@ -68,8 +68,7 @@ struct NoCompiler {
  * @param systemSearchPaths Directories PATH lists, in order.
  * @return The compiler to use, or why none was settled on.
  */
-[[nodiscard]] auto detectSystemCompiler(const std::string& preferredCompiler,
-                                        const std::vector<std::filesystem::path>& systemSearchPaths)
+[[nodiscard]] auto detectSystemCompiler(const std::string& preferredCompiler, const std::vector<std::filesystem::path>& systemSearchPaths)
     -> std::expected<SystemCompiler, NoCompiler>;
 
 }  // namespace scrap::Toolchain

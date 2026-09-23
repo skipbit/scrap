@@ -30,18 +30,13 @@ namespace {
 constexpr LanguageStandard DefaultStandard = LanguageStandard::Cxx23;
 
 /// Top-level keys this version recognises.
-constexpr std::array<std::string_view, 6> KnownTopLevelKeys{"package",
-                                                            "bin",
-                                                            "lib",
-                                                            "dependencies",
-                                                            "toolchain",
-                                                            "scripts"};
+constexpr std::array<std::string_view, 6> KnownTopLevelKeys{ "package", "bin", "lib", "dependencies", "toolchain", "scripts" };
 
 /// Keys the [package] table recognises.
-constexpr std::array<std::string_view, 3> KnownPackageKeys{"name", "version", "std"};
+constexpr std::array<std::string_view, 3> KnownPackageKeys{ "name", "version", "std" };
 
 /// Keys one [[bin]] or [[lib]] entry recognises.
-constexpr std::array<std::string_view, 2> KnownTargetKeys{"name", "src"};
+constexpr std::array<std::string_view, 2> KnownTargetKeys{ "name", "src" };
 
 /**
  * A string read out of the manifest, kept with the node it came from so a
@@ -57,8 +52,7 @@ struct StringField {
  */
 auto toPosition(const toml::source_position& from) -> SourcePosition
 {
-    return SourcePosition{.line = static_cast<std::uint32_t>(from.line),
-                          .column = static_cast<std::uint32_t>(from.column)};
+    return SourcePosition{ .line = static_cast<std::uint32_t>(from.line), .column = static_cast<std::uint32_t>(from.column) };
 }
 
 /**
@@ -66,7 +60,7 @@ auto toPosition(const toml::source_position& from) -> SourcePosition
  */
 auto dotted(std::string_view table, std::string_view key) -> std::string
 {
-    std::string joined{table};
+    std::string joined{ table };
     joined += '.';
     joined += key;
     return joined;
@@ -75,16 +69,13 @@ auto dotted(std::string_view table, std::string_view key) -> std::string
 /**
  * Build an error pointing at where @p node starts.
  */
-auto errorAt(const std::filesystem::path& file,
-             const toml::node& node,
-             std::string key,
-             std::string message) -> ManifestError
+auto errorAt(const std::filesystem::path& file, const toml::node& node, std::string key, std::string message) -> ManifestError
 {
-    return ManifestError{.file = file,
-                         .position = toPosition(node.source().begin),
-                         .key = std::move(key),
-                         .message = std::move(message),
-                         .kind = ManifestErrorKind::Invalid};
+    return ManifestError{ .file = file,
+                          .position = toPosition(node.source().begin),
+                          .key = std::move(key),
+                          .message = std::move(message),
+                          .kind = ManifestErrorKind::Invalid };
 }
 
 /**
@@ -92,11 +83,9 @@ auto errorAt(const std::filesystem::path& file,
  */
 auto errorWithoutPosition(const std::filesystem::path& file, std::string key, std::string message) -> ManifestError
 {
-    return ManifestError{.file = file,
-                         .position = std::nullopt,
-                         .key = std::move(key),
-                         .message = std::move(message),
-                         .kind = ManifestErrorKind::Invalid};
+    return ManifestError{
+        .file = file, .position = std::nullopt, .key = std::move(key), .message = std::move(message), .kind = ManifestErrorKind::Invalid
+    };
 }
 
 /**
@@ -104,19 +93,15 @@ auto errorWithoutPosition(const std::filesystem::path& file, std::string key, st
  */
 auto unreadable(const std::filesystem::path& file, std::string message) -> ManifestError
 {
-    return ManifestError{.file = file,
-                         .position = std::nullopt,
-                         .key = {},
-                         .message = std::move(message),
-                         .kind = ManifestErrorKind::Unreadable};
+    return ManifestError{
+        .file = file, .position = std::nullopt, .key = {}, .message = std::move(message), .kind = ManifestErrorKind::Unreadable
+    };
 }
 
 /**
  * Read @p node as a non-empty string.
  */
-auto readString(const std::filesystem::path& file,
-                const toml::node& node,
-                std::string key) -> std::expected<StringField, ManifestError>
+auto readString(const std::filesystem::path& file, const toml::node& node, std::string key) -> std::expected<StringField, ManifestError>
 {
     const auto value = node.value<std::string>();
     if (! value.has_value()) {
@@ -125,7 +110,7 @@ auto readString(const std::filesystem::path& file,
     if (value->empty()) {
         return std::unexpected(errorAt(file, node, std::move(key), "must not be empty"));
     }
-    return StringField{.value = *value, .node = &node};
+    return StringField{ .value = *value, .node = &node };
 }
 
 /**
@@ -150,8 +135,7 @@ auto requireString(const std::filesystem::path& file,
  * reported here: handed to the compiler, it would be rejected without saying
  * what to write instead.
  */
-auto parseStandard(const std::filesystem::path& file,
-                   const toml::table& package) -> std::expected<LanguageStandard, ManifestError>
+auto parseStandard(const std::filesystem::path& file, const toml::table& package) -> std::expected<LanguageStandard, ManifestError>
 {
     const toml::node* node = package.get("std");
     if (node == nullptr) {
@@ -194,9 +178,7 @@ auto hasControlCharacter(std::string_view text) -> bool
  * one carrying a separator or a parent-directory reference would place the
  * artifact outside the directory the caller chose.
  */
-auto validateName(const std::filesystem::path& file,
-                  const StringField& field,
-                  std::string key) -> std::expected<void, ManifestError>
+auto validateName(const std::filesystem::path& file, const StringField& field, std::string key) -> std::expected<void, ManifestError>
 {
     if (field.node == nullptr) {
         return {};
@@ -216,11 +198,9 @@ auto validateName(const std::filesystem::path& file,
 /**
  * Reject an entry point that does not stay inside the project.
  */
-auto validateEntryPoint(const std::filesystem::path& file,
-                        const StringField& field,
-                        std::string key) -> std::expected<void, ManifestError>
+auto validateEntryPoint(const std::filesystem::path& file, const StringField& field, std::string key) -> std::expected<void, ManifestError>
 {
-    const std::filesystem::path entryPoint{field.value};
+    const std::filesystem::path entryPoint{ field.value };
     if (entryPoint.is_absolute() || entryPoint.has_root_name() || entryPoint.has_root_directory()) {
         return std::unexpected(errorAt(file, *field.node, std::move(key), "must be relative to the project root"));
     }
@@ -264,7 +244,7 @@ auto rejectUnknownKeys(const std::filesystem::path& file,
             message += ' ';
             message += candidate;
         }
-        std::string reported = prefix.empty() ? std::string{name} : dotted(prefix, name);
+        std::string reported = prefix.empty() ? std::string{ name } : dotted(prefix, name);
         return std::unexpected(errorAt(file, value, std::move(reported), std::move(message)));
     }
     return {};
@@ -306,7 +286,7 @@ auto parsePackage(const std::filesystem::path& file, const toml::table& root) ->
         return std::unexpected(standard.error());
     }
 
-    return Package{.name = std::move(name->value), .version = std::move(version->value), .standard = *standard};
+    return Package{ .name = std::move(name->value), .version = std::move(version->value), .standard = *standard };
 }
 
 /**
@@ -343,7 +323,7 @@ auto parseTargetEntry(const std::filesystem::path& file,
         return std::unexpected(valid.error());
     }
 
-    targets.push_back(Target{.kind = kind, .name = std::move(name->value), .entryPoint = source->value});
+    targets.push_back(Target{ .kind = kind, .name = std::move(name->value), .entryPoint = source->value });
     return {};
 }
 
@@ -362,13 +342,13 @@ auto parseTargetArray(const std::filesystem::path& file,
     }
     const toml::array* entries = node->as_array();
     if (entries == nullptr) {
-        return std::unexpected(errorAt(file, *node, std::string{key}, "must be an array of tables"));
+        return std::unexpected(errorAt(file, *node, std::string{ key }, "must be an array of tables"));
     }
 
     for (const toml::node& entry : *entries) {
         const toml::table* table = entry.as_table();
         if (table == nullptr) {
-            return std::unexpected(errorAt(file, entry, std::string{key}, "must be an array of tables"));
+            return std::unexpected(errorAt(file, entry, std::string{ key }, "must be an array of tables"));
         }
         auto parsed = parseTargetEntry(file, *table, key, kind, targets);
         if (! parsed.has_value()) {
@@ -424,11 +404,11 @@ auto parseManifest(std::string_view text, const std::filesystem::path& file) -> 
     const toml::parse_result parsed = toml::parse(text);
     if (! parsed) {
         const toml::parse_error& error = parsed.error();
-        return std::unexpected(ManifestError{.file = file,
-                                             .position = toPosition(error.source().begin),
-                                             .key = {},
-                                             .message = std::string{error.description()},
-                                             .kind = ManifestErrorKind::Invalid});
+        return std::unexpected(ManifestError{ .file = file,
+                                              .position = toPosition(error.source().begin),
+                                              .key = {},
+                                              .message = std::string{ error.description() },
+                                              .kind = ManifestErrorKind::Invalid });
     }
 
     if (auto known = rejectUnknownKeys(file, parsed.table(), {}, KnownTopLevelKeys); ! known.has_value()) {

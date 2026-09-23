@@ -27,8 +27,7 @@ namespace scrap::Command {
 namespace {
 
 /// Next step for a path argument that cannot be searched from.
-constexpr std::string_view PathHint =
-    "hint: pass a directory inside a project, or omit the path to use the current directory\n";
+constexpr std::string_view PathHint = "hint: pass a directory inside a project, or omit the path to use the current directory\n";
 
 /// Next step for a path the operating system refused.
 constexpr std::string_view PermissionHint = "hint: check the permissions of the path\n";
@@ -43,8 +42,7 @@ constexpr std::string_view ExistingPathHint = "hint: check what is already at th
 constexpr std::string_view FixErrorsHint = "hint: fix the errors reported above and run the command again\n";
 
 /// Next step when a signal stopped the compiler, which running out of memory does.
-constexpr std::string_view CompilerMemoryHint =
-    "hint: check that the compiler has enough memory and run the command again\n";
+constexpr std::string_view CompilerMemoryHint = "hint: check that the compiler has enough memory and run the command again\n";
 
 /// Next step when the compiler found earlier could not be started.
 constexpr std::string_view CompilerRunHint = "hint: check that the compiler can be run, or set CXX to another one\n";
@@ -160,8 +158,7 @@ auto render(const Project::PathExists& error) -> std::string
 auto isQuotaExceeded(const std::error_code& code) -> bool
 {
 #ifdef EDQUOT
-    return code.value() == EDQUOT &&
-        (code.category() == std::generic_category() || code.category() == std::system_category());
+    return code.value() == EDQUOT && (code.category() == std::generic_category() || code.category() == std::system_category());
 #else
     static_cast<void>(code);
     return false;
@@ -226,10 +223,10 @@ auto cannotWriteBuildHint(const std::error_code& code) -> std::string_view
 auto describeStep(const Compile::DatabaseWriteStep step) -> std::string_view
 {
     switch (step) {
-        case Compile::DatabaseWriteStep::CreateDirectory:
-            return "create";
-        case Compile::DatabaseWriteStep::WriteFile:
-            return "write";
+    case Compile::DatabaseWriteStep::CreateDirectory:
+        return "create";
+    case Compile::DatabaseWriteStep::WriteFile:
+        return "write";
     }
     // Every step is answered above, so a step added without a word here fails
     // the build rather than being described as one of the others.
@@ -256,13 +253,12 @@ auto render(const Project::CannotCreate& error) -> std::string
 /**
  * Render whichever alternative @p error holds.
  */
-template <typename... Alternatives> auto renderAlternative(const std::variant<Alternatives...>& error) -> std::string
+template <typename... Alternatives>
+auto renderAlternative(const std::variant<Alternatives...>& error) -> std::string
 {
-    return std::visit(
-        [](const auto& alternative) -> std::string {
-            return render(alternative);
-        },
-        error);
+    return std::visit([](const auto& alternative) -> std::string {
+        return render(alternative);
+    }, error);
 }
 
 }  // anonymous namespace
@@ -358,8 +354,7 @@ auto describeFailedStep(const Build::BuildStep& step) -> std::string
 
 }  // anonymous namespace
 
-auto renderUnsupportedStandard(const std::filesystem::path& compiler,
-                               const Project::LanguageStandard standard) -> std::string
+auto renderUnsupportedStandard(const std::filesystem::path& compiler, const Project::LanguageStandard standard) -> std::string
 {
     std::string text = "error: '";
     text += printablePath(compiler);
@@ -384,34 +379,34 @@ auto renderLibraryNotBuilt(const std::string_view name) -> std::string
 auto renderStepFailure(const Build::FailedStep& failed) -> std::string
 {
     switch (failed.failure.kind) {
-        case Build::StepFailureKind::CannotCreateDirectory: {
-            std::string text = "error: cannot create '";
-            text += printablePath(failed.failure.path);
-            text += "': ";
-            text += failed.failure.code.message();
-            text += '\n';
-            text += cannotWriteBuildHint(failed.failure.code);
-            return text;
-        }
-        case Build::StepFailureKind::CannotStart: {
-            std::string text = "error: cannot run '";
-            text += printablePath(failed.failure.path);
-            text += "': ";
-            text += failed.failure.code.message();
-            text += '\n';
-            text += CompilerRunHint;
-            return text;
-        }
-        case Build::StepFailureKind::Signalled: {
-            std::string text = describeFailedStep(failed.step);
-            text += ": the compiler was stopped by signal ";
-            text += std::to_string(failed.failure.status);
-            text += '\n';
-            text += CompilerMemoryHint;
-            return text;
-        }
-        case Build::StepFailureKind::Exited:
-            return describeFailedStep(failed.step) + '\n' + std::string{FixErrorsHint};
+    case Build::StepFailureKind::CannotCreateDirectory: {
+        std::string text = "error: cannot create '";
+        text += printablePath(failed.failure.path);
+        text += "': ";
+        text += failed.failure.code.message();
+        text += '\n';
+        text += cannotWriteBuildHint(failed.failure.code);
+        return text;
+    }
+    case Build::StepFailureKind::CannotStart: {
+        std::string text = "error: cannot run '";
+        text += printablePath(failed.failure.path);
+        text += "': ";
+        text += failed.failure.code.message();
+        text += '\n';
+        text += CompilerRunHint;
+        return text;
+    }
+    case Build::StepFailureKind::Signalled: {
+        std::string text = describeFailedStep(failed.step);
+        text += ": the compiler was stopped by signal ";
+        text += std::to_string(failed.failure.status);
+        text += '\n';
+        text += CompilerMemoryHint;
+        return text;
+    }
+    case Build::StepFailureKind::Exited:
+        return describeFailedStep(failed.step) + '\n' + std::string{ FixErrorsHint };
     }
     // Every kind is answered above, so a kind added without a message here
     // fails the build rather than being reported as one of the others.

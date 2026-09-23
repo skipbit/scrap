@@ -18,7 +18,7 @@ namespace {
 constexpr std::string_view DefaultCompilerName = "c++";
 
 /// Compilers looked for by name once the default does not answer.
-constexpr std::array<std::string_view, 2> KnownCompilerNames{"g++", "clang++"};
+constexpr std::array<std::string_view, 2> KnownCompilerNames{ "g++", "clang++" };
 
 /**
  * Whether the path names a file this process can run.
@@ -58,8 +58,7 @@ auto resolved(const std::filesystem::path& path) -> std::filesystem::path
 /**
  * The first of the directories holding an executable of that name.
  */
-auto findOnSearchPaths(std::string_view name,
-                       const std::vector<std::filesystem::path>& searchPaths) -> std::optional<std::filesystem::path>
+auto findOnSearchPaths(std::string_view name, const std::vector<std::filesystem::path>& searchPaths) -> std::optional<std::filesystem::path>
 {
     for (const std::filesystem::path& directory : searchPaths) {
         std::filesystem::path candidate = directory / name;
@@ -78,9 +77,9 @@ auto findOnSearchPaths(std::string_view name,
 auto findNamedCompiler(const std::string& preferredCompiler,
                        const std::vector<std::filesystem::path>& searchPaths) -> std::optional<std::filesystem::path>
 {
-    const std::filesystem::path named{preferredCompiler};
+    const std::filesystem::path named{ preferredCompiler };
     if (named.has_parent_path()) {
-        return isExecutableFile(named) ? std::optional{named} : std::nullopt;
+        return isExecutableFile(named) ? std::optional{ named } : std::nullopt;
     }
     return findOnSearchPaths(preferredCompiler, searchPaths);
 }
@@ -88,23 +87,22 @@ auto findNamedCompiler(const std::string& preferredCompiler,
 }  // anonymous namespace
 
 auto detectSystemCompiler(const std::string& preferredCompiler,
-                          const std::vector<std::filesystem::path>& systemSearchPaths)
-    -> std::expected<SystemCompiler, NoCompiler>
+                          const std::vector<std::filesystem::path>& systemSearchPaths) -> std::expected<SystemCompiler, NoCompiler>
 {
     if (! preferredCompiler.empty()) {
         const auto named = findNamedCompiler(preferredCompiler, systemSearchPaths);
         if (! named.has_value()) {
-            return std::unexpected(NoCompiler{.requested = preferredCompiler});
+            return std::unexpected(NoCompiler{ .requested = preferredCompiler });
         }
-        return SystemCompiler{.path = resolved(*named), .origin = CompilerOrigin::CompilerVariable};
+        return SystemCompiler{ .path = resolved(*named), .origin = CompilerOrigin::CompilerVariable };
     }
 
     if (const auto standard = findOnSearchPaths(DefaultCompilerName, systemSearchPaths)) {
-        return SystemCompiler{.path = resolved(*standard), .origin = CompilerOrigin::DefaultOnPath};
+        return SystemCompiler{ .path = resolved(*standard), .origin = CompilerOrigin::DefaultOnPath };
     }
     for (const std::string_view name : KnownCompilerNames) {
         if (const auto known = findOnSearchPaths(name, systemSearchPaths)) {
-            return SystemCompiler{.path = resolved(*known), .origin = CompilerOrigin::KnownName};
+            return SystemCompiler{ .path = resolved(*known), .origin = CompilerOrigin::KnownName };
         }
     }
     return std::unexpected(NoCompiler{});

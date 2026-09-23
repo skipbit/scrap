@@ -1,8 +1,8 @@
-#include <gtest/gtest.h>
-
 #include "toolchain/SystemCompiler.h"
 
 #include "support/TempDirectory.h"
+
+#include <gtest/gtest.h>
 
 #include <filesystem>
 #include <string>
@@ -51,7 +51,7 @@ TEST(SystemCompilerTest, UsesTheCompilerTheVariableNames)
     createExecutable(temp, "first/c++");
     const auto named = createExecutable(temp, "first/my-compiler");
 
-    const auto detected = detectSystemCompiler("my-compiler", {temp.path() / "first"});
+    const auto detected = detectSystemCompiler("my-compiler", { temp.path() / "first" });
 
     ASSERT_TRUE(detected.has_value());
     EXPECT_EQ(detected->path, asReported(named));
@@ -69,7 +69,7 @@ TEST(SystemCompilerTest, ReadsAPathTheVariableNamesWithoutSearching)
     const auto named = createExecutable(temp, "elsewhere/g++");
     temp.makeDirectory("first");
 
-    const auto detected = detectSystemCompiler(named.string(), {temp.path() / "first"});
+    const auto detected = detectSystemCompiler(named.string(), { temp.path() / "first" });
 
     ASSERT_TRUE(detected.has_value());
     EXPECT_EQ(detected->path, asReported(named));
@@ -85,7 +85,7 @@ TEST(SystemCompilerTest, PrefersTheDefaultCompilerOverAKnownName)
     const auto standard = createExecutable(temp, "first/c++");
     createExecutable(temp, "first/g++");
 
-    const auto detected = detectSystemCompiler("", {temp.path() / "first"});
+    const auto detected = detectSystemCompiler("", { temp.path() / "first" });
 
     ASSERT_TRUE(detected.has_value());
     EXPECT_EQ(detected->path, asReported(standard));
@@ -100,7 +100,7 @@ TEST(SystemCompilerTest, UsesACompilerKnownByName)
     const TempDirectory temp;
     const auto known = createExecutable(temp, "first/clang++");
 
-    const auto detected = detectSystemCompiler("", {temp.path() / "first"});
+    const auto detected = detectSystemCompiler("", { temp.path() / "first" });
 
     ASSERT_TRUE(detected.has_value());
     EXPECT_EQ(detected->path, asReported(known));
@@ -119,7 +119,7 @@ TEST(SystemCompilerTest, KeepsTheNameOfASymbolicLink)
     const std::filesystem::path link = temp.path() / "first" / "clang++";
     std::filesystem::create_symlink("../real/clang-22", link);
 
-    const auto detected = detectSystemCompiler("", {temp.path() / "first"});
+    const auto detected = detectSystemCompiler("", { temp.path() / "first" });
 
     ASSERT_TRUE(detected.has_value());
     EXPECT_EQ(detected->path, asReported(link));
@@ -135,7 +135,7 @@ TEST(SystemCompilerTest, LooksForTheKnownNamesInOrder)
     const auto first = createExecutable(temp, "first/g++");
     createExecutable(temp, "first/clang++");
 
-    const auto detected = detectSystemCompiler("", {temp.path() / "first"});
+    const auto detected = detectSystemCompiler("", { temp.path() / "first" });
 
     ASSERT_TRUE(detected.has_value());
     EXPECT_EQ(detected->path, asReported(first));
@@ -150,7 +150,7 @@ TEST(SystemCompilerTest, SearchesTheDirectoriesInOrder)
     const auto earlier = createExecutable(temp, "first/c++");
     createExecutable(temp, "second/c++");
 
-    const auto detected = detectSystemCompiler("", {temp.path() / "first", temp.path() / "second"});
+    const auto detected = detectSystemCompiler("", { temp.path() / "first", temp.path() / "second" });
 
     ASSERT_TRUE(detected.has_value());
     EXPECT_EQ(detected->path, asReported(earlier));
@@ -165,7 +165,7 @@ TEST(SystemCompilerTest, IgnoresAFileThatCannotBeRun)
     temp.writeFile("first/c++", "not executable");
     const auto runnable = createExecutable(temp, "first/g++");
 
-    const auto detected = detectSystemCompiler("", {temp.path() / "first"});
+    const auto detected = detectSystemCompiler("", { temp.path() / "first" });
 
     ASSERT_TRUE(detected.has_value());
     EXPECT_EQ(detected->path, asReported(runnable));
@@ -182,7 +182,7 @@ TEST(SystemCompilerTest, ReportsARequestThatCannotBeRun)
     createExecutable(temp, "first/c++");
     const std::string absent = (temp.path() / "elsewhere" / "absent-compiler").string();
 
-    const auto detected = detectSystemCompiler(absent, {temp.path() / "first"});
+    const auto detected = detectSystemCompiler(absent, { temp.path() / "first" });
 
     ASSERT_FALSE(detected.has_value());
     EXPECT_EQ(detected.error().requested, absent);
@@ -198,7 +198,7 @@ TEST(SystemCompilerTest, ReportsARequestThatCarriesMoreThanAPath)
     createExecutable(temp, "first/g++");
     createExecutable(temp, "first/c++");
 
-    const auto detected = detectSystemCompiler("ccache g++", {temp.path() / "first"});
+    const auto detected = detectSystemCompiler("ccache g++", { temp.path() / "first" });
 
     ASSERT_FALSE(detected.has_value());
     EXPECT_EQ(detected.error().requested, "ccache g++");
@@ -213,7 +213,7 @@ TEST(SystemCompilerTest, ReportsNothingRequestedWhenTheSystemHasNoCompiler)
     const TempDirectory temp;
     temp.makeDirectory("first");
 
-    const auto detected = detectSystemCompiler("", {temp.path() / "first"});
+    const auto detected = detectSystemCompiler("", { temp.path() / "first" });
 
     ASSERT_FALSE(detected.has_value());
     EXPECT_TRUE(detected.error().requested.empty());

@@ -1,6 +1,6 @@
-#include <gtest/gtest.h>
-
 #include "command/DefaultHelpRenderer.h"
+
+#include <gtest/gtest.h>
 
 using namespace scrap::Command;
 
@@ -67,8 +67,9 @@ TEST(DefaultHelpRendererTest, RenderGlobal_AlignsColumns)
 
     auto extractLine = [](const std::string& text, const std::string& linePrefix) -> std::string {
         auto pos = text.find(linePrefix);
-        if (pos == std::string::npos)
+        if (pos == std::string::npos) {
             return {};
+        }
         auto end = text.find('\n', pos);
         return text.substr(pos, end - pos);
     };
@@ -175,7 +176,7 @@ TEST(DefaultHelpRendererTest, RenderCommand_WithSubcommands)
     sub2.name = "list";
     sub2.description = "List available toolchains";
 
-    spec.subcommands = {sub1, sub2};
+    spec.subcommands = { sub1, sub2 };
 
     auto result = renderer.renderCommand(spec);
 
@@ -228,8 +229,8 @@ TEST(DefaultHelpRendererTest, RenderCommand_WithPositionalsInUsage)
     spec.name = "new";
     spec.description = "Create a new project";
 
-    spec.options.positional.push_back(PositionalDef{.name = "name", .description = "Project name", .required = true});
-    spec.options.positional.push_back(PositionalDef{.name = "path", .description = "Output path", .required = false});
+    spec.options.positional.push_back(PositionalDef{ .name = "name", .description = "Project name", .required = true });
+    spec.options.positional.push_back(PositionalDef{ .name = "path", .description = "Output path", .required = false });
 
     auto result = renderer.renderCommand(spec);
 
@@ -266,7 +267,7 @@ TEST(DefaultHelpRendererTest, RenderCommand_WithSubcommandsAndOptions)
     CommandSpec sub;
     sub.name = "install";
     sub.description = "Install a toolchain";
-    spec.subcommands = {sub};
+    spec.subcommands = { sub };
 
     OptionDef opt;
     opt.longName = "verbose";

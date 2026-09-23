@@ -80,8 +80,7 @@ namespace scrap::Command {
  * @param standard The standard scrap.toml states.
  * @return Text for standard error, each line ending in a newline.
  */
-[[nodiscard]] auto renderUnsupportedStandard(const std::filesystem::path& compiler,
-                                             Project::LanguageStandard standard) -> std::string;
+[[nodiscard]] auto renderUnsupportedStandard(const std::filesystem::path& compiler, Project::LanguageStandard standard) -> std::string;
 
 /**
  * @brief Describe a library this version does not build, and what to do next.

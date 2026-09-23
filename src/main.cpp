@@ -43,9 +43,9 @@ int main(int argc, char* argv[])
         }
 
         auto env = makeRuntimeEnvironment(cwd,
-                                          scrapHomeEnv != nullptr ? std::string{scrapHomeEnv} : std::string{},
-                                          pathEnv != nullptr ? std::string{pathEnv} : std::string{},
-                                          compilerEnv != nullptr ? std::string{compilerEnv} : std::string{});
+                                          scrapHomeEnv != nullptr ? std::string{ scrapHomeEnv } : std::string{},
+                                          pathEnv != nullptr ? std::string{ pathEnv } : std::string{},
+                                          compilerEnv != nullptr ? std::string{ compilerEnv } : std::string{});
 
         auto helpRenderer = std::make_unique<DefaultHelpRenderer>();
         auto versionRenderer = std::make_unique<DefaultVersionRenderer>();
@@ -59,7 +59,7 @@ int main(int argc, char* argv[])
         app.addResolver(std::make_unique<ExternalCommandResolver>(std::make_unique<MetadataProtocolProvider>()));
         app.addResolver(std::make_unique<ProjectCommandResolver>(std::make_unique<StubScriptsReader>()));
 
-        return app.run(std::span<const char* const>{argv, static_cast<size_t>(argc)}, env);
+        return app.run(std::span<const char* const>{ argv, static_cast<size_t>(argc) }, env);
     } catch (const std::exception& e) {
         std::cerr << "Fatal error: " << e.what() << "\n";
         return 1;

@@ -1,11 +1,12 @@
-#include <gtest/gtest.h>
+#include "build/SerialBuild.h"
 
 #include "build/BuildReporter.h"
 #include "build/BuildStep.h"
-#include "build/SerialBuild.h"
 #include "build/StepRunner.h"
 #include "compile/CompileCommand.h"
 #include "compile/LinkCommand.h"
+
+#include <gtest/gtest.h>
 
 #include <filesystem>
 #include <map>
@@ -24,12 +25,12 @@ namespace {
  */
 auto stepFor(const char* subject) -> BuildStep
 {
-    return BuildStep{.kind = StepKind::Compile,
-                     .target = "hello",
-                     .subject = subject,
-                     .directory = "/home/me/hello",
-                     .output = std::string{subject} + ".o",
-                     .arguments = {"/usr/bin/c++", subject}};
+    return BuildStep{ .kind = StepKind::Compile,
+                      .target = "hello",
+                      .subject = subject,
+                      .directory = "/home/me/hello",
+                      .output = std::string{ subject } + ".o",
+                      .arguments = { "/usr/bin/c++", subject } };
 }
 
 /**
@@ -62,7 +63,7 @@ public:
 
     void finished(const BuildStep& step, std::string_view output) override
     {
-        events.push_back("finished " + step.subject.string() + " [" + std::string{output} + "]");
+        events.push_back("finished " + step.subject.string() + " [" + std::string{ output } + "]");
     }
 };
 
@@ -74,15 +75,15 @@ public:
 TEST(SerialBuildTest, RunsEveryStepInOrder)
 {
     ScriptedRunner runner;
-    runner.results["src/b.cpp"] = StepResult{.output = "warning", .failure = std::nullopt};
+    runner.results["src/b.cpp"] = StepResult{ .output = "warning", .failure = std::nullopt };
     RecordingReporter reporter;
 
-    const auto result = runSerially({stepFor("src/a.cpp"), stepFor("src/b.cpp")}, runner, reporter);
+    const auto result = runSerially({ stepFor("src/a.cpp"), stepFor("src/b.cpp") }, runner, reporter);
 
     EXPECT_TRUE(result.has_value());
-    EXPECT_EQ(reporter.events,
-              (std::vector<std::string>{
-                  "started src/a.cpp", "finished src/a.cpp []", "started src/b.cpp", "finished src/b.cpp [warning]"}));
+    EXPECT_EQ(
+        reporter.events,
+        (std::vector<std::string>{ "started src/a.cpp", "finished src/a.cpp []", "started src/b.cpp", "finished src/b.cpp [warning]" }));
 }
 
 /**
@@ -92,19 +93,18 @@ TEST(SerialBuildTest, RunsEveryStepInOrder)
 TEST(SerialBuildTest, StopsAtTheFirstStepThatFails)
 {
     ScriptedRunner runner;
-    runner.results["src/b.cpp"] =
-        StepResult{.output = "src/b.cpp:1:1: error",
-                   .failure = StepFailure{.kind = StepFailureKind::Exited, .path = {}, .code = {}, .status = 1}};
+    runner.results["src/b.cpp"]
+        = StepResult{ .output = "src/b.cpp:1:1: error",
+                      .failure = StepFailure{ .kind = StepFailureKind::Exited, .path = {}, .code = {}, .status = 1 } };
     RecordingReporter reporter;
 
-    const auto result =
-        runSerially({stepFor("src/a.cpp"), stepFor("src/b.cpp"), stepFor("src/c.cpp")}, runner, reporter);
+    const auto result = runSerially({ stepFor("src/a.cpp"), stepFor("src/b.cpp"), stepFor("src/c.cpp") }, runner, reporter);
 
     ASSERT_FALSE(result.has_value());
     EXPECT_EQ(result.error().step.subject, "src/b.cpp");
     EXPECT_EQ(result.error().failure.kind, StepFailureKind::Exited);
     EXPECT_EQ(result.error().failure.status, 1);
-    EXPECT_EQ(runner.ran, (std::vector<std::filesystem::path>{"src/a.cpp", "src/b.cpp"}));
+    EXPECT_EQ(runner.ran, (std::vector<std::filesystem::path>{ "src/a.cpp", "src/b.cpp" }));
     EXPECT_EQ(reporter.events.back(), "finished src/b.cpp [src/b.cpp:1:1: error]");
 }
 
@@ -126,20 +126,20 @@ TEST(SerialBuildTest, SucceedsWithNothingToRun)
  */
 TEST(SerialBuildTest, CompilesBeforeItLinks)
 {
-    const std::vector<CompileCommand> compiles{CompileCommand{.target = "app",
-                                                              .directory = "/home/me/app",
-                                                              .file = "src/main.cpp",
-                                                              .output = "build/debug/obj/app/src/main.cpp.o",
-                                                              .arguments = {"/usr/bin/c++", "-c", "src/main.cpp"}},
-                                               CompileCommand{.target = "tool",
-                                                              .directory = "/home/me/app",
-                                                              .file = "src/tool.cpp",
-                                                              .output = "build/debug/obj/tool/src/tool.cpp.o",
-                                                              .arguments = {"/usr/bin/c++", "-c", "src/tool.cpp"}}};
-    const std::vector<LinkCommand> links{LinkCommand{.target = "app",
-                                                     .directory = "/home/me/app",
-                                                     .output = "build/debug/bin/app",
-                                                     .arguments = {"/usr/bin/c++", "-o", "build/debug/bin/app"}}};
+    const std::vector<CompileCommand> compiles{ CompileCommand{ .target = "app",
+                                                                .directory = "/home/me/app",
+                                                                .file = "src/main.cpp",
+                                                                .output = "build/debug/obj/app/src/main.cpp.o",
+                                                                .arguments = { "/usr/bin/c++", "-c", "src/main.cpp" } },
+                                                CompileCommand{ .target = "tool",
+                                                                .directory = "/home/me/app",
+                                                                .file = "src/tool.cpp",
+                                                                .output = "build/debug/obj/tool/src/tool.cpp.o",
+                                                                .arguments = { "/usr/bin/c++", "-c", "src/tool.cpp" } } };
+    const std::vector<LinkCommand> links{ LinkCommand{ .target = "app",
+                                                       .directory = "/home/me/app",
+                                                       .output = "build/debug/bin/app",
+                                                       .arguments = { "/usr/bin/c++", "-o", "build/debug/bin/app" } } };
 
     const auto steps = buildSteps(compiles, links);
 

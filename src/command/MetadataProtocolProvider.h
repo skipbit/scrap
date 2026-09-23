@@ -37,11 +37,10 @@ public:
      * @return Metadata with a plain-text description on success, or an
      *   error message describing why metadata could not be fetched.
      */
-    [[nodiscard]] auto
-    fetch(const std::filesystem::path& executable) -> std::expected<ExternalCommandMetadata, std::string> override;
+    [[nodiscard]] auto fetch(const std::filesystem::path& executable) -> std::expected<ExternalCommandMetadata, std::string> override;
 
 private:
-    static constexpr std::chrono::milliseconds DefaultTimeout{2000};
+    static constexpr std::chrono::milliseconds DefaultTimeout{ 2000 };
 
     std::chrono::milliseconds timeout_;
 };

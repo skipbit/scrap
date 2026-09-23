@@ -1,8 +1,9 @@
-#include <gtest/gtest.h>
-
 #include "command/BuiltinCommandResolver.h"
+
 #include "command/CommandCatalog.h"
 #include "project/driver/DiskProjectFileSystem.h"
+
+#include <gtest/gtest.h>
 
 #include <algorithm>
 

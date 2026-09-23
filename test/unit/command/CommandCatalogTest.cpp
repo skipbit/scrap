@@ -1,6 +1,6 @@
-#include <gtest/gtest.h>
-
 #include "command/CommandCatalog.h"
+
+#include <gtest/gtest.h>
 
 using namespace scrap::Command;
 
@@ -252,13 +252,13 @@ TEST(CommandCatalogTest, Specs_PreservesOptions)
     CommandCatalog catalog;
 
     auto entry = makeEntry("build", CommandSource::Builtin, "", "Build project");
-    entry.spec.options.named.push_back(OptionDef{.longName = "release",
-                                                 .shortName = 'r',
-                                                 .type = OptionValueType::Bool,
-                                                 .required = false,
-                                                 .description = "Build in release mode",
-                                                 .defaultValue = std::nullopt,
-                                                 .choices = {}});
+    entry.spec.options.named.push_back(OptionDef{ .longName = "release",
+                                                  .shortName = 'r',
+                                                  .type = OptionValueType::Bool,
+                                                  .required = false,
+                                                  .description = "Build in release mode",
+                                                  .defaultValue = std::nullopt,
+                                                  .choices = {} });
 
     std::vector<CommandEntry> entries;
     entries.push_back(std::move(entry));

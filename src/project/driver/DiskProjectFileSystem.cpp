@@ -22,13 +22,12 @@ constexpr mode_t NewFileMode = 0644;
  */
 auto lastFailure() -> std::error_code
 {
-    return {errno, std::generic_category()};
+    return { errno, std::generic_category() };
 }
 
 }  // anonymous namespace
 
-auto DiskProjectFileSystem::absolute(const std::filesystem::path& path) const
-    -> std::expected<std::filesystem::path, std::error_code>
+auto DiskProjectFileSystem::absolute(const std::filesystem::path& path) const -> std::expected<std::filesystem::path, std::error_code>
 {
     std::error_code ec;
     std::filesystem::path resolved = std::filesystem::absolute(path, ec);

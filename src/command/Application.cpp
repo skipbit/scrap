@@ -28,7 +28,9 @@ namespace scrap::Command {
 Application::Application(std::unique_ptr<ParserAdapter> parser,
                          std::unique_ptr<HelpRenderer> helpRenderer,
                          std::unique_ptr<VersionRenderer> versionRenderer)
-    : parser_(std::move(parser)), helpRenderer_(std::move(helpRenderer)), versionRenderer_(std::move(versionRenderer))
+    : parser_(std::move(parser))
+    , helpRenderer_(std::move(helpRenderer))
+    , versionRenderer_(std::move(versionRenderer))
 {
 }
 
@@ -76,20 +78,18 @@ auto Application::run(std::span<const char* const> argv, const RuntimeEnvironmen
             std::cerr << "Run 'scrap --help' for usage information.\n";
             return 1;
         }
-        const InvocationContext ctx{invocation.options, &env, &catalog};
+        const InvocationContext ctx{ invocation.options, &env, &catalog };
         return handler->execute(ctx);
     }
 
-    return std::visit(
-        [&](const auto& value) -> int {
-            using T = std::decay_t<decltype(value)>;
-            if constexpr (std::is_same_v<T, ParseDirective>) {
-                return handleDirective(catalog, value);
-            } else {
-                return handleFailure(value);
-            }
-        },
-        result.error());
+    return std::visit([&](const auto& value) -> int {
+        using T = std::decay_t<decltype(value)>;
+        if constexpr (std::is_same_v<T, ParseDirective>) {
+            return handleDirective(catalog, value);
+        } else {
+            return handleFailure(value);
+        }
+    }, result.error());
 }
 
 /**
@@ -98,11 +98,11 @@ auto Application::run(std::span<const char* const> argv, const RuntimeEnvironmen
 auto Application::handleDirective(const CommandCatalog& catalog, const ParseDirective& directive) -> int
 {
     switch (directive.kind) {
-        case ParseDirectiveKind::HelpRequested:
-            return handleHelp(catalog, directive.target);
-        case ParseDirectiveKind::VersionRequested:
-            std::cout << versionRenderer_->render() << "\n";
-            return 0;
+    case ParseDirectiveKind::HelpRequested:
+        return handleHelp(catalog, directive.target);
+    case ParseDirectiveKind::VersionRequested:
+        std::cout << versionRenderer_->render() << "\n";
+        return 0;
     }
     return 1;
 }

@@ -1,5 +1,3 @@
-#include <gtest/gtest.h>
-
 #include "command/CommandEntry.h"
 #include "command/CommandSpec.h"
 #include "command/InvocationContext.h"
@@ -7,6 +5,8 @@
 #include "command/ParseResult.h"
 #include "command/ParsedOptions.h"
 #include "command/RuntimeEnvironment.h"
+
+#include <gtest/gtest.h>
 
 using namespace scrap::Command;
 
@@ -19,21 +19,21 @@ TEST(OptionValueTest, HoldsBool)
 
 TEST(OptionValueTest, HoldsInt64)
 {
-    OptionValue value = std::int64_t{42};
+    OptionValue value = std::int64_t{ 42 };
     EXPECT_TRUE(std::holds_alternative<std::int64_t>(value));
     EXPECT_EQ(std::get<std::int64_t>(value), 42);
 }
 
 TEST(OptionValueTest, HoldsString)
 {
-    OptionValue value = std::string{"hello"};
+    OptionValue value = std::string{ "hello" };
     EXPECT_TRUE(std::holds_alternative<std::string>(value));
     EXPECT_EQ(std::get<std::string>(value), "hello");
 }
 
 TEST(OptionValueTest, HoldsStringList)
 {
-    OptionValue value = std::vector<std::string>{"a", "b", "c"};
+    OptionValue value = std::vector<std::string>{ "a", "b", "c" };
     EXPECT_TRUE(std::holds_alternative<std::vector<std::string>>(value));
     auto& list = std::get<std::vector<std::string>>(value);
     EXPECT_EQ(list.size(), 3);
@@ -82,14 +82,14 @@ TEST(CommandEntryTest, CanHoldSubcommands)
 
 TEST(ParseResultTest, SuccessCase)
 {
-    ParseResult result = CommandInvocation{"build", {}};
+    ParseResult result = CommandInvocation{ "build", {} };
     EXPECT_TRUE(result.has_value());
     EXPECT_EQ(result->commandPath, "build");
 }
 
 TEST(ParseResultTest, HelpDirective)
 {
-    ParseResult result = std::unexpected(ParseInterruption{ParseDirective{ParseDirectiveKind::HelpRequested, "build"}});
+    ParseResult result = std::unexpected(ParseInterruption{ ParseDirective{ ParseDirectiveKind::HelpRequested, "build" } });
     EXPECT_FALSE(result.has_value());
 
     auto& interruption = result.error();
@@ -101,8 +101,7 @@ TEST(ParseResultTest, HelpDirective)
 
 TEST(ParseResultTest, VersionDirective)
 {
-    ParseResult result =
-        std::unexpected(ParseInterruption{ParseDirective{ParseDirectiveKind::VersionRequested, std::nullopt}});
+    ParseResult result = std::unexpected(ParseInterruption{ ParseDirective{ ParseDirectiveKind::VersionRequested, std::nullopt } });
     EXPECT_FALSE(result.has_value());
 
     auto& directive = std::get<ParseDirective>(result.error());
@@ -112,7 +111,7 @@ TEST(ParseResultTest, VersionDirective)
 
 TEST(ParseResultTest, FailureCase)
 {
-    ParseResult result = std::unexpected(ParseInterruption{ParseFailure{"Unknown command: nonexistent"}});
+    ParseResult result = std::unexpected(ParseInterruption{ ParseFailure{ "Unknown command: nonexistent" } });
     EXPECT_FALSE(result.has_value());
 
     auto& interruption = result.error();
@@ -124,8 +123,8 @@ TEST(ParsedOptionsTest, NamedAndPositional)
 {
     ParsedOptions opts;
     opts.named["verbose"] = true;
-    opts.named["count"] = std::int64_t{3};
-    opts.positional = {"arg1", "arg2"};
+    opts.named["count"] = std::int64_t{ 3 };
+    opts.positional = { "arg1", "arg2" };
 
     EXPECT_TRUE(std::get<bool>(opts.named.at("verbose")));
     EXPECT_EQ(std::get<std::int64_t>(opts.named.at("count")), 3);
@@ -136,7 +135,7 @@ TEST(RuntimeEnvironmentTest, PathConstruction)
 {
     RuntimeEnvironment env;
     env.workingDirectory = "/tmp/project";
-    env.searchPaths = {"/usr/local/bin", "/usr/bin"};
+    env.searchPaths = { "/usr/local/bin", "/usr/bin" };
 
     EXPECT_EQ(env.workingDirectory, "/tmp/project");
     EXPECT_EQ(env.searchPaths.size(), 2);

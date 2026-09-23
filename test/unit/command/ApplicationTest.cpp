@@ -1,9 +1,10 @@
-#include <gtest/gtest.h>
-
 #include "command/Application.h"
+
 #include "command/CommandCatalog.h"
 #include "command/CommandHandler.h"
 #include "command/InvocationContext.h"
+
+#include <gtest/gtest.h>
 
 #include <sstream>
 
@@ -40,7 +41,7 @@ public:
     }
 
 private:
-    ParseResult result_ = std::unexpected(ParseInterruption{ParseFailure{"not configured"}});
+    ParseResult result_ = std::unexpected(ParseInterruption{ ParseFailure{ "not configured" } });
 };
 
 /**
@@ -246,16 +247,16 @@ private:
 TEST(ApplicationTest, Run_HappyPath_ExecutesHandler)
 {
     auto parser = std::make_unique<MockParserAdapter>();
-    parser->setResult(CommandInvocation{"build", {}});
+    parser->setResult(CommandInvocation{ "build", {} });
 
     auto resolver = std::make_unique<MockResolver>();
-    resolver->setEntries({makeEntry("build", 0)});
+    resolver->setEntries({ makeEntry("build", 0) });
 
     Application app(std::move(parser), std::make_unique<MockHelpRenderer>(), std::make_unique<MockVersionRenderer>());
     app.addResolver(std::move(resolver));
 
     RuntimeEnvironment env;
-    const char* argv[] = {"scrap", "build"};
+    const char* argv[] = { "scrap", "build" };
     auto exitCode = app.run(argv, env);
 
     EXPECT_EQ(exitCode, 0);
@@ -267,16 +268,16 @@ TEST(ApplicationTest, Run_HappyPath_ExecutesHandler)
 TEST(ApplicationTest, Run_HandlerExitCode_Propagated)
 {
     auto parser = std::make_unique<MockParserAdapter>();
-    parser->setResult(CommandInvocation{"build", {}});
+    parser->setResult(CommandInvocation{ "build", {} });
 
     auto resolver = std::make_unique<MockResolver>();
-    resolver->setEntries({makeEntry("build", 42)});
+    resolver->setEntries({ makeEntry("build", 42) });
 
     Application app(std::move(parser), std::make_unique<MockHelpRenderer>(), std::make_unique<MockVersionRenderer>());
     app.addResolver(std::move(resolver));
 
     RuntimeEnvironment env;
-    const char* argv[] = {"scrap", "build"};
+    const char* argv[] = { "scrap", "build" };
     auto exitCode = app.run(argv, env);
 
     EXPECT_EQ(exitCode, 42);
@@ -288,16 +289,16 @@ TEST(ApplicationTest, Run_HandlerExitCode_Propagated)
 TEST(ApplicationTest, Run_SubcommandPath)
 {
     auto parser = std::make_unique<MockParserAdapter>();
-    parser->setResult(CommandInvocation{"toolchain.install", {}});
+    parser->setResult(CommandInvocation{ "toolchain.install", {} });
 
     auto resolver = std::make_unique<MockResolver>();
-    resolver->setEntries({makeEntryWithSubs("toolchain", {makeEntry("install", 0)})});
+    resolver->setEntries({ makeEntryWithSubs("toolchain", { makeEntry("install", 0) }) });
 
     Application app(std::move(parser), std::make_unique<MockHelpRenderer>(), std::make_unique<MockVersionRenderer>());
     app.addResolver(std::move(resolver));
 
     RuntimeEnvironment env;
-    const char* argv[] = {"scrap", "toolchain", "install"};
+    const char* argv[] = { "scrap", "toolchain", "install" };
     auto exitCode = app.run(argv, env);
 
     EXPECT_EQ(exitCode, 0);
@@ -309,17 +310,16 @@ TEST(ApplicationTest, Run_SubcommandPath)
 TEST(ApplicationTest, Run_GlobalHelp)
 {
     auto parser = std::make_unique<MockParserAdapter>();
-    parser->setResult(
-        std::unexpected(ParseInterruption{ParseDirective{ParseDirectiveKind::HelpRequested, std::nullopt}}));
+    parser->setResult(std::unexpected(ParseInterruption{ ParseDirective{ ParseDirectiveKind::HelpRequested, std::nullopt } }));
 
     auto resolver = std::make_unique<MockResolver>();
-    resolver->setEntries({makeEntry("build")});
+    resolver->setEntries({ makeEntry("build") });
 
     Application app(std::move(parser), std::make_unique<MockHelpRenderer>(), std::make_unique<MockVersionRenderer>());
     app.addResolver(std::move(resolver));
 
     RuntimeEnvironment env;
-    const char* argv[] = {"scrap", "--help"};
+    const char* argv[] = { "scrap", "--help" };
 
     StdoutCapture capture;
     auto exitCode = app.run(argv, env);
@@ -334,17 +334,16 @@ TEST(ApplicationTest, Run_GlobalHelp)
 TEST(ApplicationTest, Run_CommandHelp)
 {
     auto parser = std::make_unique<MockParserAdapter>();
-    parser->setResult(
-        std::unexpected(ParseInterruption{ParseDirective{ParseDirectiveKind::HelpRequested, std::string{"build"}}}));
+    parser->setResult(std::unexpected(ParseInterruption{ ParseDirective{ ParseDirectiveKind::HelpRequested, std::string{ "build" } } }));
 
     auto resolver = std::make_unique<MockResolver>();
-    resolver->setEntries({makeEntry("build")});
+    resolver->setEntries({ makeEntry("build") });
 
     Application app(std::move(parser), std::make_unique<MockHelpRenderer>(), std::make_unique<MockVersionRenderer>());
     app.addResolver(std::move(resolver));
 
     RuntimeEnvironment env;
-    const char* argv[] = {"scrap", "build", "--help"};
+    const char* argv[] = { "scrap", "build", "--help" };
 
     StdoutCapture capture;
     auto exitCode = app.run(argv, env);
@@ -359,23 +358,20 @@ TEST(ApplicationTest, Run_CommandHelp)
 TEST(ApplicationTest, Run_HelpUnknownCommand)
 {
     auto parser = std::make_unique<MockParserAdapter>();
-    parser->setResult(std::unexpected(
-        ParseInterruption{ParseDirective{ParseDirectiveKind::HelpRequested, std::string{"nonexistent"}}}));
+    parser->setResult(
+        std::unexpected(ParseInterruption{ ParseDirective{ ParseDirectiveKind::HelpRequested, std::string{ "nonexistent" } } }));
 
-    Application app(std::make_unique<MockParserAdapter>(),
-                    std::make_unique<MockHelpRenderer>(),
-                    std::make_unique<MockVersionRenderer>());
+    Application app(std::make_unique<MockParserAdapter>(), std::make_unique<MockHelpRenderer>(), std::make_unique<MockVersionRenderer>());
 
     // Use the pre-configured parser
     auto actualParser = std::make_unique<MockParserAdapter>();
-    actualParser->setResult(std::unexpected(
-        ParseInterruption{ParseDirective{ParseDirectiveKind::HelpRequested, std::string{"nonexistent"}}}));
+    actualParser->setResult(
+        std::unexpected(ParseInterruption{ ParseDirective{ ParseDirectiveKind::HelpRequested, std::string{ "nonexistent" } } }));
 
-    Application app2(
-        std::move(actualParser), std::make_unique<MockHelpRenderer>(), std::make_unique<MockVersionRenderer>());
+    Application app2(std::move(actualParser), std::make_unique<MockHelpRenderer>(), std::make_unique<MockVersionRenderer>());
 
     RuntimeEnvironment env;
-    const char* argv[] = {"scrap", "nonexistent", "--help"};
+    const char* argv[] = { "scrap", "nonexistent", "--help" };
 
     StderrCapture capture;
     auto exitCode = app2.run(argv, env);
@@ -390,13 +386,12 @@ TEST(ApplicationTest, Run_HelpUnknownCommand)
 TEST(ApplicationTest, Run_VersionRequested)
 {
     auto parser = std::make_unique<MockParserAdapter>();
-    parser->setResult(
-        std::unexpected(ParseInterruption{ParseDirective{ParseDirectiveKind::VersionRequested, std::nullopt}}));
+    parser->setResult(std::unexpected(ParseInterruption{ ParseDirective{ ParseDirectiveKind::VersionRequested, std::nullopt } }));
 
     Application app(std::move(parser), std::make_unique<MockHelpRenderer>(), std::make_unique<MockVersionRenderer>());
 
     RuntimeEnvironment env;
-    const char* argv[] = {"scrap", "--version"};
+    const char* argv[] = { "scrap", "--version" };
 
     StdoutCapture capture;
     auto exitCode = app.run(argv, env);
@@ -411,12 +406,12 @@ TEST(ApplicationTest, Run_VersionRequested)
 TEST(ApplicationTest, Run_ParseFailure)
 {
     auto parser = std::make_unique<MockParserAdapter>();
-    parser->setResult(std::unexpected(ParseInterruption{ParseFailure{"Unknown command: nonexistent"}}));
+    parser->setResult(std::unexpected(ParseInterruption{ ParseFailure{ "Unknown command: nonexistent" } }));
 
     Application app(std::move(parser), std::make_unique<MockHelpRenderer>(), std::make_unique<MockVersionRenderer>());
 
     RuntimeEnvironment env;
-    const char* argv[] = {"scrap", "nonexistent"};
+    const char* argv[] = { "scrap", "nonexistent" };
 
     StderrCapture capture;
     auto exitCode = app.run(argv, env);
@@ -434,20 +429,19 @@ TEST(ApplicationTest, Run_ParseFailureWritesTheMessageAsText)
 {
     auto parser = std::make_unique<MockParserAdapter>();
     // The argument holds U+65E5 and an escape sequence that names a terminal.
-    parser->setResult(std::unexpected(
-        ParseInterruption{ParseFailure{"The following argument was not expected: \xe6\x97\xa5x\x1b]0;pwn\x07"}}));
+    parser->setResult(
+        std::unexpected(ParseInterruption{ ParseFailure{ "The following argument was not expected: \xe6\x97\xa5x\x1b]0;pwn\x07" } }));
 
     Application app(std::move(parser), std::make_unique<MockHelpRenderer>(), std::make_unique<MockVersionRenderer>());
 
     RuntimeEnvironment env;
-    const char* argv[] = {"scrap", "new", "hello"};
+    const char* argv[] = { "scrap", "new", "hello" };
 
     StderrCapture capture;
     auto exitCode = app.run(argv, env);
 
     EXPECT_EQ(exitCode, 1);
-    EXPECT_NE(capture.str().find("The following argument was not expected: \xe6\x97\xa5x\\x1B]0;pwn\\x07"),
-              std::string::npos);
+    EXPECT_NE(capture.str().find("The following argument was not expected: \xe6\x97\xa5x\\x1B]0;pwn\\x07"), std::string::npos);
     EXPECT_EQ(capture.str().find('\x1b'), std::string::npos);
     EXPECT_EQ(capture.str().find('\x07'), std::string::npos);
 }
@@ -458,20 +452,20 @@ TEST(ApplicationTest, Run_ParseFailureWritesTheMessageAsText)
 TEST(ApplicationTest, Run_ResolverPriority)
 {
     auto parser = std::make_unique<MockParserAdapter>();
-    parser->setResult(CommandInvocation{"build", {}});
+    parser->setResult(CommandInvocation{ "build", {} });
 
     auto resolver1 = std::make_unique<MockResolver>();
-    resolver1->setEntries({makeEntry("build", 10)});
+    resolver1->setEntries({ makeEntry("build", 10) });
 
     auto resolver2 = std::make_unique<MockResolver>();
-    resolver2->setEntries({makeEntry("build", 20)});
+    resolver2->setEntries({ makeEntry("build", 20) });
 
     Application app(std::move(parser), std::make_unique<MockHelpRenderer>(), std::make_unique<MockVersionRenderer>());
     app.addResolver(std::move(resolver1));
     app.addResolver(std::move(resolver2));
 
     RuntimeEnvironment env;
-    const char* argv[] = {"scrap", "build"};
+    const char* argv[] = { "scrap", "build" };
 
     StderrCapture stderrCapture;
     auto exitCode = app.run(argv, env);
@@ -486,20 +480,20 @@ TEST(ApplicationTest, Run_ResolverPriority)
 TEST(ApplicationTest, Run_MultipleResolvers_MergedCatalog)
 {
     auto parser = std::make_unique<MockParserAdapter>();
-    parser->setResult(CommandInvocation{"lint", {}});
+    parser->setResult(CommandInvocation{ "lint", {} });
 
     auto builtinResolver = std::make_unique<MockResolver>();
-    builtinResolver->setEntries({makeEntry("build", 0)});
+    builtinResolver->setEntries({ makeEntry("build", 0) });
 
     auto externalResolver = std::make_unique<MockResolver>();
-    externalResolver->setEntries({makeEntry("lint", 0)});
+    externalResolver->setEntries({ makeEntry("lint", 0) });
 
     Application app(std::move(parser), std::make_unique<MockHelpRenderer>(), std::make_unique<MockVersionRenderer>());
     app.addResolver(std::move(builtinResolver));
     app.addResolver(std::move(externalResolver));
 
     RuntimeEnvironment env;
-    const char* argv[] = {"scrap", "lint"};
+    const char* argv[] = { "scrap", "lint" };
     auto exitCode = app.run(argv, env);
 
     EXPECT_EQ(exitCode, 0);

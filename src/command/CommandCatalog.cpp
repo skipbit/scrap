@@ -99,7 +99,7 @@ auto CommandCatalog::helpEntries() const -> std::vector<HelpEntry>
     result.reserve(entries_.size());
 
     for (const auto& entry : entries_) {
-        result.push_back(HelpEntry{buildSpec(entry), entry.source});
+        result.push_back(HelpEntry{ buildSpec(entry), entry.source });
     }
 
     return result;
@@ -121,7 +121,7 @@ auto CommandCatalog::buildSpec(const CommandEntry& entry) -> CommandSpec
 
     std::vector<Pending> current;
     if (! entry.subcommands.empty()) {
-        current.push_back({&entry.subcommands, &root});
+        current.push_back({ &entry.subcommands, &root });
     }
 
     while (! current.empty()) {
@@ -132,7 +132,7 @@ auto CommandCatalog::buildSpec(const CommandEntry& entry) -> CommandSpec
                 auto& added = dest->subcommands.emplace_back(child.spec);
                 added.subcommands.clear();
                 if (! child.subcommands.empty()) {
-                    next.push_back({&child.subcommands, &added});
+                    next.push_back({ &child.subcommands, &added });
                 }
             }
         }

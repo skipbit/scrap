@@ -84,10 +84,9 @@ inline constexpr std::size_t MaxProjectNameLength = 64;
  *                      relative to the project root.
  * @return The absolute project root, or why the project could not be created.
  */
-[[nodiscard]] auto
-createProject(ProjectFileSystem& fileSystem,
-              const std::filesystem::path& parentDir,
-              std::string_view name,
-              const TemplateFiles& templateFiles) -> std::expected<std::filesystem::path, CreateProjectError>;
+[[nodiscard]] auto createProject(ProjectFileSystem& fileSystem,
+                                 const std::filesystem::path& parentDir,
+                                 std::string_view name,
+                                 const TemplateFiles& templateFiles) -> std::expected<std::filesystem::path, CreateProjectError>;
 
 }  // namespace scrap::Project

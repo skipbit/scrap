@@ -85,7 +85,7 @@ std::string TempDirectory::readFile(const std::filesystem::path& file) const
 {
     const std::filesystem::path target = file.is_absolute() ? file : path_ / file;
     std::ifstream input(target, std::ios::binary);
-    return std::string{std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>()};
+    return std::string{ std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>() };
 }
 
 std::filesystem::path TempDirectory::makeDirectory(std::string_view relative) const

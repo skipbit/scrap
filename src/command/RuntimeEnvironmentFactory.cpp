@@ -21,8 +21,7 @@ auto splitSearchPaths(const std::string& pathEnv) -> std::vector<std::filesystem
     std::size_t start = 0;
     while (start <= pathEnv.size()) {
         auto separator = pathEnv.find(':', start);
-        auto segment =
-            (separator == std::string::npos) ? pathEnv.substr(start) : pathEnv.substr(start, separator - start);
+        auto segment = (separator == std::string::npos) ? pathEnv.substr(start) : pathEnv.substr(start, separator - start);
         if (! segment.empty()) {
             paths.emplace_back(segment);
         }

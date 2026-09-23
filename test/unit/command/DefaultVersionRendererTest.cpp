@@ -1,6 +1,6 @@
-#include <gtest/gtest.h>
-
 #include "command/DefaultVersionRenderer.h"
+
+#include <gtest/gtest.h>
 
 using namespace scrap::Command;
 

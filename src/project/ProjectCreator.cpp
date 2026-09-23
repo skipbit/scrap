@@ -32,7 +32,7 @@ auto isAsciiDigit(const char ch) -> bool
  */
 auto cannotCreate(const std::filesystem::path& path, const std::error_code& code) -> CannotCreate
 {
-    return CannotCreate{.path = path, .reason = code.message(), .code = code, .leftBehind = std::nullopt};
+    return CannotCreate{ .path = path, .reason = code.message(), .code = code, .leftBehind = std::nullopt };
 }
 
 /**
@@ -95,20 +95,20 @@ auto createProject(ProjectFileSystem& fileSystem,
                    const TemplateFiles& templateFiles) -> std::expected<std::filesystem::path, CreateProjectError>
 {
     if (! isValidProjectName(name)) {
-        return std::unexpected(CreateProjectError{InvalidProjectName{.name = std::string{name}}});
+        return std::unexpected(CreateProjectError{ InvalidProjectName{ .name = std::string{ name } } });
     }
 
     const auto parent = fileSystem.absolute(parentDir);
     if (! parent.has_value()) {
-        return std::unexpected(CreateProjectError{cannotCreate(parentDir / name, parent.error())});
+        return std::unexpected(CreateProjectError{ cannotCreate(parentDir / name, parent.error()) });
     }
     std::filesystem::path root = *parent / name;
 
     if (const std::error_code code = fileSystem.createDirectory(root); code) {
         if (code == std::errc::file_exists) {
-            return std::unexpected(CreateProjectError{PathExists{.path = root}});
+            return std::unexpected(CreateProjectError{ PathExists{ .path = root } });
         }
-        return std::unexpected(CreateProjectError{cannotCreate(root, code)});
+        return std::unexpected(CreateProjectError{ cannotCreate(root, code) });
     }
 
     // The template runs once the project has a directory of its own, so a name
@@ -120,7 +120,7 @@ auto createProject(ProjectFileSystem& fileSystem,
             if (fileSystem.removeAll(root)) {
                 failure->leftBehind = root;
             }
-            return std::unexpected(CreateProjectError{std::move(*failure)});
+            return std::unexpected(CreateProjectError{ std::move(*failure) });
         }
     }
     return root;

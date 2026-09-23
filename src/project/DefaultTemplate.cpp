@@ -40,8 +40,8 @@ auto defaultTemplateFiles(std::string_view projectName) -> std::vector<TemplateF
     manifest += "\"\nversion = \"0.1.0\"\nstd = \"23\"\n";
 
     std::vector<TemplateFile> files;
-    files.push_back(TemplateFile{.path = std::filesystem::path{ManifestFileName}, .content = std::move(manifest)});
-    files.push_back(TemplateFile{.path = "src/main.cpp", .content = std::string{MainSource}});
+    files.push_back(TemplateFile{ .path = std::filesystem::path{ ManifestFileName }, .content = std::move(manifest) });
+    files.push_back(TemplateFile{ .path = "src/main.cpp", .content = std::string{ MainSource } });
     return files;
 }
 

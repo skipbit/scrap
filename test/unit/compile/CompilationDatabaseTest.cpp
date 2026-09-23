@@ -1,9 +1,9 @@
-#include <gtest/gtest.h>
-
 #include "compile/CompilationDatabase.h"
-#include "compile/CompileCommand.h"
 
+#include "compile/CompileCommand.h"
 #include "support/TempDirectory.h"
+
+#include <gtest/gtest.h>
 
 #include <filesystem>
 #include <string>
@@ -18,11 +18,11 @@ namespace {
 
 CompileCommand commandFor(const char* source, const char* output)
 {
-    return CompileCommand{.target = "hello",
-                          .directory = "/home/me/hello",
-                          .file = source,
-                          .output = output,
-                          .arguments = {"/usr/bin/c++", "-c", source, "-o", output}};
+    return CompileCommand{ .target = "hello",
+                           .directory = "/home/me/hello",
+                           .file = source,
+                           .output = output,
+                           .arguments = { "/usr/bin/c++", "-c", source, "-o", output } };
 }
 
 /**
@@ -55,7 +55,7 @@ TEST(CompilationDatabaseTest, RendersNoCommandAsAnEmptyArray)
  */
 TEST(CompilationDatabaseTest, RendersEachFieldOfACommand)
 {
-    EXPECT_EQ(renderCompilationDatabase({commandFor("src/main.cpp", "build/debug/obj/hello/src/main.cpp.o")}),
+    EXPECT_EQ(renderCompilationDatabase({ commandFor("src/main.cpp", "build/debug/obj/hello/src/main.cpp.o") }),
               "[\n"
               "  {\n"
               "    \"directory\": \"/home/me/hello\",\n"
@@ -72,9 +72,8 @@ TEST(CompilationDatabaseTest, RendersEachFieldOfACommand)
  */
 TEST(CompilationDatabaseTest, RendersCommandsInTheirOrder)
 {
-    const std::string rendered =
-        renderCompilationDatabase({commandFor("src/b.cpp", "build/debug/obj/hello/src/b.cpp.o"),
-                                   commandFor("src/a.cpp", "build/debug/obj/hello/src/a.cpp.o")});
+    const std::string rendered = renderCompilationDatabase(
+        { commandFor("src/b.cpp", "build/debug/obj/hello/src/b.cpp.o"), commandFor("src/a.cpp", "build/debug/obj/hello/src/a.cpp.o") });
 
     const auto first = rendered.find("\"file\": \"src/b.cpp\"");
     const auto second = rendered.find("\"file\": \"src/a.cpp\"");
@@ -90,13 +89,13 @@ TEST(CompilationDatabaseTest, RendersCommandsInTheirOrder)
  */
 TEST(CompilationDatabaseTest, EscapesWhatJsonRequires)
 {
-    const CompileCommand command{.target = "hello",
-                                 .directory = "/home/me/\xe3\x81\x82 \"q\"",
-                                 .file = "src/back\\slash.cpp",
-                                 .output = "o\nline\x01.o",
-                                 .arguments = {}};
+    const CompileCommand command{ .target = "hello",
+                                  .directory = "/home/me/\xe3\x81\x82 \"q\"",
+                                  .file = "src/back\\slash.cpp",
+                                  .output = "o\nline\x01.o",
+                                  .arguments = {} };
 
-    const std::string rendered = renderCompilationDatabase({command});
+    const std::string rendered = renderCompilationDatabase({ command });
 
     EXPECT_NE(rendered.find("\"directory\": \"/home/me/\xe3\x81\x82 \\\"q\\\"\""), std::string::npos) << rendered;
     EXPECT_NE(rendered.find("\"file\": \"src/back\\\\slash.cpp\""), std::string::npos) << rendered;
@@ -112,13 +111,13 @@ TEST(CompilationDatabaseTest, WritesTheDatabaseIntoANewDirectory)
 {
     const TempDirectory temp;
     const std::filesystem::path buildDirectory = temp.path() / "build" / "debug";
-    const std::vector<CompileCommand> commands{commandFor("src/main.cpp", "build/debug/obj/hello/src/main.cpp.o")};
+    const std::vector<CompileCommand> commands{ commandFor("src/main.cpp", "build/debug/obj/hello/src/main.cpp.o") };
 
     const auto written = writeCompilationDatabase(buildDirectory, commands);
 
     ASSERT_TRUE(written.has_value()) << written.error().code.message();
     EXPECT_EQ(temp.readFile(buildDirectory / "compile_commands.json"), renderCompilationDatabase(commands));
-    EXPECT_EQ(entriesOf(buildDirectory), std::vector<std::string>{"compile_commands.json"});
+    EXPECT_EQ(entriesOf(buildDirectory), std::vector<std::string>{ "compile_commands.json" });
 }
 
 /**
@@ -129,14 +128,13 @@ TEST(CompilationDatabaseTest, ReplacesAnEarlierDatabase)
     const TempDirectory temp;
     const std::filesystem::path buildDirectory = temp.path() / "build" / "debug";
     ASSERT_TRUE(
-        writeCompilationDatabase(buildDirectory, {commandFor("src/main.cpp", "build/debug/obj/hello/src/main.cpp.o")})
-            .has_value());
+        writeCompilationDatabase(buildDirectory, { commandFor("src/main.cpp", "build/debug/obj/hello/src/main.cpp.o") }).has_value());
 
     const auto written = writeCompilationDatabase(buildDirectory, {});
 
     ASSERT_TRUE(written.has_value()) << written.error().code.message();
     EXPECT_EQ(temp.readFile(buildDirectory / "compile_commands.json"), "[]\n");
-    EXPECT_EQ(entriesOf(buildDirectory), std::vector<std::string>{"compile_commands.json"});
+    EXPECT_EQ(entriesOf(buildDirectory), std::vector<std::string>{ "compile_commands.json" });
 }
 
 /**
@@ -173,7 +171,7 @@ TEST(CompilationDatabaseTest, ReportsADatabaseItCannotWrite)
     EXPECT_EQ(written.error().step, DatabaseWriteStep::WriteFile);
     EXPECT_EQ(written.error().path, buildDirectory / "compile_commands.json");
     EXPECT_TRUE(written.error().code);
-    EXPECT_EQ(entriesOf(buildDirectory), std::vector<std::string>{"compile_commands.json"});
+    EXPECT_EQ(entriesOf(buildDirectory), std::vector<std::string>{ "compile_commands.json" });
 }
 
 /**

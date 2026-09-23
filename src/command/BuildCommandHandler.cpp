@@ -34,12 +34,12 @@ namespace {
 auto describeOrigin(const Toolchain::CompilerOrigin origin) -> std::string_view
 {
     switch (origin) {
-        case Toolchain::CompilerOrigin::CompilerVariable:
-            return "from CXX";
-        case Toolchain::CompilerOrigin::DefaultOnPath:
-            return "found on PATH";
-        case Toolchain::CompilerOrigin::KnownName:
-            return "found on PATH as a known name";
+    case Toolchain::CompilerOrigin::CompilerVariable:
+        return "from CXX";
+    case Toolchain::CompilerOrigin::DefaultOnPath:
+        return "found on PATH";
+    case Toolchain::CompilerOrigin::KnownName:
+        return "found on PATH as a known name";
     }
     // Every origin is answered above, so an origin added without a word here
     // fails the build rather than being described as one of the others.
@@ -99,9 +99,8 @@ auto runBuild(const Compile::BuildSettings& settings,
               const std::vector<Compile::CompileCommand>& compiles) -> int
 {
     Build::ProgramStepRunner runner;
-    StreamBuildReporter reporter{std::cerr, standardErrorIsTerminal()};
-    const auto built =
-        Build::runSerially(Build::buildSteps(compiles, Compile::planLinkCommands(settings, targets)), runner, reporter);
+    StreamBuildReporter reporter{ std::cerr, standardErrorIsTerminal() };
+    const auto built = Build::runSerially(Build::buildSteps(compiles, Compile::planLinkCommands(settings, targets)), runner, reporter);
     if (! built.has_value()) {
         std::cerr << renderStepFailure(built.error());
         return 1;
@@ -135,7 +134,7 @@ auto BuildCommandHandler::execute(const InvocationContext& ctx) -> int
         return 1;
     }
 
-    const std::filesystem::path buildDirectory{Compile::DebugBuildDirectory};
+    const std::filesystem::path buildDirectory{ Compile::DebugBuildDirectory };
     if (targets.empty()) {
         return finishWithNothingToBuild(project->root / buildDirectory);
     }
@@ -155,15 +154,13 @@ auto BuildCommandHandler::execute(const InvocationContext& ctx) -> int
         }
         return 1;
     }
-    std::cerr << "Using the system compiler '" << printablePath(compiler->path) << "' ("
-              << describeOrigin(compiler->origin) << ")\n";
+    std::cerr << "Using the system compiler '" << printablePath(compiler->path) << "' (" << describeOrigin(compiler->origin) << ")\n";
 
-    const Compile::BuildSettings settings{
-        .projectRoot = project->root,
-        .buildDirectory = buildDirectory,
-        .compiler = compiler->path,
-        .driver = Compile::CompilerDriver{Toolchain::identifyCompiler(compiler->path)},
-        .standard = project->manifest.package.standard};
+    const Compile::BuildSettings settings{ .projectRoot = project->root,
+                                           .buildDirectory = buildDirectory,
+                                           .compiler = compiler->path,
+                                           .driver = Compile::CompilerDriver{ Toolchain::identifyCompiler(compiler->path) },
+                                           .standard = project->manifest.package.standard };
     const auto compiles = Compile::planCompileCommands(settings, *sources);
     const auto written = Compile::writeCompilationDatabase(project->root / buildDirectory, compiles);
     if (! written.has_value()) {

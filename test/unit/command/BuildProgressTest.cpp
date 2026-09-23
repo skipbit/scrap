@@ -1,7 +1,8 @@
-#include <gtest/gtest.h>
+#include "command/BuildProgress.h"
 
 #include "build/BuildStep.h"
-#include "command/BuildProgress.h"
+
+#include <gtest/gtest.h>
 
 #include <sstream>
 #include <string>
@@ -16,22 +17,22 @@ namespace {
 
 auto compileStep() -> BuildStep
 {
-    return BuildStep{.kind = StepKind::Compile,
-                     .target = "hello",
-                     .subject = "src/main.cpp",
-                     .directory = "/home/me/hello",
-                     .output = "build/debug/obj/hello/src/main.cpp.o",
-                     .arguments = {}};
+    return BuildStep{ .kind = StepKind::Compile,
+                      .target = "hello",
+                      .subject = "src/main.cpp",
+                      .directory = "/home/me/hello",
+                      .output = "build/debug/obj/hello/src/main.cpp.o",
+                      .arguments = {} };
 }
 
 auto linkStep() -> BuildStep
 {
-    return BuildStep{.kind = StepKind::Link,
-                     .target = "hello",
-                     .subject = "build/debug/bin/hello",
-                     .directory = "/home/me/hello",
-                     .output = "build/debug/bin/hello",
-                     .arguments = {}};
+    return BuildStep{ .kind = StepKind::Link,
+                      .target = "hello",
+                      .subject = "build/debug/bin/hello",
+                      .directory = "/home/me/hello",
+                      .output = "build/debug/bin/hello",
+                      .arguments = {} };
 }
 
 }  // namespace
@@ -42,7 +43,7 @@ auto linkStep() -> BuildStep
 TEST(BuildProgressTest, WritesALineForEachStep)
 {
     std::ostringstream out;
-    StreamBuildReporter reporter{out, false};
+    StreamBuildReporter reporter{ out, false };
 
     reporter.started(compileStep());
     reporter.started(linkStep());
@@ -59,7 +60,7 @@ TEST(BuildProgressTest, WritesALineForEachStep)
 TEST(BuildProgressTest, WritesWhatTheProgramWrote)
 {
     std::ostringstream out;
-    StreamBuildReporter reporter{out, false};
+    StreamBuildReporter reporter{ out, false };
 
     reporter.finished(compileStep(), "src/main.cpp:1:1: warning: unused");
 
@@ -72,7 +73,7 @@ TEST(BuildProgressTest, WritesWhatTheProgramWrote)
 TEST(BuildProgressTest, WritesNothingForAProgramThatWroteNothing)
 {
     std::ostringstream out;
-    StreamBuildReporter reporter{out, false};
+    StreamBuildReporter reporter{ out, false };
 
     reporter.finished(compileStep(), "");
 
@@ -89,8 +90,8 @@ TEST(BuildProgressTest, KeepsColorOnlyWhereItWasAskedFor)
     std::ostringstream kept;
     std::ostringstream removed;
 
-    StreamBuildReporter{kept, true}.finished(compileStep(), colored);
-    StreamBuildReporter{removed, false}.finished(compileStep(), colored);
+    StreamBuildReporter{ kept, true }.finished(compileStep(), colored);
+    StreamBuildReporter{ removed, false }.finished(compileStep(), colored);
 
     EXPECT_EQ(kept.str(), colored);
     EXPECT_EQ(removed.str(), "error: boom\n");
@@ -103,7 +104,7 @@ TEST(BuildProgressTest, KeepsColorOnlyWhereItWasAskedFor)
 TEST(BuildProgressTest, EscapesWhatItCannotPrint)
 {
     std::ostringstream out;
-    StreamBuildReporter reporter{out, false};
+    StreamBuildReporter reporter{ out, false };
     BuildStep step = compileStep();
     step.target = "he\x1b[31mllo";
 
@@ -132,7 +133,7 @@ TEST(BuildProgressTest, KeepsOrRemovesTheSequencesThatColor)
  */
 TEST(BuildProgressTest, WritesEveryOtherSequenceAsText)
 {
-    for (const bool keepColor : {false, true}) {
+    for (const bool keepColor : { false, true }) {
         // Rewriting the terminal's title, clearing its screen, and a byte
         // that starts neither.
         EXPECT_EQ(printableOutput("\x1b]0;pwned\x07"

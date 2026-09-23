@@ -1,6 +1,6 @@
-#include <gtest/gtest.h>
-
 #include "command/ExternalCommandResolver.h"
+
+#include <gtest/gtest.h>
 
 #include <algorithm>
 #include <filesystem>
@@ -102,7 +102,7 @@ TEST_F(ExternalCommandResolverTest, FindsScrapPrefixedExecutables)
     ExternalCommandResolver resolver(std::move(provider));
 
     RuntimeEnvironment env;
-    env.searchPaths = {tempDir_};
+    env.searchPaths = { tempDir_ };
     auto entries = resolver.resolve(env);
 
     EXPECT_EQ(entries.size(), 2);
@@ -122,7 +122,7 @@ TEST_F(ExternalCommandResolverTest, SkipsNonScrapFiles)
     ExternalCommandResolver resolver(std::move(provider));
 
     RuntimeEnvironment env;
-    env.searchPaths = {tempDir_};
+    env.searchPaths = { tempDir_ };
     auto entries = resolver.resolve(env);
 
     EXPECT_EQ(entries.size(), 1);
@@ -140,7 +140,7 @@ TEST_F(ExternalCommandResolverTest, SkipsNonExecutables)
     ExternalCommandResolver resolver(std::move(provider));
 
     RuntimeEnvironment env;
-    env.searchPaths = {tempDir_};
+    env.searchPaths = { tempDir_ };
     auto entries = resolver.resolve(env);
 
     EXPECT_TRUE(entries.empty());
@@ -171,7 +171,7 @@ TEST_F(ExternalCommandResolverTest, EntriesHaveExternalSource)
     ExternalCommandResolver resolver(std::move(provider));
 
     RuntimeEnvironment env;
-    env.searchPaths = {tempDir_};
+    env.searchPaths = { tempDir_ };
     auto entries = resolver.resolve(env);
 
     ASSERT_EQ(entries.size(), 1);

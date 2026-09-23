@@ -1,8 +1,8 @@
-#include <gtest/gtest.h>
-
 #include "toolchain/CompilerIdentity.h"
 
 #include "support/TempDirectory.h"
+
+#include <gtest/gtest.h>
 
 #include <filesystem>
 #include <string>
@@ -106,7 +106,7 @@ TEST(CompilerIdentityTest, MatchesAMacroByItsWholeName)
  */
 TEST(CompilerIdentityTest, ComparesVersions)
 {
-    const CompilerVersion version{.major = 11, .minor = 1, .patch = 0};
+    const CompilerVersion version{ .major = 11, .minor = 1, .patch = 0 };
 
     EXPECT_TRUE(isAtLeast(version, 11, 1));
     EXPECT_TRUE(isAtLeast(version, 11));

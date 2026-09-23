@@ -1,5 +1,4 @@
----
-# The scrap C++ Formatting Configuration
+# C++ formatting configuration
 # Based on WebKit style with project-specific adjustments
 
 BasedOnStyle: WebKit
@@ -9,112 +8,82 @@ Language: Cpp
 IndentWidth: 4
 TabWidth: 4
 UseTab: Never
-ColumnLimit: 120
+# No column limit, as in WebKit: clang-format never rewraps a line to fit a
+# width, so a line break put there on purpose survives. It is not a promise to
+# leave every line alone - an enum body and a template header are still split
+ColumnLimit: 0
 
-# Brace wrapping - K&R + Allman hybrid
+# Braces are required on control statements (WebKit allows them to be omitted)
+AllowShortBlocksOnASingleLine: Never  # WebKit: Empty
+AllowShortFunctionsOnASingleLine: None  # WebKit: All
+AllowShortLambdasOnASingleLine: None  # WebKit: All
+InsertBraces: true  # WebKit: false
+
+# Indent a lambda body from the outer scope, so later arguments can sit on the closing line
+LambdaBodyIndentation: OuterScope  # WebKit: Signature
+
+# else and catch go on the same line as the closing brace (same as WebKit)
+BreakBeforeBraces: Custom
 BraceWrapping:
   AfterClass: false
-  AfterControlStatement: false
+  AfterControlStatement: Never  # The { of a control statement stays on the same line
   AfterEnum: false
-  AfterFunction: true          # Allman style for function definitions only
+  AfterFunction: true  # The { of a function goes on a new line
   AfterNamespace: false
   AfterStruct: false
   AfterUnion: false
   AfterExternBlock: false
   BeforeCatch: false
   BeforeElse: false
+  BeforeLambdaBody: false
   BeforeWhile: false
   IndentBraces: false
-  SplitEmptyFunction: true
+  SplitEmptyFunction: true  # Split an empty body too; folded onto one line the function boundary is hard to read
   SplitEmptyRecord: true
   SplitEmptyNamespace: true
 
-# Namespace formatting
-NamespaceIndentation: None
-CompactNamespaces: false
-
-# Access modifiers
-AccessModifierOffset: -4
-
-# Alignment
-AlignAfterOpenBracket: Align
-AlignConsecutiveAssignments: false
-AlignConsecutiveDeclarations: false
-AlignEscapedNewlines: Right
-AlignOperands: false
-AlignTrailingComments: true
-
-# Breaking
-AllowAllParametersOfDeclarationOnNextLine: false
-PackConstructorInitializers: NextLineOnly
-AllowShortBlocksOnASingleLine: Empty
-AllowShortCaseLabelsOnASingleLine: false
-AllowShortEnumsOnASingleLine: false
-AllowShortFunctionsOnASingleLine: None
-AllowShortLambdasOnASingleLine: Empty
-AllowShortIfStatementsOnASingleLine: Never
-AllowShortLoopsOnASingleLine: false
-AlwaysBreakAfterReturnType: None
-AlwaysBreakBeforeMultilineStrings: false
-AlwaysBreakTemplateDeclarations: MultiLine
-
-# Indentation
-IndentCaseLabels: true
-IndentPPDirectives: None
-IndentWrappedFunctionNames: false
-
-# Spacing
-SpaceAfterCStyleCast: false
+# Put a space after logical not (WebKit does not)
 SpaceAfterLogicalNot: true
-SpaceAfterTemplateKeyword: true
-SpaceBeforeAssignmentOperators: true
+
+# Keep the brace of a braced list against the name (WebKit puts a space there)
 SpaceBeforeCpp11BracedList: false
-SpaceBeforeCtorInitializerColon: true
-SpaceBeforeInheritanceColon: true
-SpaceBeforeParens: ControlStatements
-SpaceBeforeRangeBasedForLoopColon: true
-SpaceInEmptyParentheses: false
-SpacesBeforeTrailingComments: 2
-SpacesInAngles: false
-SpacesInCStyleCastParentheses: false
-SpacesInContainerLiterals: false
-SpacesInParentheses: false
-SpacesInSquareBrackets: false
 
-# Line management
-MaxEmptyLinesToKeep: 1
+# Line up a wrapped argument list under the first argument, and a wrapped
+# expression under its first operand (WebKit indents them by a fixed step)
+AlignAfterOpenBracket: Align
+AlignOperands: Align
 
-# Penalties for formatting decisions
-PenaltyBreakAssignment: 2
-PenaltyBreakBeforeFirstCallParameter: 1
-PenaltyBreakComment: 300
-PenaltyBreakFirstLessLess: 120
-PenaltyBreakString: 1000
-PenaltyExcessCharacter: 1000000
-PenaltyReturnTypeOnItsOwnLine: 60
-
-# Sorting
-SortIncludes: true
-SortUsingDeclarations: true
-
-# Other formatting options
+# When an argument list has to wrap, give each argument its own line rather
+# than filling the width (WebKit fills)
 BinPackArguments: false
 BinPackParameters: false
-BreakBeforeBinaryOperators: None
-BreakBeforeTernaryOperators: true
-BreakConstructorInitializers: BeforeColon
-BreakInheritanceList: BeforeColon
-ConstructorInitializerAllOnOneLineOrOnePerLine: false
-BreakStringLiterals: true
-ConstructorInitializerIndentWidth: 4
-ContinuationIndentWidth: 4
-Cpp11BracedListStyle: true
-DerivePointerAlignment: false
-DisableFormat: false
-ExperimentalAutoDetectBinPacking: false
+
+# Rebuild the include groups, separated by a blank line: the file's own header,
+# then the rest of this project, then the libraries it fetches, then the standard
+# library and the system. Priority 0 is the file's own header and clang-format
+# assigns it from IncludeIsMainRegex
+IncludeBlocks: Regroup  # WebKit: Preserve
+IncludeCategories:
+  - Regex: '^"'
+    Priority: 1
+  - Regex: '^<scrap/'
+    Priority: 1
+  - Regex: '^<(CLI|toml\+\+|gtest|gmock)/'
+    Priority: 2
+  - Regex: '.*'
+    Priority: 3
+
+# Do not indent the contents of a namespace (WebKit: Inner)
+NamespaceIndentation: None
+
+# Annotate the closing brace of a namespace (WebKit: false)
 FixNamespaceComments: true
-IncludeBlocks: Preserve
-IndentCaseBlocks: false
-PointerAlignment: Left
-ReflowComments: true
-Standard: Latest
+
+# Align trailing comments, two spaces away from the code (WebKit: Never and 1)
+AlignTrailingComments:
+  Kind: Always
+  OverEmptyLines: 0
+SpacesBeforeTrailingComments: 2
+
+# Always lay out an enum body one constant per line (WebKit folds short ones)
+AllowShortEnumsOnASingleLine: false

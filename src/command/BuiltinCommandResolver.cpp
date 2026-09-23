@@ -124,9 +124,7 @@ private:
 /**
  * Create a placeholder CommandEntry with a no-op handler.
  */
-auto makePlaceholder(const std::string& name,
-                     const std::string& description,
-                     const std::string& category) -> CommandEntry
+auto makePlaceholder(const std::string& name, const std::string& description, const std::string& category) -> CommandEntry
 {
     CommandEntry entry;
     entry.spec.name = name;
@@ -166,11 +164,10 @@ auto makeNewEntry(Project::ProjectFileSystem& fileSystem) -> CommandEntry
     return makeProjectEntry(
         "new",
         "Create a new C++ project",
-        PositionalDef{
-            .name = "project-name", .description = "Name of the project directory to create", .required = true},
+        PositionalDef{ .name = "project-name", .description = "Name of the project directory to create", .required = true },
         [files](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
-            return std::make_unique<NewCommandHandler>(*files);
-        });
+        return std::make_unique<NewCommandHandler>(*files);
+    });
 }
 
 /**
@@ -181,12 +178,10 @@ auto makeBuildEntry() -> CommandEntry
     return makeProjectEntry(
         "build",
         "Compile the project",
-        PositionalDef{.name = "path",
-                      .description = "Directory inside the project (default: the current directory)",
-                      .required = false},
+        PositionalDef{ .name = "path", .description = "Directory inside the project (default: the current directory)", .required = false },
         [](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
-            return std::make_unique<BuildCommandHandler>();
-        });
+        return std::make_unique<BuildCommandHandler>();
+    });
 }
 
 }  // anonymous namespace
@@ -197,7 +192,9 @@ auto makeBuildEntry() -> CommandEntry
 BuiltinCommandResolver::BuiltinCommandResolver(HelpRenderer& helpRenderer,
                                                VersionRenderer& versionRenderer,
                                                Project::ProjectFileSystem& fileSystem)
-    : helpRenderer_(&helpRenderer), versionRenderer_(&versionRenderer), fileSystem_(&fileSystem)
+    : helpRenderer_(&helpRenderer)
+    , versionRenderer_(&versionRenderer)
+    , fileSystem_(&fileSystem)
 {
 }
 
@@ -215,7 +212,7 @@ auto BuiltinCommandResolver::resolve([[maybe_unused]] const RuntimeEnvironment& 
         entry.spec.description = "Display help information";
         entry.spec.category = "Built-in Commands";
         entry.spec.options.positional.push_back(
-            PositionalDef{.name = "command", .description = "Command to get help for", .required = false});
+            PositionalDef{ .name = "command", .description = "Command to get help for", .required = false });
         entry.source = CommandSource::Builtin;
         auto* renderer = helpRenderer_;
         entry.createHandler = [renderer](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
@@ -249,8 +246,7 @@ auto BuiltinCommandResolver::resolve([[maybe_unused]] const RuntimeEnvironment& 
         auto toolchain = makePlaceholder("toolchain", "Manage toolchains", "Toolchain Commands");
         toolchain.subcommands.push_back(makePlaceholder("list", "Display installed toolchains", "Toolchain Commands"));
         toolchain.subcommands.push_back(makePlaceholder("install", "Install a new toolchain", "Toolchain Commands"));
-        toolchain.subcommands.push_back(
-            makePlaceholder("select", "Select a toolchain as the default", "Toolchain Commands"));
+        toolchain.subcommands.push_back(makePlaceholder("select", "Select a toolchain as the default", "Toolchain Commands"));
         entries.push_back(std::move(toolchain));
     }
 

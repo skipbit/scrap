@@ -61,13 +61,9 @@ auto macroNumber(std::string_view macros, std::string_view name) -> int
 /**
  * The version spelled by the three macros named.
  */
-auto versionFrom(std::string_view macros,
-                 std::string_view major,
-                 std::string_view minor,
-                 std::string_view patch) -> CompilerVersion
+auto versionFrom(std::string_view macros, std::string_view major, std::string_view minor, std::string_view patch) -> CompilerVersion
 {
-    return CompilerVersion{
-        .major = macroNumber(macros, major), .minor = macroNumber(macros, minor), .patch = macroNumber(macros, patch)};
+    return CompilerVersion{ .major = macroNumber(macros, major), .minor = macroNumber(macros, minor), .patch = macroNumber(macros, patch) };
 }
 
 }  // anonymous namespace
@@ -86,22 +82,21 @@ auto readCompilerIdentity(std::string_view predefinedMacros) -> CompilerIdentity
         return versionFrom(predefinedMacros, "__clang_major__", "__clang_minor__", "__clang_patchlevel__");
     };
     if (macroValue(predefinedMacros, "__apple_build_version__").has_value()) {
-        return CompilerIdentity{.family = CompilerFamily::AppleClang, .version = clangVersion()};
+        return CompilerIdentity{ .family = CompilerFamily::AppleClang, .version = clangVersion() };
     }
     if (macroValue(predefinedMacros, "__clang__").has_value()) {
-        return CompilerIdentity{.family = CompilerFamily::Clang, .version = clangVersion()};
+        return CompilerIdentity{ .family = CompilerFamily::Clang, .version = clangVersion() };
     }
     if (macroValue(predefinedMacros, "__GNUC__").has_value()) {
-        return CompilerIdentity{
-            .family = CompilerFamily::Gcc,
-            .version = versionFrom(predefinedMacros, "__GNUC__", "__GNUC_MINOR__", "__GNUC_PATCHLEVEL__")};
+        return CompilerIdentity{ .family = CompilerFamily::Gcc,
+                                 .version = versionFrom(predefinedMacros, "__GNUC__", "__GNUC_MINOR__", "__GNUC_PATCHLEVEL__") };
     }
     return CompilerIdentity{};
 }
 
 auto identifyCompiler(const std::filesystem::path& compiler) -> CompilerIdentity
 {
-    const std::vector<std::string> arguments{compiler.string(), "-dM", "-E", "-x", "c++", "/dev/null"};
+    const std::vector<std::string> arguments{ compiler.string(), "-dM", "-E", "-x", "c++", "/dev/null" };
     const auto completion = Process::runProgram(arguments, {}, Process::OutputCapture::StandardOutput);
     if (! completion.has_value() || completion->exitCode != 0) {
         return CompilerIdentity{};
