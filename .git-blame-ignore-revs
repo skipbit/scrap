@@ -1,2 +1,16 @@
 # Comments rewritten in ASCII.
 b9ffeb710e3e71085946fddad70aa936b7545dfe
+# Formatting configuration replaced and src and test reformatted.
+c129c0e703e87da92c12f204ad77b42005bd9f35
+# Parentheses added to state what binds first.
+1271191888ebb12954a081cae95768d40ffbbdce
+# runSerially laid out with one parameter per line again.
+189b91aa361f6b6ec64bcb413f01404de68b6860
+# Member variables renamed to a leading underscore.
+b56a62b37a6c27ac39b51c46255a56d537b53ec4
+# Return types moved in front of the function name.
+a0dcc9cf6403ba9ec3f2d16ce4cb0ed2f8f9519a
+# Layout settled by hand where the configuration leaves it open.
+cfb125531386e036e49c53022ef6e2782461e9f0
+# Initialisers laid out on one line, or broken at the brace.
+4cbe3d6ab5a8aeb71371201107d82f14ebddaf07
