@@ -9,7 +9,7 @@ add_library(scrap_test_support STATIC
 )
 target_include_directories(scrap_test_support PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(scrap_test_support PRIVATE GTest::gtest)
-scrap_apply_compile_settings(scrap_test_support)
+scrap_apply_compile_settings(scrap_test_support WARNINGS_AS_ERRORS)
 
 add_executable(scrap_gtest
     unit/command/CommonTypesTest.cpp
@@ -37,7 +37,7 @@ target_link_libraries(scrap_gtest PRIVATE
     scrap_test_support
     GTest::gtest_main
 )
-scrap_apply_compile_settings(scrap_gtest)
+scrap_apply_compile_settings(scrap_gtest WARNINGS_AS_ERRORS)
 
 include(GoogleTest)
 gtest_discover_tests(scrap_gtest)
@@ -51,7 +51,7 @@ target_link_libraries(scrap_gtest_cli11 PRIVATE
     scrap_command
     GTest::gtest_main
 )
-scrap_apply_compile_settings(scrap_gtest_cli11)
+scrap_apply_compile_settings(scrap_gtest_cli11 WARNINGS_AS_ERRORS)
 
 gtest_discover_tests(scrap_gtest_cli11)
 
@@ -72,7 +72,7 @@ target_link_libraries(scrap_gtest_project PRIVATE
     scrap_test_support
     GTest::gtest_main
 )
-scrap_apply_compile_settings(scrap_gtest_project)
+scrap_apply_compile_settings(scrap_gtest_project WARNINGS_AS_ERRORS)
 
 gtest_discover_tests(scrap_gtest_project)
 
@@ -88,7 +88,7 @@ target_link_libraries(scrap_gtest_compile PRIVATE
     scrap_test_support
     GTest::gtest_main
 )
-scrap_apply_compile_settings(scrap_gtest_compile)
+scrap_apply_compile_settings(scrap_gtest_compile WARNINGS_AS_ERRORS)
 
 gtest_discover_tests(scrap_gtest_compile)
 
@@ -103,7 +103,7 @@ target_link_libraries(scrap_gtest_build PRIVATE
     scrap_test_support
     GTest::gtest_main
 )
-scrap_apply_compile_settings(scrap_gtest_build)
+scrap_apply_compile_settings(scrap_gtest_build WARNINGS_AS_ERRORS)
 
 gtest_discover_tests(scrap_gtest_build)
 
@@ -123,7 +123,7 @@ target_link_libraries(scrap_e2e PRIVATE
     scrap_test_support
     GTest::gtest_main
 )
-scrap_apply_compile_settings(scrap_e2e)
+scrap_apply_compile_settings(scrap_e2e WARNINGS_AS_ERRORS)
 
 # The e2e tests spawn the scrap binary itself, so it must be built first.
 add_dependencies(scrap_e2e scrap)
