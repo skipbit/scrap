@@ -96,7 +96,7 @@ CompilerIdentity readCompilerIdentity(std::string_view predefinedMacros)
 CompilerIdentity identifyCompiler(const std::filesystem::path& compiler)
 {
     const std::vector<std::string> arguments{ compiler.string(), "-dM", "-E", "-x", "c++", "/dev/null" };
-    const auto completion = Process::runProgram(arguments, {}, Process::OutputCapture::StandardOutput);
+    const auto completion = Process::runProgram(arguments, { .workingDirectory = {}, .capture = Process::OutputCapture::StandardOutput, .group = Process::ProcessGroup::Caller, .timeout = std::nullopt, .outputLimit = std::nullopt });
     if ((! completion.has_value()) || (completion->exitCode != 0)) {
         return CompilerIdentity{};
     }
