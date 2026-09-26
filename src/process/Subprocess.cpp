@@ -132,6 +132,27 @@ int recordActions(posix_spawn_file_actions_t& actions,
 }
 
 /**
+ * Describe to posix_spawn which process group the child starts in.
+ *
+ * @return 0, or the error of the first attribute that could not be recorded.
+ */
+int recordAttributes(posix_spawnattr_t& attributes, ProcessGroup group)
+{
+    short flags = 0;
+    if (group == ProcessGroup::Own) {
+        flags = static_cast<short>(flags | POSIX_SPAWN_SETPGROUP);  // NOLINT(hicpp-signed-bitwise) - POSIX spawn flag API
+    }
+    if (const int result = ::posix_spawnattr_setflags(&attributes, flags); result != 0) {
+        return result;
+    }
+    if (group == ProcessGroup::Own) {
+        // A group id of 0 makes the child the leader of a new group.
+        return ::posix_spawnattr_setpgroup(&attributes, 0);
+    }
+    return 0;
+}
+
+/**
  * Read @p descriptor until the other end is closed, @p limit bytes have been
  * read, or @p deadline passes.
  *
@@ -242,12 +263,8 @@ std::expected<pid_t, std::error_code> startProgram(const std::vector<std::string
     }
     pid_t child = -1;
     int result = recordActions(actions, writeEnd, options.capture, options.workingDirectory);
-    if ((result == 0) && (options.group == ProcessGroup::Own)) {
-        // A group id of 0 makes the child the leader of a new group.
-        result = ::posix_spawnattr_setflags(&attributes, POSIX_SPAWN_SETPGROUP);
-        if (result == 0) {
-            result = ::posix_spawnattr_setpgroup(&attributes, 0);
-        }
+    if (result == 0) {
+        result = recordAttributes(attributes, options.group);
     }
     if (result == 0) {
         result = ::posix_spawn(&child, argv.front(), &actions, &attributes, argv.data(), environ);
