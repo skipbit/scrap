@@ -88,8 +88,8 @@ MetadataProtocolProvider::MetadataProtocolProvider(std::chrono::milliseconds tim
 /**
  * Fetch metadata via --scrap-metadata, falling back to --help.
  *
- * The executable path is canonicalized so posix_spawn always receives a
- * path containing a slash (no PATH search, no shell, no injection surface).
+ * The path is canonicalized so the program started is the file it resolves
+ * to, with relative parts and symbolic links resolved; no shell is involved.
  * Only a plain-text first-line description is extracted; structured
  * (name/options) metadata is not yet part of the protocol.
  */
