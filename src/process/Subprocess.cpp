@@ -1,11 +1,19 @@
 #include "process/Subprocess.h"
 
+#include <algorithm>
 #include <array>
 #include <cerrno>
+#include <chrono>
 #include <cstddef>
 #include <expected>  // IWYU pragma: keep
 #include <fcntl.h>
 #include <filesystem>
+#include <optional>
+#include <poll.h>
+// <csignal> does not reliably resolve killpg()/SIGKILL for include-cleaner on
+// all platforms; <signal.h> is the POSIX header that actually declares them.
+// NOLINTNEXTLINE(hicpp-deprecated-headers,modernize-deprecated-headers)
+#include <signal.h>
 #include <spawn.h>
 #include <string>
 #include <sys/types.h>
@@ -25,6 +33,12 @@ namespace scrap::Process {
 namespace {
 
 constexpr std::size_t ReadChunkBytes = 4096;
+
+// Pause between checks on a program that has closed its output but not yet
+// exited, while its time has not run out.
+constexpr int ReapPollIntervalMs = 5;
+
+using Clock = std::chrono::steady_clock;
 
 /**
  * The error the last failed system call left in errno.
@@ -118,29 +132,58 @@ int recordActions(posix_spawn_file_actions_t& actions,
 }
 
 /**
- * Read @p descriptor until the other end is closed.
+ * Read @p descriptor until the other end is closed, @p limit bytes have been
+ * read, or @p deadline passes.
  *
- * @return An empty code once everything written has been read, or why the
- *         read stopped: what came back until then is part of what the
- *         program wrote, not all of it.
+ * @return An empty code once reading stopped for one of those reasons, or
+ *         why it stopped otherwise: what came back until then is part of
+ *         what the program wrote, not all of it.
  */
-std::error_code readAll(int descriptor, std::string& output)
+std::error_code readOutput(int descriptor, std::optional<Clock::time_point> deadline, std::optional<std::size_t> limit, std::string& output)
 {
     std::array<char, ReadChunkBytes> buffer{};
-    while (true) {
+    while ((! limit.has_value()) || (output.size() < *limit)) {
+        int waitMs = -1;
+        if (deadline.has_value()) {
+            const auto remaining = *deadline - Clock::now();
+            if (remaining <= Clock::duration::zero()) {
+                return {};
+            }
+            // NOLINTNEXTLINE(misc-include-cleaner) - std::chrono::ceil is provided by <chrono>
+            waitMs = static_cast<int>(std::chrono::ceil<std::chrono::milliseconds>(remaining).count());
+        }
+
+        // NOLINTNEXTLINE(misc-include-cleaner) - struct pollfd is provided by <poll.h>
+        struct pollfd ready { };
+        ready.fd = descriptor;
+        ready.events = POLLIN;  // NOLINT(misc-include-cleaner) - POLLIN is provided by <poll.h>
+        // NOLINTNEXTLINE(misc-include-cleaner) - poll() is provided by <poll.h>
+        const int polled = ::poll(&ready, 1, waitMs);
+        if (polled == 0) {
+            return {};
+        }
+        if (polled < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            return lastError();
+        }
+
         const ssize_t count = ::read(descriptor, buffer.data(), buffer.size());
         if (count > 0) {
-            output.append(buffer.data(), static_cast<std::size_t>(count));
+            const std::size_t wanted = limit.has_value() ? std::min(static_cast<std::size_t>(count), *limit - output.size()) : static_cast<std::size_t>(count);
+            output.append(buffer.data(), wanted);
             continue;
         }
         if (count == 0) {
             return {};
         }
-        if (errno == EINTR) {
+        if ((errno == EINTR) || (errno == EAGAIN)) {
             continue;
         }
         return lastError();
     }
+    return {};
 }
 
 /**
@@ -176,8 +219,7 @@ std::error_code openPipe(std::array<int, 2>& ends)
  */
 std::expected<pid_t, std::error_code> startProgram(const std::vector<std::string>& arguments,  // NOLINT(misc-include-cleaner) - pid_t is provided by <sys/types.h>
                                                    int writeEnd,
-                                                   OutputCapture capture,
-                                                   const std::filesystem::path& workingDirectory)
+                                                   const RunOptions& options)
 {
     std::vector<char*> argv;
     argv.reserve(arguments.size() + 1);
@@ -193,11 +235,24 @@ std::expected<pid_t, std::error_code> startProgram(const std::vector<std::string
     if (const int result = ::posix_spawn_file_actions_init(&actions); result != 0) {
         return std::unexpected(std::error_code{ result, std::generic_category() });
     }
-    pid_t child = -1;
-    int result = recordActions(actions, writeEnd, capture, workingDirectory);
-    if (result == 0) {
-        result = ::posix_spawn(&child, argv.front(), &actions, nullptr, argv.data(), environ);
+    posix_spawnattr_t attributes;
+    if (const int result = ::posix_spawnattr_init(&attributes); result != 0) {
+        ::posix_spawn_file_actions_destroy(&actions);
+        return std::unexpected(std::error_code{ result, std::generic_category() });
     }
+    pid_t child = -1;
+    int result = recordActions(actions, writeEnd, options.capture, options.workingDirectory);
+    if ((result == 0) && (options.group == ProcessGroup::Own)) {
+        // A group id of 0 makes the child the leader of a new group.
+        result = ::posix_spawnattr_setflags(&attributes, POSIX_SPAWN_SETPGROUP);
+        if (result == 0) {
+            result = ::posix_spawnattr_setpgroup(&attributes, 0);
+        }
+    }
+    if (result == 0) {
+        result = ::posix_spawn(&child, argv.front(), &actions, &attributes, argv.data(), environ);
+    }
+    ::posix_spawnattr_destroy(&attributes);
     ::posix_spawn_file_actions_destroy(&actions);
     if (result != 0) {
         return std::unexpected(std::error_code{ result, std::generic_category() });
@@ -206,15 +261,72 @@ std::expected<pid_t, std::error_code> startProgram(const std::vector<std::string
 }
 
 /**
- * Wait for @p child to end and record in @p completion how it did.
+ * Wait for @p child to end, however long it takes.
+ *
+ * @return What waitpid returned: the child's id once it has been waited for.
  */
-std::expected<void, std::error_code> waitFor(pid_t child, Completion& completion)
+pid_t waitUntilEnded(pid_t child, int& status)
 {
-    int status = 0;
     pid_t waited = ::waitpid(child, &status, 0);
     while ((waited < 0) && (errno == EINTR)) {
         waited = ::waitpid(child, &status, 0);
     }
+    return waited;
+}
+
+/**
+ * Kill @p child, with its process group when @p group is its own.
+ *
+ * The child is not yet waited for, so its group id cannot have been reused.
+ */
+void stopProgram(pid_t child, ProcessGroup group)
+{
+    // NOLINTBEGIN(misc-include-cleaner) - killpg(), kill() and SIGKILL are provided by <signal.h>
+    if (group == ProcessGroup::Own) {
+        ::killpg(child, SIGKILL);
+    } else {
+        ::kill(child, SIGKILL);
+    }
+    // NOLINTEND(misc-include-cleaner)
+}
+
+/**
+ * Wait for @p child to end until @p deadline passes, then kill it and wait
+ * for that. Closed output alone does not mean the child has exited, so one
+ * that exits soon after closing it is still waited for until the deadline.
+ *
+ * @return What waitpid returned: the child's id once it has been waited for.
+ */
+pid_t waitUntilDeadline(pid_t child, Clock::time_point deadline, ProcessGroup group, int& status, bool& timedOut)
+{
+    while (true) {
+        // NOLINTNEXTLINE(misc-include-cleaner) - WNOHANG is provided by <sys/wait.h>
+        const pid_t waited = ::waitpid(child, &status, WNOHANG);
+        if ((waited < 0) && (errno == EINTR)) {
+            continue;
+        }
+        if (waited != 0) {
+            return waited;
+        }
+        if (Clock::now() >= deadline) {
+            stopProgram(child, group);
+            timedOut = true;
+            return waitUntilEnded(child, status);
+        }
+        ::poll(nullptr, 0, ReapPollIntervalMs);
+    }
+}
+
+/**
+ * Wait for @p child to end and record in @p completion how it did.
+ *
+ * With a @p deadline, a child still running when it passes is killed.
+ */
+std::expected<void, std::error_code> waitFor(pid_t child, std::optional<Clock::time_point> deadline, ProcessGroup group, Completion& completion)
+{
+    int status = 0;
+    const pid_t waited = deadline.has_value() ? waitUntilDeadline(child, *deadline, group, status, completion.timedOut)
+                                              : waitUntilEnded(child, status);
     if (waited != child) {
         return std::unexpected(lastError());
     }
@@ -231,9 +343,7 @@ std::expected<void, std::error_code> waitFor(pid_t child, Completion& completion
 
 }  // anonymous namespace
 
-std::expected<Completion, std::error_code> runProgram(const std::vector<std::string>& arguments,
-                                                      const std::filesystem::path& workingDirectory,
-                                                      const OutputCapture capture)
+std::expected<Completion, std::error_code> runProgram(const std::vector<std::string>& arguments, const RunOptions& options)
 {
     if (arguments.empty()) {
         return std::unexpected(std::make_error_code(std::errc::invalid_argument));
@@ -246,7 +356,7 @@ std::expected<Completion, std::error_code> runProgram(const std::vector<std::str
     OwnedDescriptor readEnd{ pipeEnds[0] };
     OwnedDescriptor writeEnd{ pipeEnds[1] };
 
-    const auto child = startProgram(arguments, writeEnd.get(), capture, workingDirectory);
+    const auto child = startProgram(arguments, writeEnd.get(), options);
     // The parent's copy is closed so the read below ends once the child and
     // anything it started have closed theirs.
     writeEnd.close();
@@ -254,14 +364,19 @@ std::expected<Completion, std::error_code> runProgram(const std::vector<std::str
         return std::unexpected(child.error());
     }
 
+    std::optional<Clock::time_point> deadline;
+    if (options.timeout.has_value()) {
+        deadline = Clock::now() + *options.timeout;
+    }
+
     Completion completion;
-    const std::error_code read = readAll(readEnd.get(), completion.output);
+    const std::error_code read = readOutput(readEnd.get(), deadline, options.outputLimit, completion.output);
     readEnd.close();
 
     // The child is waited for whichever way the read ended, so no program is
     // left behind, and a read that stopped early is reported rather than
     // passed off as everything the program wrote.
-    const auto waited = waitFor(*child, completion);
+    const auto waited = waitFor(*child, deadline, options.group, completion);
     if (read) {
         return std::unexpected(read);
     }

@@ -24,7 +24,7 @@ StepResult ProgramStepRunner::run(const BuildStep& step)
         };
     }
 
-    auto completion = Process::runProgram(step.arguments, step.directory, Process::OutputCapture::Combined);
+    auto completion = Process::runProgram(step.arguments, { .workingDirectory = step.directory, .capture = Process::OutputCapture::Combined, .group = Process::ProcessGroup::Caller, .timeout = std::nullopt, .outputLimit = std::nullopt });
     if (! completion.has_value()) {
         const std::filesystem::path failedPath = step.arguments.empty() ? std::filesystem::path{} : std::filesystem::path{ step.arguments.front() };
         return StepResult{
