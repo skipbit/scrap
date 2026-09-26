@@ -1,9 +1,17 @@
 #include "build/BuildOutput.h"
 
+#include "compile/CompilePlanner.h"
+
 #include <filesystem>
+#include <string_view>
 #include <system_error>
 
 namespace scrap::Build {
+
+// clean removes what build writes only while the one lies inside the other.
+static_assert(Compile::DebugBuildDirectory.starts_with(OutputDirectory) && (Compile::DebugBuildDirectory.size() > OutputDirectory.size())
+                  && (Compile::DebugBuildDirectory[OutputDirectory.size()] == '/'),
+              "the debug build directory must lie inside the build output directory");
 
 std::expected<OutputRemoval, OutputRemovalFailure> removeOutput(const std::filesystem::path& directory)
 {
