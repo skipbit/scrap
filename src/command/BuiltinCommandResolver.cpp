@@ -163,15 +163,19 @@ CommandEntry makeNewEntry(Project::ProjectFileSystem& fileSystem)
 }
 
 /**
+ * The optional path into the project that the project commands take.
+ */
+PositionalDef projectPathPositional()
+{
+    return PositionalDef{ .name = "path", .description = "Directory inside the project (default: the current directory)", .required = false };
+}
+
+/**
  * Create the entry for "build", which takes an optional path into the project.
  */
 CommandEntry makeBuildEntry()
 {
-    return makeProjectEntry(
-        "build",
-        "Compile the project",
-        PositionalDef{ .name = "path", .description = "Directory inside the project (default: the current directory)", .required = false },
-        [](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
+    return makeProjectEntry("build", "Compile the project", projectPathPositional(), [](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
         return std::make_unique<BuildCommandHandler>();
     });
 }
@@ -182,10 +186,7 @@ CommandEntry makeBuildEntry()
 CommandEntry makeCleanEntry()
 {
     return makeProjectEntry(
-        "clean",
-        "Remove the build directory",
-        PositionalDef{ .name = "path", .description = "Directory inside the project (default: the current directory)", .required = false },
-        [](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
+        "clean", "Remove the build directory", projectPathPositional(), [](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
         return std::make_unique<CleanCommandHandler>();
     });
 }
