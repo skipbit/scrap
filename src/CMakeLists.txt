@@ -74,6 +74,7 @@ scrap_apply_compile_settings(scrap_compile WARNINGS_AS_ERRORS)
 
 # Running the steps of a build
 add_library(scrap_build STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/build/BuildOutput.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/build/BuildReporter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/build/SerialBuild.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/build/StepRunner.cpp
