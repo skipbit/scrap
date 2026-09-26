@@ -116,7 +116,7 @@ target_include_directories(scrap_command PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 # and CLI11 stay inside.
 target_link_libraries(scrap_command
     PUBLIC scrap_project scrap_compile scrap_build
-    PRIVATE scrap_toolchain CLI11::CLI11
+    PRIVATE scrap_toolchain scrap_process CLI11::CLI11
 )
 add_dependencies(scrap_command scrap_version_source)
 scrap_apply_compile_settings(scrap_command WARNINGS_AS_ERRORS)
