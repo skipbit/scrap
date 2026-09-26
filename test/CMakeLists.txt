@@ -94,6 +94,7 @@ gtest_discover_tests(scrap_gtest_compile)
 
 # --- Build step tests ---
 add_executable(scrap_gtest_build
+    unit/build/BuildOutputTest.cpp
     unit/build/ProgramStepRunnerTest.cpp
     unit/build/SerialBuildTest.cpp
 )

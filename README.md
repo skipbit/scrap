@@ -128,6 +128,8 @@ scrap is in early alpha development. Currently implemented:
 - Debug builds (`scrap build`): the sources of each target are compiled and
   each executable is linked, one command after another, with
   `compile_commands.json` written beside them
+- Removing the build output (`scrap clean`): the project's `build/`
+  directory is removed with everything in it
 - External command metadata fetching - `scrap-*` executables are probed via
   `--scrap-metadata` (falling back to `--help`) for a plain first-line
   description shown in `scrap --help`; structured JSON/options metadata is
@@ -135,7 +137,7 @@ scrap is in early alpha development. Currently implemented:
 
 🚧 **In Progress**
 - Template system with variable substitution
-- `scrap run` and `scrap clean` - currently placeholder commands
+- `scrap run` - currently a placeholder command
 - Release builds (`--release`), parallel builds, and libraries
 - Configuration file parsing (`scrap.toml`) - `[dependencies]` and
   `[toolchain]` are accepted and not yet read

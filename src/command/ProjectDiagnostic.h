@@ -1,5 +1,6 @@
 #pragma once
 
+#include "build/BuildOutput.h"
 #include "build/SerialBuild.h"
 #include "compile/CompilationDatabase.h"
 #include "project/LanguageStandard.h"
@@ -100,6 +101,14 @@ namespace scrap::Command {
  * @return Text for standard error, each line ending in a newline.
  */
 [[nodiscard]] std::string renderStepFailure(const Build::FailedStep& failed);
+
+/**
+ * @brief Describe build output that could not be removed, and what to do next.
+ *
+ * @param failure Failure returned by scrap::Build::removeOutput().
+ * @return Text for standard error, each line ending in a newline.
+ */
+[[nodiscard]] std::string renderOutputRemovalFailure(const Build::OutputRemovalFailure& failure);
 
 /**
  * @brief Describe why a project could not be created, and what to do next.

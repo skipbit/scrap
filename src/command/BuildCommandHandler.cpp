@@ -5,6 +5,7 @@
 #include "command/BuildProgress.h"
 #include "command/InvocationContext.h"
 #include "command/PrintableText.h"
+#include "command/ProjectArgument.h"
 #include "command/ProjectDiagnostic.h"
 #include "command/RuntimeEnvironment.h"
 #include "compile/CompilationDatabase.h"
@@ -44,18 +45,6 @@ std::string_view describeOrigin(const Toolchain::CompilerOrigin origin)
     // Every origin is answered above, so an origin added without a word here
     // fails the build rather than being described as one of the others.
     std::unreachable();
-}
-
-/**
- * The path argument taken against the working directory, or the working
- * directory itself.
- */
-std::filesystem::path startDirectory(const InvocationContext& ctx)
-{
-    if (ctx.options.positional.empty()) {
-        return ctx.env->workingDirectory;
-    }
-    return ctx.env->workingDirectory / ctx.options.positional.front();
 }
 
 /**
@@ -113,16 +102,8 @@ int runBuild(const Compile::BuildSettings& settings,
 
 int BuildCommandHandler::execute(const InvocationContext& ctx)
 {
-    // An explicitly empty argument is usually an unset variable, so it is
-    // reported as an error instead of standing for the working directory.
-    if ((! ctx.options.positional.empty()) && ctx.options.positional.front().empty()) {
-        std::cerr << renderEmptyPathArgument();
-        return 1;
-    }
-
-    const auto project = Project::loadProject(startDirectory(ctx));
+    const auto project = loadProjectAt(ctx, std::cerr);
     if (! project.has_value()) {
-        std::cerr << renderProjectError(project.error());
         return 1;
     }
 

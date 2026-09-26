@@ -1,6 +1,7 @@
 #include "command/BuiltinCommandResolver.h"
 
 #include "command/BuildCommandHandler.h"
+#include "command/CleanCommandHandler.h"
 #include "command/CommandEntry.h"
 #include "command/CommandHandler.h"
 #include "command/CommandSource.h"
@@ -175,6 +176,20 @@ CommandEntry makeBuildEntry()
     });
 }
 
+/**
+ * Create the entry for "clean", which takes an optional path into the project.
+ */
+CommandEntry makeCleanEntry()
+{
+    return makeProjectEntry(
+        "clean",
+        "Remove the build directory",
+        PositionalDef{ .name = "path", .description = "Directory inside the project (default: the current directory)", .required = false },
+        [](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
+        return std::make_unique<CleanCommandHandler>();
+    });
+}
+
 }  // anonymous namespace
 
 /**
@@ -230,7 +245,7 @@ std::vector<CommandEntry> BuiltinCommandResolver::resolve([[maybe_unused]] const
     entries.push_back(makeNewEntry(*_fileSystem));
     entries.push_back(makeBuildEntry());
     entries.push_back(makePlaceholder("run", "Run the current project executable", "Project Commands"));
-    entries.push_back(makePlaceholder("clean", "Remove build artifacts and cached files", "Project Commands"));
+    entries.push_back(makeCleanEntry());
 
     // Toolchain commands
     {
