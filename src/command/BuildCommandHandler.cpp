@@ -102,8 +102,9 @@ int runBuild(const Compile::BuildSettings& settings,
 
 int BuildCommandHandler::execute(const InvocationContext& ctx)
 {
-    const auto project = loadProjectAt(ctx, std::cerr);
+    const auto project = loadProjectAt(ctx);
     if (! project.has_value()) {
+        std::cerr << renderProjectArgumentError(project.error());
         return 1;
     }
 

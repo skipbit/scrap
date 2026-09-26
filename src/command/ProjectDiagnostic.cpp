@@ -4,6 +4,7 @@
 #include "build/BuildStep.h"
 #include "build/SerialBuild.h"
 #include "command/PrintableText.h"
+#include "command/ProjectArgument.h"
 #include "compile/CompilationDatabase.h"
 #include "project/LanguageStandard.h"
 #include "project/ManifestError.h"
@@ -274,6 +275,14 @@ std::string renderEmptyPathArgument()
     std::string text = "error: the path argument is empty\n";
     text += PathHint;
     return text;
+}
+
+std::string renderProjectArgumentError(const ProjectArgumentError& error)
+{
+    if (std::holds_alternative<EmptyPathArgument>(error)) {
+        return renderEmptyPathArgument();
+    }
+    return renderProjectError(std::get<Project::ProjectError>(error));
 }
 
 std::string renderNoCompilerFound()

@@ -1,13 +1,11 @@
 #include "command/ProjectArgument.h"
 
 #include "command/InvocationContext.h"
-#include "command/ProjectDiagnostic.h"
 #include "command/RuntimeEnvironment.h"
 #include "project/ProjectLoader.h"
 
+#include <expected>  // IWYU pragma: keep
 #include <filesystem>
-#include <optional>
-#include <ostream>
 #include <utility>
 
 namespace scrap::Command {
@@ -28,17 +26,15 @@ std::filesystem::path startDirectory(const InvocationContext& ctx)
 
 }  // anonymous namespace
 
-std::optional<Project::LoadedProject> loadProjectAt(const InvocationContext& ctx, std::ostream& err)
+std::expected<Project::LoadedProject, ProjectArgumentError> loadProjectAt(const InvocationContext& ctx)
 {
     if ((! ctx.options.positional.empty()) && ctx.options.positional.front().empty()) {
-        err << renderEmptyPathArgument();
-        return std::nullopt;
+        return std::unexpected{ ProjectArgumentError{ EmptyPathArgument{} } };
     }
 
     auto project = Project::loadProject(startDirectory(ctx));
     if (! project.has_value()) {
-        err << renderProjectError(project.error());
-        return std::nullopt;
+        return std::unexpected{ ProjectArgumentError{ project.error() } };
     }
     return std::move(*project);
 }

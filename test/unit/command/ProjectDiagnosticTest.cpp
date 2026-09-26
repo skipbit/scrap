@@ -281,6 +281,32 @@ TEST(ProjectDiagnosticTest, RendersAnEmptyPathArgument)
 }
 
 /**
+ * A project argument error that holds an empty path argument renders the
+ * same text renderEmptyPathArgument() does.
+ */
+TEST(ProjectDiagnosticTest, RendersAProjectArgumentErrorHoldingAnEmptyPath)
+{
+    const scrap::Command::ProjectArgumentError error = scrap::Command::EmptyPathArgument{};
+
+    EXPECT_EQ(scrap::Command::renderProjectArgumentError(error),
+              "error: the path argument is empty\n"
+              "hint: pass a directory inside a project, or omit the path to use the current directory\n");
+}
+
+/**
+ * A project argument error that holds a project error renders the same text
+ * renderProjectError() does.
+ */
+TEST(ProjectDiagnosticTest, RendersAProjectArgumentErrorHoldingAProjectError)
+{
+    const scrap::Command::ProjectArgumentError error = ProjectNotFound{ .startDir = "/home/me" };
+
+    EXPECT_EQ(scrap::Command::renderProjectArgumentError(error),
+              "error: could not find scrap.toml in '/home/me' or any parent directory\n"
+              "hint: run 'scrap new <project-name>' to create a project\n");
+}
+
+/**
  * An empty project name is named as such, with the naming rule.
  */
 TEST(ProjectDiagnosticTest, RendersAnEmptyProjectName)

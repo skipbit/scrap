@@ -2,12 +2,22 @@
 
 #include "project/ProjectLoader.h"
 
-#include <iosfwd>
-#include <optional>
+#include <expected>  // IWYU pragma: keep
+#include <variant>
 
 namespace scrap::Command {
 
 struct InvocationContext;
+
+/**
+ * @brief An explicitly empty path argument.
+ */
+struct EmptyPathArgument { };
+
+/**
+ * @brief Why the project of a path argument could not be loaded.
+ */
+using ProjectArgumentError = std::variant<EmptyPathArgument, Project::ProjectError>;
 
 /**
  * @brief Load the project a command's optional path argument belongs to.
@@ -18,9 +28,8 @@ struct InvocationContext;
  * working directory.
  *
  * @param ctx Invocation context. Its first positional is the optional path.
- * @param err Where the reason goes when there is no project.
- * @return The project, or nothing once the reason has been written to @p err.
+ * @return The project, or why it could not be loaded.
  */
-[[nodiscard]] std::optional<Project::LoadedProject> loadProjectAt(const InvocationContext& ctx, std::ostream& err);
+[[nodiscard]] std::expected<Project::LoadedProject, ProjectArgumentError> loadProjectAt(const InvocationContext& ctx);
 
 }  // namespace scrap::Command
