@@ -91,6 +91,7 @@ add_library(scrap_command STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/command/BuildCommandHandler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/BuildProgress.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/BuiltinCommandResolver.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/CleanCommandHandler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/CommandCatalog.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/CommandHandler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/CommandResolver.cpp

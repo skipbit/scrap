@@ -1,5 +1,6 @@
 #include "command/ProjectDiagnostic.h"
 
+#include "build/BuildOutput.h"
 #include "build/BuildStep.h"
 #include "build/SerialBuild.h"
 #include "compile/CompilationDatabase.h"
@@ -17,6 +18,8 @@
 
 using scrap::Build::BuildStep;
 using scrap::Build::FailedStep;
+using scrap::Build::OutputRemovalFailure;
+using scrap::Build::OutputRemovalProblem;
 using scrap::Build::StepFailure;
 using scrap::Build::StepFailureKind;
 using scrap::Build::StepKind;
@@ -24,6 +27,7 @@ using scrap::Command::renderCompilationDatabaseFailure;
 using scrap::Command::renderLibraryNotBuilt;
 using scrap::Command::renderNoCompilerFound;
 using scrap::Command::renderNoTargetToBuild;
+using scrap::Command::renderOutputRemovalFailure;
 using scrap::Command::renderProjectError;
 using scrap::Command::renderSourceScanFailure;
 using scrap::Command::renderStepFailure;
@@ -691,4 +695,44 @@ TEST(ProjectDiagnosticTest, RendersALibraryItDoesNotBuild)
     EXPECT_EQ(renderLibraryNotBuilt("core"),
               "error: building the library 'core' is not supported yet\n"
               "hint: remove the [[lib]] section from scrap.toml to build its sources into the executable\n");
+}
+
+/**
+ * Build output that cannot be examined is named with the system's reason.
+ */
+TEST(ProjectDiagnosticTest, RendersBuildOutputThatCannotBeExamined)
+{
+    const auto code = std::make_error_code(std::errc::permission_denied);
+    const OutputRemovalFailure failure{ .problem = OutputRemovalProblem::CannotInspect, .path = "/home/me/hello/build", .code = code };
+
+    EXPECT_EQ(renderOutputRemovalFailure(failure),
+              "error: cannot access '/home/me/hello/build': " + code.message()
+                  + "\n"
+                    "hint: check the permissions of the path\n");
+}
+
+/**
+ * A file where the build output belongs is named, and left to the user.
+ */
+TEST(ProjectDiagnosticTest, RendersAFileWhereTheBuildOutputBelongs)
+{
+    const OutputRemovalFailure failure{ .problem = OutputRemovalProblem::NotADirectory, .path = "/home/me/hello/build", .code = {} };
+
+    EXPECT_EQ(renderOutputRemovalFailure(failure),
+              "error: '/home/me/hello/build' is not a directory\n"
+              "hint: check what is already at that path\n");
+}
+
+/**
+ * Build output that cannot be removed is named with the system's reason.
+ */
+TEST(ProjectDiagnosticTest, RendersBuildOutputThatCannotBeRemoved)
+{
+    const auto code = std::make_error_code(std::errc::permission_denied);
+    const OutputRemovalFailure failure{ .problem = OutputRemovalProblem::CannotRemove, .path = "/home/me/hello/build", .code = code };
+
+    EXPECT_EQ(renderOutputRemovalFailure(failure),
+              "error: cannot remove '/home/me/hello/build': " + code.message()
+                  + "\n"
+                    "hint: check the permissions of the path\n");
 }
