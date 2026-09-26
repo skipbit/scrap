@@ -105,6 +105,10 @@ TEST(CLI11ParserAdapterTest, Parse_BoolFlag)
         .longName = "verbose",
         .shortName = 'v',
         .type = OptionValueType::Bool,
+        .required = false,
+        .description = "",
+        .defaultValue = std::nullopt,
+        .choices = {},
     });
 
     adapter.configure(std::vector{ spec });
@@ -128,6 +132,10 @@ TEST(CLI11ParserAdapterTest, Parse_BoolFlag_ShortForm)
         .longName = "verbose",
         .shortName = 'v',
         .type = OptionValueType::Bool,
+        .required = false,
+        .description = "",
+        .defaultValue = std::nullopt,
+        .choices = {},
     });
 
     adapter.configure(std::vector{ spec });
@@ -150,6 +158,10 @@ TEST(CLI11ParserAdapterTest, Parse_StringOption)
         .longName = "template",
         .shortName = 't',
         .type = OptionValueType::String,
+        .required = false,
+        .description = "",
+        .defaultValue = std::nullopt,
+        .choices = {},
     });
 
     adapter.configure(std::vector{ spec });
@@ -172,6 +184,10 @@ TEST(CLI11ParserAdapterTest, Parse_Int64Option)
         .longName = "jobs",
         .shortName = 'j',
         .type = OptionValueType::Int64,
+        .required = false,
+        .description = "",
+        .defaultValue = std::nullopt,
+        .choices = {},
     });
 
     adapter.configure(std::vector{ spec });
