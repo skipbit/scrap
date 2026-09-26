@@ -5,6 +5,7 @@
 #include <cerrno>
 #include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <expected>  // IWYU pragma: keep
 #include <fcntl.h>
 #include <filesystem>
@@ -39,6 +40,15 @@ constexpr std::size_t ReadChunkBytes = 4096;
 constexpr int ReapPollIntervalMs = 5;
 
 using Clock = std::chrono::steady_clock;
+
+/**
+ * Why reading a program's output stopped without an error.
+ */
+enum class ReadStop : std::uint8_t {
+    Closed,   ///< Every holder of the other end closed it.
+    Limit,    ///< The limit was read.
+    Deadline  ///< The deadline passed with the other end still open.
+};
 
 /**
  * The error the last failed system call left in errno.
@@ -156,11 +166,11 @@ int recordAttributes(posix_spawnattr_t& attributes, ProcessGroup group)
  * Read @p descriptor until the other end is closed, @p limit bytes have been
  * read, or @p deadline passes.
  *
- * @return An empty code once reading stopped for one of those reasons, or
- *         why it stopped otherwise: what came back until then is part of
- *         what the program wrote, not all of it.
+ * @return Which of those stopped the read, or the error that stopped it
+ *         otherwise: what came back until then is part of what the program
+ *         wrote, not all of it.
  */
-std::error_code readOutput(int descriptor, std::optional<Clock::time_point> deadline, std::optional<std::size_t> limit, std::string& output)
+std::expected<ReadStop, std::error_code> readOutput(int descriptor, std::optional<Clock::time_point> deadline, std::optional<std::size_t> limit, std::string& output)
 {
     std::array<char, ReadChunkBytes> buffer{};
     while ((! limit.has_value()) || (output.size() < *limit)) {
@@ -168,7 +178,7 @@ std::error_code readOutput(int descriptor, std::optional<Clock::time_point> dead
         if (deadline.has_value()) {
             const auto remaining = *deadline - Clock::now();
             if (remaining <= Clock::duration::zero()) {
-                return {};
+                return ReadStop::Deadline;
             }
             // NOLINTNEXTLINE(misc-include-cleaner) - std::chrono::ceil is provided by <chrono>
             waitMs = static_cast<int>(std::chrono::ceil<std::chrono::milliseconds>(remaining).count());
@@ -181,13 +191,13 @@ std::error_code readOutput(int descriptor, std::optional<Clock::time_point> dead
         // NOLINTNEXTLINE(misc-include-cleaner) - poll() is provided by <poll.h>
         const int polled = ::poll(&ready, 1, waitMs);
         if (polled == 0) {
-            return {};
+            return ReadStop::Deadline;
         }
         if (polled < 0) {
             if (errno == EINTR) {
                 continue;
             }
-            return lastError();
+            return std::unexpected(lastError());
         }
 
         const ssize_t count = ::read(descriptor, buffer.data(), buffer.size());
@@ -197,14 +207,14 @@ std::error_code readOutput(int descriptor, std::optional<Clock::time_point> dead
             continue;
         }
         if (count == 0) {
-            return {};
+            return ReadStop::Closed;
         }
         if ((errno == EINTR) || (errno == EAGAIN)) {
             continue;
         }
-        return lastError();
+        return std::unexpected(lastError());
     }
-    return {};
+    return ReadStop::Limit;
 }
 
 /**
@@ -387,15 +397,24 @@ std::expected<Completion, std::error_code> runProgram(const std::vector<std::str
     }
 
     Completion completion;
-    const std::error_code read = readOutput(readEnd.get(), deadline, options.outputLimit, completion.output);
+    const auto read = readOutput(readEnd.get(), deadline, options.outputLimit, completion.output);
     readEnd.close();
+
+    // Output still open at the deadline means the child, or something it
+    // started, is still running even when the child itself has exited. The
+    // child is not yet waited for, so its group id cannot have been reused.
+    if (read.has_value() && (*read == ReadStop::Deadline)) {
+        stopProgram(*child, options.group);
+        completion.timedOut = true;
+        deadline.reset();
+    }
 
     // The child is waited for whichever way the read ended, so no program is
     // left behind, and a read that stopped early is reported rather than
     // passed off as everything the program wrote.
     const auto waited = waitFor(*child, deadline, options.group, completion);
-    if (read) {
-        return std::unexpected(read);
+    if (! read.has_value()) {
+        return std::unexpected(read.error());
     }
     if (! waited.has_value()) {
         return std::unexpected(waited.error());

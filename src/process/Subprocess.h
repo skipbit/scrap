@@ -47,7 +47,7 @@ struct RunOptions {
 struct Completion {
     std::optional<int> exitCode;  ///< Set when the program exited.
     std::optional<int> signal;    ///< Set when a signal stopped the program.
-    bool timedOut = false;        ///< Set when the program was stopped because its time ran out.
+    bool timedOut = false;        ///< Set when the time ran out before the program ended and closed its output.
     std::string output;           ///< What the program wrote to the streams read back.
 };
 
@@ -58,10 +58,10 @@ struct Completion {
  * it as written. It inherits the environment and reads nothing from standard
  * input.
  *
- * When a timeout is given and the program is still running when it passes,
- * the program is killed, together with its process group when it has one of
- * its own. Output past the limit is not read, so a program that keeps writing
- * sees its output closed.
+ * When a timeout is given and it passes while the program is still running,
+ * or while its output is still open, the program is killed, together with its
+ * process group when it has one of its own. Output past the limit is not
+ * read, so a program that keeps writing sees its output closed.
  *
  * @param arguments The command line; the first is the path of the program.
  * @param options How the program is run.

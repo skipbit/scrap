@@ -227,6 +227,30 @@ TEST(SubprocessTest, StopsWhatAProgramStartedWithIt)
 }
 
 /**
+ * A program that exits while what it started still holds its output open is
+ * stopped with what it started once the time runs out.
+ */
+TEST(SubprocessTest, StopsWhatAProgramLeftHoldingItsOutput)
+{
+    const TempDirectory temp;
+    makeFifoNobodyWrites(temp.path());
+    int ends[2] = { -1, -1 };
+    ASSERT_EQ(::pipe(ends), 0);
+
+    const auto completion = runProgram(shell("(read line < never) & exit 0"), stoppedSoon(temp.path()));
+    ::close(ends[1]);
+
+    ASSERT_TRUE(completion.has_value());
+    EXPECT_TRUE(completion->timedOut);
+    // The bound only keeps a failure from hanging the test.
+    pollfd ready{ .fd = ends[0], .events = POLLIN, .revents = 0 };
+    ASSERT_EQ(::poll(&ready, 1, 10000), 1);
+    char byte = 0;
+    EXPECT_EQ(::read(ends[0], &byte, 1), 0);
+    ::close(ends[0]);
+}
+
+/**
  * Output past the limit is not read, and a program that keeps writing sees
  * its output closed rather than waiting on it.
  */
