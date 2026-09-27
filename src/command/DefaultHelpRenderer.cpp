@@ -79,6 +79,9 @@ void appendUsageLine(std::ostringstream& out, const CommandSpec& spec)
             out << " [" << positional.name << "]";
         }
     }
+    if (spec.options.trailing.has_value()) {
+        out << " [-- <" << spec.options.trailing->name << ">...]";
+    }
     out << '\n';
 }
 

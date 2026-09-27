@@ -18,6 +18,12 @@ struct ParsedOptions {
      * the end.
      */
     std::vector<std::string> positional;
+
+    /**
+     * The arguments after the first "--", as written, for a command that
+     * takes them.
+     */
+    std::vector<std::string> trailing;
 };
 
 }  // namespace scrap::Command

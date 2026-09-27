@@ -33,9 +33,18 @@ struct PositionalDef {
     bool required = true;
 };
 
+/**
+ * The arguments a command takes after "--", passed on as written.
+ */
+struct TrailingDef {
+    std::string name;
+    std::string description;
+};
+
 struct OptionSchema {
     std::vector<OptionDef> named;
     std::vector<PositionalDef> positional;
+    std::optional<TrailingDef> trailing;  ///< Set when the command takes arguments after "--".
 };
 
 }  // namespace scrap::Command
