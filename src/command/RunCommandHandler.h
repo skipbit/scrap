@@ -24,7 +24,9 @@ public:
      *   path, and its trailing arguments go to the program.
      * @return The program's exit code; 128 plus the signal when a signal
      *   stopped it; BuildFailedExitCode when the build fails; 1 when the
-     *   project cannot be run for another reason.
+     *   project cannot be run for another reason. When an interrupt or a
+     *   quit stopped the program, scrap ends by the same signal instead,
+     *   unless it was started with that signal ignored.
      */
     int execute(const InvocationContext& ctx) override;
 };

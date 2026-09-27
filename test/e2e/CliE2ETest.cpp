@@ -21,6 +21,7 @@
 #include <regex>
 #include <string>
 #include <string_view>
+#include <sys/resource.h>
 #include <sys/wait.h>
 #include <system_error>
 #include <unistd.h>
@@ -87,6 +88,7 @@ constexpr std::size_t ReadChunkBytes = 4096;
 struct ProcessOutput {
     bool exitedNormally = false;
     int exitCode = -1;
+    int signal = 0;  ///< The signal that ended the process, or 0.
     std::string stdoutText;
     std::string stderrText;
 };
@@ -380,6 +382,10 @@ protected:
                 _exit(127);
             }
 
+            // A process a test ends with a quit leaves no core file behind.
+            const rlimit noCore{ .rlim_cur = 0, .rlim_max = 0 };
+            ::setrlimit(RLIMIT_CORE, &noCore);
+
             ::execve(argv[0], argv.data(), envp.data());
             _exit(127);  // execve() only returns on failure.
         }
@@ -407,6 +413,9 @@ protected:
         if ((! timedOut) && (waited == childPid) && WIFEXITED(status)) {
             result.exitedNormally = true;
             result.exitCode = WEXITSTATUS(status);
+        }
+        if ((! timedOut) && (waited == childPid) && WIFSIGNALED(status)) {
+            result.signal = WTERMSIG(status);
         }
 
         return result;
@@ -1225,6 +1234,28 @@ TEST_F(CliE2ETest, RunReportsASignalAsAShellDoes)
 
     ASSERT_TRUE(result.exitedNormally) << result.stderrText;
     EXPECT_EQ(result.exitCode, 128 + SIGTERM) << result.stderrText;
+}
+
+TEST_F(CliE2ETest, RunEndsByTheInterruptThatStoppedTheProgram)
+{
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp", "#include <csignal>\nint main() { std::raise(SIGINT); return 0; }\n");
+
+    auto result = runScrap({ "run" }, { realCompiler() }, _root, BuildTimeout);
+
+    EXPECT_FALSE(result.exitedNormally) << result.stderrText;
+    EXPECT_EQ(result.signal, SIGINT) << result.stderrText;
+}
+
+TEST_F(CliE2ETest, RunEndsByTheQuitThatStoppedTheProgram)
+{
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp", "#include <csignal>\nint main() { std::raise(SIGQUIT); return 0; }\n");
+
+    auto result = runScrap({ "run" }, { realCompiler() }, _root, BuildTimeout);
+
+    EXPECT_FALSE(result.exitedNormally) << result.stderrText;
+    EXPECT_EQ(result.signal, SIGQUIT) << result.stderrText;
 }
 
 TEST_F(CliE2ETest, RunDoesNotStartAProgramThatFailedToBuild)

@@ -10,6 +10,7 @@
 #include "project/Manifest.h"
 #include "project/TargetResolver.h"
 
+#include <csignal>
 #include <filesystem>
 #include <iostream>
 #include <optional>
@@ -81,6 +82,13 @@ int RunCommandHandler::execute(const InvocationContext& ctx)
         return 1;
     }
     if (const std::optional<int> signal = completion->signal; signal.has_value()) {
+        // A shell stops a loop or a script on an interrupt only when the
+        // command itself ends by it. The signal takes what scrap was started
+        // with, so one it ignores leaves scrap to return the code below.
+        if ((*signal == SIGINT) || (*signal == SIGQUIT)) {  // NOLINT(misc-include-cleaner) - SIGQUIT is provided by <csignal> on POSIX
+            // Returning from the raise means the signal is ignored.
+            (void)std::raise(*signal);
+        }
         return SignalExitCodeBase + *signal;
     }
     return completion->exitCode.value_or(1);
