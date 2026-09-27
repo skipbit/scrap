@@ -27,6 +27,7 @@
 #if defined(__APPLE__)
 // NOLINTNEXTLINE(misc-include-cleaner) - only pulled in on Darwin, guarded by __APPLE__
 #include <crt_externs.h>  // _NSGetEnviron(): the only correct way to reach environ on Darwin
+#include <mutex>
 #define environ (*_NSGetEnviron())
 #endif
 
@@ -110,6 +111,18 @@ bool closeOnExec(int descriptor)
         return false;
     }
     return ::fcntl(descriptor, F_SETFD, flags | FD_CLOEXEC) == 0;  // NOLINT(hicpp-signed-bitwise) - POSIX flag API
+}
+
+/**
+ * Held from making a pipe until the program it is for has started. A pipe
+ * is marked to close in a call of its own, so a program another thread
+ * started in between would hold its write end open, and the read would wait
+ * for that program too.
+ */
+std::mutex& startingPrograms()
+{
+    static std::mutex mutex;
+    return mutex;
 }
 #endif
 
@@ -465,6 +478,9 @@ std::expected<Completion, std::error_code> runProgram(const std::vector<std::str
         return std::unexpected(std::make_error_code(std::errc::invalid_argument));
     }
 
+#if defined(__APPLE__)
+    std::unique_lock starting{ startingPrograms() };
+#endif
     std::array<int, 2> pipeEnds{ -1, -1 };
     if (const std::error_code failed = openPipe(pipeEnds)) {
         return std::unexpected(failed);
@@ -486,6 +502,9 @@ std::expected<Completion, std::error_code> runProgram(const std::vector<std::str
     }
 
     const auto child = startProgram(arguments, writeEnd.get(), options, defaults.has_value() ? &*defaults : nullptr);
+#if defined(__APPLE__)
+    starting.unlock();
+#endif
     // The parent's copy is closed so the read below ends once the child and
     // anything it started have closed theirs.
     writeEnd.close();
