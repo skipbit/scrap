@@ -106,6 +106,7 @@ add_library(scrap_command STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ParserAdapter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/PrintableText.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ProjectArgument.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/ProjectBuild.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ProjectCommandResolver.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ProjectDiagnostic.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/RuntimeEnvironmentFactory.cpp
