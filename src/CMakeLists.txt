@@ -74,6 +74,7 @@ scrap_apply_compile_settings(scrap_compile WARNINGS_AS_ERRORS)
 
 # Running the steps of a build
 add_library(scrap_build STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/build/BuildOutput.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/build/BuildReporter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/build/SerialBuild.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/build/StepRunner.cpp
@@ -90,6 +91,7 @@ add_library(scrap_command STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/command/BuildCommandHandler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/BuildProgress.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/BuiltinCommandResolver.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/CleanCommandHandler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/CommandCatalog.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/CommandHandler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/CommandResolver.cpp
@@ -103,6 +105,7 @@ add_library(scrap_command STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/command/NewCommandHandler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ParserAdapter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/PrintableText.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/ProjectArgument.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ProjectCommandResolver.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ProjectDiagnostic.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/RuntimeEnvironmentFactory.cpp

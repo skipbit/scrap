@@ -1171,6 +1171,147 @@ TEST_F(CliE2ETest, BuildKeepsTheDatabaseWhenTheRealCompilerReportsAnError)
     EXPECT_FALSE(std::filesystem::exists(_root / "build" / "debug" / "bin" / "app"));
 }
 
+// --- clean: removing the build directory ---------------------------------------
+
+TEST_F(CliE2ETest, CleanRemovesWhatABuildWrote)
+{
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp", MainSource);
+    auto built = runScrap({ "build" }, { dummyCompiler() }, _root);
+    ASSERT_EQ(built.exitCode, 0) << built.stderrText;
+    ASSERT_TRUE(std::filesystem::is_directory(_root / "build" / "debug"));
+    const std::string buildDirectory = (std::filesystem::canonical(_root) / "build").string();
+
+    auto result = runScrap({ "clean" }, {}, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 0);
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    EXPECT_EQ(result.stderrText, "Removed '" + buildDirectory + "'\n");
+    EXPECT_FALSE(std::filesystem::exists(_root / "build"));
+    EXPECT_TRUE(std::filesystem::is_regular_file(_root / "src" / "main.cpp"));
+}
+
+TEST_F(CliE2ETest, CleanRemovesWhatElseIsInTheBuildDirectory)
+{
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("build/other-tool/cache.txt", "written by another tool\n");
+
+    auto result = runScrap({ "clean" }, {}, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 0);
+    EXPECT_FALSE(std::filesystem::exists(_root / "build"));
+}
+
+TEST_F(CliE2ETest, CleanSucceedsWithNothingToRemove)
+{
+    writeFile("scrap.toml", ValidManifest);
+    const std::string buildDirectory = (std::filesystem::canonical(_root) / "build").string();
+
+    auto result = runScrap({ "clean" }, {}, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 0);
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    EXPECT_EQ(result.stderrText, "Nothing to remove at '" + buildDirectory + "'\n");
+}
+
+TEST_F(CliE2ETest, CleanTakesAPathRelativeToTheWorkingDirectory)
+{
+    // Run from outside any project, so success can only come from the path.
+    if (insideAProject(std::filesystem::canonical(_root))) {
+        GTEST_SKIP() << "the temp location is inside a scrap project";
+    }
+    writeFile("app/scrap.toml", ValidManifest);
+    writeFile("app/build/debug/compile_commands.json", "[]\n");
+    std::filesystem::create_directories(_root / "elsewhere");
+
+    auto result = runScrap({ "clean", "../app" }, {}, _root / "elsewhere");
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 0);
+    EXPECT_FALSE(std::filesystem::exists(_root / "app" / "build"));
+}
+
+TEST_F(CliE2ETest, CleanFindsTheProjectAboveTheWorkingDirectory)
+{
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("build/debug/compile_commands.json", "[]\n");
+    std::filesystem::create_directories(_root / "src" / "detail");
+
+    auto result = runScrap({ "clean" }, {}, _root / "src" / "detail");
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 0);
+    EXPECT_FALSE(std::filesystem::exists(_root / "build"));
+    EXPECT_TRUE(std::filesystem::is_directory(_root / "src" / "detail"));
+}
+
+TEST_F(CliE2ETest, CleanOutsideAProject)
+{
+    if (insideAProject(std::filesystem::canonical(_root))) {
+        GTEST_SKIP() << "the temp location is inside a scrap project";
+    }
+    writeFile("build/kept.txt", "not a project's\n");
+    const std::string searched = std::filesystem::canonical(_root).string();
+
+    auto result = runScrap({ "clean" }, {}, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    EXPECT_NE(result.stderrText.find("error: could not find scrap.toml in '" + searched + "' or any parent directory\n"), std::string::npos)
+        << result.stderrText;
+    EXPECT_TRUE(std::filesystem::is_regular_file(_root / "build" / "kept.txt"));
+}
+
+TEST_F(CliE2ETest, CleanRejectsAnEmptyPath)
+{
+    // Inside a project, so reading the empty path as the working directory would remove it.
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("build/debug/compile_commands.json", "[]\n");
+
+    auto result = runScrap({ "clean", "" }, {}, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_NE(result.stderrText.find("error: the path argument is empty\n"), std::string::npos) << result.stderrText;
+    EXPECT_TRUE(std::filesystem::is_directory(_root / "build"));
+}
+
+TEST_F(CliE2ETest, CleanRemovesALinkWithoutFollowingIt)
+{
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("elsewhere/kept.txt", "kept\n");
+    std::filesystem::create_directory_symlink(_root / "elsewhere", _root / "build");
+
+    auto result = runScrap({ "clean" }, {}, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 0);
+    std::error_code ec;
+    EXPECT_FALSE(std::filesystem::exists(std::filesystem::symlink_status(_root / "build", ec)));
+    EXPECT_TRUE(std::filesystem::is_regular_file(_root / "elsewhere" / "kept.txt"));
+}
+
+TEST_F(CliE2ETest, CleanLeavesAFileWhereTheBuildDirectoryBelongs)
+{
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("build", "a file of the user's\n");
+    const std::string buildPath = (std::filesystem::canonical(_root) / "build").string();
+
+    auto result = runScrap({ "clean" }, {}, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    EXPECT_EQ(result.stderrText,
+              "error: '" + buildPath + "' is not a directory\n"
+                                       "hint: check what is already at that path\n");
+    EXPECT_EQ(readFile("build"), "a file of the user's\n");
+}
+
 // --- new: creating a project ---------------------------------------------------
 
 TEST_F(CliE2ETest, NewCreatesAProject)

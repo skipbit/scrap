@@ -179,6 +179,25 @@ TEST(BuiltinCommandResolverTest, BuildTakesAnOptionalPath)
 }
 
 /**
+ * Verify that clean takes an optional path to the project.
+ */
+TEST(BuiltinCommandResolverTest, CleanTakesAnOptionalPath)
+{
+    MockHelpRenderer helpRenderer;
+    MockVersionRenderer versionRenderer;
+    BuiltinCommandResolver resolver(helpRenderer, versionRenderer, diskFileSystem());
+
+    RuntimeEnvironment env;
+    auto entries = resolver.resolve(env);
+
+    const auto* clean = findByName(entries, "clean");
+    ASSERT_NE(clean, nullptr);
+    ASSERT_EQ(clean->spec.options.positional.size(), 1);
+    EXPECT_EQ(clean->spec.options.positional[0].name, "path");
+    EXPECT_FALSE(clean->spec.options.positional[0].required);
+}
+
+/**
  * Verify that new takes the project name as a required positional.
  */
 TEST(BuiltinCommandResolverTest, NewTakesARequiredProjectName)

@@ -1,6 +1,8 @@
 #pragma once
 
+#include "build/BuildOutput.h"
 #include "build/SerialBuild.h"
+#include "command/ProjectArgument.h"
 #include "compile/CompilationDatabase.h"
 #include "project/LanguageStandard.h"
 #include "project/ProjectCreator.h"
@@ -31,6 +33,15 @@ namespace scrap::Command {
  * @return Text for standard error, each line ending in a newline.
  */
 [[nodiscard]] std::string renderEmptyPathArgument();
+
+/**
+ * @brief Describe why the project of a path argument could not be loaded, and
+ *        what to do next.
+ *
+ * @param error Error returned by scrap::Command::loadProjectAt().
+ * @return Text for standard error, each line ending in a newline.
+ */
+[[nodiscard]] std::string renderProjectArgumentError(const ProjectArgumentError& error);
 
 /**
  * @brief Describe a system with no C++ compiler, and what to do next.
@@ -100,6 +111,14 @@ namespace scrap::Command {
  * @return Text for standard error, each line ending in a newline.
  */
 [[nodiscard]] std::string renderStepFailure(const Build::FailedStep& failed);
+
+/**
+ * @brief Describe build output that could not be removed, and what to do next.
+ *
+ * @param failure Failure returned by scrap::Build::removeOutput().
+ * @return Text for standard error, each line ending in a newline.
+ */
+[[nodiscard]] std::string renderOutputRemovalFailure(const Build::OutputRemovalFailure& failure);
 
 /**
  * @brief Describe why a project could not be created, and what to do next.

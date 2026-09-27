@@ -1,8 +1,10 @@
 #include "command/ProjectDiagnostic.h"
 
+#include "build/BuildOutput.h"
 #include "build/BuildStep.h"
 #include "build/SerialBuild.h"
 #include "command/PrintableText.h"
+#include "command/ProjectArgument.h"
 #include "compile/CompilationDatabase.h"
 #include "project/LanguageStandard.h"
 #include "project/ManifestError.h"
@@ -275,6 +277,14 @@ std::string renderEmptyPathArgument()
     return text;
 }
 
+std::string renderProjectArgumentError(const ProjectArgumentError& error)
+{
+    if (std::holds_alternative<EmptyPathArgument>(error)) {
+        return renderEmptyPathArgument();
+    }
+    return renderProjectError(std::get<Project::ProjectError>(error));
+}
+
 std::string renderNoCompilerFound()
 {
     return "error: no C++ compiler found\n"
@@ -410,6 +420,22 @@ std::string renderStepFailure(const Build::FailedStep& failed)
     }
     // Every kind is answered above, so a kind added without a message here
     // fails the build rather than being reported as one of the others.
+    std::unreachable();
+}
+
+std::string renderOutputRemovalFailure(const Build::OutputRemovalFailure& failure)
+{
+    const std::string path = printablePath(failure.path);
+    switch (failure.problem) {
+    case Build::OutputRemovalProblem::CannotInspect:
+        return "error: cannot access '" + path + "': " + failure.code.message() + '\n' + std::string{ PermissionHint };
+    case Build::OutputRemovalProblem::NotADirectory:
+        return "error: '" + path + "' is not a directory\n" + std::string{ ExistingPathHint };
+    case Build::OutputRemovalProblem::CannotRemove:
+        return "error: cannot remove '" + path + "': " + failure.code.message() + '\n' + std::string{ PermissionHint };
+    }
+    // Every problem is answered above, so a problem added without a message
+    // here fails the build rather than being reported as one of the others.
     std::unreachable();
 }
 
