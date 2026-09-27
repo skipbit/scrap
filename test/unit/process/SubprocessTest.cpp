@@ -424,3 +424,54 @@ TEST(SubprocessTest, LetsAQuitStopAProgramAtTheTerminal)
     ASSERT_TRUE(completion.has_value());
     EXPECT_EQ(completion->signal, SIGQUIT);
 }
+
+/**
+ * What the caller's C streams hold is written out before the program at the
+ * terminal writes, so the two come out in the order they were written.
+ */
+TEST(SubprocessTest, WritesWhatTheCallerHeldBeforeAProgramAtTheTerminal)
+{
+    ReplacedStream output{ STDOUT_FILENO };
+    std::fputs("caller ", stdout);
+
+    const auto completion = runProgram(shell("printf program"), atTheTerminal());
+    std::fflush(stdout);
+    output.restore();
+
+    ASSERT_TRUE(completion.has_value());
+    EXPECT_EQ(output.written(), "caller program");
+}
+
+/**
+ * An interrupt the caller was started with ignored stays ignored in the
+ * program at the terminal, as it does for a shell's background job.
+ */
+TEST(SubprocessTest, LeavesAnInterruptTheCallerIgnoresIgnoredInAProgramAtTheTerminal)
+{
+    struct sigaction ignore { };
+    ignore.sa_handler = SIG_IGN;
+    sigemptyset(&ignore.sa_mask);
+    struct sigaction before { };
+    ASSERT_EQ(::sigaction(SIGINT, &ignore, &before), 0);
+
+    const auto completion = runProgram(shell("kill -INT $$; exit 5"), atTheTerminal());
+    ::sigaction(SIGINT, &before, nullptr);
+
+    ASSERT_TRUE(completion.has_value());
+    EXPECT_EQ(completion->exitCode, 5);
+}
+
+/**
+ * A program at the terminal outside the caller's process group would stop at
+ * its first read from the terminal, so it is refused before it starts.
+ */
+TEST(SubprocessTest, RefusesAProgramAtTheTerminalInAGroupOfItsOwn)
+{
+    RunOptions options = atTheTerminal();
+    options.group = ProcessGroup::Own;
+
+    const auto completion = runProgram(shell("exit 0"), options);
+
+    ASSERT_FALSE(completion.has_value());
+    EXPECT_EQ(completion.error(), std::errc::invalid_argument);
+}

@@ -6,6 +6,7 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <expected>  // IWYU pragma: keep
 #include <fcntl.h>
 #include <filesystem>
@@ -156,19 +157,20 @@ int recordActions(posix_spawn_file_actions_t& actions,
 }
 
 /**
- * Describe to posix_spawn which process group the child starts in, and, for
- * a child at the terminal, that an interrupt and a quit take their default
- * action in it even though the caller ignores them.
+ * Describe to posix_spawn which process group the child starts in, and which
+ * signals take their default action in it even though the caller ignores
+ * them.
  *
+ * @param defaults The signals to reset in the child, or null to reset none.
  * @return 0, or the error of the first attribute that could not be recorded.
  */
-int recordAttributes(posix_spawnattr_t& attributes, ProcessGroup group, OutputCapture capture)
+int recordAttributes(posix_spawnattr_t& attributes, ProcessGroup group, const sigset_t* defaults)  // NOLINT(misc-include-cleaner) - sigset_t is provided by <signal.h>
 {
     short flags = 0;
     if (group == ProcessGroup::Own) {
         flags = static_cast<short>(flags | POSIX_SPAWN_SETPGROUP);  // NOLINT(hicpp-signed-bitwise) - POSIX spawn flag API
     }
-    if (capture == OutputCapture::Terminal) {
+    if (defaults != nullptr) {
         flags = static_cast<short>(flags | POSIX_SPAWN_SETSIGDEF);  // NOLINT(hicpp-signed-bitwise) - POSIX spawn flag API
     }
     if (const int result = ::posix_spawnattr_setflags(&attributes, flags); result != 0) {
@@ -180,15 +182,8 @@ int recordAttributes(posix_spawnattr_t& attributes, ProcessGroup group, OutputCa
             return result;
         }
     }
-    if (capture == OutputCapture::Terminal) {
-        // NOLINTBEGIN(misc-include-cleaner) - sigset_t, sigemptyset(), sigaddset(), SIGINT and SIGQUIT are provided by <signal.h>
-        sigset_t defaults;
-        // Darwin defines sigemptyset() and sigaddset() as macros, so they take no "::".
-        sigemptyset(&defaults);
-        sigaddset(&defaults, SIGINT);
-        sigaddset(&defaults, SIGQUIT);
-        // NOLINTEND(misc-include-cleaner)
-        return ::posix_spawnattr_setsigdefault(&attributes, &defaults);
+    if (defaults != nullptr) {
+        return ::posix_spawnattr_setsigdefault(&attributes, defaults);
     }
     return 0;
 }
@@ -204,6 +199,7 @@ public:
         // NOLINTBEGIN(misc-include-cleaner) - sigaction(), SIG_IGN, SIGINT and SIGQUIT are provided by <signal.h>
         struct sigaction ignore { };
         ignore.sa_handler = SIG_IGN;
+        // Darwin defines sigemptyset() and sigaddset() as macros, so they take no "::".
         sigemptyset(&ignore.sa_mask);
         ::sigaction(SIGINT, &ignore, &_interrupt);
         ::sigaction(SIGQUIT, &ignore, &_quit);
@@ -221,6 +217,26 @@ public:
         ::sigaction(SIGINT, &_interrupt, nullptr);
         ::sigaction(SIGQUIT, &_quit, nullptr);
         // NOLINTEND(misc-include-cleaner)
+    }
+
+    /**
+     * The signals the program takes with their default action: those the
+     * caller did not already ignore, as a shell leaves a background job's
+     * ignored signals ignored.
+     */
+    [[nodiscard]] sigset_t defaultsForTheProgram() const  // NOLINT(misc-include-cleaner) - sigset_t is provided by <signal.h>
+    {
+        // NOLINTBEGIN(misc-include-cleaner) - sigset_t, SIG_IGN, SIGINT and SIGQUIT are provided by <signal.h>
+        sigset_t defaults;
+        sigemptyset(&defaults);
+        if (_interrupt.sa_handler != SIG_IGN) {
+            sigaddset(&defaults, SIGINT);
+        }
+        if (_quit.sa_handler != SIG_IGN) {
+            sigaddset(&defaults, SIGQUIT);
+        }
+        // NOLINTEND(misc-include-cleaner)
+        return defaults;
     }
 
 private:
@@ -310,13 +326,15 @@ std::error_code openPipe(std::array<int, 2>& ends)
 }
 
 /**
- * Start the program @p arguments name, with its output sent to @p writeEnd.
+ * Start the program @p arguments name, with its output sent to @p writeEnd
+ * and @p defaults reset to their default action, when given.
  *
  * @return The child's process id, or the error that kept it from starting.
  */
 std::expected<pid_t, std::error_code> startProgram(const std::vector<std::string>& arguments,  // NOLINT(misc-include-cleaner) - pid_t is provided by <sys/types.h>
                                                    int writeEnd,
-                                                   const RunOptions& options)
+                                                   const RunOptions& options,
+                                                   const sigset_t* defaults)  // NOLINT(misc-include-cleaner) - sigset_t is provided by <signal.h>
 {
     std::vector<char*> argv;
     argv.reserve(arguments.size() + 1);
@@ -340,7 +358,7 @@ std::expected<pid_t, std::error_code> startProgram(const std::vector<std::string
     pid_t child = -1;
     int result = recordActions(actions, writeEnd, options.capture, options.workingDirectory);
     if (result == 0) {
-        result = recordAttributes(attributes, options.group, options.capture);
+        result = recordAttributes(attributes, options.group, defaults);
     }
     if (result == 0) {
         result = ::posix_spawn(&child, argv.front(), &actions, &attributes, argv.data(), environ);
@@ -441,6 +459,11 @@ std::expected<Completion, std::error_code> runProgram(const std::vector<std::str
     if (arguments.empty()) {
         return std::unexpected(std::make_error_code(std::errc::invalid_argument));
     }
+    // A program outside the terminal's foreground group would stop at its
+    // first read from the terminal, and the caller would wait for it forever.
+    if ((options.capture == OutputCapture::Terminal) && (options.group == ProcessGroup::Own)) {
+        return std::unexpected(std::make_error_code(std::errc::invalid_argument));
+    }
 
     std::array<int, 2> pipeEnds{ -1, -1 };
     if (const std::error_code failed = openPipe(pipeEnds)) {
@@ -453,11 +476,16 @@ std::expected<Completion, std::error_code> runProgram(const std::vector<std::str
     // an interrupt from the terminal stops the program and leaves the caller
     // to report how it ended.
     std::optional<TerminalSignalsIgnored> ignored;
+    std::optional<sigset_t> defaults;  // NOLINT(misc-include-cleaner) - sigset_t is provided by <signal.h>
     if (options.capture == OutputCapture::Terminal) {
+        // What the caller wrote before goes out ahead of what the program writes.
+        // A stream that cannot be written out has nothing the program could follow.
+        (void)std::fflush(nullptr);
         ignored.emplace();
+        defaults = ignored->defaultsForTheProgram();
     }
 
-    const auto child = startProgram(arguments, writeEnd.get(), options);
+    const auto child = startProgram(arguments, writeEnd.get(), options, defaults.has_value() ? &*defaults : nullptr);
     // The parent's copy is closed so the read below ends once the child and
     // anything it started have closed theirs.
     writeEnd.close();
