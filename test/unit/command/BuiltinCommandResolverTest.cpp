@@ -179,6 +179,28 @@ TEST(BuiltinCommandResolverTest, BuildTakesAnOptionalPath)
 }
 
 /**
+ * Verify that run takes an optional path to the project and the program's
+ * arguments after "--".
+ */
+TEST(BuiltinCommandResolverTest, RunTakesAnOptionalPathAndTheProgramsArguments)
+{
+    MockHelpRenderer helpRenderer;
+    MockVersionRenderer versionRenderer;
+    BuiltinCommandResolver resolver(helpRenderer, versionRenderer, diskFileSystem());
+
+    RuntimeEnvironment env;
+    auto entries = resolver.resolve(env);
+
+    const auto* run = findByName(entries, "run");
+    ASSERT_NE(run, nullptr);
+    ASSERT_EQ(run->spec.options.positional.size(), 1);
+    EXPECT_EQ(run->spec.options.positional[0].name, "path");
+    EXPECT_FALSE(run->spec.options.positional[0].required);
+    ASSERT_TRUE(run->spec.options.trailing.has_value());
+    EXPECT_EQ(run->spec.options.trailing->name, "args");
+}
+
+/**
  * Verify that clean takes an optional path to the project.
  */
 TEST(BuiltinCommandResolverTest, CleanTakesAnOptionalPath)

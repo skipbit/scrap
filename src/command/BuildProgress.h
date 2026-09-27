@@ -3,6 +3,7 @@
 #include "build/BuildReporter.h"
 #include "build/BuildStep.h"
 
+#include <filesystem>
 #include <iosfwd>
 #include <string>
 #include <string_view>
@@ -44,6 +45,14 @@ private:
  * @brief The line that ends a debug build that succeeded.
  */
 [[nodiscard]] std::string renderBuildFinished();
+
+/**
+ * @brief The line written before an executable that was built is started.
+ *
+ * @param target The executable target.
+ * @param executable Where it was written, relative to the project root.
+ */
+[[nodiscard]] std::string renderRunning(std::string_view target, const std::filesystem::path& executable);
 
 /**
  * @brief @p text as it can be written to a terminal.

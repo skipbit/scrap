@@ -11,6 +11,7 @@ using scrap::Build::BuildStep;
 using scrap::Build::StepKind;
 using scrap::Command::printableOutput;
 using scrap::Command::renderBuildFinished;
+using scrap::Command::renderRunning;
 using scrap::Command::StreamBuildReporter;
 
 namespace {
@@ -153,4 +154,12 @@ TEST(BuildProgressTest, WritesEveryOtherSequenceAsText)
 TEST(BuildProgressTest, SaysWhenTheBuildIsDone)
 {
     EXPECT_EQ(renderBuildFinished(), "    Finished debug build\n");
+}
+
+/**
+ * The executable about to be started is named in the same lined-up form.
+ */
+TEST(BuildProgressTest, SaysWhichExecutableIsStarted)
+{
+    EXPECT_EQ(renderRunning("hello", "build/debug/bin/hello"), "     Running hello (build/debug/bin/hello)\n");
 }

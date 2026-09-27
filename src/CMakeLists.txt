@@ -109,6 +109,7 @@ add_library(scrap_command STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ProjectBuild.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ProjectCommandResolver.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ProjectDiagnostic.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/RunCommandHandler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/RuntimeEnvironmentFactory.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ScriptsReader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/StubScriptsReader.cpp

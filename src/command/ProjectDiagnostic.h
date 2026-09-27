@@ -12,6 +12,8 @@
 #include <filesystem>
 #include <string>
 #include <string_view>
+#include <system_error>
+#include <vector>
 
 namespace scrap::Command {
 
@@ -65,6 +67,34 @@ namespace scrap::Command {
  * @return Text for standard error, each line ending in a newline.
  */
 [[nodiscard]] std::string renderNoTargetToBuild(const std::filesystem::path& projectRoot);
+
+/**
+ * @brief Describe a project with no executable to run, and what to do next.
+ *
+ * @param projectRoot Directory the manifest was read from.
+ * @return Text for standard error, each line ending in a newline.
+ */
+[[nodiscard]] std::string renderNoExecutableToRun(const std::filesystem::path& projectRoot);
+
+/**
+ * @brief Describe a project with more than one executable to run, and what
+ *        to do next.
+ *
+ * @param projectRoot Directory the manifest was read from.
+ * @param names The executable targets, in the order the project states them.
+ * @return Text for standard error, each line ending in a newline.
+ */
+[[nodiscard]] std::string renderSeveralExecutablesToRun(const std::filesystem::path& projectRoot, const std::vector<std::string>& names);
+
+/**
+ * @brief Describe an executable that was built and could not be started, and
+ *        what to do next.
+ *
+ * @param executable The executable, absolute.
+ * @param code What the operating system reported.
+ * @return Text for standard error, each line ending in a newline.
+ */
+[[nodiscard]] std::string renderExecutableNotStarted(const std::filesystem::path& executable, const std::error_code& code);
 
 /**
  * @brief Describe a source directory that could not be read, and what to do next.

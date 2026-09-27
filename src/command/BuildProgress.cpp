@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <filesystem>
 #include <ostream>
 #include <string>
 #include <string_view>
@@ -94,6 +95,11 @@ void StreamBuildReporter::finished(const Build::BuildStep& /*step*/, const std::
 std::string renderBuildFinished()
 {
     return alignedVerb("Finished") + " debug build\n";
+}
+
+std::string renderRunning(const std::string_view target, const std::filesystem::path& executable)
+{
+    return alignedVerb("Running") + ' ' + printableName(target) + " (" + printablePath(executable) + ")\n";
 }
 
 std::string printableOutput(const std::string_view text, const bool keepColor)

@@ -23,6 +23,7 @@
 #include <system_error>
 #include <utility>
 #include <variant>
+#include <vector>
 
 namespace scrap::Command {
 
@@ -313,6 +314,42 @@ std::string renderNoTargetToBuild(const std::filesystem::path& projectRoot)
     text += ", or create ";
     text += Project::DefaultEntryPoint;
     text += '\n';
+    return text;
+}
+
+std::string renderNoExecutableToRun(const std::filesystem::path& projectRoot)
+{
+    std::string text = "error: no executable to run in '";
+    text += printablePath(projectRoot);
+    text += "'\nhint: add a [[bin]] section to ";
+    text += Project::ManifestFileName;
+    text += ", or create ";
+    text += Project::DefaultEntryPoint;
+    text += '\n';
+    return text;
+}
+
+std::string renderSeveralExecutablesToRun(const std::filesystem::path& projectRoot, const std::vector<std::string>& names)
+{
+    std::string text = "error: more than one executable to run in '";
+    text += printablePath(projectRoot);
+    text += "':";
+    for (std::size_t index = 0; index < names.size(); ++index) {
+        text += (index == 0) ? " " : ", ";
+        text += printableName(names[index]);
+    }
+    text += "\nhint: run 'scrap build' and start one of them from the build directory\n";
+    return text;
+}
+
+std::string renderExecutableNotStarted(const std::filesystem::path& executable, const std::error_code& code)
+{
+    std::string text = "error: cannot run '";
+    text += printablePath(executable);
+    text += "': ";
+    text += code.message();
+    text += '\n';
+    text += PermissionHint;
     return text;
 }
 
