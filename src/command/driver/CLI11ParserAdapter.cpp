@@ -44,7 +44,8 @@ struct PositionalSlot {
  *
  * One instance is created per CommandSpec node in the spec tree.
  * After CLI11 finishes parsing, the values are harvested into a
- * ParsedOptions struct.
+ * ParsedOptions struct. It also keeps, copied from the spec, whether the
+ * command takes the arguments after "--".
  *
  * Positionals use std::deque so that push_back never invalidates
  * the references that CLI11 holds to earlier elements.
@@ -55,7 +56,7 @@ struct OptionStorage {
     std::unordered_map<std::string, std::string> strings;
     std::unordered_map<std::string, std::vector<std::string>> stringLists;
     std::deque<PositionalSlot> positionals;
-    bool takesTrailing = false;
+    bool takesTrailing = false;  ///< Copied from the spec, not written by CLI11.
 };
 
 // =============================================================================
