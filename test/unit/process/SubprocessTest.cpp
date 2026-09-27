@@ -417,8 +417,9 @@ TEST(SubprocessTest, LetsAnInterruptStopAProgramAtTheTerminal)
  */
 TEST(SubprocessTest, LetsAQuitStopAProgramAtTheTerminal)
 {
-    // No core file is left behind by the quit.
-    const auto completion = runProgram(shell("ulimit -c 0; kill -QUIT $$; exit 0"), atTheTerminal());
+    // bash, which is /bin/sh on some systems, ignores a quit itself, so the
+    // shell hands its process over to kill. No core file is left behind.
+    const auto completion = runProgram(shell("ulimit -c 0; exec kill -QUIT $$"), atTheTerminal());
 
     ASSERT_TRUE(completion.has_value());
     EXPECT_EQ(completion->signal, SIGQUIT);
