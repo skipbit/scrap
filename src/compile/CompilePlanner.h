@@ -53,6 +53,15 @@ struct BuildSettings {
                                                               const std::vector<Project::TargetSources>& targets);
 
 /**
+ * @brief Where the executable of a target is written.
+ *
+ * @param buildDirectory The build directory, as BuildSettings holds it.
+ * @param target The name of the executable target.
+ * @return bin/<target> in the build directory.
+ */
+[[nodiscard]] std::filesystem::path executableFile(const std::filesystem::path& buildDirectory, std::string_view target);
+
+/**
  * @brief Decide the command that links each executable.
  *
  * An executable is written to bin/<target> in the build directory, from the

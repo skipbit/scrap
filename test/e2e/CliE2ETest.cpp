@@ -21,6 +21,7 @@
 #include <regex>
 #include <string>
 #include <string_view>
+#include <sys/resource.h>
 #include <sys/wait.h>
 #include <system_error>
 #include <unistd.h>
@@ -87,6 +88,7 @@ constexpr std::size_t ReadChunkBytes = 4096;
 struct ProcessOutput {
     bool exitedNormally = false;
     int exitCode = -1;
+    int signal = 0;  ///< The signal that ended the process, or 0.
     std::string stdoutText;
     std::string stderrText;
 };
@@ -380,6 +382,10 @@ protected:
                 _exit(127);
             }
 
+            // A process a test ends with a quit leaves no core file behind.
+            const rlimit noCore{ .rlim_cur = 0, .rlim_max = 0 };
+            ::setrlimit(RLIMIT_CORE, &noCore);
+
             ::execve(argv[0], argv.data(), envp.data());
             _exit(127);  // execve() only returns on failure.
         }
@@ -407,6 +413,9 @@ protected:
         if ((! timedOut) && (waited == childPid) && WIFEXITED(status)) {
             result.exitedNormally = true;
             result.exitCode = WEXITSTATUS(status);
+        }
+        if ((! timedOut) && (waited == childPid) && WIFSIGNALED(status)) {
+            result.signal = WTERMSIG(status);
         }
 
         return result;
@@ -1169,6 +1178,197 @@ TEST_F(CliE2ETest, BuildKeepsTheDatabaseWhenTheRealCompilerReportsAnError)
     EXPECT_NE(result.stderrText.find("error: failed to compile '" + source + "' for 'app'\n"), std::string::npos) << result.stderrText;
     EXPECT_NE(readFile("build/debug/compile_commands.json").find("\"file\": \"src/main.cpp\""), std::string::npos);
     EXPECT_FALSE(std::filesystem::exists(_root / "build" / "debug" / "bin" / "app"));
+}
+
+// --- run: building and starting the executable ---------------------------------
+
+TEST_F(CliE2ETest, RunBuildsAndRunsANewProject)
+{
+    std::filesystem::create_directories(_root / "work");
+    auto created = runScrap({ "new", "hello" }, {}, _root / "work");
+    ASSERT_EQ(created.exitCode, 0) << created.stderrText;
+    const std::filesystem::path project = _root / "work" / "hello";
+
+    auto result = runScrap({ "run" }, { realCompiler() }, project, BuildTimeout);
+
+    ASSERT_TRUE(result.exitedNormally) << result.stderrText;
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_EQ(result.stdoutText, "Hello, world!\n");
+    EXPECT_NE(result.stderrText.find("Finished debug build\n     Running hello (build/debug/bin/hello)\n"), std::string::npos)
+        << result.stderrText;
+}
+
+TEST_F(CliE2ETest, RunPassesTheArgumentsAfterTheSeparator)
+{
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp",
+              "#include <cstdio>\n"
+              "int main(int argc, char** argv) { for (int i = 1; i < argc; ++i) std::printf(\"[%s]\", argv[i]); return 0; }\n");
+
+    auto result = runScrap({ "run", "--", "alpha", "beta", "", "--help" }, { realCompiler() }, _root, BuildTimeout);
+
+    ASSERT_TRUE(result.exitedNormally) << result.stderrText;
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_EQ(result.stdoutText, "[alpha][beta][][--help]");
+}
+
+TEST_F(CliE2ETest, RunReturnsTheExitCodeOfTheProgram)
+{
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp", "#include <cstdlib>\nint main(int, char** argv) { return std::atoi(argv[1]); }\n");
+
+    for (const char* code : { "0", "3", "42" }) {
+        auto result = runScrap({ "run", "--", code }, { realCompiler() }, _root, BuildTimeout);
+
+        ASSERT_TRUE(result.exitedNormally) << result.stderrText;
+        EXPECT_EQ(result.exitCode, std::atoi(code)) << result.stderrText;
+    }
+}
+
+TEST_F(CliE2ETest, RunReportsASignalAsAShellDoes)
+{
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp", "#include <csignal>\nint main() { std::raise(SIGTERM); return 0; }\n");
+
+    auto result = runScrap({ "run" }, { realCompiler() }, _root, BuildTimeout);
+
+    ASSERT_TRUE(result.exitedNormally) << result.stderrText;
+    EXPECT_EQ(result.exitCode, 128 + SIGTERM) << result.stderrText;
+}
+
+TEST_F(CliE2ETest, RunEndsByTheInterruptThatStoppedTheProgram)
+{
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp", "#include <csignal>\nint main() { std::raise(SIGINT); return 0; }\n");
+
+    auto result = runScrap({ "run" }, { realCompiler() }, _root, BuildTimeout);
+
+    EXPECT_FALSE(result.exitedNormally) << result.stderrText;
+    EXPECT_EQ(result.signal, SIGINT) << result.stderrText;
+}
+
+TEST_F(CliE2ETest, RunEndsByTheQuitThatStoppedTheProgram)
+{
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp", "#include <csignal>\nint main() { std::raise(SIGQUIT); return 0; }\n");
+
+    auto result = runScrap({ "run" }, { realCompiler() }, _root, BuildTimeout);
+
+    EXPECT_FALSE(result.exitedNormally) << result.stderrText;
+    EXPECT_EQ(result.signal, SIGQUIT) << result.stderrText;
+}
+
+TEST_F(CliE2ETest, RunDoesNotStartAProgramThatFailedToBuild)
+{
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp", "#include <cstdio>\nint main() { std::puts(\"built before\"); return 0; }\n");
+    auto first = runScrap({ "run" }, { realCompiler() }, _root, BuildTimeout);
+    ASSERT_EQ(first.stdoutText, "built before\n") << first.stderrText;
+    writeFile("src/main.cpp", "int main() { return 0 }\n");
+
+    auto result = runScrap({ "run" }, { realCompiler() }, _root, BuildTimeout);
+
+    ASSERT_TRUE(result.exitedNormally) << result.stderrText;
+    EXPECT_EQ(result.exitCode, 101) << result.stderrText;
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    EXPECT_NE(result.stderrText.find("error: failed to compile '"), std::string::npos) << result.stderrText;
+    EXPECT_EQ(result.stderrText.find("Running"), std::string::npos) << result.stderrText;
+    // The executable of the build before is left in place, as make leaves it.
+    EXPECT_TRUE(std::filesystem::is_regular_file(_root / "build" / "debug" / "bin" / "app"));
+}
+
+TEST_F(CliE2ETest, RunStartsTheProgramInTheWorkingDirectory)
+{
+    // Run from outside any project, so the project can only come from the path.
+    if (insideAProject(std::filesystem::canonical(_root))) {
+        GTEST_SKIP() << "the temp location is inside a scrap project";
+    }
+    writeFile("app/scrap.toml", ValidManifest);
+    writeFile("app/src/main.cpp",
+              "#include <cstdio>\n#include <filesystem>\n"
+              "int main() { std::fputs(std::filesystem::current_path().c_str(), stdout); return 0; }\n");
+    std::filesystem::create_directories(_root / "elsewhere");
+
+    auto result = runScrap({ "run", "../app" }, { realCompiler() }, _root / "elsewhere", BuildTimeout);
+
+    ASSERT_TRUE(result.exitedNormally) << result.stderrText;
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_EQ(std::filesystem::canonical(result.stdoutText), std::filesystem::canonical(_root / "elsewhere"));
+}
+
+TEST_F(CliE2ETest, RunReportsAProjectWithNoExecutable)
+{
+    writeFile("scrap.toml", ManifestWithoutTargets);
+    const std::string root = std::filesystem::canonical(_root).string();
+
+    auto result = runScrap({ "run" }, { dummyCompiler() }, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    EXPECT_EQ(result.stderrText,
+              "error: no executable to run in '" + root + "'\n"
+                                                          "hint: add a [[bin]] section to scrap.toml, or create src/main.cpp\n");
+    EXPECT_FALSE(std::filesystem::exists(_root / "build"));
+}
+
+TEST_F(CliE2ETest, RunReportsAProjectWithMoreThanOneExecutable)
+{
+    writeFile("scrap.toml",
+              "[package]\nname = \"app\"\nversion = \"0.1.0\"\n\n"
+              "[[bin]]\nname = \"app\"\nsrc = \"src/main.cpp\"\n\n"
+              "[[bin]]\nname = \"tool\"\nsrc = \"src/tool.cpp\"\n");
+    writeFile("src/main.cpp", MainSource);
+    writeFile("src/tool.cpp", MainSource);
+    const std::string root = std::filesystem::canonical(_root).string();
+
+    auto result = runScrap({ "run" }, { dummyCompiler() }, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    EXPECT_EQ(result.stderrText,
+              "error: more than one executable to run in '" + root + "': app, tool\n"
+                                                                     "hint: run 'scrap build' and start one of them from the build directory\n");
+    EXPECT_FALSE(std::filesystem::exists(_root / "build"));
+}
+
+TEST_F(CliE2ETest, RunOutsideAProject)
+{
+    if (insideAProject(std::filesystem::canonical(_root))) {
+        GTEST_SKIP() << "the temp location is inside a scrap project";
+    }
+    const std::string searched = std::filesystem::canonical(_root).string();
+
+    auto result = runScrap({ "run" }, {}, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_NE(result.stderrText.find("error: could not find scrap.toml in '" + searched + "' or any parent directory\n"), std::string::npos)
+        << result.stderrText;
+}
+
+TEST_F(CliE2ETest, RunRejectsAnEmptyPath)
+{
+    writeFile("scrap.toml", ValidManifest);
+
+    auto result = runScrap({ "run", "" }, {}, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_NE(result.stderrText.find("error: the path argument is empty\n"), std::string::npos) << result.stderrText;
+}
+
+TEST_F(CliE2ETest, BuildRejectsArgumentsAfterTheSeparator)
+{
+    writeFile("scrap.toml", ValidManifest);
+
+    auto result = runScrap({ "build", "--", "alpha" }, {}, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_NE(result.stderrText.find("The following argument was not expected: alpha\n"), std::string::npos) << result.stderrText;
+    EXPECT_FALSE(std::filesystem::exists(_root / "build"));
 }
 
 // --- clean: removing the build directory ---------------------------------------

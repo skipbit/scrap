@@ -255,6 +255,22 @@ TEST(DefaultHelpRendererTest, RenderCommand_NoOptionsOmitsSection)
 }
 
 /**
+ * A command that takes arguments after "--" shows them last in its usage.
+ */
+TEST(DefaultHelpRendererTest, RenderCommand_ShowsArgumentsAfterTheSeparator)
+{
+    DefaultHelpRenderer renderer;
+    CommandSpec spec;
+    spec.name = "run";
+    spec.options.positional.push_back(PositionalDef{ .name = "path", .description = "", .required = false });
+    spec.options.trailing = TrailingDef{ .name = "args", .description = "" };
+
+    auto result = renderer.renderCommand(spec);
+
+    EXPECT_NE(result.find("USAGE: scrap run [path] [-- <args>...]\n"), std::string::npos) << result;
+}
+
+/**
  * Both subcommands and options should be shown when present.
  */
 TEST(DefaultHelpRendererTest, RenderCommand_WithSubcommandsAndOptions)

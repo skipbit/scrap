@@ -130,6 +130,13 @@ scrap is in early alpha development. Currently implemented:
   `compile_commands.json` written beside them
 - Removing the build output (`scrap clean`): the project's `build/`
   directory is removed with everything in it
+- Running the project (`scrap run`): the project is built and its one
+  executable is started in the current directory, with the arguments after
+  `--`. Its exit code becomes the exit code of `scrap run` (128 plus the
+  signal when a signal stops it), and a build that fails exits with 101
+  without starting anything. A failed build
+  leaves the executable of the last one in place, as `make` does, so a
+  binary started by hand may be older than the sources
 - External command metadata fetching - `scrap-*` executables are probed via
   `--scrap-metadata` (falling back to `--help`) for a plain first-line
   description shown in `scrap --help`; structured JSON/options metadata is
@@ -137,7 +144,6 @@ scrap is in early alpha development. Currently implemented:
 
 🚧 **In Progress**
 - Template system with variable substitution
-- `scrap run` - currently a placeholder command
 - Release builds (`--release`), parallel builds, and libraries
 - Configuration file parsing (`scrap.toml`) - `[dependencies]` and
   `[toolchain]` are accepted and not yet read

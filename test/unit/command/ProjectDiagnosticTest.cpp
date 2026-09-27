@@ -24,11 +24,14 @@ using scrap::Build::StepFailure;
 using scrap::Build::StepFailureKind;
 using scrap::Build::StepKind;
 using scrap::Command::renderCompilationDatabaseFailure;
+using scrap::Command::renderExecutableNotStarted;
 using scrap::Command::renderLibraryNotBuilt;
 using scrap::Command::renderNoCompilerFound;
+using scrap::Command::renderNoExecutableToRun;
 using scrap::Command::renderNoTargetToBuild;
 using scrap::Command::renderOutputRemovalFailure;
 using scrap::Command::renderProjectError;
+using scrap::Command::renderSeveralExecutablesToRun;
 using scrap::Command::renderSourceScanFailure;
 using scrap::Command::renderStepFailure;
 using scrap::Command::renderUnsupportedStandard;
@@ -761,4 +764,65 @@ TEST(ProjectDiagnosticTest, RendersBuildOutputThatCannotBeRemoved)
               "error: cannot remove '/home/me/hello/build': " + code.message()
                   + "\n"
                     "hint: check the permissions of the path\n");
+}
+
+/**
+ * A project with no executable is named, with where one comes from.
+ */
+TEST(ProjectDiagnosticTest, RendersAProjectWithNoExecutableToRun)
+{
+    EXPECT_EQ(renderNoExecutableToRun("/home/me/work/hello"),
+              "error: no executable to run in '/home/me/work/hello'\n"
+              "hint: add a [[bin]] section to scrap.toml, or create src/main.cpp\n");
+}
+
+/**
+ * A project with more than one executable names them in the order given.
+ */
+TEST(ProjectDiagnosticTest, RendersAProjectWithMoreThanOneExecutableToRun)
+{
+    EXPECT_EQ(renderSeveralExecutablesToRun("/home/me/work/hello", { "app", "tool", "bench" }),
+              "error: more than one executable to run in '/home/me/work/hello': app, tool, bench\n"
+              "hint: run 'scrap build' and start one of them from the build directory\n");
+}
+
+/**
+ * An executable that cannot be started is named with the system's reason,
+ * and one it has no permission to start points at the permissions.
+ */
+TEST(ProjectDiagnosticTest, RendersAnExecutableThatCannotBeStarted)
+{
+    const auto code = std::make_error_code(std::errc::permission_denied);
+
+    EXPECT_EQ(renderExecutableNotStarted("/home/me/work/hello/build/debug/bin/hello", code),
+              "error: cannot run '/home/me/work/hello/build/debug/bin/hello': " + code.message()
+                  + "\n"
+                    "hint: check the permissions of the path\n");
+}
+
+/**
+ * An executable that cannot be started for its arguments points at them.
+ */
+TEST(ProjectDiagnosticTest, RendersAnExecutableStartedWithTooLongArguments)
+{
+    const auto code = std::make_error_code(std::errc::argument_list_too_long);
+
+    EXPECT_EQ(renderExecutableNotStarted("/home/me/work/hello/build/debug/bin/hello", code),
+              "error: cannot run '/home/me/work/hello/build/debug/bin/hello': " + code.message()
+                  + "\n"
+                    "hint: pass fewer or shorter arguments after '--'\n");
+}
+
+/**
+ * An executable that cannot be started for any other reason points at
+ * whether it runs on this system at all.
+ */
+TEST(ProjectDiagnosticTest, RendersAnExecutableThisSystemCannotRun)
+{
+    const auto code = std::make_error_code(std::errc::executable_format_error);
+
+    EXPECT_EQ(renderExecutableNotStarted("/home/me/work/hello/build/debug/bin/hello", code),
+              "error: cannot run '/home/me/work/hello/build/debug/bin/hello': " + code.message()
+                  + "\n"
+                    "hint: check that the executable can be run on this system\n");
 }

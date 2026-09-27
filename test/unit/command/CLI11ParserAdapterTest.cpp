@@ -58,6 +58,21 @@ private:
     std::vector<const char*> _args;
 };
 
+/**
+ * Helper: a command like run, with an optional path and arguments after "--".
+ */
+CommandSpec makeRunSpec()
+{
+    CommandSpec spec = makeSpec("run");
+    spec.options.positional.push_back(PositionalDef{
+        .name = "path",
+        .description = "Directory inside the project",
+        .required = false,
+    });
+    spec.options.trailing = TrailingDef{ .name = "args", .description = "Arguments for the program" };
+    return spec;
+}
+
 }  // namespace
 
 // =============================================================================
@@ -495,4 +510,85 @@ TEST(CLI11ParserAdapterTest, Parse_DefaultValue)
     auto it = result->options.named.find("profile");
     ASSERT_NE(it, result->options.named.end());
     EXPECT_EQ(std::get<std::string>(it->second), "debug");
+}
+
+// =============================================================================
+// Arguments after "--"
+// =============================================================================
+
+TEST(CLI11ParserAdapterTest, Parse_ArgumentsAfterTheSeparatorAreKeptAsWritten)
+{
+    CLI11ParserAdapter adapter;
+    adapter.configure(std::vector{ makeRunSpec() });
+
+    ArgvBuilder argv{ "scrap", "run", "--", "alpha", "--help", "", "-x", "--", "beta" };
+    auto result = adapter.parse(argv.span());
+
+    ASSERT_TRUE(result.has_value());
+    EXPECT_TRUE(result->options.positional.empty());
+    EXPECT_EQ(result->options.trailing, (std::vector<std::string>{ "alpha", "--help", "", "-x", "--", "beta" }));
+}
+
+TEST(CLI11ParserAdapterTest, Parse_PositionalBeforeTheSeparator)
+{
+    CLI11ParserAdapter adapter;
+    adapter.configure(std::vector{ makeRunSpec() });
+
+    ArgvBuilder argv{ "scrap", "run", "app", "--", "alpha" };
+    auto result = adapter.parse(argv.span());
+
+    ASSERT_TRUE(result.has_value());
+    EXPECT_EQ(result->options.positional, (std::vector<std::string>{ "app" }));
+    EXPECT_EQ(result->options.trailing, (std::vector<std::string>{ "alpha" }));
+}
+
+TEST(CLI11ParserAdapterTest, Parse_NothingAfterTheSeparator)
+{
+    CLI11ParserAdapter adapter;
+    adapter.configure(std::vector{ makeRunSpec() });
+
+    ArgvBuilder argv{ "scrap", "run", "--" };
+    auto result = adapter.parse(argv.span());
+
+    ASSERT_TRUE(result.has_value());
+    EXPECT_TRUE(result->options.trailing.empty());
+}
+
+TEST(CLI11ParserAdapterTest, Parse_ArgumentsAfterTheSeparatorForACommandThatTakesNone)
+{
+    CLI11ParserAdapter adapter;
+    adapter.configure(std::vector{ makeSpec("build") });
+
+    ArgvBuilder argv{ "scrap", "build", "--", "alpha", "beta" };
+    auto result = adapter.parse(argv.span());
+
+    ASSERT_FALSE(result.has_value());
+    ASSERT_TRUE(std::holds_alternative<ParseFailure>(result.error()));
+    EXPECT_EQ(std::get<ParseFailure>(result.error()).message, "The following arguments were not expected: alpha beta");
+}
+
+TEST(CLI11ParserAdapterTest, Parse_OneArgumentAfterTheSeparatorForACommandThatTakesNone)
+{
+    CLI11ParserAdapter adapter;
+    adapter.configure(std::vector{ makeSpec("build") });
+
+    ArgvBuilder argv{ "scrap", "build", "--", "alpha" };
+    auto result = adapter.parse(argv.span());
+
+    ASSERT_FALSE(result.has_value());
+    ASSERT_TRUE(std::holds_alternative<ParseFailure>(result.error()));
+    EXPECT_EQ(std::get<ParseFailure>(result.error()).message, "The following argument was not expected: alpha");
+}
+
+TEST(CLI11ParserAdapterTest, Parse_HelpBeforeTheSeparatorIsStillHelp)
+{
+    CLI11ParserAdapter adapter;
+    adapter.configure(std::vector{ makeRunSpec() });
+
+    ArgvBuilder argv{ "scrap", "run", "--help", "--", "alpha" };
+    auto result = adapter.parse(argv.span());
+
+    ASSERT_FALSE(result.has_value());
+    ASSERT_TRUE(std::holds_alternative<ParseDirective>(result.error()));
+    EXPECT_EQ(std::get<ParseDirective>(result.error()).target, "run");
 }

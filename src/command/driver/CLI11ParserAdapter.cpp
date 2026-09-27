@@ -7,6 +7,7 @@
 
 #include <CLI/CLI.hpp>
 
+#include <cstddef>
 #include <cstdint>
 #include <deque>
 #include <exception>
@@ -15,6 +16,7 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -42,7 +44,8 @@ struct PositionalSlot {
  *
  * One instance is created per CommandSpec node in the spec tree.
  * After CLI11 finishes parsing, the values are harvested into a
- * ParsedOptions struct.
+ * ParsedOptions struct. It also keeps, copied from the spec, whether the
+ * command takes the arguments after "--".
  *
  * Positionals use std::deque so that push_back never invalidates
  * the references that CLI11 holds to earlier elements.
@@ -53,6 +56,7 @@ struct OptionStorage {
     std::unordered_map<std::string, std::string> strings;
     std::unordered_map<std::string, std::vector<std::string>> stringLists;
     std::deque<PositionalSlot> positionals;
+    bool takesTrailing = false;  ///< Copied from the spec, not written by CLI11.
 };
 
 // =============================================================================
@@ -174,6 +178,7 @@ void addSubcommands(CLI::App& root,
                 for (const auto& pos : spec.options.positional) {
                     addPositional(*sub, pos, *storage);
                 }
+                storage->takesTrailing = spec.options.trailing.has_value();
                 storageMap[path] = std::move(storage);
 
                 if (! spec.subcommands.empty()) {
@@ -275,6 +280,35 @@ std::optional<std::string> determineHelpTarget(const CLI::App& app)
     return path;
 }
 
+/**
+ * The part of @p argv before the first "--", and what follows it.
+ */
+std::pair<std::span<const char* const>, std::vector<std::string>> splitAtSeparator(std::span<const char* const> argv)
+{
+    // The program name comes first and is never the separator.
+    for (std::size_t index = 1; index < argv.size(); ++index) {
+        if (std::string_view{ argv[index] } == "--") {
+            return { argv.first(index), std::vector<std::string>(argv.begin() + static_cast<std::ptrdiff_t>(index) + 1, argv.end()) };
+        }
+    }
+    return { argv, {} };
+}
+
+/**
+ * The message for arguments after "--" given to a command that takes none.
+ * It is worded as CLI11 words arguments it does not expect, singular for one,
+ * and lists them in the order given.
+ */
+std::string describeUnexpected(const std::vector<std::string>& arguments)
+{
+    std::string message = (arguments.size() == 1) ? "The following argument was not expected:" : "The following arguments were not expected:";
+    for (const std::string& argument : arguments) {
+        message += ' ';
+        message += argument;
+    }
+    return message;
+}
+
 }  // anonymous namespace
 
 // =============================================================================
@@ -310,12 +344,16 @@ ParseResult CLI11ParserAdapter::parse(std::span<const char* const> argv) const
     // Per-call storage map: dot-path -> OptionStorage.
     std::unordered_map<std::string, std::unique_ptr<OptionStorage>> storageMap;
 
+    auto [beforeSeparator, trailing] = splitAtSeparator(argv);
+
     try {
         // Map the CommandSpec tree onto CLI11 subcommands and options.
         addSubcommands(app, _impl->specs, storageMap);
 
         // --- Parse ---------------------------------------------------------------
-        app.parse(static_cast<int>(argv.size()), argv.data());
+        // The arguments after "--" are set aside first, so each reaches the
+        // command as written whatever it looks like.
+        app.parse(static_cast<int>(beforeSeparator.size()), beforeSeparator.data());
 
     } catch (const CLI::CallForHelp&) {
         return std::unexpected(ParseInterruption{ ParseDirective{ ParseDirectiveKind::HelpRequested, determineHelpTarget(app) } });
@@ -336,9 +374,14 @@ ParseResult CLI11ParserAdapter::parse(std::span<const char* const> argv) const
 
     ParsedOptions options;
     auto storageIt = storageMap.find(commandPath);
+    const bool takesTrailing = (storageIt != storageMap.end()) && storageIt->second->takesTrailing;
+    if ((! trailing.empty()) && (! takesTrailing)) {
+        return std::unexpected(ParseInterruption{ ParseFailure{ describeUnexpected(trailing) } });
+    }
     if (storageIt != storageMap.end()) {
         options = harvestOptions(*storageIt->second);
     }
+    options.trailing = std::move(trailing);
 
     return CommandInvocation{ std::move(commandPath), std::move(options) };
 }

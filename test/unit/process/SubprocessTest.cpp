@@ -4,8 +4,11 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
 #include <chrono>
 #include <csignal>
+#include <cstddef>
+#include <cstdio>
 #include <filesystem>
 #include <poll.h>
 #include <string>
@@ -44,6 +47,83 @@ RunOptions stoppedSoon(const std::filesystem::path& directory)
 {
     return { .workingDirectory = directory, .capture = OutputCapture::StandardOutput, .group = ProcessGroup::Own, .timeout = std::chrono::milliseconds{ 100 }, .outputLimit = std::nullopt };
 }
+
+/**
+ * Options that hand a program the caller's streams and wait for it to end.
+ */
+RunOptions atTheTerminal()
+{
+    return { .workingDirectory = {}, .capture = OutputCapture::Terminal, .group = ProcessGroup::Caller, .timeout = std::nullopt, .outputLimit = std::nullopt };
+}
+
+/**
+ * Puts a pipe in place of one of this process's streams while it lives, and
+ * puts the stream back once it goes.
+ */
+class ReplacedStream {
+public:
+    explicit ReplacedStream(int stream)
+        : _stream(stream)
+        , _saved(::dup(stream))
+    {
+        std::fflush(nullptr);
+        EXPECT_EQ(::pipe(_ends.data()), 0);
+        ::dup2(stream == STDIN_FILENO ? _ends[0] : _ends[1], stream);
+    }
+
+    ReplacedStream(const ReplacedStream&) = delete;
+    ReplacedStream& operator=(const ReplacedStream&) = delete;
+    ReplacedStream(ReplacedStream&&) = delete;
+    ReplacedStream& operator=(ReplacedStream&&) = delete;
+
+    ~ReplacedStream()
+    {
+        restore();
+        ::close(_ends[0]);
+        ::close(_ends[1]);
+    }
+
+    /**
+     * Put the stream back, so what was written to the pipe can be read to
+     * its end.
+     */
+    void restore()
+    {
+        if (_saved >= 0) {
+            ::dup2(_saved, _stream);
+            ::close(_saved);
+            _saved = -1;
+        }
+    }
+
+    /**
+     * Write @p text for a program that reads the replaced input.
+     */
+    void write(const std::string& text) const
+    {
+        EXPECT_EQ(::write(_ends[1], text.data(), text.size()), static_cast<ssize_t>(text.size()));
+    }
+
+    /**
+     * What was written to the replaced output, once it has been put back.
+     */
+    std::string written()
+    {
+        ::close(_ends[1]);
+        _ends[1] = -1;
+        std::string text;
+        std::array<char, 256> buffer{};
+        for (ssize_t count = ::read(_ends[0], buffer.data(), buffer.size()); count > 0; count = ::read(_ends[0], buffer.data(), buffer.size())) {
+            text.append(buffer.data(), static_cast<std::size_t>(count));
+        }
+        return text;
+    }
+
+private:
+    int _stream;
+    int _saved;
+    std::array<int, 2> _ends{ -1, -1 };
+};
 
 /**
  * Create in @p directory a FIFO nothing ever writes to, so a program that
@@ -264,4 +344,134 @@ TEST(SubprocessTest, StopsReadingAtTheLimit)
     ASSERT_TRUE(completion.has_value());
     EXPECT_EQ(completion->output, "y\ny\ny");
     EXPECT_FALSE(completion->timedOut);
+}
+
+/**
+ * A program at the terminal reads the caller's standard input.
+ */
+TEST(SubprocessTest, GivesAProgramAtTheTerminalTheCallersInput)
+{
+    ReplacedStream input{ STDIN_FILENO };
+    input.write("hello\n");
+
+    const auto completion = runProgram(shell(R"(read line; [ "$line" = hello ] && exit 7)"), atTheTerminal());
+    input.restore();
+
+    ASSERT_TRUE(completion.has_value());
+    EXPECT_EQ(completion->exitCode, 7);
+}
+
+/**
+ * A program at the terminal writes to the caller's standard output and
+ * standard error, and nothing is read back.
+ */
+TEST(SubprocessTest, LeavesTheOutputOfAProgramAtTheTerminalToTheCaller)
+{
+    ReplacedStream output{ STDOUT_FILENO };
+    ReplacedStream error{ STDERR_FILENO };
+
+    const auto completion = runProgram(shell("printf out; printf err >&2"), atTheTerminal());
+    output.restore();
+    error.restore();
+
+    ASSERT_TRUE(completion.has_value());
+    EXPECT_EQ(completion->exitCode, 0);
+    EXPECT_EQ(completion->output, "");
+    EXPECT_EQ(output.written(), "out");
+    EXPECT_EQ(error.written(), "err");
+}
+
+/**
+ * An interrupt and a quit sent while a program is at the terminal leave the
+ * caller running, and the caller's handling of both is put back afterwards.
+ */
+TEST(SubprocessTest, KeepsTheCallerThroughAnInterruptWhileAProgramIsAtTheTerminal)
+{
+    struct sigaction before { };
+    ASSERT_EQ(::sigaction(SIGINT, nullptr, &before), 0);
+
+    const auto completion = runProgram(shell("kill -INT $PPID; kill -QUIT $PPID; exit 0"), atTheTerminal());
+
+    ASSERT_TRUE(completion.has_value());
+    EXPECT_EQ(completion->exitCode, 0);
+    struct sigaction after { };
+    ASSERT_EQ(::sigaction(SIGINT, nullptr, &after), 0);
+    EXPECT_EQ(after.sa_handler, before.sa_handler);
+}
+
+/**
+ * A program at the terminal is stopped by an interrupt, even though the
+ * caller ignores it meanwhile.
+ */
+TEST(SubprocessTest, LetsAnInterruptStopAProgramAtTheTerminal)
+{
+    const auto completion = runProgram(shell("kill -INT $$; exit 0"), atTheTerminal());
+
+    ASSERT_TRUE(completion.has_value());
+    EXPECT_EQ(completion->signal, SIGINT);
+}
+
+/**
+ * A program at the terminal is stopped by a quit, even though the caller
+ * ignores it meanwhile.
+ */
+TEST(SubprocessTest, LetsAQuitStopAProgramAtTheTerminal)
+{
+    // bash, which is /bin/sh on some systems, ignores a quit itself, so the
+    // shell hands its process over to kill. No core file is left behind.
+    const auto completion = runProgram(shell("ulimit -c 0; exec kill -QUIT $$"), atTheTerminal());
+
+    ASSERT_TRUE(completion.has_value());
+    EXPECT_EQ(completion->signal, SIGQUIT);
+}
+
+/**
+ * What the caller's C streams hold is written out before the program at the
+ * terminal writes, so the two come out in the order they were written.
+ */
+TEST(SubprocessTest, WritesWhatTheCallerHeldBeforeAProgramAtTheTerminal)
+{
+    ReplacedStream output{ STDOUT_FILENO };
+    std::fputs("caller ", stdout);
+
+    const auto completion = runProgram(shell("printf program"), atTheTerminal());
+    std::fflush(stdout);
+    output.restore();
+
+    ASSERT_TRUE(completion.has_value());
+    EXPECT_EQ(output.written(), "caller program");
+}
+
+/**
+ * An interrupt the caller was started with ignored stays ignored in the
+ * program at the terminal, as it does for a shell's background job.
+ */
+TEST(SubprocessTest, LeavesAnInterruptTheCallerIgnoresIgnoredInAProgramAtTheTerminal)
+{
+    struct sigaction ignore { };
+    ignore.sa_handler = SIG_IGN;
+    sigemptyset(&ignore.sa_mask);
+    struct sigaction before { };
+    ASSERT_EQ(::sigaction(SIGINT, &ignore, &before), 0);
+
+    const auto completion = runProgram(shell("kill -INT $$; exit 5"), atTheTerminal());
+    ::sigaction(SIGINT, &before, nullptr);
+
+    ASSERT_TRUE(completion.has_value());
+    EXPECT_EQ(completion->exitCode, 5);
+}
+
+/**
+ * A program at the terminal outside the caller's process group would stop at
+ * its first read from the terminal, so it is refused before it starts.
+ */
+TEST(SubprocessTest, RefusesAProgramAtTheTerminalInAGroupOfItsOwn)
+{
+    RunOptions options = atTheTerminal();
+    options.group = ProcessGroup::Own;
+
+    const auto completion = runProgram(shell("exit 0"), options);
+
+    ASSERT_FALSE(completion.has_value());
+    EXPECT_EQ(completion.error(), std::errc::invalid_argument);
 }

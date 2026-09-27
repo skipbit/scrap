@@ -17,7 +17,8 @@ namespace scrap::Process {
  */
 enum class OutputCapture : std::uint8_t {
     StandardOutput,  ///< Standard output is read; standard error is discarded.
-    Combined         ///< Both streams are read together, in the order written.
+    Combined,        ///< Both streams are read together, in the order written.
+    Terminal         ///< Nothing is read: the program shares the caller's standard input, output and error.
 };
 
 /**
@@ -56,7 +57,15 @@ struct Completion {
  *
  * The program is started directly, without a shell, so each argument reaches
  * it as written. It inherits the environment and reads nothing from standard
- * input.
+ * input, unless its output capture is Terminal.
+ *
+ * With Terminal the program takes the caller's place at the terminal: what
+ * the caller's C streams hold is written out first, the program shares the
+ * caller's three streams, and an interrupt or a quit from the terminal
+ * reaches it with the default action while the caller ignores both until the
+ * program ends. A signal the caller was started with ignored stays ignored in
+ * the program, as it does for a shell's background job. Terminal runs in the
+ * caller's process group; with ProcessGroup::Own it is refused.
  *
  * When a timeout is given and it passes while the program is still running,
  * or while its output is still open, the program is killed, together with its
@@ -65,7 +74,9 @@ struct Completion {
  *
  * @param arguments The command line; the first is the path of the program.
  * @param options How the program is run.
- * @return How the program ended, or why it could not be started or read.
+ * @return How the program ended, or why it could not be started or read:
+ *   invalid_argument for an empty command line, or for Terminal with
+ *   ProcessGroup::Own.
  */
 [[nodiscard]] std::expected<Completion, std::error_code> runProgram(const std::vector<std::string>& arguments, const RunOptions& options);
 

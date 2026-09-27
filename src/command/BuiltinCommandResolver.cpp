@@ -11,6 +11,7 @@
 #include "command/NewCommandHandler.h"
 #include "command/OptionSchema.h"
 #include "command/ParsedOptions.h"
+#include "command/RunCommandHandler.h"
 #include "command/RuntimeEnvironment.h"
 #include "command/VersionRenderer.h"
 #include "project/ProjectFileSystem.h"
@@ -191,6 +192,20 @@ CommandEntry makeCleanEntry()
     });
 }
 
+/**
+ * Create the entry for "run", which takes an optional path into the project
+ * and the program's arguments after "--".
+ */
+CommandEntry makeRunEntry()
+{
+    auto entry = makeProjectEntry(
+        "run", "Build the project and run its executable", projectPathPositional(), [](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
+        return std::make_unique<RunCommandHandler>();
+    });
+    entry.spec.options.trailing = TrailingDef{ .name = "args", .description = "Arguments passed to the program" };
+    return entry;
+}
+
 }  // anonymous namespace
 
 /**
@@ -245,7 +260,7 @@ std::vector<CommandEntry> BuiltinCommandResolver::resolve([[maybe_unused]] const
     // Project commands
     entries.push_back(makeNewEntry(*_fileSystem));
     entries.push_back(makeBuildEntry());
-    entries.push_back(makePlaceholder("run", "Run the current project executable", "Project Commands"));
+    entries.push_back(makeRunEntry());
     entries.push_back(makeCleanEntry());
 
     // Toolchain commands
