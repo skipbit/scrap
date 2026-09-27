@@ -113,8 +113,29 @@ bool closeOnExec(int descriptor)
 #endif
 
 /**
+ * Describe to posix_spawn where the child's streams come from when they are
+ * read back.
+ *
+ * @return 0, or the error of the first action that could not be recorded.
+ */
+int recordRedirections(posix_spawn_file_actions_t& actions, int writeEnd, OutputCapture capture)
+{
+    if (const int result = ::posix_spawn_file_actions_addopen(&actions, STDIN_FILENO, "/dev/null", O_RDONLY, 0); result != 0) {
+        return result;
+    }
+    if (const int result = ::posix_spawn_file_actions_adddup2(&actions, writeEnd, STDOUT_FILENO); result != 0) {
+        return result;
+    }
+    return capture == OutputCapture::Combined ? ::posix_spawn_file_actions_adddup2(&actions, writeEnd, STDERR_FILENO)
+                                              : ::posix_spawn_file_actions_addopen(&actions, STDERR_FILENO, "/dev/null", O_WRONLY, 0);
+}
+
+/**
  * Describe to posix_spawn where the child's streams and working directory
  * come from.
+ *
+ * A child at the terminal keeps the caller's streams. The pipe is closed when
+ * it starts, so the read of its output ends at once.
  *
  * @return 0, or the error of the first action that could not be recorded.
  */
@@ -123,17 +144,10 @@ int recordActions(posix_spawn_file_actions_t& actions,
                   OutputCapture capture,
                   const std::filesystem::path& workingDirectory)
 {
-    if (const int result = ::posix_spawn_file_actions_addopen(&actions, STDIN_FILENO, "/dev/null", O_RDONLY, 0); result != 0) {
-        return result;
-    }
-    if (const int result = ::posix_spawn_file_actions_adddup2(&actions, writeEnd, STDOUT_FILENO); result != 0) {
-        return result;
-    }
-    const int errorResult = capture == OutputCapture::Combined
-                                ? ::posix_spawn_file_actions_adddup2(&actions, writeEnd, STDERR_FILENO)
-                                : ::posix_spawn_file_actions_addopen(&actions, STDERR_FILENO, "/dev/null", O_WRONLY, 0);
-    if (errorResult != 0) {
-        return errorResult;
+    if (capture != OutputCapture::Terminal) {
+        if (const int result = recordRedirections(actions, writeEnd, capture); result != 0) {
+            return result;
+        }
     }
     if (! workingDirectory.empty()) {
         return ::posix_spawn_file_actions_addchdir_np(&actions, workingDirectory.c_str());
@@ -142,25 +156,76 @@ int recordActions(posix_spawn_file_actions_t& actions,
 }
 
 /**
- * Describe to posix_spawn which process group the child starts in.
+ * Describe to posix_spawn which process group the child starts in, and, for
+ * a child at the terminal, that an interrupt and a quit take their default
+ * action in it even though the caller ignores them.
  *
  * @return 0, or the error of the first attribute that could not be recorded.
  */
-int recordAttributes(posix_spawnattr_t& attributes, ProcessGroup group)
+int recordAttributes(posix_spawnattr_t& attributes, ProcessGroup group, OutputCapture capture)
 {
     short flags = 0;
     if (group == ProcessGroup::Own) {
         flags = static_cast<short>(flags | POSIX_SPAWN_SETPGROUP);  // NOLINT(hicpp-signed-bitwise) - POSIX spawn flag API
+    }
+    if (capture == OutputCapture::Terminal) {
+        flags = static_cast<short>(flags | POSIX_SPAWN_SETSIGDEF);  // NOLINT(hicpp-signed-bitwise) - POSIX spawn flag API
     }
     if (const int result = ::posix_spawnattr_setflags(&attributes, flags); result != 0) {
         return result;
     }
     if (group == ProcessGroup::Own) {
         // A group id of 0 makes the child the leader of a new group.
-        return ::posix_spawnattr_setpgroup(&attributes, 0);
+        if (const int result = ::posix_spawnattr_setpgroup(&attributes, 0); result != 0) {
+            return result;
+        }
+    }
+    if (capture == OutputCapture::Terminal) {
+        // NOLINTBEGIN(misc-include-cleaner) - sigset_t, sigemptyset(), sigaddset(), SIGINT and SIGQUIT are provided by <signal.h>
+        sigset_t defaults;
+        ::sigemptyset(&defaults);
+        ::sigaddset(&defaults, SIGINT);
+        ::sigaddset(&defaults, SIGQUIT);
+        // NOLINTEND(misc-include-cleaner)
+        return ::posix_spawnattr_setsigdefault(&attributes, &defaults);
     }
     return 0;
 }
+
+/**
+ * Ignores an interrupt and a quit from the terminal while it lives, and puts
+ * back what was there before.
+ */
+class TerminalSignalsIgnored {
+public:
+    TerminalSignalsIgnored()
+    {
+        // NOLINTBEGIN(misc-include-cleaner) - sigaction(), SIG_IGN, SIGINT and SIGQUIT are provided by <signal.h>
+        struct sigaction ignore { };
+        ignore.sa_handler = SIG_IGN;
+        ::sigemptyset(&ignore.sa_mask);
+        ::sigaction(SIGINT, &ignore, &_interrupt);
+        ::sigaction(SIGQUIT, &ignore, &_quit);
+        // NOLINTEND(misc-include-cleaner)
+    }
+
+    TerminalSignalsIgnored(const TerminalSignalsIgnored&) = delete;
+    TerminalSignalsIgnored& operator=(const TerminalSignalsIgnored&) = delete;
+    TerminalSignalsIgnored(TerminalSignalsIgnored&&) = delete;
+    TerminalSignalsIgnored& operator=(TerminalSignalsIgnored&&) = delete;
+
+    ~TerminalSignalsIgnored()
+    {
+        // NOLINTBEGIN(misc-include-cleaner) - sigaction(), SIGINT and SIGQUIT are provided by <signal.h>
+        ::sigaction(SIGINT, &_interrupt, nullptr);
+        ::sigaction(SIGQUIT, &_quit, nullptr);
+        // NOLINTEND(misc-include-cleaner)
+    }
+
+private:
+    struct sigaction _interrupt { };
+    struct sigaction _quit { };
+};
 
 /**
  * Read @p descriptor until the other end is closed, @p limit bytes have been
@@ -274,7 +339,7 @@ std::expected<pid_t, std::error_code> startProgram(const std::vector<std::string
     pid_t child = -1;
     int result = recordActions(actions, writeEnd, options.capture, options.workingDirectory);
     if (result == 0) {
-        result = recordAttributes(attributes, options.group);
+        result = recordAttributes(attributes, options.group, options.capture);
     }
     if (result == 0) {
         result = ::posix_spawn(&child, argv.front(), &actions, &attributes, argv.data(), environ);
@@ -382,6 +447,14 @@ std::expected<Completion, std::error_code> runProgram(const std::vector<std::str
     }
     OwnedDescriptor readEnd{ pipeEnds[0] };
     OwnedDescriptor writeEnd{ pipeEnds[1] };
+
+    // Ignored from before the child starts until it has been waited for, so
+    // an interrupt from the terminal stops the program and leaves the caller
+    // to report how it ended.
+    std::optional<TerminalSignalsIgnored> ignored;
+    if (options.capture == OutputCapture::Terminal) {
+        ignored.emplace();
+    }
 
     const auto child = startProgram(arguments, writeEnd.get(), options);
     // The parent's copy is closed so the read below ends once the child and
