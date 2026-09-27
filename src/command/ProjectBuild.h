@@ -2,6 +2,9 @@
 
 #include "project/ProjectLoader.h"
 
+#include <expected>  // IWYU pragma: keep
+#include <filesystem>
+
 namespace scrap::Command {
 
 struct RuntimeEnvironment;
@@ -17,8 +20,10 @@ struct RuntimeEnvironment;
  *
  * @param env The environment the command runs in.
  * @param project The project to build.
- * @return 0 on success, 1 when it reports a failure.
+ * @return Where it built, relative to the project root, or the exit code of
+ *   the failure it reported (1).
  */
-[[nodiscard]] int buildProject(const RuntimeEnvironment& env, const Project::LoadedProject& project);
+[[nodiscard]] std::expected<std::filesystem::path, int> buildProject(const RuntimeEnvironment& env,
+                                                                     const Project::LoadedProject& project);
 
 }  // namespace scrap::Command

@@ -16,7 +16,8 @@ int BuildCommandHandler::execute(const InvocationContext& ctx)
         std::cerr << renderProjectArgumentError(project.error());
         return 1;
     }
-    return buildProject(*ctx.env, *project);
+    const auto built = buildProject(*ctx.env, *project);
+    return built.has_value() ? 0 : built.error();
 }
 
 }  // namespace scrap::Command

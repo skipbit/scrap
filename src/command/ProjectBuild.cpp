@@ -17,6 +17,7 @@
 #include "toolchain/CompilerIdentity.h"
 #include "toolchain/SystemCompiler.h"
 
+#include <expected>  // IWYU pragma: keep
 #include <filesystem>
 #include <iostream>
 #include <string_view>
@@ -52,15 +53,15 @@ std::string_view describeOrigin(const Toolchain::CompilerOrigin origin)
  * database is emptied so an editor stops reading the commands of targets the
  * project no longer has.
  */
-int finishWithNothingToBuild(const std::filesystem::path& databaseDirectory)
+std::expected<void, int> finishWithNothingToBuild(const std::filesystem::path& databaseDirectory)
 {
     const auto written = Compile::writeCompilationDatabase(databaseDirectory, {});
     if (! written.has_value()) {
         std::cerr << renderCompilationDatabaseFailure(written.error());
-        return 1;
+        return std::unexpected(1);
     }
     std::cerr << renderBuildFinished();
-    return 0;
+    return {};
 }
 
 /**
@@ -81,42 +82,46 @@ const Project::Target* libraryAmong(const std::vector<Project::Target>& targets)
  * Compile and link what @p compiles and the targets state, reporting each
  * step as it runs.
  */
-int runBuild(const Compile::BuildSettings& settings,
-             const std::vector<Project::TargetSources>& targets,
-             const std::vector<Compile::CompileCommand>& compiles)
+std::expected<void, int> runBuild(const Compile::BuildSettings& settings,
+                                  const std::vector<Project::TargetSources>& targets,
+                                  const std::vector<Compile::CompileCommand>& compiles)
 {
     Build::ProgramStepRunner runner;
     StreamBuildReporter reporter{ std::cerr, standardErrorIsTerminal() };
     const auto built = Build::runSerially(Build::buildSteps(compiles, Compile::planLinkCommands(settings, targets)), runner, reporter);
     if (! built.has_value()) {
         std::cerr << renderStepFailure(built.error());
-        return 1;
+        return std::unexpected(1);
     }
     std::cerr << renderBuildFinished();
-    return 0;
+    return {};
 }
 
 }  // anonymous namespace
 
-int buildProject(const RuntimeEnvironment& env, const Project::LoadedProject& project)
+std::expected<std::filesystem::path, int> buildProject(const RuntimeEnvironment& env, const Project::LoadedProject& project)
 {
     // An empty declaration states that the project builds nothing, which is a
     // different answer from finding nothing where no declaration was written.
     const auto targets = Project::resolveTargets(project.root, project.manifest);
     if (targets.empty() && (! project.manifest.declaresTargets)) {
         std::cerr << renderNoTargetToBuild(project.root);
-        return 1;
+        return std::unexpected(1);
     }
 
-    const std::filesystem::path buildDirectory{ Compile::DebugBuildDirectory };
+    std::filesystem::path buildDirectory{ Compile::DebugBuildDirectory };
     if (targets.empty()) {
-        return finishWithNothingToBuild(project.root / buildDirectory);
+        const auto finished = finishWithNothingToBuild(project.root / buildDirectory);
+        if (! finished.has_value()) {
+            return std::unexpected(finished.error());
+        }
+        return buildDirectory;
     }
 
     const auto sources = Project::collectSources(project.root, targets);
     if (! sources.has_value()) {
         std::cerr << renderSourceScanFailure(sources.error());
-        return 1;
+        return std::unexpected(1);
     }
 
     const auto compiler = Toolchain::detectSystemCompiler(env.preferredCompiler, env.systemSearchPaths);
@@ -126,7 +131,7 @@ int buildProject(const RuntimeEnvironment& env, const Project::LoadedProject& pr
         } else {
             std::cerr << renderUnusableCompilerRequest(compiler.error().requested);
         }
-        return 1;
+        return std::unexpected(1);
     }
     std::cerr << "Using the system compiler '" << printablePath(compiler->path) << "' (" << describeOrigin(compiler->origin) << ")\n";
 
@@ -141,21 +146,25 @@ int buildProject(const RuntimeEnvironment& env, const Project::LoadedProject& pr
     const auto written = Compile::writeCompilationDatabase(project.root / buildDirectory, compiles);
     if (! written.has_value()) {
         std::cerr << renderCompilationDatabaseFailure(written.error());
-        return 1;
+        return std::unexpected(1);
     }
 
     // The database is written before the build stops for either reason
     // below, so an editor reads the commands whether or not they can run.
     if (const Project::Target* library = libraryAmong(targets); library != nullptr) {
         std::cerr << renderLibraryNotBuilt(library->name);
-        return 1;
+        return std::unexpected(1);
     }
     if (! settings.driver.standardOption(settings.standard).has_value()) {
         std::cerr << renderUnsupportedStandard(compiler->path, settings.standard);
-        return 1;
+        return std::unexpected(1);
     }
 
-    return runBuild(settings, *sources, compiles);
+    const auto built = runBuild(settings, *sources, compiles);
+    if (! built.has_value()) {
+        return std::unexpected(built.error());
+    }
+    return buildDirectory;
 }
 
 }  // namespace scrap::Command

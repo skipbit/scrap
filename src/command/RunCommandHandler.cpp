@@ -59,14 +59,16 @@ int RunCommandHandler::execute(const InvocationContext& ctx)
         return 1;
     }
 
-    if (buildProject(*ctx.env, *project) != 0) {
+    const auto built = buildProject(*ctx.env, *project);
+    if (! built.has_value()) {
         return BuildFailedExitCode;
     }
 
-    const std::filesystem::path executable = Compile::executableFile(Compile::DebugBuildDirectory, executables.front());
+    const std::filesystem::path executable = Compile::executableFile(*built, executables.front());
+    const std::filesystem::path program = project->root / executable;
     std::cerr << renderRunning(executables.front(), executable);
 
-    std::vector<std::string> arguments{ (project->root / executable).string() };
+    std::vector<std::string> arguments{ program.string() };
     arguments.insert(arguments.end(), ctx.options.trailing.begin(), ctx.options.trailing.end());
     const auto completion = Process::runProgram(arguments,
                                                 { .workingDirectory = {},
@@ -75,7 +77,7 @@ int RunCommandHandler::execute(const InvocationContext& ctx)
                                                   .timeout = std::nullopt,
                                                   .outputLimit = std::nullopt });
     if (! completion.has_value()) {
-        std::cerr << renderExecutableNotStarted(project->root / executable, completion.error());
+        std::cerr << renderExecutableNotStarted(program, completion.error());
         return 1;
     }
     if (const std::optional<int> signal = completion->signal; signal.has_value()) {
