@@ -92,6 +92,11 @@ std::vector<CompileCommand> planCompileCommands(const BuildSettings& settings, c
     return commands;
 }
 
+std::filesystem::path executableFile(const std::filesystem::path& buildDirectory, std::string_view target)
+{
+    return buildDirectory / ExecutableDirectory / target;
+}
+
 std::vector<LinkCommand> planLinkCommands(const BuildSettings& settings, const std::vector<Project::TargetSources>& targets)
 {
     std::vector<LinkCommand> commands;
@@ -99,7 +104,7 @@ std::vector<LinkCommand> planLinkCommands(const BuildSettings& settings, const s
         if (entry.target.kind != Project::TargetKind::Executable) {
             continue;
         }
-        const std::filesystem::path output = settings.buildDirectory / ExecutableDirectory / entry.target.name;
+        const std::filesystem::path output = executableFile(settings.buildDirectory, entry.target.name);
 
         std::vector<std::string> arguments{ settings.compiler.string() };
         if (const auto color = settings.driver.colorOption(); color.has_value()) {

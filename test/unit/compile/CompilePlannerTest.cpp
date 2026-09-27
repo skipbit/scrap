@@ -284,6 +284,18 @@ TEST(CompilePlannerTest, LinksTheObjectFilesOfAnExecutable)
 }
 
 /**
+ * The executable of a target is where its link command writes it.
+ */
+TEST(CompilePlannerTest, NamesTheExecutableTheLinkWrites)
+{
+    const auto commands = planLinkCommands(settingsFor(Gcc13), { executableWithSources("hello", "src/main.cpp", { "src/main.cpp" }) });
+
+    ASSERT_EQ(commands.size(), 1);
+    EXPECT_EQ(executableFile("build/debug", "hello"), "build/debug/bin/hello");
+    EXPECT_EQ(executableFile(settingsFor(Gcc13).buildDirectory, "hello"), commands[0].output);
+}
+
+/**
  * Each executable links the object files compiled for it, including those of
  * a source it shares with another.
  */
