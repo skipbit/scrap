@@ -95,9 +95,9 @@ gtest_discover_tests(scrap_gtest_compile)
 # --- Build step tests ---
 add_executable(scrap_gtest_build
     unit/build/BuildOutputTest.cpp
+    unit/build/BuildStepsTest.cpp
     unit/build/ParallelismTest.cpp
     unit/build/ProgramStepRunnerTest.cpp
-    unit/build/SerialBuildTest.cpp
 )
 
 target_link_libraries(scrap_gtest_build PRIVATE
@@ -107,7 +107,9 @@ target_link_libraries(scrap_gtest_build PRIVATE
 )
 scrap_apply_compile_settings(scrap_gtest_build WARNINGS_AS_ERRORS)
 
-gtest_discover_tests(scrap_gtest_build)
+# A test that runs steps at once waits on events alone, so a build that runs
+# them one at a time would leave it waiting; the limit ends such a wait.
+gtest_discover_tests(scrap_gtest_build PROPERTIES TIMEOUT 60)
 
 # --- CLI end-to-end tests (spawns the built scrap binary as a subprocess) ---
 add_executable(scrap_e2e

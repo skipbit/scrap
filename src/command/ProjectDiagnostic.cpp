@@ -2,7 +2,7 @@
 
 #include "build/BuildOutput.h"
 #include "build/BuildStep.h"
-#include "build/SerialBuild.h"
+#include "build/BuildSteps.h"
 #include "command/PrintableText.h"
 #include "command/ProjectArgument.h"
 #include "compile/CompilationDatabase.h"
