@@ -1367,7 +1367,7 @@ TEST_F(CliE2ETest, BuildRejectsArgumentsAfterTheSeparator)
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 1);
-    EXPECT_NE(result.stderrText.find("The following arguments were not expected: alpha\n"), std::string::npos) << result.stderrText;
+    EXPECT_NE(result.stderrText.find("The following argument was not expected: alpha\n"), std::string::npos) << result.stderrText;
     EXPECT_FALSE(std::filesystem::exists(_root / "build"));
 }
 

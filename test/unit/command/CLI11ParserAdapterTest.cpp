@@ -567,6 +567,19 @@ TEST(CLI11ParserAdapterTest, Parse_ArgumentsAfterTheSeparatorForACommandThatTake
     EXPECT_EQ(std::get<ParseFailure>(result.error()).message, "The following arguments were not expected: alpha beta");
 }
 
+TEST(CLI11ParserAdapterTest, Parse_OneArgumentAfterTheSeparatorForACommandThatTakesNone)
+{
+    CLI11ParserAdapter adapter;
+    adapter.configure(std::vector{ makeSpec("build") });
+
+    ArgvBuilder argv{ "scrap", "build", "--", "alpha" };
+    auto result = adapter.parse(argv.span());
+
+    ASSERT_FALSE(result.has_value());
+    ASSERT_TRUE(std::holds_alternative<ParseFailure>(result.error()));
+    EXPECT_EQ(std::get<ParseFailure>(result.error()).message, "The following argument was not expected: alpha");
+}
+
 TEST(CLI11ParserAdapterTest, Parse_HelpBeforeTheSeparatorIsStillHelp)
 {
     CLI11ParserAdapter adapter;

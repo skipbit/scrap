@@ -295,12 +295,13 @@ std::pair<std::span<const char* const>, std::vector<std::string>> splitAtSeparat
 }
 
 /**
- * The message for arguments after "--" given to a command that takes none,
- * in the words CLI11 uses for arguments it does not expect.
+ * The message for arguments after "--" given to a command that takes none.
+ * It is worded as CLI11 words arguments it does not expect, singular for one,
+ * and lists them in the order given.
  */
 std::string describeUnexpected(const std::vector<std::string>& arguments)
 {
-    std::string message = "The following arguments were not expected:";
+    std::string message = (arguments.size() == 1) ? "The following argument was not expected:" : "The following arguments were not expected:";
     for (const std::string& argument : arguments) {
         message += ' ';
         message += argument;
