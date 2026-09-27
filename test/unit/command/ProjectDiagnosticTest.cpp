@@ -33,7 +33,7 @@ using scrap::Command::renderOutputRemovalFailure;
 using scrap::Command::renderProjectError;
 using scrap::Command::renderSeveralExecutablesToRun;
 using scrap::Command::renderSourceScanFailure;
-using scrap::Command::renderStepFailure;
+using scrap::Command::renderStepFailures;
 using scrap::Command::renderUnsupportedStandard;
 using scrap::Command::renderUnusableCompilerRequest;
 using scrap::Compile::DatabaseWriteFailure;
@@ -626,7 +626,7 @@ TEST(ProjectDiagnosticTest, RendersASourceThatFailedToCompile)
     const FailedStep failed{ .step = compileStep("src/main.cpp"),
                              .failure = StepFailure{ .kind = StepFailureKind::Exited, .path = {}, .code = {}, .status = 1 } };
 
-    EXPECT_EQ(renderStepFailure(failed),
+    EXPECT_EQ(renderStepFailures({ failed }),
               "error: failed to compile '/home/me/hello/src/main.cpp' for 'hello'\n"
               "hint: fix the errors reported above and run the command again\n");
 }
@@ -640,7 +640,7 @@ TEST(ProjectDiagnosticTest, RendersASourceThatLooksLikeAnOption)
     const FailedStep failed{ .step = compileStep("./-x.cpp"),
                              .failure = StepFailure{ .kind = StepFailureKind::Exited, .path = {}, .code = {}, .status = 1 } };
 
-    EXPECT_NE(renderStepFailure(failed).find("'/home/me/hello/-x.cpp'"), std::string::npos);
+    EXPECT_NE(renderStepFailures({ failed }).find("'/home/me/hello/-x.cpp'"), std::string::npos);
 }
 
 /**
@@ -651,7 +651,7 @@ TEST(ProjectDiagnosticTest, RendersAnExecutableThatFailedToLink)
     const FailedStep failed{ .step = linkStep(),
                              .failure = StepFailure{ .kind = StepFailureKind::Exited, .path = {}, .code = {}, .status = 1 } };
 
-    EXPECT_EQ(renderStepFailure(failed),
+    EXPECT_EQ(renderStepFailures({ failed }),
               "error: failed to link '/home/me/hello/build/debug/bin/hello'\n"
               "hint: fix the errors reported above and run the command again\n");
 }
@@ -665,7 +665,7 @@ TEST(ProjectDiagnosticTest, RendersACompilerASignalStopped)
     const FailedStep failed{ .step = compileStep("src/main.cpp"),
                              .failure = StepFailure{ .kind = StepFailureKind::Signalled, .path = {}, .code = {}, .status = 9 } };
 
-    EXPECT_EQ(renderStepFailure(failed),
+    EXPECT_EQ(renderStepFailures({ failed }),
               "error: failed to compile '/home/me/hello/src/main.cpp' for 'hello': "
               "the compiler was stopped by signal 9\n"
               "hint: check that the compiler has enough memory and run the command again\n");
@@ -682,7 +682,7 @@ TEST(ProjectDiagnosticTest, RendersACompilerThatCouldNotStart)
                                                      .code = std::make_error_code(std::errc::permission_denied),
                                                      .status = 0 } };
 
-    EXPECT_EQ(renderStepFailure(failed),
+    EXPECT_EQ(renderStepFailures({ failed }),
               "error: cannot run '/usr/bin/c++': " + std::make_error_code(std::errc::permission_denied).message()
                   + "\nhint: check that the compiler can be run, or set CXX to another one\n");
 }
@@ -699,10 +699,47 @@ TEST(ProjectDiagnosticTest, RendersADirectoryAStepCouldNotCreate)
                                                      .code = std::make_error_code(std::errc::not_a_directory),
                                                      .status = 0 } };
 
-    const std::string text = renderStepFailure(failed);
+    const std::string text = renderStepFailures({ failed });
 
     EXPECT_NE(text.find("error: cannot create '/home/me/hello/build/debug/obj': "), std::string::npos) << text;
     EXPECT_NE(text.find("\nhint: check what is already at that path\n"), std::string::npos) << text;
+}
+
+/**
+ * Each step that failed has its error line, in the order given, and a hint
+ * they share is written once, after them.
+ */
+TEST(ProjectDiagnosticTest, RendersEveryStepThatFailedWithTheHintOnce)
+{
+    const StepFailure exited{ .kind = StepFailureKind::Exited, .path = {}, .code = {}, .status = 1 };
+
+    EXPECT_EQ(renderStepFailures({ FailedStep{ .step = compileStep("src/b.cpp"), .failure = exited },
+                                   FailedStep{ .step = compileStep("src/a.cpp"), .failure = exited } }),
+              "error: failed to compile '/home/me/hello/src/b.cpp' for 'hello'\n"
+              "error: failed to compile '/home/me/hello/src/a.cpp' for 'hello'\n"
+              "hint: fix the errors reported above and run the command again\n");
+}
+
+/**
+ * Steps that failed in different ways are followed by each of their hints,
+ * once and in the order they first appear; an error line is kept even when
+ * another says the same.
+ */
+TEST(ProjectDiagnosticTest, RendersEachDifferentHintOnceInOrder)
+{
+    const StepFailure exited{ .kind = StepFailureKind::Exited, .path = {}, .code = {}, .status = 1 };
+    const StepFailure signalled{ .kind = StepFailureKind::Signalled, .path = {}, .code = {}, .status = 9 };
+
+    EXPECT_EQ(renderStepFailures({ FailedStep{ .step = compileStep("src/a.cpp"), .failure = signalled },
+                                   FailedStep{ .step = compileStep("src/b.cpp"), .failure = exited },
+                                   FailedStep{ .step = compileStep("src/b.cpp"), .failure = exited },
+                                   FailedStep{ .step = compileStep("src/c.cpp"), .failure = signalled } }),
+              "error: failed to compile '/home/me/hello/src/a.cpp' for 'hello': the compiler was stopped by signal 9\n"
+              "error: failed to compile '/home/me/hello/src/b.cpp' for 'hello'\n"
+              "error: failed to compile '/home/me/hello/src/b.cpp' for 'hello'\n"
+              "error: failed to compile '/home/me/hello/src/c.cpp' for 'hello': the compiler was stopped by signal 9\n"
+              "hint: check that the compiler has enough memory and run the command again\n"
+              "hint: fix the errors reported above and run the command again\n");
 }
 
 /**

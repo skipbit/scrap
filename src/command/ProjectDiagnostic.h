@@ -132,15 +132,17 @@ namespace scrap::Command {
 [[nodiscard]] std::string renderLibraryNotBuilt(std::string_view name);
 
 /**
- * @brief Describe a step of the build that failed, and what to do next.
+ * @brief Describe the steps of the build that failed, and what to do next.
  *
  * The compiler has already written its own diagnostics, which say what is
- * wrong with the code; this says which file the build stopped at.
+ * wrong with the code; this says which files the build stopped at. An error
+ * line is written for each step, followed by the hints they call for, each
+ * once and in the order they first appear.
  *
- * @param failed The step returned by scrap::Build::runSerially().
+ * @param failures The steps that failed, in the order they ended.
  * @return Text for standard error, each line ending in a newline.
  */
-[[nodiscard]] std::string renderStepFailure(const Build::FailedStep& failed);
+[[nodiscard]] std::string renderStepFailures(const std::vector<Build::FailedStep>& failures);
 
 /**
  * @brief Describe build output that could not be removed, and what to do next.

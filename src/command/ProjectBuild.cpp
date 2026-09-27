@@ -90,7 +90,7 @@ std::expected<void, int> runBuild(const Compile::BuildSettings& settings,
     StreamBuildReporter reporter{ std::cerr, standardErrorIsTerminal() };
     const auto built = Build::runSerially(Build::buildSteps(compiles, Compile::planLinkCommands(settings, targets)), runner, reporter);
     if (! built.has_value()) {
-        std::cerr << renderStepFailure(built.error());
+        std::cerr << renderStepFailures({ built.error() });
         return std::unexpected(1);
     }
     std::cerr << renderBuildFinished();
