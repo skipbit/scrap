@@ -787,7 +787,8 @@ TEST(ProjectDiagnosticTest, RendersAProjectWithMoreThanOneExecutableToRun)
 }
 
 /**
- * An executable that cannot be started is named with the system's reason.
+ * An executable that cannot be started is named with the system's reason,
+ * and one it has no permission to start points at the permissions.
  */
 TEST(ProjectDiagnosticTest, RendersAnExecutableThatCannotBeStarted)
 {
@@ -797,4 +798,31 @@ TEST(ProjectDiagnosticTest, RendersAnExecutableThatCannotBeStarted)
               "error: cannot run '/home/me/work/hello/build/debug/bin/hello': " + code.message()
                   + "\n"
                     "hint: check the permissions of the path\n");
+}
+
+/**
+ * An executable that cannot be started for its arguments points at them.
+ */
+TEST(ProjectDiagnosticTest, RendersAnExecutableStartedWithTooLongArguments)
+{
+    const auto code = std::make_error_code(std::errc::argument_list_too_long);
+
+    EXPECT_EQ(renderExecutableNotStarted("/home/me/work/hello/build/debug/bin/hello", code),
+              "error: cannot run '/home/me/work/hello/build/debug/bin/hello': " + code.message()
+                  + "\n"
+                    "hint: pass fewer or shorter arguments after '--'\n");
+}
+
+/**
+ * An executable that cannot be started for any other reason points at
+ * whether it runs on this system at all.
+ */
+TEST(ProjectDiagnosticTest, RendersAnExecutableThisSystemCannotRun)
+{
+    const auto code = std::make_error_code(std::errc::executable_format_error);
+
+    EXPECT_EQ(renderExecutableNotStarted("/home/me/work/hello/build/debug/bin/hello", code),
+              "error: cannot run '/home/me/work/hello/build/debug/bin/hello': " + code.message()
+                  + "\n"
+                    "hint: check that the executable can be run on this system\n");
 }
