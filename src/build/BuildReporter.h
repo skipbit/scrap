@@ -8,6 +8,8 @@ namespace scrap::Build {
 
 /**
  * @brief Told of each step as the build runs it.
+ *
+ * Calls come one at a time, from whichever thread ran the step.
  */
 class BuildReporter {
 public:

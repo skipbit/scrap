@@ -126,8 +126,10 @@ scrap is in early alpha development. Currently implemented:
 - CLI command framework (help, version, command discovery)
 - Project creation (`scrap new`) from the built-in template
 - Debug builds (`scrap build`): the sources of each target are compiled and
-  each executable is linked, one command after another, with
-  `compile_commands.json` written beside them
+  each executable is linked, as many commands at once as there are
+  processors the build may run on, with `compile_commands.json` written
+  beside them. Once a command fails no further one starts, and the ones
+  still running are waited for
 - Removing the build output (`scrap clean`): the project's `build/`
   directory is removed with everything in it
 - Running the project (`scrap run`): the project is built and its one
@@ -144,7 +146,8 @@ scrap is in early alpha development. Currently implemented:
 
 🚧 **In Progress**
 - Template system with variable substitution
-- Release builds (`--release`), parallel builds, and libraries
+- Release builds (`--release`), a chosen number of parallel jobs, and
+  libraries
 - Configuration file parsing (`scrap.toml`) - `[dependencies]` and
   `[toolchain]` are accepted and not yet read
 - Git-based template repository integration

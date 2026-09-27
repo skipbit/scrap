@@ -19,7 +19,8 @@ namespace scrap::Command {
  *     Compiling hello (src/main.cpp)
  *       Linking hello (build/debug/bin/hello)
  *
- * What the compiler wrote follows the step it belongs to. The compiler is
+ * What the compiler wrote is written once its step has ended; with steps
+ * running at once, other lines may come between the two. The compiler is
  * asked for colour, since a build usually runs in a terminal; where the
  * output is not a terminal the colour is taken back out, so a log holds the
  * diagnostics and not the sequences that colour them. Whatever else a

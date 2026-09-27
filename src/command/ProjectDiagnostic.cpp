@@ -2,7 +2,6 @@
 
 #include "build/BuildOutput.h"
 #include "build/BuildStep.h"
-#include "build/SerialBuild.h"
 #include "command/PrintableText.h"
 #include "command/ProjectArgument.h"
 #include "compile/CompilationDatabase.h"
@@ -14,6 +13,7 @@
 #include "project/SourceCollector.h"
 #include "project/TargetResolver.h"
 
+#include <algorithm>
 #include <cerrno>
 #include <cstddef>
 #include <filesystem>
@@ -418,6 +418,34 @@ std::string describeFailedStep(const Build::BuildStep& step)
     return text;
 }
 
+/**
+ * The error line of a step that failed, and the hint that goes with it.
+ */
+struct StepFailureReport {
+    std::string error;      ///< Ends in a newline.
+    std::string_view hint;  ///< Ends in a newline.
+};
+
+StepFailureReport reportStepFailure(const Build::FailedStep& failed)
+{
+    switch (failed.failure.kind) {
+    case Build::StepFailureKind::CannotCreateDirectory:
+        return { .error = "error: cannot create '" + printablePath(failed.failure.path) + "': " + failed.failure.code.message() + '\n',
+                 .hint = cannotWriteBuildHint(failed.failure.code) };
+    case Build::StepFailureKind::CannotStart:
+        return { .error = "error: cannot run '" + printablePath(failed.failure.path) + "': " + failed.failure.code.message() + '\n',
+                 .hint = CompilerRunHint };
+    case Build::StepFailureKind::Signalled:
+        return { .error = describeFailedStep(failed.step) + ": the compiler was stopped by signal " + std::to_string(failed.failure.status) + '\n',
+                 .hint = CompilerMemoryHint };
+    case Build::StepFailureKind::Exited:
+        return { .error = describeFailedStep(failed.step) + '\n', .hint = FixErrorsHint };
+    }
+    // Every kind is answered above, so a kind added without a message here
+    // fails the build rather than being reported as one of the others.
+    std::unreachable();
+}
+
 }  // anonymous namespace
 
 std::string renderUnsupportedStandard(const std::filesystem::path& compiler, const Project::LanguageStandard standard)
@@ -442,41 +470,21 @@ std::string renderLibraryNotBuilt(const std::string_view name)
     return text;
 }
 
-std::string renderStepFailure(const Build::FailedStep& failed)
+std::string renderStepFailures(const std::vector<Build::FailedStep>& failures)
 {
-    switch (failed.failure.kind) {
-    case Build::StepFailureKind::CannotCreateDirectory: {
-        std::string text = "error: cannot create '";
-        text += printablePath(failed.failure.path);
-        text += "': ";
-        text += failed.failure.code.message();
-        text += '\n';
-        text += cannotWriteBuildHint(failed.failure.code);
-        return text;
+    std::string text;
+    std::vector<std::string_view> hints;
+    for (const Build::FailedStep& failed : failures) {
+        const StepFailureReport report = reportStepFailure(failed);
+        text += report.error;
+        if (std::ranges::find(hints, report.hint) == hints.end()) {
+            hints.push_back(report.hint);
+        }
     }
-    case Build::StepFailureKind::CannotStart: {
-        std::string text = "error: cannot run '";
-        text += printablePath(failed.failure.path);
-        text += "': ";
-        text += failed.failure.code.message();
-        text += '\n';
-        text += CompilerRunHint;
-        return text;
+    for (const std::string_view hint : hints) {
+        text += hint;
     }
-    case Build::StepFailureKind::Signalled: {
-        std::string text = describeFailedStep(failed.step);
-        text += ": the compiler was stopped by signal ";
-        text += std::to_string(failed.failure.status);
-        text += '\n';
-        text += CompilerMemoryHint;
-        return text;
-    }
-    case Build::StepFailureKind::Exited:
-        return describeFailedStep(failed.step) + '\n' + std::string{ FixErrorsHint };
-    }
-    // Every kind is answered above, so a kind added without a message here
-    // fails the build rather than being reported as one of the others.
-    std::unreachable();
+    return text;
 }
 
 std::string renderOutputRemovalFailure(const Build::OutputRemovalFailure& failure)

@@ -1,6 +1,7 @@
 #include "command/ProjectBuild.h"
 
-#include "build/SerialBuild.h"
+#include "build/BuildSteps.h"
+#include "build/Parallelism.h"
 #include "build/StepRunner.h"
 #include "command/BuildProgress.h"
 #include "command/PrintableText.h"
@@ -79,8 +80,8 @@ const Project::Target* libraryAmong(const std::vector<Project::Target>& targets)
 }
 
 /**
- * Compile and link what @p compiles and the targets state, reporting each
- * step as it runs.
+ * Compile and link what @p compiles and the targets state, as many steps at
+ * once as the system has processors for, reporting each step as it runs.
  */
 std::expected<void, int> runBuild(const Compile::BuildSettings& settings,
                                   const std::vector<Project::TargetSources>& targets,
@@ -88,9 +89,9 @@ std::expected<void, int> runBuild(const Compile::BuildSettings& settings,
 {
     Build::ProgramStepRunner runner;
     StreamBuildReporter reporter{ std::cerr, standardErrorIsTerminal() };
-    const auto built = Build::runSerially(Build::buildSteps(compiles, Compile::planLinkCommands(settings, targets)), runner, reporter);
+    const auto built = Build::runSteps(Build::buildSteps(compiles, Compile::planLinkCommands(settings, targets)), runner, reporter, Build::availableParallelism());
     if (! built.has_value()) {
-        std::cerr << renderStepFailure(built.error());
+        std::cerr << renderStepFailures(built.error());
         return std::unexpected(1);
     }
     std::cerr << renderBuildFinished();

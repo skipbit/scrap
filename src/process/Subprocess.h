@@ -67,6 +67,10 @@ struct Completion {
  * the program, as it does for a shell's background job. Terminal runs in the
  * caller's process group; with ProcessGroup::Own it is refused.
  *
+ * Several programs may be run at once from several threads. A Terminal run
+ * changes how the whole process takes the terminal's signals, so it runs
+ * alone.
+ *
  * When a timeout is given and it passes while the program is still running,
  * or while its output is still open, the program is killed, together with its
  * process group when it has one of its own. Output past the limit is not

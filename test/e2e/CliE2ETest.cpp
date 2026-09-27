@@ -6,12 +6,14 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <array>
 #include <cctype>
 #include <cerrno>
 #include <chrono>
 #include <csignal>
 #include <cstddef>
+#include <cstring>
 #include <fcntl.h>
 #include <filesystem>
 #include <fstream>
@@ -22,10 +24,16 @@
 #include <string>
 #include <string_view>
 #include <sys/resource.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 #include <system_error>
+#include <thread>
 #include <unistd.h>
 #include <vector>
+
+#if defined(__linux__)
+#include <sched.h>
+#endif
 
 #ifndef SCRAP_BINARY_PATH
 #error "SCRAP_BINARY_PATH must be defined by the build (path to the scrap executable)"
@@ -45,6 +53,21 @@ bool isVersionBanner(const std::string& text)
 {
     static const std::regex Pattern{ R"(^scrap [0-9]+\.[0-9]+\.[0-9]+( \(.+\))?$)" };
     return std::regex_match(text, Pattern);
+}
+
+/**
+ * How many processors a build started from here may use, found as scrap
+ * finds it: the processors this thread may run on, where the system says.
+ */
+unsigned processorsForTheBuild()
+{
+#if defined(__linux__)
+    cpu_set_t allowed;
+    CPU_ZERO(&allowed);
+    return (::sched_getaffinity(0, sizeof(allowed), &allowed) == 0) ? static_cast<unsigned>(CPU_COUNT(&allowed)) : 1;
+#else
+    return std::thread::hardware_concurrency();
+#endif
 }
 
 /// A manifest that loads without error.
@@ -259,6 +282,35 @@ protected:
     {
         const auto path = _temp->writeFile("bin/" + name, "#!/bin/sh\n" + body + "\n");
         std::filesystem::permissions(path, std::filesystem::perms::owner_exec, std::filesystem::perm_options::add);
+    }
+
+    /**
+     * Make the named pipe "meeting" in the fixture directory. Opening it
+     * waits until it is open at the other end too, so two programs that open
+     * it meet there.
+     */
+    void makeMeetingPoint() const
+    {
+        ASSERT_EQ(::mkfifo((_root / "meeting").c_str(), S_IRUSR | S_IWUSR), 0) << std::strerror(errno);
+    }
+
+    /**
+     * Let go of a program still waiting at the meeting point, as one is when
+     * the build did not run the compilations at once and was stopped: opening
+     * each end in turn, without waiting, ends the wait at the other.
+     */
+    void releaseMeetingPoint() const
+    {
+        const std::filesystem::path meeting = _root / "meeting";
+        // NOLINTBEGIN(hicpp-signed-bitwise) - POSIX open() flag combination
+        const int reader = ::open(meeting.c_str(), O_RDONLY | O_NONBLOCK);
+        const int writer = ::open(meeting.c_str(), O_WRONLY | O_NONBLOCK);
+        // NOLINTEND(hicpp-signed-bitwise)
+        for (const int end : { writer, reader }) {
+            if (end >= 0) {
+                ::close(end);
+            }
+        }
     }
 
     /**
@@ -1009,7 +1061,7 @@ TEST_F(CliE2ETest, BuildReportsASourceItCannotCompile)
     EXPECT_NE(readFile("build/debug/compile_commands.json"), "");
 }
 
-TEST_F(CliE2ETest, BuildStopsAtTheFirstSourceThatFails)
+TEST_F(CliE2ETest, BuildLinksNothingOnceASourceFails)
 {
     writeFile("scrap.toml", ValidManifest);
     writeFile("src/a.cpp", MainSource);
@@ -1026,9 +1078,70 @@ TEST_F(CliE2ETest, BuildStopsAtTheFirstSourceThatFails)
     EXPECT_EQ(result.exitCode, 1);
     const std::string calls = readFile("calls.log");
     EXPECT_NE(calls.find("-c src/a.cpp"), std::string::npos) << calls;
-    EXPECT_EQ(calls.find("-c src/main.cpp"), std::string::npos) << calls;
     EXPECT_EQ(calls.find("-o build/debug/bin/app"), std::string::npos) << calls;
     EXPECT_FALSE(std::filesystem::exists(_root / "build" / "debug" / "bin" / "app"));
+}
+
+TEST_F(CliE2ETest, BuildCompilesSourcesAtTheSameTime)
+{
+    if (processorsForTheBuild() < 2) {
+        GTEST_SKIP() << "a build on one processor compiles one source at a time";
+    }
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/a.cpp", MainSource);
+    writeFile("src/main.cpp", MainSource);
+    makeMeetingPoint();
+    // Each compilation opens the meeting point and waits there for the other,
+    // so the build ends only when both compile at once.
+    makeDummy("meeting-c++",
+              "case \"$*\" in\n"
+              "  *'-c src/a.cpp'*) read -r line < meeting;;\n"
+              "  *'-c src/main.cpp'*) printf 'here\\n' > meeting;;\n"
+              "esac\n"
+              "exit 0");
+    const std::string compiler = (std::filesystem::canonical(_root) / "bin" / "meeting-c++").string();
+
+    auto result = runScrap({ "build" }, { "CXX=" + compiler }, _root);
+    releaseMeetingPoint();
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+}
+
+TEST_F(CliE2ETest, BuildReportsEverySourceThatFailedAfterWhatTheCompilerWrote)
+{
+    if (processorsForTheBuild() < 2) {
+        GTEST_SKIP() << "a build on one processor stops at the first source that fails";
+    }
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/a.cpp", MainSource);
+    writeFile("src/main.cpp", MainSource);
+    makeMeetingPoint();
+    // Both compilations are running when the first fails, so the second is
+    // waited for and fails as well.
+    makeDummy("meeting-c++",
+              "case \"$*\" in\n"
+              "  *'-c src/a.cpp'*) read -r line < meeting; printf 'src/a.cpp: error: a\\n' >&2; exit 1;;\n"
+              "  *'-c src/main.cpp'*) printf 'here\\n' > meeting; printf 'src/main.cpp: error: main\\n' >&2; exit 1;;\n"
+              "esac\n"
+              "exit 0");
+    const std::string compiler = (std::filesystem::canonical(_root) / "bin" / "meeting-c++").string();
+    const std::string sources = (std::filesystem::canonical(_root) / "src").string();
+
+    auto result = runScrap({ "build" }, { "CXX=" + compiler }, _root);
+    releaseMeetingPoint();
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    const std::string& text = result.stderrText;
+    const std::size_t firstError = std::min(text.find("error: failed to compile '" + sources + "/a.cpp' for 'app'\n"),
+                                            text.find("error: failed to compile '" + sources + "/main.cpp' for 'app'\n"));
+    ASSERT_NE(firstError, std::string::npos) << text;
+    EXPECT_NE(text.find("error: failed to compile '" + sources + "/a.cpp' for 'app'\n"), std::string::npos) << text;
+    EXPECT_NE(text.find("error: failed to compile '" + sources + "/main.cpp' for 'app'\n"), std::string::npos) << text;
+    EXPECT_LT(text.find("src/a.cpp: error: a\n"), firstError) << text;
+    EXPECT_LT(text.find("src/main.cpp: error: main\n"), firstError) << text;
+    EXPECT_TRUE(text.ends_with("'\nhint: fix the errors reported above and run the command again\n")) << text;
 }
 
 TEST_F(CliE2ETest, BuildReadsASourceNamedLikeAFileOfOptionsAsASource)

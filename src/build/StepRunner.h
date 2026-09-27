@@ -20,6 +20,8 @@ public:
 
     /**
      * @brief Carry out @p step and report what it came to.
+     *
+     * May be called from several threads at once, each for a step of its own.
      */
     [[nodiscard]] virtual StepResult run(const BuildStep& step) = 0;
 
