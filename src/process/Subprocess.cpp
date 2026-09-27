@@ -183,9 +183,10 @@ int recordAttributes(posix_spawnattr_t& attributes, ProcessGroup group, OutputCa
     if (capture == OutputCapture::Terminal) {
         // NOLINTBEGIN(misc-include-cleaner) - sigset_t, sigemptyset(), sigaddset(), SIGINT and SIGQUIT are provided by <signal.h>
         sigset_t defaults;
-        ::sigemptyset(&defaults);
-        ::sigaddset(&defaults, SIGINT);
-        ::sigaddset(&defaults, SIGQUIT);
+        // Darwin defines sigemptyset() and sigaddset() as macros, so they take no "::".
+        sigemptyset(&defaults);
+        sigaddset(&defaults, SIGINT);
+        sigaddset(&defaults, SIGQUIT);
         // NOLINTEND(misc-include-cleaner)
         return ::posix_spawnattr_setsigdefault(&attributes, &defaults);
     }
@@ -203,7 +204,7 @@ public:
         // NOLINTBEGIN(misc-include-cleaner) - sigaction(), SIG_IGN, SIGINT and SIGQUIT are provided by <signal.h>
         struct sigaction ignore { };
         ignore.sa_handler = SIG_IGN;
-        ::sigemptyset(&ignore.sa_mask);
+        sigemptyset(&ignore.sa_mask);
         ::sigaction(SIGINT, &ignore, &_interrupt);
         ::sigaction(SIGQUIT, &ignore, &_quit);
         // NOLINTEND(misc-include-cleaner)
