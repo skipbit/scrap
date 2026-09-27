@@ -57,4 +57,12 @@ struct StepResult {
     std::optional<StepFailure> failure;  ///< Why the step failed, or nothing when it succeeded.
 };
 
+/**
+ * @brief The step that failed, and why.
+ */
+struct FailedStep {
+    BuildStep step;
+    StepFailure failure;
+};
+
 }  // namespace scrap::Build

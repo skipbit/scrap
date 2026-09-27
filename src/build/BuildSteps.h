@@ -12,14 +12,6 @@
 namespace scrap::Build {
 
 /**
- * @brief The step that failed, and why.
- */
-struct FailedStep {
-    BuildStep step;
-    StepFailure failure;
-};
-
-/**
  * @brief The steps a build takes: every compilation, then every link.
  *
  * A link reads the object files the compilations write, so no link comes
@@ -34,9 +26,9 @@ struct FailedStep {
 /**
  * @brief Run @p steps, as many at once as @p parallelism allows.
  *
- * Steps start in the order given, which holds every compilation before
- * every link, as buildSteps() gives them. A link reads the object files the
- * compilations write, so no link starts before every compilation has ended.
+ * Steps start in the order given. A link reads the object files the
+ * compilations before it write, so no link starts while a compilation
+ * before it is still running.
  *
  * Once a step fails, no further step starts: the steps after it would
  * compile or link on top of an error already reported. The steps already

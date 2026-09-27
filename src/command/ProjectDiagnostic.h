@@ -1,7 +1,7 @@
 #pragma once
 
 #include "build/BuildOutput.h"
-#include "build/BuildSteps.h"
+#include "build/BuildStep.h"
 #include "command/ProjectArgument.h"
 #include "compile/CompilationDatabase.h"
 #include "project/LanguageStandard.h"

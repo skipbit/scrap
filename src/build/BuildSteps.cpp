@@ -46,7 +46,6 @@ public:
         : _steps(&steps)
         , _runner(&runner)
         , _reporter(&reporter)
-        , _compilesLeft(static_cast<std::size_t>(std::ranges::count(steps, StepKind::Compile, &BuildStep::kind)))
     {
     }
 
@@ -78,7 +77,7 @@ public:
                 }
             }
             if (step.kind == StepKind::Compile) {
-                --_compilesLeft;
+                --_compilesRunning;
             }
             _changed.notify_all();
         }
@@ -101,17 +100,21 @@ public:
 private:
     /**
      * The index of the next step to run, waiting while it is a link and a
-     * compilation has not ended; or nothing once no step is to start.
+     * compilation is running; or nothing once no step is to start.
      */
     std::optional<std::size_t> take(std::unique_lock<std::mutex>& lock)
     {
         _changed.wait(lock, [this] {
-            return stopped() || (_next == _steps->size()) || ((*_steps)[_next].kind != StepKind::Link) || (_compilesLeft == 0);
+            return stopped() || (_next == _steps->size()) || ((*_steps)[_next].kind != StepKind::Link) || (_compilesRunning == 0);
         });
         if (stopped() || (_next == _steps->size())) {
             return std::nullopt;
         }
-        return _next++;
+        const std::size_t index = _next++;
+        if ((*_steps)[index].kind == StepKind::Compile) {
+            ++_compilesRunning;
+        }
+        return index;
     }
 
     [[nodiscard]] bool stopped() const
@@ -125,7 +128,7 @@ private:
     std::mutex _mutex;
     std::condition_variable _changed;
     std::size_t _next = 0;
-    std::size_t _compilesLeft;  ///< Compilations that have not ended, started or not.
+    std::size_t _compilesRunning = 0;  ///< Compilations that have started and not ended.
     std::vector<FailedStep> _failures;
     std::exception_ptr _exception;
 };

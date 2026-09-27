@@ -2,7 +2,6 @@
 
 #include "build/BuildOutput.h"
 #include "build/BuildStep.h"
-#include "build/BuildSteps.h"
 #include "compile/CompilationDatabase.h"
 #include "project/LanguageStandard.h"
 #include "project/ManifestError.h"

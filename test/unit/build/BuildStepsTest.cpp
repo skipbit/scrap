@@ -266,6 +266,25 @@ TEST(BuildStepsTest, LinksOnceEveryCompilationHasEnded)
 }
 
 /**
+ * A compilation after a link in the given steps still runs: the link waits
+ * only for the compilations before it.
+ */
+TEST(BuildStepsTest, RunsACompilationThatComesAfterALinkInTheSteps)
+{
+    Timeline timeline;
+    ScriptedRunner runner{ timeline };
+    RecordingReporter reporter{ timeline };
+
+    const auto result
+        = runSteps({ stepFor("src/a.cpp"), stepFor("bin/app", StepKind::Link), stepFor("src/b.cpp") }, runner, reporter, 2);
+
+    EXPECT_TRUE(result.has_value());
+    EXPECT_EQ(timeline.eventsStartingWith("run ").size(), 3);
+    const auto events = reported(timeline);
+    EXPECT_LT(std::ranges::find(events, "finished src/a.cpp []"), std::ranges::find(events, "started bin/app"));
+}
+
+/**
  * With one step at a time, each step ends before the next starts.
  */
 TEST(BuildStepsTest, RunsOneStepAtATimeWhenToldTo)
