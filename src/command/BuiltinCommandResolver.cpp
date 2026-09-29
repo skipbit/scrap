@@ -211,8 +211,8 @@ CommandEntry makeCleanEntry()
 }
 
 /**
- * Create the entry for "run", which takes an optional path into the project
- * and the program's arguments after "--".
+ * Create the entry for "run", which takes an optional path into the project,
+ * whether to build for release, and the program's arguments after "--".
  */
 CommandEntry makeRunEntry()
 {
@@ -220,6 +220,7 @@ CommandEntry makeRunEntry()
         "run", "Build the project and run its executable", projectPathPositional(), [](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
         return std::make_unique<RunCommandHandler>();
     });
+    entry.spec.options.named.push_back(releaseFlag("Build and run with the release profile"));
     entry.spec.options.trailing = TrailingDef{ .name = "args", .description = "Arguments passed to the program" };
     return entry;
 }

@@ -134,7 +134,8 @@ scrap is in early alpha development. Currently implemented:
   still running are waited for
 - Removing the build output (`scrap clean`): the project's `build/`
   directory is removed with everything in it
-- Running the project (`scrap run`): the project is built and its one
+- Running the project (`scrap run`): the project is built, for release with
+  `--release`, and its one
   executable is started in the current directory, with the arguments after
   `--`. Its exit code becomes the exit code of `scrap run` (128 plus the
   signal when a signal stops it), and a build that fails exits with 101

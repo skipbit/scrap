@@ -5,7 +5,6 @@
 #include "command/ProjectArgument.h"
 #include "command/ProjectBuild.h"
 #include "command/ProjectDiagnostic.h"
-#include "compile/BuildProfile.h"
 #include "compile/CompilePlanner.h"
 #include "process/Subprocess.h"
 #include "project/Manifest.h"
@@ -61,7 +60,7 @@ int RunCommandHandler::execute(const InvocationContext& ctx)
         return 1;
     }
 
-    const auto built = buildProject(*ctx.env, *project, Compile::BuildProfile::Debug);
+    const auto built = buildProject(*ctx.env, *project, requestedProfile(ctx.options));
     if (! built.has_value()) {
         return BuildFailedExitCode;
     }

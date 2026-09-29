@@ -1413,6 +1413,33 @@ TEST_F(CliE2ETest, RunBuildsAndRunsANewProject)
         << result.stderrText;
 }
 
+TEST_F(CliE2ETest, RunBuildsAndRunsTheReleaseBuild)
+{
+    // A debug build already in place is not what runs.
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp", ProfileSource);
+    auto debug = runScrap({ "build" }, { realCompiler() }, _root, BuildTimeout);
+    ASSERT_EQ(debug.exitCode, 0) << debug.stderrText;
+
+    auto result = runScrap({ "run", "--release" }, { realCompiler() }, _root, BuildTimeout);
+
+    ASSERT_TRUE(result.exitedNormally) << result.stderrText;
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_EQ(result.stdoutText, "release\n");
+    EXPECT_NE(result.stderrText.find("Finished release build\n     Running app (build/release/bin/app)\n"), std::string::npos)
+        << result.stderrText;
+}
+
+TEST_F(CliE2ETest, HelpForRunDescribesTheReleaseProfile)
+{
+    auto result = runScrap({ "help", "run" }, {}, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 0);
+    EXPECT_NE(result.stdoutText.find("--release"), std::string::npos) << result.stdoutText;
+    EXPECT_NE(result.stdoutText.find("Build and run with the release profile\n"), std::string::npos) << result.stdoutText;
+}
+
 TEST_F(CliE2ETest, RunPassesTheArgumentsAfterTheSeparator)
 {
     writeFile("scrap.toml", ValidManifest);
