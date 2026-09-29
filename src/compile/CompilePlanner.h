@@ -1,5 +1,6 @@
 #pragma once
 
+#include "compile/BuildProfile.h"
 #include "compile/CompileCommand.h"
 #include "compile/CompilerDriver.h"
 #include "compile/LinkCommand.h"
@@ -12,9 +13,6 @@
 
 namespace scrap::Compile {
 
-/// Directory, relative to the project root, a debug build writes to.
-inline constexpr std::string_view DebugBuildDirectory = "build/debug";
-
 /**
  * @brief What every command of one build shares.
  */
@@ -24,6 +22,7 @@ struct BuildSettings {
     std::filesystem::path compiler;        ///< The compiler to run, absolute.
     CompilerDriver driver;                 ///< How that compiler takes its options.
     Project::LanguageStandard standard;    ///< The standard the manifest states.
+    BuildProfile profile;                  ///< What the compiler is asked to build for.
 };
 
 /**
@@ -38,7 +37,7 @@ struct BuildSettings {
  * A command selects the standard as the driver spells it for its compiler,
  * or by the standard's own name when that compiler cannot build it, so the
  * compilation database still names the standard the manifest states. It
- * builds for debugging with the common warnings on, keeps colour in the
+ * builds for the profile with the common warnings on, keeps colour in the
  * compiler's diagnostics where the driver knows how, and searches include/
  * for headers; the compiler passes over that directory when a project has
  * none. A source whose path starts with '-' or '@' is written as ./<path>,

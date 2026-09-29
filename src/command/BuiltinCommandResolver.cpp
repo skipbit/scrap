@@ -11,6 +11,7 @@
 #include "command/NewCommandHandler.h"
 #include "command/OptionSchema.h"
 #include "command/ParsedOptions.h"
+#include "command/ProjectBuild.h"
 #include "command/RunCommandHandler.h"
 #include "command/RuntimeEnvironment.h"
 #include "command/VersionRenderer.h"
@@ -172,13 +173,30 @@ PositionalDef projectPathPositional()
 }
 
 /**
- * Create the entry for "build", which takes an optional path into the project.
+ * The flag that asks for the release profile, described as @p description.
+ */
+OptionDef releaseFlag(std::string description)
+{
+    return OptionDef{ .longName = std::string{ ReleaseOption },
+                      .shortName = std::nullopt,
+                      .type = OptionValueType::Bool,
+                      .required = false,
+                      .description = std::move(description),
+                      .defaultValue = std::nullopt,
+                      .choices = {} };
+}
+
+/**
+ * Create the entry for "build", which takes an optional path into the project
+ * and whether to build for release.
  */
 CommandEntry makeBuildEntry()
 {
-    return makeProjectEntry("build", "Compile the project", projectPathPositional(), [](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
+    auto entry = makeProjectEntry("build", "Compile the project", projectPathPositional(), [](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
         return std::make_unique<BuildCommandHandler>();
     });
+    entry.spec.options.named.push_back(releaseFlag("Build with the release profile"));
+    return entry;
 }
 
 /**

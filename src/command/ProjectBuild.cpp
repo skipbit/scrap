@@ -4,9 +4,11 @@
 #include "build/Parallelism.h"
 #include "build/StepRunner.h"
 #include "command/BuildProgress.h"
+#include "command/ParsedOptions.h"
 #include "command/PrintableText.h"
 #include "command/ProjectDiagnostic.h"
 #include "command/RuntimeEnvironment.h"
+#include "compile/BuildProfile.h"
 #include "compile/CompilationDatabase.h"
 #include "compile/CompileCommand.h"
 #include "compile/CompilePlanner.h"
@@ -21,8 +23,10 @@
 #include <expected>  // IWYU pragma: keep
 #include <filesystem>
 #include <iostream>
+#include <string>
 #include <string_view>
 #include <utility>
+#include <variant>
 #include <vector>
 
 namespace scrap::Command {
@@ -54,14 +58,14 @@ std::string_view describeOrigin(const Toolchain::CompilerOrigin origin)
  * database is emptied so an editor stops reading the commands of targets the
  * project no longer has.
  */
-std::expected<void, int> finishWithNothingToBuild(const std::filesystem::path& databaseDirectory)
+std::expected<void, int> finishWithNothingToBuild(const std::filesystem::path& databaseDirectory, const Compile::BuildProfile profile)
 {
     const auto written = Compile::writeCompilationDatabase(databaseDirectory, {});
     if (! written.has_value()) {
         std::cerr << renderCompilationDatabaseFailure(written.error());
         return std::unexpected(1);
     }
-    std::cerr << renderBuildFinished();
+    std::cerr << renderBuildFinished(profile);
     return {};
 }
 
@@ -94,13 +98,25 @@ std::expected<void, int> runBuild(const Compile::BuildSettings& settings,
         std::cerr << renderStepFailures(built.error());
         return std::unexpected(1);
     }
-    std::cerr << renderBuildFinished();
+    std::cerr << renderBuildFinished(settings.profile);
     return {};
 }
 
 }  // anonymous namespace
 
-std::expected<std::filesystem::path, int> buildProject(const RuntimeEnvironment& env, const Project::LoadedProject& project)
+Compile::BuildProfile requestedProfile(const ParsedOptions& options)
+{
+    const auto option = options.named.find(std::string{ ReleaseOption });
+    if (option == options.named.end()) {
+        return Compile::BuildProfile::Debug;
+    }
+    const bool* const release = std::get_if<bool>(&option->second);
+    return ((release != nullptr) && *release) ? Compile::BuildProfile::Release : Compile::BuildProfile::Debug;
+}
+
+std::expected<std::filesystem::path, int> buildProject(const RuntimeEnvironment& env,
+                                                       const Project::LoadedProject& project,
+                                                       const Compile::BuildProfile profile)
 {
     // An empty declaration states that the project builds nothing, which is a
     // different answer from finding nothing where no declaration was written.
@@ -110,9 +126,9 @@ std::expected<std::filesystem::path, int> buildProject(const RuntimeEnvironment&
         return std::unexpected(1);
     }
 
-    std::filesystem::path buildDirectory{ Compile::DebugBuildDirectory };
+    std::filesystem::path buildDirectory{ Compile::buildDirectoryOf(profile) };
     if (targets.empty()) {
-        const auto finished = finishWithNothingToBuild(project.root / buildDirectory);
+        const auto finished = finishWithNothingToBuild(project.root / buildDirectory, profile);
         if (! finished.has_value()) {
             return std::unexpected(finished.error());
         }
@@ -141,7 +157,8 @@ std::expected<std::filesystem::path, int> buildProject(const RuntimeEnvironment&
         .buildDirectory = buildDirectory,
         .compiler = compiler->path,
         .driver = Compile::CompilerDriver{ Toolchain::identifyCompiler(compiler->path) },
-        .standard = project.manifest.package.standard
+        .standard = project.manifest.package.standard,
+        .profile = profile
     };
     const auto compiles = Compile::planCompileCommands(settings, *sources);
     const auto written = Compile::writeCompilationDatabase(project.root / buildDirectory, compiles);

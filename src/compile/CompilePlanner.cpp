@@ -1,5 +1,6 @@
 #include "compile/CompilePlanner.h"
 
+#include "compile/BuildProfile.h"
 #include "compile/CompileCommand.h"
 #include "compile/CompilerDriver.h"
 #include "compile/LinkCommand.h"
@@ -9,6 +10,7 @@
 #include <array>
 #include <filesystem>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -30,6 +32,24 @@ constexpr std::string_view HeaderDirectory = "include";
 /// What a debug build asks of the compiler: debugging information, no
 /// optimisation, and the common warnings.
 constexpr std::array<std::string_view, 5> DebugOptions{ "-g", "-O0", "-Wall", "-Wextra", "-Wpedantic" };
+
+/// What a release build asks of the compiler: optimisation, no assertions,
+/// and the same warnings, some of which only optimisation brings out.
+constexpr std::array<std::string_view, 5> ReleaseOptions{ "-O3", "-DNDEBUG", "-Wall", "-Wextra", "-Wpedantic" };
+
+/**
+ * The options that build for @p profile.
+ */
+std::span<const std::string_view> profileOptions(const BuildProfile profile)
+{
+    switch (profile) {
+    case BuildProfile::Debug:
+        return DebugOptions;
+    case BuildProfile::Release:
+        return ReleaseOptions;
+    }
+    std::unreachable();
+}
 
 /**
  * @p path as it goes on the command line: a relative path that starts with
@@ -64,7 +84,8 @@ std::vector<std::string> sharedCompileArguments(const BuildSettings& settings)
         settings.compiler.string(),
         settings.driver.standardOption(settings.standard).value_or(standardNameOption(settings.standard))
     };
-    arguments.insert(arguments.end(), DebugOptions.begin(), DebugOptions.end());
+    const std::span<const std::string_view> options = profileOptions(settings.profile);
+    arguments.insert(arguments.end(), options.begin(), options.end());
     if (const auto color = settings.driver.colorOption(); color.has_value()) {
         arguments.push_back(*color);
     }

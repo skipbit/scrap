@@ -79,6 +79,17 @@ constexpr std::string_view ManifestWithoutTargets = "bin = []\n\n[package]\nname
 /// The source the default layout expects, which gives a project one target.
 constexpr std::string_view MainSource = "int main() { return 0; }\n";
 
+/// A program that writes the profile it was compiled for, as NDEBUG tells it.
+constexpr std::string_view ProfileSource = "#include <cstdio>\n"
+                                           "int main()\n"
+                                           "{\n"
+                                           "#ifdef NDEBUG\n"
+                                           "    std::puts(\"release\");\n"
+                                           "#else\n"
+                                           "    std::puts(\"debug\");\n"
+                                           "#endif\n"
+                                           "}\n";
+
 /**
  * Whether @p directory or one of its parents holds a scrap.toml.
  *
@@ -577,7 +588,9 @@ TEST_F(CliE2ETest, HelpForACommandShowsItsUsage)
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
-    EXPECT_NE(result.stdoutText.find("USAGE: scrap build [path]"), std::string::npos) << result.stdoutText;
+    EXPECT_NE(result.stdoutText.find("USAGE: scrap build [OPTIONS] [path]"), std::string::npos) << result.stdoutText;
+    EXPECT_NE(result.stdoutText.find("--release"), std::string::npos) << result.stdoutText;
+    EXPECT_NE(result.stdoutText.find("Build with the release profile\n"), std::string::npos) << result.stdoutText;
 }
 
 TEST_F(CliE2ETest, HelpForAnUnknownCommandFails)
@@ -988,6 +1001,53 @@ TEST_F(CliE2ETest, BuildWritesTheCommandForEachSource)
                     "]\n");
 }
 
+TEST_F(CliE2ETest, BuildWritesTheReleaseCommandsApartFromTheDebugOnes)
+{
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp", MainSource);
+    const std::string compilerOverride = dummyCompiler();
+    const std::string compiler = (std::filesystem::canonical(_root) / "bin" / "dummy-c++").string();
+    const std::string project = std::filesystem::canonical(_root).string();
+
+    auto result = runScrap({ "build", "--release" }, { compilerOverride }, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_NE(result.stderrText.find("Linking app (build/release/bin/app)\n"), std::string::npos) << result.stderrText;
+    EXPECT_NE(result.stderrText.find("Finished release build\n"), std::string::npos) << result.stderrText;
+    EXPECT_EQ(readFile("build/release/compile_commands.json"),
+              "[\n"
+              "  {\n"
+              "    \"directory\": \""
+                  + project
+                  + "\",\n"
+                    "    \"file\": \"src/main.cpp\",\n"
+                    "    \"arguments\": [\""
+                  + compiler
+                  + "\", \"-std=c++23\", \"-O3\", \"-DNDEBUG\", \"-Wall\", \"-Wextra\", \"-Wpedantic\", \"-I\", \"include\", "
+                    "\"-c\", \"src/main.cpp\", \"-o\", "
+                    "\"build/release/obj/app/src/main.cpp.o\"],\n"
+                    "    \"output\": \"build/release/obj/app/src/main.cpp.o\"\n"
+                    "  }\n"
+                    "]\n");
+    EXPECT_FALSE(std::filesystem::exists(_root / "build" / "debug"));
+}
+
+TEST_F(CliE2ETest, BuildForReleaseEmptiesOnlyTheReleaseDatabase)
+{
+    writeFile("scrap.toml", ManifestWithoutTargets);
+    writeFile("build/debug/compile_commands.json", "kept\n");
+    std::filesystem::create_directories(_root / "empty");
+
+    auto result = runScrap({ "build", "--release" }, { "PATH=" + (_root / "empty").string() }, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_EQ(result.stderrText, "    Finished release build\n");
+    EXPECT_EQ(readFile("build/release/compile_commands.json"), "[]\n");
+    EXPECT_EQ(readFile("build/debug/compile_commands.json"), "kept\n");
+}
+
 TEST_F(CliE2ETest, NewProjectBuildsWithACompilationDatabase)
 {
     std::filesystem::create_directories(_root / "work");
@@ -1257,6 +1317,48 @@ TEST_F(CliE2ETest, BuildsAndRunsAProjectWithTheRealCompiler)
     ASSERT_TRUE(ran.exitedNormally);
     EXPECT_EQ(ran.exitCode, 0);
     EXPECT_EQ(ran.stdoutText, "Hello, world!\n");
+}
+
+TEST_F(CliE2ETest, BuildsANewProjectForReleaseApartFromDebug)
+{
+    std::filesystem::create_directories(_root / "work");
+    auto created = runScrap({ "new", "hello" }, {}, _root / "work");
+    ASSERT_EQ(created.exitCode, 0) << created.stderrText;
+    const std::filesystem::path project = _root / "work" / "hello";
+
+    auto result = runScrap({ "build", "--release" }, { realCompiler() }, project, BuildTimeout);
+
+    ASSERT_TRUE(result.exitedNormally) << result.stderrText;
+    ASSERT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_NE(result.stderrText.find("Linking hello (build/release/bin/hello)\n    Finished release build\n"), std::string::npos)
+        << result.stderrText;
+    ASSERT_TRUE(std::filesystem::is_regular_file(project / "build" / "release" / "bin" / "hello"));
+    EXPECT_FALSE(std::filesystem::exists(project / "build" / "debug"));
+
+    auto ran = runProgram({ (project / "build" / "release" / "bin" / "hello").string() }, {}, project);
+
+    ASSERT_TRUE(ran.exitedNormally);
+    EXPECT_EQ(ran.exitCode, 0);
+    EXPECT_EQ(ran.stdoutText, "Hello, world!\n");
+}
+
+TEST_F(CliE2ETest, BuildsEachProfileWithoutTouchingTheOther)
+{
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp", ProfileSource);
+
+    auto debug = runScrap({ "build" }, { realCompiler() }, _root, BuildTimeout);
+    ASSERT_EQ(debug.exitCode, 0) << debug.stderrText;
+    auto release = runScrap({ "build", "--release" }, { realCompiler() }, _root, BuildTimeout);
+    ASSERT_EQ(release.exitCode, 0) << release.stderrText;
+
+    auto ranDebug = runProgram({ (_root / "build" / "debug" / "bin" / "app").string() }, {}, _root);
+    auto ranRelease = runProgram({ (_root / "build" / "release" / "bin" / "app").string() }, {}, _root);
+
+    EXPECT_EQ(ranDebug.stdoutText, "debug\n");
+    EXPECT_EQ(ranRelease.stdoutText, "release\n");
+    EXPECT_NE(readFile("build/debug/compile_commands.json").find("\"-O0\""), std::string::npos);
+    EXPECT_NE(readFile("build/release/compile_commands.json").find("\"-O3\""), std::string::npos);
 }
 
 TEST_F(CliE2ETest, BuildsSeveralSourcesIntoOneExecutable)
