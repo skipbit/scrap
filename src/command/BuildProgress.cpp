@@ -2,6 +2,7 @@
 
 #include "build/BuildStep.h"
 #include "command/PrintableText.h"
+#include "compile/BuildProfile.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -92,9 +93,9 @@ void StreamBuildReporter::finished(const Build::BuildStep& /*step*/, const std::
     }
 }
 
-std::string renderBuildFinished()
+std::string renderBuildFinished(const Compile::BuildProfile profile)
 {
-    return alignedVerb("Finished") + " debug build\n";
+    return alignedVerb("Finished") + ' ' + std::string{ Compile::profileName(profile) } + " build\n";
 }
 
 std::string renderRunning(const std::string_view target, const std::filesystem::path& executable)

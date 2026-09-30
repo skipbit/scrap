@@ -1,5 +1,6 @@
 #include "compile/CompilePlanner.h"
 
+#include "compile/BuildProfile.h"
 #include "compile/CompileCommand.h"
 #include "compile/CompilerDriver.h"
 #include "compile/LinkCommand.h"
@@ -31,13 +32,15 @@ const CompilerIdentity Gcc13{ .family = CompilerFamily::Gcc, .version = { .major
 
 BuildSettings settingsFor(const CompilerIdentity& identity,
                           LanguageStandard standard = LanguageStandard::Cxx23,
-                          const std::filesystem::path& buildDirectory = "build/debug")
+                          const std::filesystem::path& buildDirectory = "build/debug",
+                          BuildProfile profile = BuildProfile::Debug)
 {
     return BuildSettings{ .projectRoot = ProjectRoot,
                           .buildDirectory = buildDirectory,
                           .compiler = Compiler,
                           .driver = CompilerDriver{ identity },
-                          .standard = standard };
+                          .standard = standard,
+                          .profile = profile };
 }
 
 TargetSources targetWithSources(TargetKind kind, const char* name, const char* entryPoint, std::vector<std::filesystem::path> sources)
@@ -91,6 +94,47 @@ TEST(CompilePlannerTest, CompilesASourceFromTheProjectRoot)
                                          "src/main.cpp",
                                          "-o",
                                          "build/debug/obj/hello/src/main.cpp.o" }));
+}
+
+/**
+ * A release build is optimised, leaves assertions and debugging information
+ * out, and keeps the warnings of a debug build.
+ */
+TEST(CompilePlannerTest, CompilesASourceForRelease)
+{
+    const auto commands = planCompileCommands(settingsFor(Gcc13, LanguageStandard::Cxx23, "build/release", BuildProfile::Release),
+                                              { executableWithSources("hello", "src/main.cpp", { "src/main.cpp" }) });
+
+    ASSERT_EQ(commands.size(), 1);
+    EXPECT_EQ(commands[0].arguments,
+              (std::vector<std::string>{ "/usr/bin/c++",
+                                         "-std=c++23",
+                                         "-O3",
+                                         "-DNDEBUG",
+                                         "-Wall",
+                                         "-Wextra",
+                                         "-Wpedantic",
+                                         "-fdiagnostics-color=always",
+                                         "-I",
+                                         "include",
+                                         "-c",
+                                         "src/main.cpp",
+                                         "-o",
+                                         "build/release/obj/hello/src/main.cpp.o" }));
+}
+
+/**
+ * A release build links as a debug build does.
+ */
+TEST(CompilePlannerTest, LinksForReleaseAsForDebug)
+{
+    const std::vector<TargetSources> targets{ executableWithSources("hello", "src/main.cpp", { "src/main.cpp" }) };
+
+    const auto commands = planLinkCommands(settingsFor(Gcc13, LanguageStandard::Cxx23, "build/release", BuildProfile::Release), targets);
+
+    ASSERT_EQ(commands.size(), 1);
+    EXPECT_EQ(commands[0].arguments,
+              (std::vector<std::string>{ "/usr/bin/c++", "-fdiagnostics-color=always", "build/release/obj/hello/src/main.cpp.o", "-o", "build/release/bin/hello" }));
 }
 
 /**

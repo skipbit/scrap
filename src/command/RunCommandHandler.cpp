@@ -60,7 +60,7 @@ int RunCommandHandler::execute(const InvocationContext& ctx)
         return 1;
     }
 
-    const auto built = buildProject(*ctx.env, *project);
+    const auto built = buildProject(*ctx.env, *project, requestedProfile(ctx.options));
     if (! built.has_value()) {
         return BuildFailedExitCode;
     }

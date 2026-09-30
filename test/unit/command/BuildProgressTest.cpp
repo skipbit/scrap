@@ -1,6 +1,7 @@
 #include "command/BuildProgress.h"
 
 #include "build/BuildStep.h"
+#include "compile/BuildProfile.h"
 
 #include <gtest/gtest.h>
 
@@ -13,6 +14,7 @@ using scrap::Command::printableOutput;
 using scrap::Command::renderBuildFinished;
 using scrap::Command::renderRunning;
 using scrap::Command::StreamBuildReporter;
+using scrap::Compile::BuildProfile;
 
 namespace {
 
@@ -149,11 +151,13 @@ TEST(BuildProgressTest, WritesEveryOtherSequenceAsText)
 }
 
 /**
- * A build that reached the end says so, in the same lined-up form.
+ * A build that reached the end says so, and for which profile, in the same
+ * lined-up form.
  */
 TEST(BuildProgressTest, SaysWhenTheBuildIsDone)
 {
-    EXPECT_EQ(renderBuildFinished(), "    Finished debug build\n");
+    EXPECT_EQ(renderBuildFinished(BuildProfile::Debug), "    Finished debug build\n");
+    EXPECT_EQ(renderBuildFinished(BuildProfile::Release), "    Finished release build\n");
 }
 
 /**

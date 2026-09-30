@@ -1,6 +1,6 @@
 #include "build/BuildOutput.h"
 
-#include "compile/CompilePlanner.h"
+#include "compile/BuildProfile.h"
 
 #include <filesystem>
 #include <string_view>
@@ -8,10 +8,23 @@
 
 namespace scrap::Build {
 
+namespace {
+
+/**
+ * Whether @p directory lies inside the build output directory.
+ */
+consteval bool liesInsideOutput(const std::string_view directory)
+{
+    return directory.starts_with(OutputDirectory) && (directory.size() > OutputDirectory.size()) && (directory[OutputDirectory.size()] == '/');
+}
+
+}  // anonymous namespace
+
 // clean removes what build writes only while the one lies inside the other.
-static_assert(Compile::DebugBuildDirectory.starts_with(OutputDirectory) && (Compile::DebugBuildDirectory.size() > OutputDirectory.size())
-                  && (Compile::DebugBuildDirectory[OutputDirectory.size()] == '/'),
+static_assert(liesInsideOutput(Compile::buildDirectoryOf(Compile::BuildProfile::Debug)),
               "the debug build directory must lie inside the build output directory");
+static_assert(liesInsideOutput(Compile::buildDirectoryOf(Compile::BuildProfile::Release)),
+              "the release build directory must lie inside the build output directory");
 
 std::expected<OutputRemoval, OutputRemovalFailure> removeOutput(const std::filesystem::path& directory)
 {

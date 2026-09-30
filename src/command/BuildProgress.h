@@ -2,6 +2,7 @@
 
 #include "build/BuildReporter.h"
 #include "build/BuildStep.h"
+#include "compile/BuildProfile.h"
 
 #include <filesystem>
 #include <iosfwd>
@@ -43,9 +44,9 @@ private:
 };
 
 /**
- * @brief The line that ends a debug build that succeeded.
+ * @brief The line that ends a build of @p profile that succeeded.
  */
-[[nodiscard]] std::string renderBuildFinished();
+[[nodiscard]] std::string renderBuildFinished(Compile::BuildProfile profile);
 
 /**
  * @brief The line written before an executable that was built is started.
