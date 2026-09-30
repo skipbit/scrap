@@ -1,6 +1,6 @@
 ---
 # Test-specific clang-tidy configuration
-# Inherits from parent but disables Catch2-specific warnings
+# Inherits from the parent and relaxes some checks for the tests
 
 InheritParentConfig: true
 
