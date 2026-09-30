@@ -177,13 +177,15 @@ PositionalDef projectPathPositional()
  */
 OptionDef releaseFlag(std::string description)
 {
-    return OptionDef{ .longName = std::string{ ReleaseOption },
-                      .shortName = std::nullopt,
-                      .type = OptionValueType::Bool,
-                      .required = false,
-                      .description = std::move(description),
-                      .defaultValue = std::nullopt,
-                      .choices = {} };
+    return OptionDef{
+        .longName = std::string{ ReleaseOption },
+        .shortName = std::nullopt,
+        .type = OptionValueType::Bool,
+        .required = false,
+        .description = std::move(description),
+        .defaultValue = std::nullopt,
+        .choices = {}
+    };
 }
 
 /**
