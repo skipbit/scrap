@@ -4,10 +4,7 @@
 # Not intended for standalone execution (workflow_call only).
 #
 # Each job names the compiler and standard library it builds with, covering
-# the range the README supports: GCC 13 and 15 with their own libstdc++, Clang
-# 20 and 22 with libstdc++ 13, 14 and the runner's default, and with libc++,
-# and the Apple Clang of macOS 15 and 26. Toolchains come only from the runner
-# images and the distribution's own repositories.
+# the range in the README.
 #
 # The matrix runs Release only. Debug builds are handled separately by
 # coverage jobs in pr-checks.yml and main-checks.yml.
@@ -46,29 +43,20 @@ jobs:
       matrix:
         preset: [release]
         toolchain:
-          # GCC 13 is on ubuntu-24.04, everything else on Linux on ubuntu-26.04.
-          #
-          # stdlib is the macro the standard library defines about itself,
-          # with the release where a job pins one.
+          # stdlib: the macro the standard library defines, with the release
+          # where a job pins one.
           - { name: gcc-13, os: ubuntu-24.04, cc: gcc-13, cxx: g++-13, stdlib: '_GLIBCXX_RELEASE 13' }
           - { name: gcc-15, os: ubuntu-26.04, cc: gcc-15, cxx: g++-15, stdlib: '_GLIBCXX_RELEASE 15' }
-          # The runner's default libstdc++, which most Clang users on Linux
-          # build against. Its release is reported, not asserted on: a change
-          # of image is news, not a failure.
+          # The runner's default libstdc++, whatever its release.
           - { name: clang-20, os: ubuntu-26.04, cc: clang-20, cxx: clang++-20, stdlib: _GLIBCXX_RELEASE }
           - { name: clang-22, os: ubuntu-26.04, cc: clang-22, cxx: clang++-22, stdlib: _GLIBCXX_RELEASE }
-          # The rest of the libstdc++ range. Which release Clang uses does not
-          # follow from its version, so each one is pinned.
           - { name: clang-20-libstdc++-13, os: ubuntu-26.04, cc: clang-20, cxx: clang++-20, stdlib: '_GLIBCXX_RELEASE 13', packages: libstdc++-13-dev, flags: '--gcc-install-dir=/usr/lib/gcc/x86_64-linux-gnu/13' }
           - { name: clang-20-libstdc++-14, os: ubuntu-26.04, cc: clang-20, cxx: clang++-20, stdlib: '_GLIBCXX_RELEASE 14', packages: libstdc++-14-dev, flags: '--gcc-install-dir=/usr/lib/gcc/x86_64-linux-gnu/14' }
           - { name: clang-22-libstdc++-13, os: ubuntu-26.04, cc: clang-22, cxx: clang++-22, stdlib: '_GLIBCXX_RELEASE 13', packages: libstdc++-13-dev, flags: '--gcc-install-dir=/usr/lib/gcc/x86_64-linux-gnu/13' }
           - { name: clang-22-libstdc++-14, os: ubuntu-26.04, cc: clang-22, cxx: clang++-22, stdlib: '_GLIBCXX_RELEASE 14', packages: libstdc++-14-dev, flags: '--gcc-install-dir=/usr/lib/gcc/x86_64-linux-gnu/14' }
-          # libc++ at both ends of the Clang range. The two releases conflict
-          # as packages, so each job installs its own.
+          # The two libc++ releases conflict as packages.
           - { name: clang-20-libc++, os: ubuntu-26.04, cc: clang-20, cxx: clang++-20, stdlib: _LIBCPP_VERSION, packages: 'libc++-20-dev libc++abi-20-dev', flags: '-stdlib=libc++' }
           - { name: clang-22-libc++, os: ubuntu-26.04, cc: clang-22, cxx: clang++-22, stdlib: _LIBCPP_VERSION, packages: 'libc++-22-dev libc++abi-22-dev', flags: '-stdlib=libc++' }
-          # The Apple Clang that ships with each OS release, against the libc++
-          # that comes with it.
           - { name: macos-15, os: macos-15, stdlib: _LIBCPP_VERSION }
           - { name: macos-26, os: macos-26, stdlib: _LIBCPP_VERSION }
     runs-on: ${{ matrix.toolchain.os }}
@@ -137,9 +125,6 @@ jobs:
           if [ "$RUNNER_OS" = macOS ]; then xcrun --show-sdk-version; fi
           cmake --version
 
-      # The preprocessor's own answer, rather than the include search path:
-      # this is the release the build compiles against, with the flags the
-      # build uses. A job that names a release fails unless it gets that one.
       - name: Check the standard library the compiler sees
         run: |
           read -r -a flags <<< "${CXXFLAGS:-}"
@@ -167,9 +152,7 @@ jobs:
           fi
           CMAKE_BUILD_PARALLEL_LEVEL=$build_jobs CTEST_PARALLEL_LEVEL=$jobs cmake --workflow --preset ${{ matrix.preset }}
 
-      # The name says which compiler, and CMake's own record of the one it
-      # chose is the evidence. The macOS jobs name an OS release and take the
-      # compiler that comes with it, so they have nothing to compare.
+      # Skipped on macOS, whose jobs use the compiler of the OS.
       - name: Check the compiler the build used
         if: inputs.build-system == 'cmake' && matrix.toolchain.cxx
         run: |
@@ -180,9 +163,8 @@ jobs:
           fi
           echo "the build used $used"
 
-      # CMake ignores CXXFLAGS and LDFLAGS once the cache sets what they
-      # initialise, and the build is green either way, so what the cache holds
-      # is read back.
+      # CMake ignores CXXFLAGS and LDFLAGS once cached, and the build passes
+      # either way.
       - name: Check the flags reached the build
         if: inputs.build-system == 'cmake' && matrix.toolchain.flags
         run: |
