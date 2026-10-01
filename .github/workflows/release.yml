@@ -93,9 +93,9 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/.ccache
-          key: ccache-ubuntu-24.04-gcc-release-${{ github.run_id }}
+          key: ccache-ubuntu-24.04-gcc-13-release-${{ github.run_id }}
           restore-keys: |
-            ccache-ubuntu-24.04-gcc-release-
+            ccache-ubuntu-24.04-gcc-13-release-
 
       # CCACHE_DIR is set here rather than in env:, which does not expand the
       # tilde, so the cache lands where actions/cache saved it.
