@@ -165,7 +165,11 @@ scrap is in early alpha development. Currently implemented:
 
 ### Prerequisites
 
-- C++23 compatible compiler (GCC 13+, Clang 16+, MSVC 2022+)
+- A C++23 compiler and standard library. On Linux:
+  - GCC 13-15 with the libstdc++ it is paired with
+  - Clang 20-22 with libstdc++ 13, 14 or 15, or with libc++ 20 or 22
+
+  On macOS, the Apple Clang shipped with macOS 15 or 26.
 - CMake 3.20 or higher (3.25 or higher for the presets used below)
 - Git
 
