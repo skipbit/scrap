@@ -30,7 +30,7 @@
             "description": "Debug build instrumented for gcov",
             "inherits": "debug",
             "cacheVariables": {
-                "CMAKE_CXX_FLAGS_INIT": "--coverage",
+                "CMAKE_CXX_FLAGS_INIT": "--coverage -fprofile-update=atomic",
                 "CMAKE_EXE_LINKER_FLAGS_INIT": "--coverage"
             }
         },
