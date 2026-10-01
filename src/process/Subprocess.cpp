@@ -127,6 +127,24 @@ std::mutex& startingPrograms()
 #endif
 
 /**
+ * Describe to posix_spawn the directory the child starts in.
+ *
+ * @return 0, or the error that kept the action from being recorded.
+ */
+#if defined(__APPLE__) && (__MAC_OS_X_VERSION_MIN_REQUIRED >= 160000)
+// macOS 26, which the SDK's availability attributes call 16.0, replaces the _np call.
+int recordWorkingDirectory(posix_spawn_file_actions_t& actions, const char* directory)
+{
+    return ::posix_spawn_file_actions_addchdir(&actions, directory);
+}
+#else
+int recordWorkingDirectory(posix_spawn_file_actions_t& actions, const char* directory)
+{
+    return ::posix_spawn_file_actions_addchdir_np(&actions, directory);
+}
+#endif
+
+/**
  * Describe to posix_spawn where the child's streams come from when they are
  * read back.
  *
@@ -164,7 +182,7 @@ int recordActions(posix_spawn_file_actions_t& actions,
         }
     }
     if (! workingDirectory.empty()) {
-        return ::posix_spawn_file_actions_addchdir_np(&actions, workingDirectory.c_str());
+        return recordWorkingDirectory(actions, workingDirectory.c_str());
     }
     return 0;
 }
