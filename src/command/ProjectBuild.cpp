@@ -159,18 +159,6 @@ std::vector<Project::TargetSources> sourcesOf(const std::vector<Project::TargetS
 }
 
 /**
- * The commands that compile for the targets among @p chosen.
- */
-std::vector<Compile::CompileCommand> compilesOf(const std::vector<Compile::CompileCommand>& compiles, const std::vector<Project::Target>& chosen)
-{
-    std::vector<Compile::CompileCommand> kept;
-    std::ranges::copy_if(compiles, std::back_inserter(kept), [&](const Compile::CompileCommand& each) {
-        return namesOneOf(chosen, each.target);
-    });
-    return kept;
-}
-
-/**
  * Compile and link what @p compiles and the targets state, as many steps at
  * once as the system has processors for, reporting each step as it runs.
  */
@@ -279,7 +267,8 @@ std::expected<std::filesystem::path, int> buildProject(const RuntimeEnvironment&
 
     // The database covers every target, so it does not change with the one
     // asked for; only the targets chosen are compiled and linked.
-    const auto built = runBuild(settings, sourcesOf(*sources, *chosen), compilesOf(compiles, *chosen));
+    const auto chosenSources = sourcesOf(*sources, *chosen);
+    const auto built = runBuild(settings, chosenSources, Compile::planCompileCommands(settings, chosenSources));
     if (! built.has_value()) {
         return std::unexpected(built.error());
     }

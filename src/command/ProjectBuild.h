@@ -20,9 +20,6 @@ inline constexpr std::string_view ReleaseOption = "release";
 /// The option that names the one target scrap build builds.
 inline constexpr std::string_view TargetOption = "target";
 
-/// The option that names the executable scrap run starts.
-inline constexpr std::string_view BinOption = "bin";
-
 /**
  * @brief The profile the options of a command ask for: release when
  *        ReleaseOption is given, debug otherwise.

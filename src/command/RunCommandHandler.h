@@ -2,7 +2,12 @@
 
 #include "command/CommandHandler.h"
 
+#include <string_view>
+
 namespace scrap::Command {
+
+/// The option that names the executable scrap run starts.
+inline constexpr std::string_view BinOption = "bin";
 
 /**
  * @brief Handler for "scrap run [<path>] [--release] [--bin <name>] [-- <args>...]".
