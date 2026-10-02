@@ -2,7 +2,10 @@
 
 #include "project/Manifest.h"
 
+#include <algorithm>
 #include <filesystem>
+#include <optional>
+#include <string_view>
 #include <system_error>
 #include <vector>
 
@@ -24,6 +27,18 @@ std::vector<Target> resolveTargets(const std::filesystem::path& projectRoot, con
     }
 
     return { Target{ .kind = TargetKind::Executable, .name = manifest.package.name, .entryPoint = entryPoint } };
+}
+
+/**
+ * Return the target of that name, or nothing when there is none.
+ */
+std::optional<std::vector<Target>> targetsToBuild(const std::vector<Target>& targets, const std::string_view name)
+{
+    const auto found = std::ranges::find(targets, name, &Target::name);
+    if (found == targets.end()) {
+        return std::nullopt;
+    }
+    return std::vector<Target>{ *found };
 }
 
 }  // namespace scrap::Project

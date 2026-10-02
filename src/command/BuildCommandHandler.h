@@ -5,7 +5,7 @@
 namespace scrap::Command {
 
 /**
- * @brief Handler for "scrap build [<path>]".
+ * @brief Handler for "scrap build [<path>] [--release] [--target <name>]".
  *
  * Loads the project that the path, or the working directory when no path is
  * given, belongs to, decides what it builds, and writes the command for each

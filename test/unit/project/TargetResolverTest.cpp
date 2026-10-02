@@ -6,6 +6,8 @@
 
 #include <gtest/gtest.h>
 
+#include <vector>
+
 using namespace scrap::Project;
 using scrap::TestSupport::TempDirectory;
 
@@ -117,4 +119,36 @@ TEST(TargetResolverTest, ReturnsADeclaredEntryPointThatIsNotOnDisk)
 
     ASSERT_EQ(targets.size(), 1);
     EXPECT_EQ(targets[0].entryPoint, "src/typo.cpp");
+}
+
+/**
+ * A build of one target needs that target and none of the others.
+ */
+TEST(TargetResolverTest, BuildsOnlyTheTargetAskedFor)
+{
+    const std::vector<Target> targets{
+        Target{ .kind = TargetKind::Executable, .name = "app", .entryPoint = "src/main.cpp" },
+        Target{ .kind = TargetKind::Executable, .name = "tool", .entryPoint = "src/tool.cpp" },
+    };
+
+    const auto chosen = targetsToBuild(targets, "tool");
+
+    ASSERT_TRUE(chosen.has_value());
+    ASSERT_EQ(chosen->size(), 1);
+    EXPECT_EQ(chosen->front().name, "tool");
+    EXPECT_EQ(chosen->front().entryPoint, "src/tool.cpp");
+}
+
+/**
+ * A name no target has is answered with nothing, so the caller can report it
+ * rather than build the wrong thing.
+ */
+TEST(TargetResolverTest, FindsNothingToBuildForANameNoTargetHas)
+{
+    const std::vector<Target> targets{
+        Target{ .kind = TargetKind::Executable, .name = "app", .entryPoint = "src/main.cpp" },
+    };
+
+    EXPECT_FALSE(targetsToBuild(targets, "ap").has_value());
+    EXPECT_FALSE(targetsToBuild(targets, "").has_value());
 }

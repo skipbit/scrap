@@ -329,16 +329,55 @@ std::string renderNoExecutableToRun(const std::filesystem::path& projectRoot)
     return text;
 }
 
-std::string renderSeveralExecutablesToRun(const std::filesystem::path& projectRoot, const std::vector<std::string>& names)
+namespace {
+
+/**
+ * The quoted project root, followed by the names of @p names as the manifest
+ * states them, when there are any.
+ */
+std::string rootAndNames(const std::filesystem::path& projectRoot, const std::vector<std::string>& names)
 {
-    std::string text = "error: more than one executable to run in '";
+    std::string text = "'";
     text += printablePath(projectRoot);
-    text += "':";
+    text += "'";
     for (std::size_t index = 0; index < names.size(); ++index) {
-        text += (index == 0) ? " " : ", ";
+        text += (index == 0) ? ": " : ", ";
         text += printableName(names[index]);
     }
-    text += "\nhint: run 'scrap build' and start one of them from the build directory\n";
+    return text;
+}
+
+}  // anonymous namespace
+
+std::string renderSeveralExecutablesToRun(const std::filesystem::path& projectRoot, const std::vector<std::string>& names)
+{
+    std::string text = "error: more than one executable to run in ";
+    text += rootAndNames(projectRoot, names);
+    text += "\nhint: pass --bin with one of them\n";
+    return text;
+}
+
+std::string renderNoTargetNamed(const std::filesystem::path& projectRoot,
+                                const std::string_view requested,
+                                const std::vector<std::string>& names)
+{
+    std::string text = "error: no target named '";
+    text += printableEcho(requested);
+    text += "' in ";
+    text += rootAndNames(projectRoot, names);
+    text += "\nhint: pass one of the targets listed, or omit --target to build them all\n";
+    return text;
+}
+
+std::string renderNoExecutableNamed(const std::filesystem::path& projectRoot,
+                                    const std::string_view requested,
+                                    const std::vector<std::string>& names)
+{
+    std::string text = "error: no executable named '";
+    text += printableEcho(requested);
+    text += "' in ";
+    text += rootAndNames(projectRoot, names);
+    text += "\nhint: pass one of the executables listed\n";
     return text;
 }
 

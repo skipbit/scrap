@@ -131,12 +131,13 @@ scrap is in early alpha development. Currently implemented:
   each executable is linked, as many commands at once as there are
   processors the build may run on, with `compile_commands.json` written
   beside them. Once a command fails no further one starts, and the ones
-  still running are waited for
+  still running are waited for. `--target <name>` builds only that target,
+  while `compile_commands.json` still describes every target
 - Removing the build output (`scrap clean`): the project's `build/`
   directory is removed with everything in it
-- Running the project (`scrap run`): the project is built, for release with
-  `--release`, and its one
-  executable is started in the current directory, with the arguments after
+- Running the project (`scrap run`): the executable named by `--bin`, or
+  the project's one executable, is built, for release with `--release`, and
+  started in the current directory, with the arguments after
   `--`. Its exit code becomes the exit code of `scrap run` (128 plus the
   signal when a signal stops it), and a build that fails exits with 101
   without starting anything. A failed build

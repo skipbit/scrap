@@ -26,7 +26,9 @@ using scrap::Command::renderCompilationDatabaseFailure;
 using scrap::Command::renderExecutableNotStarted;
 using scrap::Command::renderLibraryNotBuilt;
 using scrap::Command::renderNoCompilerFound;
+using scrap::Command::renderNoExecutableNamed;
 using scrap::Command::renderNoExecutableToRun;
+using scrap::Command::renderNoTargetNamed;
 using scrap::Command::renderNoTargetToBuild;
 using scrap::Command::renderOutputRemovalFailure;
 using scrap::Command::renderProjectError;
@@ -819,7 +821,55 @@ TEST(ProjectDiagnosticTest, RendersAProjectWithMoreThanOneExecutableToRun)
 {
     EXPECT_EQ(renderSeveralExecutablesToRun("/home/me/work/hello", { "app", "tool", "bench" }),
               "error: more than one executable to run in '/home/me/work/hello': app, tool, bench\n"
-              "hint: run 'scrap build' and start one of them from the build directory\n");
+              "hint: pass --bin with one of them\n");
+}
+
+/**
+ * A target asked for by a name the project lacks is named as typed, with the
+ * targets there are to choose from.
+ */
+TEST(ProjectDiagnosticTest, RendersATargetNameTheProjectLacks)
+{
+    EXPECT_EQ(renderNoTargetNamed("/home/me/work/hello", "tol", { "app", "tool" }),
+              "error: no target named 'tol' in '/home/me/work/hello': app, tool\n"
+              "hint: pass one of the targets listed, or omit --target to build them all\n");
+}
+
+/**
+ * A project that declares no targets has none to list.
+ */
+TEST(ProjectDiagnosticTest, RendersATargetNameInAProjectWithNoTargets)
+{
+    EXPECT_EQ(renderNoTargetNamed("/home/me/work/hello", "app", {}),
+              "error: no target named 'app' in '/home/me/work/hello'\n"
+              "hint: pass one of the targets listed, or omit --target to build them all\n");
+}
+
+/**
+ * The name comes from the command line, so a long one is cut as other values
+ * from outside are, and a control character reaches the terminal as text.
+ */
+TEST(ProjectDiagnosticTest, ShortensAndEscapesATargetNameFromTheCommandLine)
+{
+    const std::string longName(70, 'x');
+
+    EXPECT_EQ(renderNoTargetNamed("/p", longName, { "app" }),
+              "error: no target named '" + std::string(64, 'x') + "...' in '/p': app\n"
+                                                                  "hint: pass one of the targets listed, or omit --target to build them all\n");
+    EXPECT_EQ(renderNoTargetNamed("/p", "a\x1b[31m", { "app" }),
+              "error: no target named 'a\\x1B[31m' in '/p': app\n"
+              "hint: pass one of the targets listed, or omit --target to build them all\n");
+}
+
+/**
+ * An executable asked for by a name the project lacks lists the executables,
+ * which leaves out a library of the name asked for.
+ */
+TEST(ProjectDiagnosticTest, RendersAnExecutableNameTheProjectLacks)
+{
+    EXPECT_EQ(renderNoExecutableNamed("/home/me/work/hello", "mylib", { "app", "tool" }),
+              "error: no executable named 'mylib' in '/home/me/work/hello': app, tool\n"
+              "hint: pass one of the executables listed\n");
 }
 
 /**

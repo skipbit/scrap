@@ -189,8 +189,25 @@ OptionDef releaseFlag(std::string description)
 }
 
 /**
- * Create the entry for "build", which takes an optional path into the project
- * and whether to build for release.
+ * The option @p name that takes the name of a target, described as
+ * @p description.
+ */
+OptionDef targetNameOption(const std::string_view name, std::string description)
+{
+    return OptionDef{
+        .longName = std::string{ name },
+        .shortName = std::nullopt,
+        .type = OptionValueType::String,
+        .required = false,
+        .description = std::move(description),
+        .defaultValue = std::nullopt,
+        .choices = {}
+    };
+}
+
+/**
+ * Create the entry for "build", which takes an optional path into the project,
+ * whether to build for release, and the one target to build.
  */
 CommandEntry makeBuildEntry()
 {
@@ -198,6 +215,7 @@ CommandEntry makeBuildEntry()
         return std::make_unique<BuildCommandHandler>();
     });
     entry.spec.options.named.push_back(releaseFlag("Build with the release profile"));
+    entry.spec.options.named.push_back(targetNameOption(TargetOption, "Build only this target"));
     return entry;
 }
 
@@ -214,7 +232,8 @@ CommandEntry makeCleanEntry()
 
 /**
  * Create the entry for "run", which takes an optional path into the project,
- * whether to build for release, and the program's arguments after "--".
+ * whether to build for release, the executable to run, and the program's
+ * arguments after "--".
  */
 CommandEntry makeRunEntry()
 {
@@ -223,6 +242,7 @@ CommandEntry makeRunEntry()
         return std::make_unique<RunCommandHandler>();
     });
     entry.spec.options.named.push_back(releaseFlag("Build and run with the release profile"));
+    entry.spec.options.named.push_back(targetNameOption(BinOption, "Run this executable"));
     entry.spec.options.trailing = TrailingDef{ .name = "args", .description = "Arguments passed to the program" };
     return entry;
 }
