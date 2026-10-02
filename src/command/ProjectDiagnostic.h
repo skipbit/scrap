@@ -90,6 +90,9 @@ namespace scrap::Command {
  * @brief Describe a target asked for by a name the project has no target of,
  *        and what to do next.
  *
+ * A project that declares no targets has none to choose among, so leaving
+ * out --target is the next step.
+ *
  * @param projectRoot Directory the manifest was read from.
  * @param requested The name given on the command line.
  * @param names The project's targets, in the order the project states them.

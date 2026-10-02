@@ -371,6 +371,12 @@ std::string renderNoTargetNamed(const std::filesystem::path& projectRoot,
     text += printableEcho(requested);
     text += "' in ";
     text += rootAndNames(projectRoot, names);
+    if (names.empty()) {
+        text += "\nhint: omit --target, since ";
+        text += Project::ManifestFileName;
+        text += " declares no targets\n";
+        return text;
+    }
     text += "\nhint: pass one of the targets listed, or omit --target to build them all\n";
     return text;
 }

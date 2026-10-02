@@ -1735,6 +1735,36 @@ TEST_F(CliE2ETest, RunReportsAProjectWithNoExecutable)
     EXPECT_FALSE(std::filesystem::exists(_root / "build"));
 }
 
+TEST_F(CliE2ETest, RunReportsAProjectWithNoExecutableWhateverItIsAskedFor)
+{
+    writeFile("scrap.toml", "[package]\nname = \"app\"\nversion = \"0.1.0\"\n\n[[lib]]\nname = \"core\"\n");
+    writeFile("src/core.cpp", "int answer() { return 42; }\n");
+    const std::string root = std::filesystem::canonical(_root).string();
+
+    auto result = runScrap({ "run", "--bin", "core" }, { dummyCompiler() }, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_EQ(result.stderrText,
+              "error: no executable to run in '" + root + "'\n"
+                                                          "hint: add a [[bin]] section to scrap.toml, or create src/main.cpp\n");
+    EXPECT_FALSE(std::filesystem::exists(_root / "build"));
+}
+
+TEST_F(CliE2ETest, BuildReportsATargetNameInAProjectWithNoTargets)
+{
+    writeFile("scrap.toml", ManifestWithoutTargets);
+    const std::string root = std::filesystem::canonical(_root).string();
+
+    auto result = runScrap({ "build", "--target", "app" }, { dummyCompiler() }, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_EQ(result.stderrText,
+              "error: no target named 'app' in '" + root + "'\n"
+                                                           "hint: omit --target, since scrap.toml declares no targets\n");
+}
+
 TEST_F(CliE2ETest, RunReportsAProjectWithMoreThanOneExecutable)
 {
     writeFile("scrap.toml",

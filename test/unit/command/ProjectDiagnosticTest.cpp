@@ -918,13 +918,14 @@ TEST(ProjectDiagnosticTest, RendersATargetNameTheProjectLacks)
 }
 
 /**
- * A project that declares no targets has none to list.
+ * A project that declares no targets has none to list, so the hint is to
+ * leave out --target.
  */
 TEST(ProjectDiagnosticTest, RendersATargetNameInAProjectWithNoTargets)
 {
     EXPECT_EQ(renderNoTargetNamed("/home/me/work/hello", "app", {}),
               "error: no target named 'app' in '/home/me/work/hello'\n"
-              "hint: pass one of the targets listed, or omit --target to build them all\n");
+              "hint: omit --target, since scrap.toml declares no targets\n");
 }
 
 /**
