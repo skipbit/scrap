@@ -36,10 +36,13 @@ inline constexpr std::string_view DefaultEntryPoint = "src/main.cpp";
 /**
  * @brief Decide which of a project's targets a build of one of them needs.
  *
+ * An executable uses the library of its project, so a build of one needs
+ * the library too.
+ *
  * @param targets The project's targets, as resolveTargets() returned them.
  * @param name The target asked for.
- * @return The target named @p name, or nothing when the project has no
- *   target of that name.
+ * @return The target named @p name, followed by the library it uses, if
+ *   any; or nothing when the project has no target of that name.
  */
 [[nodiscard]] std::optional<std::vector<Target>> targetsToBuild(const std::vector<Target>& targets, std::string_view name);
 

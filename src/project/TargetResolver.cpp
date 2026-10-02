@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <iterator>
 #include <optional>
 #include <string_view>
 #include <system_error>
@@ -30,7 +31,8 @@ std::vector<Target> resolveTargets(const std::filesystem::path& projectRoot, con
 }
 
 /**
- * Return the target of that name, or nothing when there is none.
+ * Return the target of that name with the library it uses, or nothing when
+ * there is no target of that name.
  */
 std::optional<std::vector<Target>> targetsToBuild(const std::vector<Target>& targets, const std::string_view name)
 {
@@ -38,7 +40,13 @@ std::optional<std::vector<Target>> targetsToBuild(const std::vector<Target>& tar
     if (found == targets.end()) {
         return std::nullopt;
     }
-    return std::vector<Target>{ *found };
+    std::vector<Target> needed{ *found };
+    if (found->kind == TargetKind::Executable) {
+        std::ranges::copy_if(targets, std::back_inserter(needed), [](const Target& target) {
+            return target.kind == TargetKind::Library;
+        });
+    }
+    return needed;
 }
 
 }  // namespace scrap::Project

@@ -506,13 +506,31 @@ std::string renderUnsupportedStandard(const std::filesystem::path& compiler, con
     return text;
 }
 
-std::string renderLibraryNotBuilt(const std::string_view name)
+std::string renderSeveralLibraries()
 {
-    std::string text = "error: building the library '";
+    return "error: only one [[lib]] is supported per project\n"
+           "hint: build the other libraries as projects of their own\n";
+}
+
+std::string renderLibraryWithoutSources(const std::string_view name)
+{
+    std::string text = "error: the library '";
     text += printableName(name);
-    text += "' is not supported yet\nhint: remove the [[lib]] section from ";
-    text += Project::ManifestFileName;
-    text += " to build its sources into the executable\n";
+    text += "' has no sources\nhint: add sources under src/, or name one with src\n";
+    return text;
+}
+
+/**
+ * The archiver's name is written as a path, since the compiler may answer
+ * with one.
+ */
+std::string renderArchiverNotFound(const std::string_view archiver, const std::filesystem::path& compiler)
+{
+    std::string text = "error: cannot find the archiver '";
+    text += printablePath(std::filesystem::path{ archiver });
+    text += "' that '";
+    text += printablePath(compiler);
+    text += "' uses\nhint: install it, or set CXX to another compiler\n";
     return text;
 }
 

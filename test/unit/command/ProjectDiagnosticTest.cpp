@@ -22,9 +22,10 @@ using scrap::Build::OutputRemovalProblem;
 using scrap::Build::StepFailure;
 using scrap::Build::StepFailureKind;
 using scrap::Build::StepKind;
+using scrap::Command::renderArchiverNotFound;
 using scrap::Command::renderCompilationDatabaseFailure;
 using scrap::Command::renderExecutableNotStarted;
-using scrap::Command::renderLibraryNotBuilt;
+using scrap::Command::renderLibraryWithoutSources;
 using scrap::Command::renderNoCompilerFound;
 using scrap::Command::renderNoExecutableNamed;
 using scrap::Command::renderNoExecutableToRun;
@@ -33,6 +34,7 @@ using scrap::Command::renderNoTargetToBuild;
 using scrap::Command::renderOutputRemovalFailure;
 using scrap::Command::renderProjectError;
 using scrap::Command::renderSeveralExecutablesToRun;
+using scrap::Command::renderSeveralLibraries;
 using scrap::Command::renderSourceScanFailure;
 using scrap::Command::renderStepFailures;
 using scrap::Command::renderUnsupportedStandard;
@@ -812,13 +814,36 @@ TEST(ProjectDiagnosticTest, RendersAStandardTheCompilerCannotBuild)
 }
 
 /**
- * A library is named with what removing its declaration would do.
+ * A second library is reported without naming either, since the fix is to
+ * move the others out, whichever they are.
  */
-TEST(ProjectDiagnosticTest, RendersALibraryItDoesNotBuild)
+TEST(ProjectDiagnosticTest, RendersSeveralLibraries)
 {
-    EXPECT_EQ(renderLibraryNotBuilt("core"),
-              "error: building the library 'core' is not supported yet\n"
-              "hint: remove the [[lib]] section from scrap.toml to build its sources into the executable\n");
+    EXPECT_EQ(renderSeveralLibraries(),
+              "error: only one [[lib]] is supported per project\n"
+              "hint: build the other libraries as projects of their own\n");
+}
+
+/**
+ * A library with nothing to build it from is named as the manifest states
+ * it.
+ */
+TEST(ProjectDiagnosticTest, RendersALibraryWithoutSources)
+{
+    EXPECT_EQ(renderLibraryWithoutSources("core"),
+              "error: the library 'core' has no sources\n"
+              "hint: add sources under src/, or name one with src\n");
+}
+
+/**
+ * An archiver that cannot be found is named as the compiler named it, with
+ * the compiler that named it.
+ */
+TEST(ProjectDiagnosticTest, RendersAnArchiverItCannotFind)
+{
+    EXPECT_EQ(renderArchiverNotFound("llvm-ar", "/usr/bin/clang++"),
+              "error: cannot find the archiver 'llvm-ar' that '/usr/bin/clang++' uses\n"
+              "hint: install it, or set CXX to another compiler\n");
 }
 
 /**

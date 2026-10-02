@@ -140,6 +140,30 @@ TEST(TargetResolverTest, BuildsOnlyTheTargetAskedFor)
 }
 
 /**
+ * A build of an executable needs the library of its project as well, and a
+ * build of the library needs nothing else.
+ */
+TEST(TargetResolverTest, BuildsTheLibraryAnExecutableUses)
+{
+    const std::vector<Target> targets{
+        Target{ .kind = TargetKind::Executable, .name = "app", .entryPoint = "src/main.cpp" },
+        Target{ .kind = TargetKind::Executable, .name = "tool", .entryPoint = "src/tool.cpp" },
+        Target{ .kind = TargetKind::Library, .name = "core", .entryPoint = {} },
+    };
+
+    const auto forTool = targetsToBuild(targets, "tool");
+    const auto forCore = targetsToBuild(targets, "core");
+
+    ASSERT_TRUE(forTool.has_value());
+    ASSERT_EQ(forTool->size(), 2);
+    EXPECT_EQ((*forTool)[0].name, "tool");
+    EXPECT_EQ((*forTool)[1].name, "core");
+    ASSERT_TRUE(forCore.has_value());
+    ASSERT_EQ(forCore->size(), 1);
+    EXPECT_EQ(forCore->front().name, "core");
+}
+
+/**
  * A name no target has is answered with nothing, so the caller can report it
  * rather than build the wrong thing.
  */

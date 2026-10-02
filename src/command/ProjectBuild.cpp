@@ -8,9 +8,9 @@
 #include "command/PrintableText.h"
 #include "command/ProjectDiagnostic.h"
 #include "command/RuntimeEnvironment.h"
+#include "compile/ArchiveCommand.h"
 #include "compile/BuildProfile.h"
 #include "compile/CompilationDatabase.h"
-#include "compile/CompileCommand.h"
 #include "compile/CompilePlanner.h"
 #include "compile/CompilerDriver.h"
 #include "project/Manifest.h"
@@ -18,6 +18,7 @@
 #include "project/SourceCollector.h"
 #include "project/TargetResolver.h"
 #include "toolchain/CompilerIdentity.h"
+#include "toolchain/SystemArchiver.h"
 #include "toolchain/SystemCompiler.h"
 
 #include <algorithm>
@@ -73,17 +74,47 @@ std::expected<void, int> finishWithNothingToBuild(const std::filesystem::path& d
 }
 
 /**
- * The first library among @p targets, or nothing when they are all
- * executables.
+ * The sources of each of @p targets. A source directory that cannot be read,
+ * or a library left with nothing to build it from, is reported.
  */
-const Project::Target* libraryAmong(const std::vector<Project::Target>& targets)
+std::expected<std::vector<Project::TargetSources>, int> collectSources(const Project::LoadedProject& project,
+                                                                       const std::vector<Project::Target>& targets)
 {
-    for (const Project::Target& target : targets) {
-        if (target.kind == Project::TargetKind::Library) {
-            return &target;
+    auto sources = Project::collectSources(project.root, targets);
+    if (! sources.has_value()) {
+        std::cerr << renderSourceScanFailure(sources.error());
+        return std::unexpected(1);
+    }
+    for (const Project::TargetSources& each : *sources) {
+        if ((each.target.kind == Project::TargetKind::Library) && each.sources.empty()) {
+            std::cerr << renderLibraryWithoutSources(each.target.name);
+            return std::unexpected(1);
         }
     }
-    return nullptr;
+    return std::move(*sources);
+}
+
+/**
+ * The commands that archive the libraries among @p targets, with the
+ * archiver the compiler names. An archiver that cannot be found is reported;
+ * without a library, none is looked for.
+ */
+std::expected<std::vector<Compile::ArchiveCommand>, int> planArchives(const RuntimeEnvironment& env,
+                                                                      const Compile::BuildSettings& settings,
+                                                                      const std::vector<Project::TargetSources>& targets)
+{
+    const auto isLibrary = [](const Project::TargetSources& each) {
+        return each.target.kind == Project::TargetKind::Library;
+    };
+    if (std::ranges::none_of(targets, isLibrary)) {
+        return std::vector<Compile::ArchiveCommand>{};
+    }
+    const auto archiver = Toolchain::findArchiver(settings.compiler, env.systemSearchPaths);
+    if (! archiver.has_value()) {
+        std::cerr << renderArchiverNotFound(archiver.error().named, settings.compiler);
+        return std::unexpected(1);
+    }
+    return Compile::planArchiveCommands(settings, *archiver, targets);
 }
 
 /**
@@ -159,16 +190,21 @@ std::vector<Project::TargetSources> sourcesOf(const std::vector<Project::TargetS
 }
 
 /**
- * Compile and link what @p compiles and the targets state, as many steps at
- * once as the system has processors for, reporting each step as it runs.
+ * Compile, archive and link @p targets, as many steps at once as the system
+ * has processors for, reporting each step as it runs.
  */
-std::expected<void, int> runBuild(const Compile::BuildSettings& settings,
-                                  const std::vector<Project::TargetSources>& targets,
-                                  const std::vector<Compile::CompileCommand>& compiles)
+std::expected<void, int> runBuild(const RuntimeEnvironment& env,
+                                  const Compile::BuildSettings& settings,
+                                  const std::vector<Project::TargetSources>& targets)
 {
+    const auto archives = planArchives(env, settings, targets);
+    if (! archives.has_value()) {
+        return std::unexpected(archives.error());
+    }
     Build::ProgramStepRunner runner;
     StreamBuildReporter reporter{ std::cerr, standardErrorIsTerminal() };
-    const auto built = Build::runSteps(Build::buildSteps(compiles, {}, Compile::planLinkCommands(settings, targets)), runner, reporter, Build::availableParallelism());
+    const auto steps = Build::buildSteps(Compile::planCompileCommands(settings, targets), *archives, Compile::planLinkCommands(settings, targets));
+    const auto built = Build::runSteps(steps, runner, reporter, Build::availableParallelism());
     if (! built.has_value()) {
         std::cerr << renderStepFailures(built.error());
         return std::unexpected(1);
@@ -211,6 +247,10 @@ std::expected<std::filesystem::path, int> buildProject(const RuntimeEnvironment&
         std::cerr << renderNoTargetToBuild(project.root);
         return std::unexpected(1);
     }
+    if (std::ranges::count(targets, Project::TargetKind::Library, &Project::Target::kind) > 1) {
+        std::cerr << renderSeveralLibraries();
+        return std::unexpected(1);
+    }
 
     // The name is checked against the project before the system is asked
     // for anything, as the other mistakes in the project are.
@@ -228,10 +268,9 @@ std::expected<std::filesystem::path, int> buildProject(const RuntimeEnvironment&
         return buildDirectory;
     }
 
-    const auto sources = Project::collectSources(project.root, targets);
+    const auto sources = collectSources(project, targets);
     if (! sources.has_value()) {
-        std::cerr << renderSourceScanFailure(sources.error());
-        return std::unexpected(1);
+        return std::unexpected(sources.error());
     }
 
     const auto compiler = findCompiler(env);
@@ -254,12 +293,8 @@ std::expected<std::filesystem::path, int> buildProject(const RuntimeEnvironment&
         return std::unexpected(1);
     }
 
-    // The database is written before the build stops for either reason
-    // below, so an editor reads the commands whether or not they can run.
-    if (const Project::Target* library = libraryAmong(targets); library != nullptr) {
-        std::cerr << renderLibraryNotBuilt(library->name);
-        return std::unexpected(1);
-    }
+    // The database is written before the build stops for a reason below, so
+    // an editor reads the commands whether or not they can run.
     if (! settings.driver.standardOption(settings.standard).has_value()) {
         std::cerr << renderUnsupportedStandard(compiler->path, settings.standard);
         return std::unexpected(1);
@@ -267,8 +302,7 @@ std::expected<std::filesystem::path, int> buildProject(const RuntimeEnvironment&
 
     // The database covers every target, so it does not change with the one
     // asked for; only the targets chosen are compiled and linked.
-    const auto chosenSources = sourcesOf(*sources, *chosen);
-    const auto built = runBuild(settings, chosenSources, Compile::planCompileCommands(settings, chosenSources));
+    const auto built = runBuild(env, settings, sourcesOf(*sources, *chosen));
     if (! built.has_value()) {
         return std::unexpected(built.error());
     }
