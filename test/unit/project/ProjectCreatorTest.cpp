@@ -145,7 +145,7 @@ TEST(ProjectCreatorTest, DefaultTemplateLoadsAsAProject)
     ASSERT_EQ(targets.size(), 1U);
     EXPECT_EQ(targets[0].kind, TargetKind::Executable);
     EXPECT_EQ(targets[0].name, "hello");
-    EXPECT_EQ(targets[0].entryPoint, "src/main.cpp");
+    EXPECT_EQ(targets[0].source, "src/main.cpp");
 }
 
 /**

@@ -149,7 +149,7 @@ private:
     std::mutex _mutex;
     std::condition_variable _changed;
     std::size_t _next = 0;
-    std::array<std::size_t, kindIndex(StepKind::Link) + 1> _running{};  ///< Steps of each kind that have started and not ended.
+    std::array<std::size_t, StepKindCount> _running{};  ///< Steps of each kind that have started and not ended.
     std::vector<FailedStep> _failures;
     std::exception_ptr _exception;
 };

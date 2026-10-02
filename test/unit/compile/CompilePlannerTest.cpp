@@ -45,7 +45,7 @@ BuildSettings settingsFor(const CompilerIdentity& identity,
 
 TargetSources targetWithSources(TargetKind kind, const char* name, const char* entryPoint, std::vector<std::filesystem::path> sources)
 {
-    return TargetSources{ .target = Target{ .kind = kind, .name = name, .entryPoint = entryPoint }, .sources = std::move(sources) };
+    return TargetSources{ .target = Target{ .kind = kind, .name = name, .source = entryPoint }, .sources = std::move(sources) };
 }
 
 TargetSources executableWithSources(const char* name, const char* entryPoint, std::vector<std::filesystem::path> sources)

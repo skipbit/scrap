@@ -28,10 +28,9 @@ struct Target {
     std::string name;
     /**
      * The file src names, relative to the project root: an executable's entry
-     * point, or a file a library adds to its sources. Empty for a library
-     * that names none.
+     * point, or a file a library adds; empty for a library that names none.
      */
-    std::filesystem::path entryPoint;
+    std::filesystem::path source;
 };
 
 /**

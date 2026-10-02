@@ -84,7 +84,7 @@ std::vector<std::filesystem::path> otherEntryPoints(const std::vector<Target>& t
     std::vector<std::filesystem::path> entryPoints;
     for (std::size_t other = 0; other < targets.size(); ++other) {
         if ((other != index) && (targets[other].kind == TargetKind::Executable)) {
-            entryPoints.push_back(targets[other].entryPoint.lexically_normal());
+            entryPoints.push_back(targets[other].source.lexically_normal());
         }
     }
     return entryPoints;
@@ -126,7 +126,7 @@ std::expected<std::vector<TargetSources>, SourceScanFailure> collectSources(cons
     collected.reserve(targets.size());
     for (std::size_t index = 0; index < targets.size(); ++index) {
         const Target& target = targets[index];
-        const std::filesystem::path named = target.entryPoint.lexically_normal();
+        const std::filesystem::path named = target.source.lexically_normal();
         std::vector<std::filesystem::path> sources;
         if (hasLibrary && (target.kind == TargetKind::Executable)) {
             sources.push_back(named);

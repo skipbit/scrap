@@ -30,10 +30,11 @@ struct SourceScanFailure {
  *
  * Without a library, every source below src/ belongs to each executable,
  * except the entry points of the other executables: two executables share the
- * code beside them and differ in the file that starts each one. A target keeps its own entry point wherever it
- * sits, since a declaration states what to build whether or not the default
- * layout expects the file there. Paths are compared once normalized, so
- * "./src/main.cpp" and "src/main.cpp" name the same file.
+ * code beside them and differ in the file that starts each one. A target keeps
+ * its own entry point wherever it sits, since a declaration states what to
+ * build whether or not the default layout expects the file there. Paths are
+ * compared once normalized, so "./src/main.cpp" and "src/main.cpp" name the
+ * same file.
  *
  * A source is recognised by its extension, spelled in lower case: .cpp, .cc
  * or .cxx. The list comes back sorted, so a build reads the same sources

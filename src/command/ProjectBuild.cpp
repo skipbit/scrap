@@ -74,10 +74,22 @@ std::expected<void, int> finishWithNothingToBuild(const std::filesystem::path& d
 }
 
 /**
+ * The library among @p sources that has none, or nothing when every library
+ * has sources.
+ */
+const Project::TargetSources* libraryWithoutSources(const std::vector<Project::TargetSources>& sources)
+{
+    const auto found = std::ranges::find_if(sources, [](const Project::TargetSources& each) {
+        return (each.target.kind == Project::TargetKind::Library) && each.sources.empty();
+    });
+    return (found != sources.end()) ? &*found : nullptr;
+}
+
+/**
  * The sources of each of @p targets. A source directory that cannot be read,
  * or a library left with nothing to build it from, is reported.
  */
-std::expected<std::vector<Project::TargetSources>, int> collectSources(const Project::LoadedProject& project,
+std::expected<std::vector<Project::TargetSources>, int> sourcesToBuild(const Project::LoadedProject& project,
                                                                        const std::vector<Project::Target>& targets)
 {
     auto sources = Project::collectSources(project.root, targets);
@@ -85,11 +97,9 @@ std::expected<std::vector<Project::TargetSources>, int> collectSources(const Pro
         std::cerr << renderSourceScanFailure(sources.error());
         return std::unexpected(1);
     }
-    for (const Project::TargetSources& each : *sources) {
-        if ((each.target.kind == Project::TargetKind::Library) && each.sources.empty()) {
-            std::cerr << renderLibraryWithoutSources(each.target.name);
-            return std::unexpected(1);
-        }
+    if (const Project::TargetSources* const found = libraryWithoutSources(*sources); found != nullptr) {
+        std::cerr << renderLibraryWithoutSources(found->target.name);
+        return std::unexpected(1);
     }
     return std::move(*sources);
 }
@@ -213,6 +223,26 @@ std::expected<void, int> runBuild(const RuntimeEnvironment& env,
     return {};
 }
 
+/**
+ * The targets of @p project. A project that declares none, or more than one
+ * library, is reported.
+ */
+std::expected<std::vector<Project::Target>, int> resolveBuildTargets(const Project::LoadedProject& project)
+{
+    // An empty declaration states that the project builds nothing, which is a
+    // different answer from finding nothing where no declaration was written.
+    auto targets = Project::resolveTargets(project.root, project.manifest);
+    if (targets.empty() && (! project.manifest.declaresTargets)) {
+        std::cerr << renderNoTargetToBuild(project.root);
+        return std::unexpected(1);
+    }
+    if (std::ranges::count(targets, Project::TargetKind::Library, &Project::Target::kind) > 1) {
+        std::cerr << renderSeveralLibraries();
+        return std::unexpected(1);
+    }
+    return targets;
+}
+
 }  // anonymous namespace
 
 Compile::BuildProfile requestedProfile(const ParsedOptions& options)
@@ -240,27 +270,20 @@ std::expected<std::filesystem::path, int> buildProject(const RuntimeEnvironment&
                                                        const Compile::BuildProfile profile,
                                                        const std::optional<std::string>& target)
 {
-    // An empty declaration states that the project builds nothing, which is a
-    // different answer from finding nothing where no declaration was written.
-    const auto targets = Project::resolveTargets(project.root, project.manifest);
-    if (targets.empty() && (! project.manifest.declaresTargets)) {
-        std::cerr << renderNoTargetToBuild(project.root);
-        return std::unexpected(1);
-    }
-    if (std::ranges::count(targets, Project::TargetKind::Library, &Project::Target::kind) > 1) {
-        std::cerr << renderSeveralLibraries();
-        return std::unexpected(1);
+    const auto targets = resolveBuildTargets(project);
+    if (! targets.has_value()) {
+        return std::unexpected(targets.error());
     }
 
     // The name is checked against the project before the system is asked
     // for anything, as the other mistakes in the project are.
-    const auto chosen = chooseTargets(project, targets, target);
+    const auto chosen = chooseTargets(project, *targets, target);
     if (! chosen.has_value()) {
         return std::unexpected(chosen.error());
     }
 
     std::filesystem::path buildDirectory{ Compile::buildDirectoryOf(profile) };
-    if (targets.empty()) {
+    if (targets->empty()) {
         const auto finished = finishWithNothingToBuild(project.root / buildDirectory, profile);
         if (! finished.has_value()) {
             return std::unexpected(finished.error());
@@ -268,7 +291,7 @@ std::expected<std::filesystem::path, int> buildProject(const RuntimeEnvironment&
         return buildDirectory;
     }
 
-    const auto sources = collectSources(project, targets);
+    const auto sources = sourcesToBuild(project, *targets);
     if (! sources.has_value()) {
         return std::unexpected(sources.error());
     }

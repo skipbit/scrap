@@ -37,14 +37,14 @@ TEST(TargetResolverTest, ReturnsDeclaredTargetsUnchanged)
 
     Manifest manifest = manifestNamed("my-app");
     manifest.declaresTargets = true;
-    manifest.targets.push_back(Target{ .kind = TargetKind::Library, .name = "declared", .entryPoint = "other/entry.cpp" });
+    manifest.targets.push_back(Target{ .kind = TargetKind::Library, .name = "declared", .source = "other/entry.cpp" });
 
     const auto targets = resolveTargets(temp.path(), manifest);
 
     ASSERT_EQ(targets.size(), 1);
     EXPECT_EQ(targets[0].kind, TargetKind::Library);
     EXPECT_EQ(targets[0].name, "declared");
-    EXPECT_EQ(targets[0].entryPoint, "other/entry.cpp");
+    EXPECT_EQ(targets[0].source, "other/entry.cpp");
 }
 
 /**
@@ -61,7 +61,7 @@ TEST(TargetResolverTest, InfersExecutableFromTheDefaultLayout)
     ASSERT_EQ(targets.size(), 1);
     EXPECT_EQ(targets[0].kind, TargetKind::Executable);
     EXPECT_EQ(targets[0].name, "my-app");
-    EXPECT_EQ(targets[0].entryPoint, "src/main.cpp");
+    EXPECT_EQ(targets[0].source, "src/main.cpp");
 }
 
 /**
@@ -113,12 +113,12 @@ TEST(TargetResolverTest, ReturnsADeclaredEntryPointThatIsNotOnDisk)
 
     Manifest manifest = manifestNamed("my-app");
     manifest.declaresTargets = true;
-    manifest.targets.push_back(Target{ .kind = TargetKind::Executable, .name = "my-app", .entryPoint = "src/typo.cpp" });
+    manifest.targets.push_back(Target{ .kind = TargetKind::Executable, .name = "my-app", .source = "src/typo.cpp" });
 
     const auto targets = resolveTargets(temp.path(), manifest);
 
     ASSERT_EQ(targets.size(), 1);
-    EXPECT_EQ(targets[0].entryPoint, "src/typo.cpp");
+    EXPECT_EQ(targets[0].source, "src/typo.cpp");
 }
 
 /**
@@ -127,8 +127,8 @@ TEST(TargetResolverTest, ReturnsADeclaredEntryPointThatIsNotOnDisk)
 TEST(TargetResolverTest, BuildsOnlyTheTargetAskedFor)
 {
     const std::vector<Target> targets{
-        Target{ .kind = TargetKind::Executable, .name = "app", .entryPoint = "src/main.cpp" },
-        Target{ .kind = TargetKind::Executable, .name = "tool", .entryPoint = "src/tool.cpp" },
+        Target{ .kind = TargetKind::Executable, .name = "app", .source = "src/main.cpp" },
+        Target{ .kind = TargetKind::Executable, .name = "tool", .source = "src/tool.cpp" },
     };
 
     const auto chosen = targetsToBuild(targets, "tool");
@@ -136,7 +136,7 @@ TEST(TargetResolverTest, BuildsOnlyTheTargetAskedFor)
     ASSERT_TRUE(chosen.has_value());
     ASSERT_EQ(chosen->size(), 1);
     EXPECT_EQ(chosen->front().name, "tool");
-    EXPECT_EQ(chosen->front().entryPoint, "src/tool.cpp");
+    EXPECT_EQ(chosen->front().source, "src/tool.cpp");
 }
 
 /**
@@ -146,9 +146,9 @@ TEST(TargetResolverTest, BuildsOnlyTheTargetAskedFor)
 TEST(TargetResolverTest, BuildsTheLibraryAnExecutableUses)
 {
     const std::vector<Target> targets{
-        Target{ .kind = TargetKind::Executable, .name = "app", .entryPoint = "src/main.cpp" },
-        Target{ .kind = TargetKind::Executable, .name = "tool", .entryPoint = "src/tool.cpp" },
-        Target{ .kind = TargetKind::Library, .name = "core", .entryPoint = {} },
+        Target{ .kind = TargetKind::Executable, .name = "app", .source = "src/main.cpp" },
+        Target{ .kind = TargetKind::Executable, .name = "tool", .source = "src/tool.cpp" },
+        Target{ .kind = TargetKind::Library, .name = "core", .source = {} },
     };
 
     const auto forTool = targetsToBuild(targets, "tool");
@@ -170,7 +170,7 @@ TEST(TargetResolverTest, BuildsTheLibraryAnExecutableUses)
 TEST(TargetResolverTest, FindsNothingToBuildForANameNoTargetHas)
 {
     const std::vector<Target> targets{
-        Target{ .kind = TargetKind::Executable, .name = "app", .entryPoint = "src/main.cpp" },
+        Target{ .kind = TargetKind::Executable, .name = "app", .source = "src/main.cpp" },
     };
 
     EXPECT_FALSE(targetsToBuild(targets, "ap").has_value());

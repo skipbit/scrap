@@ -455,18 +455,55 @@ namespace {
  */
 std::string describeFailedStep(const Build::BuildStep& step)
 {
-    if (step.kind != Build::StepKind::Compile) {
-        std::string text = (step.kind == Build::StepKind::Archive) ? "error: failed to archive '" : "error: failed to link '";
+    switch (step.kind) {
+    case Build::StepKind::Compile: {
+        std::string text = "error: failed to compile '";
+        text += printablePath((step.directory / step.subject).lexically_normal());
+        text += "' for '";
+        text += printableName(step.target);
+        text += '\'';
+        return text;
+    }
+    case Build::StepKind::Archive: {
+        std::string text = "error: failed to archive '";
         text += printablePath((step.directory / step.output).lexically_normal());
         text += '\'';
         return text;
     }
-    std::string text = "error: failed to compile '";
-    text += printablePath((step.directory / step.subject).lexically_normal());
-    text += "' for '";
-    text += printableName(step.target);
-    text += '\'';
-    return text;
+    case Build::StepKind::Link: {
+        std::string text = "error: failed to link '";
+        text += printablePath((step.directory / step.output).lexically_normal());
+        text += '\'';
+        return text;
+    }
+    }
+    // Every kind is answered above, so a kind added without a message here
+    // fails the build rather than being reported as one of the others.
+    std::unreachable();
+}
+
+/**
+ * The program a step of @p kind runs, as the messages name it, with what to
+ * do when it cannot be started or a signal stops it.
+ */
+struct StepTool {
+    std::string_view name;        ///< "the compiler" or "the archiver".
+    std::string_view runHint;     ///< Ends in a newline.
+    std::string_view memoryHint;  ///< Ends in a newline.
+};
+
+StepTool toolFor(const Build::StepKind kind)
+{
+    switch (kind) {
+    case Build::StepKind::Compile:
+    case Build::StepKind::Link:
+        return { .name = "the compiler", .runHint = CompilerRunHint, .memoryHint = CompilerMemoryHint };
+    case Build::StepKind::Archive:
+        return { .name = "the archiver", .runHint = ArchiverRunHint, .memoryHint = ArchiverMemoryHint };
+    }
+    // Every kind is answered above, so a kind added without a tool here
+    // fails the build rather than being reported as the compiler.
+    std::unreachable();
 }
 
 /**
@@ -479,17 +516,17 @@ struct StepFailureReport {
 
 StepFailureReport reportStepFailure(const Build::FailedStep& failed)
 {
-    const bool archives = (failed.step.kind == Build::StepKind::Archive);
+    const StepTool tool = toolFor(failed.step.kind);
     switch (failed.failure.kind) {
     case Build::StepFailureKind::CannotCreateDirectory:
         return { .error = "error: cannot create '" + printablePath(failed.failure.path) + "': " + failed.failure.code.message() + '\n',
                  .hint = cannotWriteBuildHint(failed.failure.code) };
     case Build::StepFailureKind::CannotStart:
         return { .error = "error: cannot run '" + printablePath(failed.failure.path) + "': " + failed.failure.code.message() + '\n',
-                 .hint = archives ? ArchiverRunHint : CompilerRunHint };
+                 .hint = tool.runHint };
     case Build::StepFailureKind::Signalled:
-        return { .error = describeFailedStep(failed.step) + (archives ? ": the archiver" : ": the compiler") + " was stopped by signal " + std::to_string(failed.failure.status) + '\n',
-                 .hint = archives ? ArchiverMemoryHint : CompilerMemoryHint };
+        return { .error = describeFailedStep(failed.step) + ": " + std::string{ tool.name } + " was stopped by signal " + std::to_string(failed.failure.status) + '\n',
+                 .hint = tool.memoryHint };
     case Build::StepFailureKind::Exited:
         return { .error = describeFailedStep(failed.step) + '\n', .hint = FixErrorsHint };
     }

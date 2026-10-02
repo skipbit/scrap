@@ -18,12 +18,12 @@ constexpr const char* SourceText = "int value() { return 0; }\n";
 
 Target executableNamed(const char* name, const char* entryPoint)
 {
-    return Target{ .kind = TargetKind::Executable, .name = name, .entryPoint = entryPoint };
+    return Target{ .kind = TargetKind::Executable, .name = name, .source = entryPoint };
 }
 
 Target libraryNamed(const char* name, const char* entryPoint)
 {
-    return Target{ .kind = TargetKind::Library, .name = name, .entryPoint = entryPoint };
+    return Target{ .kind = TargetKind::Library, .name = name, .source = entryPoint };
 }
 
 }  // namespace

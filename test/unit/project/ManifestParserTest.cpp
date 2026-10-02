@@ -44,7 +44,7 @@ src = "src/main.cpp"
     ASSERT_EQ(manifest->targets.size(), 1);
     EXPECT_EQ(manifest->targets[0].kind, TargetKind::Executable);
     EXPECT_EQ(manifest->targets[0].name, "my-app");
-    EXPECT_EQ(manifest->targets[0].entryPoint, "src/main.cpp");
+    EXPECT_EQ(manifest->targets[0].source, "src/main.cpp");
 }
 
 /**
@@ -167,7 +167,7 @@ src = "src/lib.cpp"
     ASSERT_TRUE(manifest.has_value());
     ASSERT_EQ(manifest->targets.size(), 1);
     EXPECT_EQ(manifest->targets[0].kind, TargetKind::Library);
-    EXPECT_EQ(manifest->targets[0].entryPoint, "src/lib.cpp");
+    EXPECT_EQ(manifest->targets[0].source, "src/lib.cpp");
 }
 
 /**
@@ -189,7 +189,7 @@ name = "my-lib"
     ASSERT_TRUE(manifest.has_value());
     ASSERT_EQ(manifest->targets.size(), 1);
     EXPECT_EQ(manifest->targets[0].kind, TargetKind::Library);
-    EXPECT_TRUE(manifest->targets[0].entryPoint.empty());
+    EXPECT_TRUE(manifest->targets[0].source.empty());
 }
 
 /**

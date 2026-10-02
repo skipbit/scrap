@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <optional>
@@ -17,6 +18,9 @@ enum class StepKind : std::uint8_t {
     Archive,
     Link
 };
+
+/// The number of kinds. Link is the last kind listed.
+inline constexpr std::size_t StepKindCount = static_cast<std::size_t>(StepKind::Link) + 1;
 
 /**
  * @brief One program the build runs, with what it is said to do.

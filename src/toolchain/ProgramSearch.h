@@ -8,16 +8,6 @@
 namespace scrap::Toolchain {
 
 /**
- * @brief Whether @p path names a file this process can run.
- *
- * The permission bits do not carry that on their own: a file only its owner
- * may run is not one another user can, and one whose owner bit is clear can
- * still be reached through its group. The system is asked instead, which is
- * the same question the build will ask when it runs the program.
- */
-[[nodiscard]] bool isExecutableFile(const std::filesystem::path& path);
-
-/**
  * @brief The first of @p searchPaths holding a program named @p name that
  *        can be run, joined with the name.
  */

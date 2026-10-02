@@ -27,7 +27,7 @@ std::vector<Target> resolveTargets(const std::filesystem::path& projectRoot, con
         return {};
     }
 
-    return { Target{ .kind = TargetKind::Executable, .name = manifest.package.name, .entryPoint = entryPoint } };
+    return { Target{ .kind = TargetKind::Executable, .name = manifest.package.name, .source = entryPoint } };
 }
 
 /**

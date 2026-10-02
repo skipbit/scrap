@@ -9,6 +9,16 @@
 
 namespace scrap::Toolchain {
 
+namespace {
+
+/**
+ * Whether @p path names a file this process can run.
+ *
+ * The permission bits do not carry that on their own: a file only its owner
+ * may run is not one another user can, and one whose owner bit is clear can
+ * still be reached through its group. The system is asked instead, which is
+ * the same question the build will ask when it runs the program.
+ */
 bool isExecutableFile(const std::filesystem::path& path)
 {
     std::error_code ec;
@@ -18,6 +28,8 @@ bool isExecutableFile(const std::filesystem::path& path)
     }
     return (::access(path.c_str(), X_OK) == 0);
 }
+
+}  // anonymous namespace
 
 std::optional<std::filesystem::path> findOnSearchPaths(std::string_view name, const std::vector<std::filesystem::path>& searchPaths)
 {
