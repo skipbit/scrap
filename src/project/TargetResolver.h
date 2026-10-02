@@ -3,6 +3,7 @@
 #include "project/Manifest.h"
 
 #include <filesystem>
+#include <optional>
 #include <string_view>
 #include <vector>
 
@@ -31,5 +32,15 @@ inline constexpr std::string_view DefaultEntryPoint = "src/main.cpp";
  * @return Targets to build, empty when there are none.
  */
 [[nodiscard]] std::vector<Target> resolveTargets(const std::filesystem::path& projectRoot, const Manifest& manifest);
+
+/**
+ * @brief Decide which of a project's targets a build of one of them needs.
+ *
+ * @param targets The project's targets, as resolveTargets() returned them.
+ * @param name The target asked for.
+ * @return The target named @p name, or nothing when the project has no
+ *   target of that name.
+ */
+[[nodiscard]] std::optional<std::vector<Target>> targetsToBuild(const std::vector<Target>& targets, std::string_view name);
 
 }  // namespace scrap::Project

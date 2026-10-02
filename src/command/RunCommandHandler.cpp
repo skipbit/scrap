@@ -10,6 +10,7 @@
 #include "project/Manifest.h"
 #include "project/TargetResolver.h"
 
+#include <algorithm>
 #include <csignal>
 #include <filesystem>
 #include <iostream>
@@ -49,25 +50,32 @@ int RunCommandHandler::execute(const InvocationContext& ctx)
     }
 
     // Which executable to run is settled before building, so a project that
-    // has none, or more than one, is not built for nothing.
+    // has none, or more than one and no choice among them, is not built for
+    // nothing.
     const auto executables = executablesAmong(Project::resolveTargets(project->root, project->manifest));
+    const std::optional<std::string> requested = requestedName(ctx.options, BinOption);
+    if (requested.has_value() && (std::ranges::find(executables, *requested) == executables.end())) {
+        std::cerr << renderNoExecutableNamed(project->root, *requested, executables);
+        return 1;
+    }
     if (executables.empty()) {
         std::cerr << renderNoExecutableToRun(project->root);
         return 1;
     }
-    if (executables.size() > 1) {
+    if ((! requested.has_value()) && (executables.size() > 1)) {
         std::cerr << renderSeveralExecutablesToRun(project->root, executables);
         return 1;
     }
+    const std::string name = requested.value_or(executables.front());
 
-    const auto built = buildProject(*ctx.env, *project, requestedProfile(ctx.options));
+    const auto built = buildProject(*ctx.env, *project, requestedProfile(ctx.options), name);
     if (! built.has_value()) {
         return BuildFailedExitCode;
     }
 
-    const std::filesystem::path executable = Compile::executableFile(*built, executables.front());
+    const std::filesystem::path executable = Compile::executableFile(*built, name);
     const std::filesystem::path program = project->root / executable;
-    std::cerr << renderRunning(executables.front(), executable);
+    std::cerr << renderRunning(name, executable);
 
     std::vector<std::string> arguments{ program.string() };
     arguments.insert(arguments.end(), ctx.options.trailing.begin(), ctx.options.trailing.end());

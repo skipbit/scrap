@@ -79,6 +79,11 @@ constexpr std::string_view ManifestWithoutTargets = "bin = []\n\n[package]\nname
 /// The source the default layout expects, which gives a project one target.
 constexpr std::string_view MainSource = "int main() { return 0; }\n";
 
+/// Two executables that each print their own name, and a source they share.
+constexpr std::string_view TwoExecutablesManifest = "[package]\nname = \"app\"\nversion = \"0.1.0\"\n\n"
+                                                    "[[bin]]\nname = \"app\"\nsrc = \"src/main.cpp\"\n\n"
+                                                    "[[bin]]\nname = \"tool\"\nsrc = \"src/tool.cpp\"\n";
+
 /// A program that writes the profile it was compiled for, as NDEBUG tells it.
 constexpr std::string_view ProfileSource = "#include <cstdio>\n"
                                            "int main()\n"
@@ -1379,6 +1384,69 @@ TEST_F(CliE2ETest, BuildsSeveralSourcesIntoOneExecutable)
     EXPECT_EQ(ran.exitCode, 0);
 }
 
+TEST_F(CliE2ETest, BuildsEveryTargetOrOnlyTheOneNamed)
+{
+    writeFile("scrap.toml", TwoExecutablesManifest);
+    writeFile("src/shared.cpp", "int answer() { return 42; }\n");
+    writeFile("src/main.cpp", "int answer();\nint main() { return answer() == 42 ? 0 : 1; }\n");
+    writeFile("src/tool.cpp", "int answer();\nint main() { return answer() == 42 ? 0 : 1; }\n");
+
+    auto all = runScrap({ "build" }, { realCompiler() }, _root, BuildTimeout);
+
+    ASSERT_TRUE(all.exitedNormally) << all.stderrText;
+    ASSERT_EQ(all.exitCode, 0) << all.stderrText;
+    EXPECT_TRUE(std::filesystem::is_regular_file(_root / "build" / "debug" / "bin" / "app"));
+    EXPECT_TRUE(std::filesystem::is_regular_file(_root / "build" / "debug" / "bin" / "tool"));
+
+    std::filesystem::remove_all(_root / "build");
+    auto one = runScrap({ "build", "--target", "tool" }, { realCompiler() }, _root, BuildTimeout);
+
+    ASSERT_TRUE(one.exitedNormally) << one.stderrText;
+    ASSERT_EQ(one.exitCode, 0) << one.stderrText;
+    EXPECT_TRUE(std::filesystem::is_regular_file(_root / "build" / "debug" / "bin" / "tool"));
+    EXPECT_FALSE(std::filesystem::exists(_root / "build" / "debug" / "bin" / "app"));
+    EXPECT_FALSE(std::filesystem::exists(_root / "build" / "debug" / "obj" / "app"));
+    // The database still describes the target left unbuilt.
+    EXPECT_NE(readFile("build/debug/compile_commands.json").find("\"output\": \"build/debug/obj/app/src/main.cpp.o\""), std::string::npos);
+}
+
+TEST_F(CliE2ETest, BuildReportsATargetNameTheProjectLacks)
+{
+    writeFile("scrap.toml", TwoExecutablesManifest);
+    writeFile("src/main.cpp", MainSource);
+    writeFile("src/tool.cpp", MainSource);
+    const std::string root = std::filesystem::canonical(_root).string();
+
+    auto result = runScrap({ "build", "--target", "tol" }, { dummyCompiler() }, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    EXPECT_EQ(result.stderrText,
+              "error: no target named 'tol' in '" + root + "': app, tool\n"
+                                                           "hint: pass one of the targets listed, or omit --target to build them all\n");
+    EXPECT_FALSE(std::filesystem::exists(_root / "build"));
+}
+
+TEST_F(CliE2ETest, BuildReportsAnEmptyTargetName)
+{
+    // An empty value, as an unset shell variable leaves, builds nothing
+    // rather than everything.
+    writeFile("scrap.toml", TwoExecutablesManifest);
+    writeFile("src/main.cpp", MainSource);
+    writeFile("src/tool.cpp", MainSource);
+    const std::string root = std::filesystem::canonical(_root).string();
+
+    auto result = runScrap({ "build", "--target", "" }, { dummyCompiler() }, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_EQ(result.stderrText,
+              "error: no target named '' in '" + root + "': app, tool\n"
+                                                        "hint: pass one of the targets listed, or omit --target to build them all\n");
+    EXPECT_FALSE(std::filesystem::exists(_root / "build"));
+}
+
 TEST_F(CliE2ETest, BuildKeepsTheDatabaseWhenTheRealCompilerReportsAnError)
 {
     writeFile("scrap.toml", ValidManifest);
@@ -1571,7 +1639,60 @@ TEST_F(CliE2ETest, RunReportsAProjectWithMoreThanOneExecutable)
     EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
     EXPECT_EQ(result.stderrText,
               "error: more than one executable to run in '" + root + "': app, tool\n"
-                                                                     "hint: run 'scrap build' and start one of them from the build directory\n");
+                                                                     "hint: pass --bin with one of them\n");
+    EXPECT_FALSE(std::filesystem::exists(_root / "build"));
+}
+
+TEST_F(CliE2ETest, RunStartsTheExecutableNamedByBin)
+{
+    writeFile("scrap.toml", TwoExecutablesManifest);
+    writeFile("src/main.cpp", "#include <cstdio>\nint main() { std::puts(\"app\"); return 0; }\n");
+    writeFile("src/tool.cpp", "#include <cstdio>\nint main() { std::puts(\"tool\"); return 0; }\n");
+
+    auto result = runScrap({ "run", "--bin", "tool" }, { realCompiler() }, _root, BuildTimeout);
+
+    ASSERT_TRUE(result.exitedNormally) << result.stderrText;
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_EQ(result.stdoutText, "tool\n");
+    EXPECT_NE(result.stderrText.find("     Running tool (build/debug/bin/tool)\n"), std::string::npos) << result.stderrText;
+    // Only what the executable needs is built.
+    EXPECT_FALSE(std::filesystem::exists(_root / "build" / "debug" / "bin" / "app"));
+}
+
+TEST_F(CliE2ETest, RunReportsAnExecutableNameTheProjectLacks)
+{
+    writeFile("scrap.toml",
+              "[package]\nname = \"app\"\nversion = \"0.1.0\"\n\n"
+              "[[bin]]\nname = \"app\"\nsrc = \"src/main.cpp\"\n\n"
+              "[[lib]]\nname = \"mylib\"\nsrc = \"src/lib.cpp\"\n");
+    writeFile("src/main.cpp", MainSource);
+    writeFile("src/lib.cpp", "int answer() { return 42; }\n");
+    const std::string root = std::filesystem::canonical(_root).string();
+
+    auto result = runScrap({ "run", "--bin", "mylib" }, { dummyCompiler() }, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    EXPECT_EQ(result.stderrText,
+              "error: no executable named 'mylib' in '" + root + "': app\n"
+                                                                 "hint: pass one of the executables listed\n");
+    EXPECT_FALSE(std::filesystem::exists(_root / "build"));
+}
+
+TEST_F(CliE2ETest, RunReportsAnEmptyExecutableName)
+{
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp", MainSource);
+    const std::string root = std::filesystem::canonical(_root).string();
+
+    auto result = runScrap({ "run", "--bin", "" }, { dummyCompiler() }, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_EQ(result.stderrText,
+              "error: no executable named '' in '" + root + "': app\n"
+                                                            "hint: pass one of the executables listed\n");
     EXPECT_FALSE(std::filesystem::exists(_root / "build"));
 }
 

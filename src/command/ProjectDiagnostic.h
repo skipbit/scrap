@@ -87,6 +87,35 @@ namespace scrap::Command {
 [[nodiscard]] std::string renderSeveralExecutablesToRun(const std::filesystem::path& projectRoot, const std::vector<std::string>& names);
 
 /**
+ * @brief Describe a target asked for by a name the project has no target of,
+ *        and what to do next.
+ *
+ * @param projectRoot Directory the manifest was read from.
+ * @param requested The name given on the command line.
+ * @param names The project's targets, in the order the project states them.
+ * @return Text for standard error, each line ending in a newline.
+ */
+[[nodiscard]] std::string renderNoTargetNamed(const std::filesystem::path& projectRoot,
+                                              std::string_view requested,
+                                              const std::vector<std::string>& names);
+
+/**
+ * @brief Describe an executable asked for by a name the project has no
+ *        executable of, and what to do next.
+ *
+ * A library's name is answered the same way: it is not one of the names
+ * listed.
+ *
+ * @param projectRoot Directory the manifest was read from.
+ * @param requested The name given on the command line.
+ * @param names The executable targets, in the order the project states them.
+ * @return Text for standard error, each line ending in a newline.
+ */
+[[nodiscard]] std::string renderNoExecutableNamed(const std::filesystem::path& projectRoot,
+                                                  std::string_view requested,
+                                                  const std::vector<std::string>& names);
+
+/**
  * @brief Describe an executable that was built and could not be started, and
  *        what to do next.
  *

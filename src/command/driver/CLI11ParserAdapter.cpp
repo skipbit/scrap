@@ -40,6 +40,18 @@ struct PositionalSlot {
 };
 
 /**
+ * One string option's value and the option CLI11 registered for it, whose
+ * count tells an empty value given from one omitted.
+ *
+ * The option belongs to the CLI::App built in parse(), so a slot is read
+ * only while that app is alive.
+ */
+struct StringSlot {
+    std::string value;
+    const CLI::Option* option = nullptr;
+};
+
+/**
  * Holds mutable value slots that CLI11 writes into during parsing.
  *
  * One instance is created per CommandSpec node in the spec tree.
@@ -53,7 +65,7 @@ struct PositionalSlot {
 struct OptionStorage {
     std::unordered_map<std::string, bool> bools;
     std::unordered_map<std::string, std::int64_t> ints;
-    std::unordered_map<std::string, std::string> strings;
+    std::unordered_map<std::string, StringSlot> strings;
     std::unordered_map<std::string, std::vector<std::string>> stringLists;
     std::deque<PositionalSlot> positionals;
     bool takesTrailing = false;  ///< Copied from the spec, not written by CLI11.
@@ -107,8 +119,9 @@ void addOption(CLI::App& app, const OptionDef& def, OptionStorage& storage)
         break;
     }
     case OptionValueType::String: {
-        storage.strings[def.longName] = "";
-        auto* opt = app.add_option(nameStr, storage.strings[def.longName], def.description);
+        auto& slot = storage.strings[def.longName];
+        auto* opt = app.add_option(nameStr, slot.value, def.description);
+        slot.option = opt;
         if (def.required) {
             opt->required();
         }
@@ -243,9 +256,9 @@ ParsedOptions harvestOptions(const OptionStorage& storage)
     for (const auto& [name, value] : storage.ints) {
         opts.named[name] = value;
     }
-    for (const auto& [name, value] : storage.strings) {
-        if (! value.empty()) {
-            opts.named[name] = value;
+    for (const auto& [name, slot] : storage.strings) {
+        if ((! slot.value.empty()) || (slot.option->count() > 0)) {
+            opts.named[name] = slot.value;
         }
     }
     for (const auto& [name, value] : storage.stringLists) {

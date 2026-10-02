@@ -2,14 +2,20 @@
 
 #include "command/CommandHandler.h"
 
+#include <string_view>
+
 namespace scrap::Command {
 
+/// The option that names the executable scrap run starts.
+inline constexpr std::string_view BinOption = "bin";
+
 /**
- * @brief Handler for "scrap run [<path>] [-- <args>...]".
+ * @brief Handler for "scrap run [<path>] [--release] [--bin <name>] [-- <args>...]".
  *
  * Loads the project that the path, or the working directory when no path is
- * given, belongs to, builds it, and starts its one executable with the
- * arguments after "--". The program runs in the working directory and at
+ * given, belongs to, builds the executable named by --bin, or its one
+ * executable when none is named, and starts it with the arguments after
+ * "--". The program runs in the working directory and at
  * the terminal: it shares the standard input, output and error of scrap.
  */
 class RunCommandHandler : public CommandHandler {

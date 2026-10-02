@@ -16,7 +16,7 @@ int BuildCommandHandler::execute(const InvocationContext& ctx)
         std::cerr << renderProjectArgumentError(project.error());
         return 1;
     }
-    const auto built = buildProject(*ctx.env, *project, requestedProfile(ctx.options));
+    const auto built = buildProject(*ctx.env, *project, requestedProfile(ctx.options), requestedName(ctx.options, TargetOption));
     return built.has_value() ? 0 : built.error();
 }
 

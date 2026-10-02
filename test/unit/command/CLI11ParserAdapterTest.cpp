@@ -190,6 +190,42 @@ TEST(CLI11ParserAdapterTest, Parse_StringOption)
     EXPECT_EQ(std::get<std::string>(it->second), "library");
 }
 
+/**
+ * An empty value given on the command line is kept, so a command can tell it
+ * from an option left out.
+ */
+TEST(CLI11ParserAdapterTest, Parse_ExplicitEmptyStringOptionIsKept)
+{
+    CLI11ParserAdapter adapter;
+
+    CommandSpec spec = makeSpec("build");
+    spec.options.named.push_back(OptionDef{
+        .longName = "target",
+        .shortName = std::nullopt,
+        .type = OptionValueType::String,
+        .required = false,
+        .description = "",
+        .defaultValue = std::nullopt,
+        .choices = {},
+    });
+
+    adapter.configure(std::vector{ spec });
+
+    ArgvBuilder given{ "scrap", "build", "--target", "" };
+    auto result = adapter.parse(given.span());
+
+    ASSERT_TRUE(result.has_value());
+    auto it = result->options.named.find("target");
+    ASSERT_NE(it, result->options.named.end());
+    EXPECT_EQ(std::get<std::string>(it->second), "");
+
+    ArgvBuilder omitted{ "scrap", "build" };
+    auto without = adapter.parse(omitted.span());
+
+    ASSERT_TRUE(without.has_value());
+    EXPECT_EQ(without->options.named.count("target"), 0);
+}
+
 TEST(CLI11ParserAdapterTest, Parse_Int64Option)
 {
     CLI11ParserAdapter adapter;
