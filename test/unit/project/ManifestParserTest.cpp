@@ -171,6 +171,28 @@ src = "src/lib.cpp"
 }
 
 /**
+ * A library may leave out src, since it is built from the sources below src/.
+ */
+TEST(ManifestParserTest, ParsesALibraryWithoutSource)
+{
+    constexpr std::string_view text = R"(
+[package]
+name = "my-lib"
+version = "0.1.0"
+
+[[lib]]
+name = "my-lib"
+)";
+
+    const auto manifest = parseManifest(text, ManifestName);
+
+    ASSERT_TRUE(manifest.has_value());
+    ASSERT_EQ(manifest->targets.size(), 1);
+    EXPECT_EQ(manifest->targets[0].kind, TargetKind::Library);
+    EXPECT_TRUE(manifest->targets[0].entryPoint.empty());
+}
+
+/**
  * Tables reserved for later versions are accepted and left unread, so a
  * manifest that declares them still loads.
  */
