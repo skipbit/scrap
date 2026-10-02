@@ -54,6 +54,8 @@ struct OptionStorage {
     std::unordered_map<std::string, bool> bools;
     std::unordered_map<std::string, std::int64_t> ints;
     std::unordered_map<std::string, std::string> strings;
+    /// The option CLI11 registered for each string, whose count tells an empty value given from one omitted.
+    std::unordered_map<std::string, const CLI::Option*> stringOptions;
     std::unordered_map<std::string, std::vector<std::string>> stringLists;
     std::deque<PositionalSlot> positionals;
     bool takesTrailing = false;  ///< Copied from the spec, not written by CLI11.
@@ -109,6 +111,7 @@ void addOption(CLI::App& app, const OptionDef& def, OptionStorage& storage)
     case OptionValueType::String: {
         storage.strings[def.longName] = "";
         auto* opt = app.add_option(nameStr, storage.strings[def.longName], def.description);
+        storage.stringOptions[def.longName] = opt;
         if (def.required) {
             opt->required();
         }
@@ -244,7 +247,7 @@ ParsedOptions harvestOptions(const OptionStorage& storage)
         opts.named[name] = value;
     }
     for (const auto& [name, value] : storage.strings) {
-        if (! value.empty()) {
+        if ((! value.empty()) || (storage.stringOptions.at(name)->count() > 0)) {
             opts.named[name] = value;
         }
     }
