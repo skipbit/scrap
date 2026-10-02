@@ -168,7 +168,7 @@ std::expected<void, int> runBuild(const Compile::BuildSettings& settings,
 {
     Build::ProgramStepRunner runner;
     StreamBuildReporter reporter{ std::cerr, standardErrorIsTerminal() };
-    const auto built = Build::runSteps(Build::buildSteps(compiles, Compile::planLinkCommands(settings, targets)), runner, reporter, Build::availableParallelism());
+    const auto built = Build::runSteps(Build::buildSteps(compiles, {}, Compile::planLinkCommands(settings, targets)), runner, reporter, Build::availableParallelism());
     if (! built.has_value()) {
         std::cerr << renderStepFailures(built.error());
         return std::unexpected(1);

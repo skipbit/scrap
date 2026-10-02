@@ -23,6 +23,12 @@ StepResult ProgramStepRunner::run(const BuildStep& step)
             .failure = StepFailure{ .kind = StepFailureKind::CannotCreateDirectory, .path = outputDirectory, .code = ec, .status = 0 }
         };
     }
+    // An archiver adds to a library already there, so one left by an earlier
+    // build would keep the objects of sources since removed. Should removing
+    // it fail, the archiver cannot write there either and reports why.
+    if (step.kind == StepKind::Archive) {
+        std::filesystem::remove(step.directory / step.output, ec);
+    }
 
     auto completion = Process::runProgram(step.arguments, { .workingDirectory = step.directory, .capture = Process::OutputCapture::Combined, .group = Process::ProcessGroup::Caller, .timeout = std::nullopt, .outputLimit = std::nullopt });
     if (! completion.has_value()) {

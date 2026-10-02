@@ -10,10 +10,11 @@
 namespace scrap::Build {
 
 /**
- * @brief What a step of the build does.
+ * @brief What a step of the build does, listed in the order the kinds run in.
  */
 enum class StepKind : std::uint8_t {
     Compile,
+    Archive,
     Link
 };
 
@@ -23,7 +24,7 @@ enum class StepKind : std::uint8_t {
 struct BuildStep {
     StepKind kind = StepKind::Compile;
     std::string target;                  ///< The target the step builds.
-    std::filesystem::path subject;       ///< What names the step: the source, or the executable it links.
+    std::filesystem::path subject;       ///< What names the step: the source, or the file it writes.
     std::filesystem::path directory;     ///< Where the program runs, absolute.
     std::filesystem::path output;        ///< The file it writes, relative to the directory.
     std::vector<std::string> arguments;  ///< The command line, starting with the program.

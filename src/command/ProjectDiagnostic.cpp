@@ -50,6 +50,12 @@ constexpr std::string_view CompilerMemoryHint = "hint: check that the compiler h
 /// Next step when the compiler found earlier could not be started.
 constexpr std::string_view CompilerRunHint = "hint: check that the compiler can be run, or set CXX to another one\n";
 
+/// What to do when a signal stopped the archiver.
+constexpr std::string_view ArchiverMemoryHint = "hint: check that the system has enough memory and run the command again\n";
+
+/// What to do when the archiver could not be started.
+constexpr std::string_view ArchiverRunHint = "hint: check that the archiver can be run, or set CXX to another compiler\n";
+
 /**
  * The rule a new project name follows, as scrap::Project::isValidProjectName()
  * checks it.
@@ -443,8 +449,8 @@ namespace {
  */
 std::string describeFailedStep(const Build::BuildStep& step)
 {
-    if (step.kind == Build::StepKind::Link) {
-        std::string text = "error: failed to link '";
+    if (step.kind != Build::StepKind::Compile) {
+        std::string text = (step.kind == Build::StepKind::Archive) ? "error: failed to archive '" : "error: failed to link '";
         text += printablePath((step.directory / step.output).lexically_normal());
         text += '\'';
         return text;
@@ -467,16 +473,17 @@ struct StepFailureReport {
 
 StepFailureReport reportStepFailure(const Build::FailedStep& failed)
 {
+    const bool archives = (failed.step.kind == Build::StepKind::Archive);
     switch (failed.failure.kind) {
     case Build::StepFailureKind::CannotCreateDirectory:
         return { .error = "error: cannot create '" + printablePath(failed.failure.path) + "': " + failed.failure.code.message() + '\n',
                  .hint = cannotWriteBuildHint(failed.failure.code) };
     case Build::StepFailureKind::CannotStart:
         return { .error = "error: cannot run '" + printablePath(failed.failure.path) + "': " + failed.failure.code.message() + '\n',
-                 .hint = CompilerRunHint };
+                 .hint = archives ? ArchiverRunHint : CompilerRunHint };
     case Build::StepFailureKind::Signalled:
-        return { .error = describeFailedStep(failed.step) + ": the compiler was stopped by signal " + std::to_string(failed.failure.status) + '\n',
-                 .hint = CompilerMemoryHint };
+        return { .error = describeFailedStep(failed.step) + (archives ? ": the archiver" : ": the compiler") + " was stopped by signal " + std::to_string(failed.failure.status) + '\n',
+                 .hint = archives ? ArchiverMemoryHint : CompilerMemoryHint };
     case Build::StepFailureKind::Exited:
         return { .error = describeFailedStep(failed.step) + '\n', .hint = FixErrorsHint };
     }

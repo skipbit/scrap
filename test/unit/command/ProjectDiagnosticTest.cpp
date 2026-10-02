@@ -604,6 +604,19 @@ BuildStep compileStep(const char* source)
 }
 
 /**
+ * A step that archives the library of the target "core".
+ */
+BuildStep archiveStep()
+{
+    return BuildStep{ .kind = StepKind::Archive,
+                      .target = "core",
+                      .subject = "build/debug/lib/libcore.a",
+                      .directory = "/home/me/hello",
+                      .output = "build/debug/lib/libcore.a",
+                      .arguments = { "/usr/bin/ar" } };
+}
+
+/**
  * A step that links the executable of the target "hello".
  */
 BuildStep linkStep()
@@ -655,6 +668,50 @@ TEST(ProjectDiagnosticTest, RendersAnExecutableThatFailedToLink)
     EXPECT_EQ(renderStepFailures({ failed }),
               "error: failed to link '/home/me/hello/build/debug/bin/hello'\n"
               "hint: fix the errors reported above and run the command again\n");
+}
+
+/**
+ * An archive that failed names the library it was writing.
+ */
+TEST(ProjectDiagnosticTest, RendersALibraryThatFailedToArchive)
+{
+    const FailedStep failed{ .step = archiveStep(),
+                             .failure = StepFailure{ .kind = StepFailureKind::Exited, .path = {}, .code = {}, .status = 1 } };
+
+    EXPECT_EQ(renderStepFailures({ failed }),
+              "error: failed to archive '/home/me/hello/build/debug/lib/libcore.a'\n"
+              "hint: fix the errors reported above and run the command again\n");
+}
+
+/**
+ * An archiver a signal stopped is named as the archiver, not the compiler.
+ */
+TEST(ProjectDiagnosticTest, RendersAnArchiverASignalStopped)
+{
+    const FailedStep failed{ .step = archiveStep(),
+                             .failure = StepFailure{ .kind = StepFailureKind::Signalled, .path = {}, .code = {}, .status = 9 } };
+
+    EXPECT_EQ(renderStepFailures({ failed }),
+              "error: failed to archive '/home/me/hello/build/debug/lib/libcore.a': "
+              "the archiver was stopped by signal 9\n"
+              "hint: check that the system has enough memory and run the command again\n");
+}
+
+/**
+ * An archiver that could not be started is named with the system's reason,
+ * and a compiler with another archiver is what to turn to.
+ */
+TEST(ProjectDiagnosticTest, RendersAnArchiverThatCouldNotStart)
+{
+    const FailedStep failed{ .step = archiveStep(),
+                             .failure = StepFailure{ .kind = StepFailureKind::CannotStart,
+                                                     .path = "/usr/bin/ar",
+                                                     .code = std::make_error_code(std::errc::permission_denied),
+                                                     .status = 0 } };
+
+    EXPECT_EQ(renderStepFailures({ failed }),
+              "error: cannot run '/usr/bin/ar': " + std::make_error_code(std::errc::permission_denied).message()
+                  + "\nhint: check that the archiver can be run, or set CXX to another compiler\n");
 }
 
 /**

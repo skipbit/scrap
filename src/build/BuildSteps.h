@@ -3,6 +3,7 @@
 #include "build/BuildReporter.h"
 #include "build/BuildStep.h"
 #include "build/StepRunner.h"
+#include "compile/ArchiveCommand.h"
 #include "compile/CompileCommand.h"
 #include "compile/LinkCommand.h"
 
@@ -12,23 +13,27 @@
 namespace scrap::Build {
 
 /**
- * @brief The steps a build takes: every compilation, then every link.
+ * @brief The steps a build takes: every compilation, then every archive, then
+ *        every link.
  *
- * A link reads the object files the compilations write, so no link comes
- * before them.
+ * An archive reads the object files the compilations write, and a link reads
+ * those and the libraries the archives write, so each kind comes after the
+ * ones it reads from.
  *
  * @param compiles The compile commands, in the order to run them.
+ * @param archives The archive commands, in the order to run them.
  * @param links The link commands, in the order to run them.
  */
 [[nodiscard]] std::vector<BuildStep> buildSteps(const std::vector<Compile::CompileCommand>& compiles,
+                                                const std::vector<Compile::ArchiveCommand>& archives,
                                                 const std::vector<Compile::LinkCommand>& links);
 
 /**
  * @brief Run @p steps, as many at once as @p parallelism allows.
  *
- * Steps start in the order given. A link reads the object files the
- * compilations before it write, so no link starts while a compilation
- * before it is still running.
+ * Steps start in the order given. A step does not start while a step of a
+ * kind that runs before its own is still running: an archive waits for the
+ * compilations, and a link for the compilations and the archives.
  *
  * Once a step fails, no further step starts: the steps after it would
  * compile or link on top of an error already reported. The steps already

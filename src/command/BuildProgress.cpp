@@ -11,6 +11,7 @@
 #include <string>
 #include <string_view>
 #include <unistd.h>
+#include <utility>
 
 namespace scrap::Command {
 
@@ -53,7 +54,15 @@ std::size_t colorSequenceEnd(std::string_view text, std::size_t index)
  */
 std::string_view verbFor(const Build::BuildStep& step)
 {
-    return step.kind == Build::StepKind::Compile ? "Compiling" : "Linking";
+    switch (step.kind) {
+    case Build::StepKind::Compile:
+        return "Compiling";
+    case Build::StepKind::Archive:
+        return "Archiving";
+    case Build::StepKind::Link:
+        return "Linking";
+    }
+    std::unreachable();
 }
 
 /**

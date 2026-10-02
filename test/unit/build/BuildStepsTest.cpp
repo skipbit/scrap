@@ -3,6 +3,7 @@
 #include "build/BuildReporter.h"
 #include "build/BuildStep.h"
 #include "build/StepRunner.h"
+#include "compile/ArchiveCommand.h"
 #include "compile/CompileCommand.h"
 #include "compile/LinkCommand.h"
 
@@ -21,6 +22,7 @@
 #include <vector>
 
 using namespace scrap::Build;
+using scrap::Compile::ArchiveCommand;
 using scrap::Compile::CompileCommand;
 using scrap::Compile::LinkCommand;
 
@@ -266,6 +268,60 @@ TEST(BuildStepsTest, LinksOnceEveryCompilationHasEnded)
 }
 
 /**
+ * An archive waits for every compilation, as a link does.
+ */
+TEST(BuildStepsTest, ArchivesOnceEveryCompilationHasEnded)
+{
+    Timeline timeline;
+    ScriptedRunner runner{ timeline };
+    runner.scripts["src/a.cpp"] = [&] {
+        timeline.waitFor("run src/b.cpp");
+        return StepResult{};
+    };
+    runner.scripts["src/b.cpp"] = [&] {
+        timeline.waitFor("finished src/a.cpp []");
+        return StepResult{};
+    };
+    RecordingReporter reporter{ timeline };
+
+    const auto result
+        = runSteps({ stepFor("src/a.cpp"), stepFor("src/b.cpp"), stepFor("lib/libcore.a", StepKind::Archive) }, runner, reporter, 2);
+
+    EXPECT_TRUE(result.has_value());
+    const auto events = reported(timeline);
+    EXPECT_LT(std::ranges::find(events, "finished src/b.cpp []"), std::ranges::find(events, "started lib/libcore.a"));
+}
+
+/**
+ * A link waits for every archive, since it reads the library an archive
+ * writes.
+ */
+TEST(BuildStepsTest, LinksOnceEveryArchiveHasEnded)
+{
+    Timeline timeline;
+    ScriptedRunner runner{ timeline };
+    runner.scripts["lib/liba.a"] = [&] {
+        timeline.waitFor("run lib/libb.a");
+        return StepResult{};
+    };
+    runner.scripts["lib/libb.a"] = [&] {
+        timeline.waitFor("finished lib/liba.a []");
+        return StepResult{};
+    };
+    RecordingReporter reporter{ timeline };
+
+    const auto result = runSteps(
+        { stepFor("lib/liba.a", StepKind::Archive), stepFor("lib/libb.a", StepKind::Archive), stepFor("bin/app", StepKind::Link) },
+        runner,
+        reporter,
+        2);
+
+    EXPECT_TRUE(result.has_value());
+    const auto events = reported(timeline);
+    EXPECT_LT(std::ranges::find(events, "finished lib/libb.a []"), std::ranges::find(events, "started bin/app"));
+}
+
+/**
  * A compilation after a link in the given steps still runs: the link waits
  * only for the compilations before it.
  */
@@ -333,10 +389,11 @@ TEST(BuildStepsTest, PassesOnWhatAStepThrows)
 }
 
 /**
- * Every compilation comes before every link, each named by what it is
- * about: the source it compiles, or the executable it links.
+ * Every compilation comes before every archive, and every archive before
+ * every link, each named by what it is about: the source it compiles, or the
+ * file it writes.
  */
-TEST(BuildStepsTest, CompilesBeforeItLinks)
+TEST(BuildStepsTest, CompilesThenArchivesThenLinks)
 {
     const std::vector<CompileCommand> compiles{ CompileCommand{ .target = "app",
                                                                 .directory = "/home/me/app",
@@ -353,16 +410,26 @@ TEST(BuildStepsTest, CompilesBeforeItLinks)
                                                        .output = "build/debug/bin/app",
                                                        .arguments = { "/usr/bin/c++", "-o", "build/debug/bin/app" } } };
 
-    const auto steps = buildSteps(compiles, links);
+    const std::vector<ArchiveCommand> archives{ ArchiveCommand{ .target = "core",
+                                                                .directory = "/home/me/app",
+                                                                .output = "build/debug/lib/libcore.a",
+                                                                .arguments = { "/usr/bin/ar", "rcs", "build/debug/lib/libcore.a" } } };
 
-    ASSERT_EQ(steps.size(), 3);
+    const auto steps = buildSteps(compiles, archives, links);
+
+    ASSERT_EQ(steps.size(), 4);
     EXPECT_EQ(steps[0].kind, StepKind::Compile);
     EXPECT_EQ(steps[0].subject, "src/main.cpp");
     EXPECT_EQ(steps[0].output, "build/debug/obj/app/src/main.cpp.o");
     EXPECT_EQ(steps[1].target, "tool");
-    EXPECT_EQ(steps[2].kind, StepKind::Link);
-    EXPECT_EQ(steps[2].target, "app");
-    EXPECT_EQ(steps[2].subject, "build/debug/bin/app");
-    EXPECT_EQ(steps[2].directory, "/home/me/app");
-    EXPECT_EQ(steps[2].arguments, links[0].arguments);
+    EXPECT_EQ(steps[2].kind, StepKind::Archive);
+    EXPECT_EQ(steps[2].target, "core");
+    EXPECT_EQ(steps[2].subject, "build/debug/lib/libcore.a");
+    EXPECT_EQ(steps[2].output, "build/debug/lib/libcore.a");
+    EXPECT_EQ(steps[2].arguments, archives[0].arguments);
+    EXPECT_EQ(steps[3].kind, StepKind::Link);
+    EXPECT_EQ(steps[3].target, "app");
+    EXPECT_EQ(steps[3].subject, "build/debug/bin/app");
+    EXPECT_EQ(steps[3].directory, "/home/me/app");
+    EXPECT_EQ(steps[3].arguments, links[0].arguments);
 }
