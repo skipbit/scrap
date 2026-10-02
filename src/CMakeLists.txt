@@ -56,6 +56,8 @@ scrap_apply_compile_settings(scrap_process WARNINGS_AS_ERRORS)
 # Toolchain detection
 add_library(scrap_toolchain STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/CompilerIdentity.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/ProgramSearch.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/SystemArchiver.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/SystemCompiler.cpp
 )
 target_include_directories(scrap_toolchain PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

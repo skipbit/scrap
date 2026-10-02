@@ -27,6 +27,7 @@ add_executable(scrap_gtest
     unit/command/ApplicationTest.cpp
     unit/process/SubprocessTest.cpp
     unit/toolchain/CompilerIdentityTest.cpp
+    unit/toolchain/SystemArchiverTest.cpp
     unit/toolchain/SystemCompilerTest.cpp
 )
 
