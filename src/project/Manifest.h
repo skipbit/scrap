@@ -18,6 +18,17 @@ enum class TargetKind : std::uint8_t {
 };
 
 /**
+ * @brief What a target adds to the commands that build it, as scrap.toml
+ *        writes it.
+ */
+struct TargetSettings {
+    std::vector<std::filesystem::path> includeDirectories;  ///< include-dirs, relative to the project root.
+    std::vector<std::string> defines;                       ///< defines, each NAME or NAME=VALUE.
+    std::vector<std::string> compileFlags;                  ///< compile-flags.
+    std::vector<std::string> linkFlags;                     ///< link-flags.
+};
+
+/**
  * @brief A single build target and the source file it starts from.
  *
  * Declared by a [[bin]] or [[lib]] table in scrap.toml, or inferred from the
@@ -31,6 +42,10 @@ struct Target {
      * point, or a file a library adds; empty for a library that names none.
      */
     std::filesystem::path source;
+    /// Settings for this target alone.
+    TargetSettings settings{};
+    /// Settings for a library and every target that uses it, from [lib.public].
+    TargetSettings publicSettings{};
 };
 
 /**
