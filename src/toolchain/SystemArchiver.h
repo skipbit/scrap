@@ -2,20 +2,17 @@
 
 #include <expected>  // IWYU pragma: keep
 #include <filesystem>
+#include <optional>
 #include <string>
-#include <string_view>
 #include <vector>
 
 namespace scrap::Toolchain {
-
-/// The archiver a compiler is taken to use when it cannot be asked.
-inline constexpr std::string_view DefaultArchiverName = "ar";
 
 /**
  * @brief Why no archiver was settled on.
  */
 struct NoArchiver {
-    std::string named;  ///< What the compiler answered, or DefaultArchiverName when it could not be asked.
+    std::optional<std::string> named;  ///< What the compiler answered; nothing when it could not be asked.
 };
 
 /**

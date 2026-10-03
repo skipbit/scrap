@@ -20,6 +20,7 @@ using namespace scrap::Compile;
 using scrap::Project::LanguageStandard;
 using scrap::Project::Target;
 using scrap::Project::TargetKind;
+using scrap::Project::TargetSettings;
 using scrap::Project::TargetSources;
 using scrap::Toolchain::CompilerFamily;
 using scrap::Toolchain::CompilerIdentity;
@@ -51,6 +52,24 @@ TargetSources targetWithSources(TargetKind kind, const char* name, const char* e
 TargetSources executableWithSources(const char* name, const char* entryPoint, std::vector<std::filesystem::path> sources)
 {
     return targetWithSources(TargetKind::Executable, name, entryPoint, std::move(sources));
+}
+
+/**
+ * A library whose own settings and public ones each hold one of every kind,
+ * told apart by name, beside an executable that has settings of its own.
+ */
+std::vector<TargetSources> executableAndLibraryWithSettings()
+{
+    TargetSources app = executableWithSources("app", "src/main.cpp", { "src/main.cpp" });
+    app.target.settings = TargetSettings{
+        .includeDirectories = { "app-inc" }, .defines = { "APP" }, .compileFlags = { "-app" }, .linkFlags = { "-lapp" }
+    };
+    TargetSources core = targetWithSources(TargetKind::Library, "core", "", { "src/core.cpp" });
+    core.target.settings = TargetSettings{ .includeDirectories = { "own-inc" }, .defines = { "OWN" }, .compileFlags = { "-own" }, .linkFlags = {} };
+    core.target.publicSettings = TargetSettings{
+        .includeDirectories = { "pub-inc" }, .defines = { "PUB=1" }, .compileFlags = { "-pub" }, .linkFlags = { "-lpub" }
+    };
+    return { std::move(app), std::move(core) };
 }
 
 std::vector<std::filesystem::path> outputsOf(const std::vector<CompileCommand>& commands)
@@ -416,4 +435,87 @@ TEST(CompilePlannerTest, LinksWithoutColorForAnUnknownCompiler)
     ASSERT_EQ(commands.size(), 1);
     EXPECT_EQ(commands[0].arguments,
               (std::vector<std::string>{ "/usr/bin/c++", "build/debug/obj/hello/src/main.cpp.o", "-o", "build/debug/bin/hello" }));
+}
+
+/**
+ * A compilation takes the settings after the shared options, grouped by
+ * kind: the target's own, then the public ones of the library it uses.
+ */
+TEST(CompilePlannerTest, CompilesAnExecutableWithItsSettingsAndThePublicOnesOfItsLibrary)
+{
+    const auto commands = planCompileCommands(settingsFor(CompilerIdentity{}), executableAndLibraryWithSettings());
+
+    ASSERT_EQ(commands.size(), 2);
+    EXPECT_EQ(commands[0].target, "app");
+    EXPECT_EQ(commands[0].arguments,
+              (std::vector<std::string>{ "/usr/bin/c++",
+                                         "-std=c++23",
+                                         "-g",
+                                         "-O0",
+                                         "-Wall",
+                                         "-Wextra",
+                                         "-Wpedantic",
+                                         "-I",
+                                         "include",
+                                         "-I",
+                                         "app-inc",
+                                         "-I",
+                                         "pub-inc",
+                                         "-DAPP",
+                                         "-DPUB=1",
+                                         "-app",
+                                         "-pub",
+                                         "-c",
+                                         "src/main.cpp",
+                                         "-o",
+                                         "build/debug/obj/app/src/main.cpp.o" }));
+}
+
+/**
+ * A library is compiled with its own settings and its public ones.
+ */
+TEST(CompilePlannerTest, CompilesALibraryWithItsOwnSettingsAndItsPublicOnes)
+{
+    const auto commands = planCompileCommands(settingsFor(CompilerIdentity{}), executableAndLibraryWithSettings());
+
+    ASSERT_EQ(commands.size(), 2);
+    EXPECT_EQ(commands[1].target, "core");
+    const std::vector<std::string> added(commands[1].arguments.begin() + 9, commands[1].arguments.end() - 4);
+    EXPECT_EQ(added, (std::vector<std::string>{ "-I", "own-inc", "-I", "pub-inc", "-DOWN", "-DPUB=1", "-own", "-pub" }));
+}
+
+/**
+ * An executable links with its own link flags, then the public ones of its
+ * library, after the archive.
+ */
+TEST(CompilePlannerTest, LinksAnExecutableWithItsLinkFlagsAndThePublicOnesOfItsLibrary)
+{
+    const auto commands = planLinkCommands(settingsFor(CompilerIdentity{}), executableAndLibraryWithSettings());
+
+    ASSERT_EQ(commands.size(), 1);
+    EXPECT_EQ(commands[0].arguments,
+              (std::vector<std::string>{ "/usr/bin/c++",
+                                         "build/debug/obj/app/src/main.cpp.o",
+                                         "build/debug/lib/libcore.a",
+                                         "-lapp",
+                                         "-lpub",
+                                         "-o",
+                                         "build/debug/bin/app" }));
+}
+
+/**
+ * An include directory that looks like an option or a file of options is
+ * passed as a directory, and a define is joined to -D so it cannot stand on
+ * its own.
+ */
+TEST(CompilePlannerTest, PassesSettingsThatLookLikeOptionsAsWhatTheyAre)
+{
+    TargetSources app = executableWithSources("app", "src/main.cpp", { "src/main.cpp" });
+    app.target.settings = TargetSettings{ .includeDirectories = { "-inc", "@inc" }, .defines = { "@opts" }, .compileFlags = {}, .linkFlags = {} };
+
+    const auto commands = planCompileCommands(settingsFor(CompilerIdentity{}), { app });
+
+    ASSERT_EQ(commands.size(), 1);
+    const std::vector<std::string> added(commands[0].arguments.begin() + 9, commands[0].arguments.end() - 4);
+    EXPECT_EQ(added, (std::vector<std::string>{ "-I", "./-inc", "-I", "./@inc", "-D@opts" }));
 }

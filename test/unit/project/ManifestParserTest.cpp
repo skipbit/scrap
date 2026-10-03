@@ -7,8 +7,10 @@
 
 #include <gtest/gtest.h>
 
+#include <filesystem>
 #include <string>
 #include <string_view>
+#include <vector>
 
 using namespace scrap::Project;
 using scrap::TestSupport::TempDirectory;
@@ -679,4 +681,232 @@ source = "src/main.cpp"
     ASSERT_FALSE(manifest.has_value());
     EXPECT_EQ(manifest.error().key, "bin.source");
     EXPECT_NE(manifest.error().message.find("unknown key"), std::string::npos);
+}
+
+/**
+ * A target's own settings and a library's public ones are read in the order
+ * they are written.
+ */
+TEST(ManifestParserTest, ReadsTheSettingsOfATarget)
+{
+    constexpr std::string_view text = R"(
+[package]
+name = "my-app"
+version = "0.1.0"
+
+[[bin]]
+name = "app"
+src = "src/main.cpp"
+include-dirs = ["gen", "third/include"]
+defines = ["B=2", "A"]
+compile-flags = ["-Werror"]
+link-flags = ["-lm"]
+
+[[lib]]
+name = "core"
+include-dirs = ["src"]
+compile-flags = ["-fno-rtti"]
+
+[lib.public]
+defines = ["CORE_SHARED"]
+link-flags = ["-pthread"]
+)";
+
+    const auto manifest = parseManifest(text, ManifestName);
+
+    ASSERT_TRUE(manifest.has_value());
+    ASSERT_EQ(manifest->targets.size(), 2);
+    const TargetSettings& app = manifest->targets[0].settings;
+    EXPECT_EQ(app.includeDirectories, (std::vector<std::filesystem::path>{ "gen", "third/include" }));
+    EXPECT_EQ(app.defines, (std::vector<std::string>{ "B=2", "A" }));
+    EXPECT_EQ(app.compileFlags, (std::vector<std::string>{ "-Werror" }));
+    EXPECT_EQ(app.linkFlags, (std::vector<std::string>{ "-lm" }));
+
+    const Target& core = manifest->targets[1];
+    EXPECT_EQ(core.settings.includeDirectories, (std::vector<std::filesystem::path>{ "src" }));
+    EXPECT_EQ(core.settings.compileFlags, (std::vector<std::string>{ "-fno-rtti" }));
+    EXPECT_TRUE(core.settings.defines.empty());
+    EXPECT_EQ(core.publicSettings.defines, (std::vector<std::string>{ "CORE_SHARED" }));
+    EXPECT_EQ(core.publicSettings.linkFlags, (std::vector<std::string>{ "-pthread" }));
+    EXPECT_TRUE(core.publicSettings.includeDirectories.empty());
+}
+
+/**
+ * An empty list of settings is the same as writing none.
+ */
+TEST(ManifestParserTest, ReadsAnEmptyListOfSettingsAsNone)
+{
+    constexpr std::string_view text = R"(
+[package]
+name = "my-app"
+version = "0.1.0"
+
+[[bin]]
+name = "app"
+src = "src/main.cpp"
+defines = []
+)";
+
+    const auto manifest = parseManifest(text, ManifestName);
+
+    ASSERT_TRUE(manifest.has_value());
+    EXPECT_TRUE(manifest->targets[0].settings.defines.empty());
+}
+
+/**
+ * A setting written as a single string, or holding something other than
+ * strings, is reported at what is wrong.
+ */
+TEST(ManifestParserTest, ReportsASettingThatIsNotAnArrayOfStrings)
+{
+    constexpr std::string_view notAnArray = "[package]\nname = \"a\"\nversion = \"0.1.0\"\n"
+                                            "[[bin]]\nname = \"a\"\nsrc = \"main.cpp\"\ndefines = \"FOO\"\n";
+    const auto single = parseManifest(notAnArray, ManifestName);
+    ASSERT_FALSE(single.has_value());
+    EXPECT_EQ(describe(single.error()), "scrap.toml:7:11: error: bin.defines: must be an array of strings");
+
+    constexpr std::string_view notAString = "[package]\nname = \"a\"\nversion = \"0.1.0\"\n"
+                                            "[[bin]]\nname = \"a\"\nsrc = \"main.cpp\"\ncompile-flags = [\"-g\", 1]\n";
+    const auto number = parseManifest(notAString, ManifestName);
+    ASSERT_FALSE(number.has_value());
+    EXPECT_EQ(describe(number.error()), "scrap.toml:7:24: error: bin.compile-flags: must be an array of strings");
+}
+
+/**
+ * An empty string among the settings is reported rather than passed on.
+ */
+TEST(ManifestParserTest, ReportsAnEmptySetting)
+{
+    constexpr std::string_view text = R"(
+[package]
+name = "my-app"
+version = "0.1.0"
+
+[[lib]]
+name = "core"
+
+[lib.public]
+link-flags = ["-pthread", ""]
+)";
+
+    const auto manifest = parseManifest(text, ManifestName);
+
+    ASSERT_FALSE(manifest.has_value());
+    EXPECT_EQ(manifest.error().key, "lib.public.link-flags");
+    EXPECT_EQ(manifest.error().message, "must not be empty");
+}
+
+/**
+ * An include directory is held to the rule src follows: relative to the
+ * project root and inside it.
+ */
+TEST(ManifestParserTest, ReportsAnIncludeDirectoryOutsideTheProject)
+{
+    constexpr std::string_view absolute = "[package]\nname = \"a\"\nversion = \"0.1.0\"\n"
+                                          "[[bin]]\nname = \"a\"\nsrc = \"main.cpp\"\ninclude-dirs = [\"/usr/include\"]\n";
+    const auto rooted = parseManifest(absolute, ManifestName);
+    ASSERT_FALSE(rooted.has_value());
+    EXPECT_EQ(rooted.error().key, "bin.include-dirs");
+    EXPECT_EQ(rooted.error().message, "must be relative to the project root");
+
+    constexpr std::string_view leaving = "[package]\nname = \"a\"\nversion = \"0.1.0\"\n"
+                                         "[[lib]]\nname = \"a\"\n[lib.public]\ninclude-dirs = [\"include/../..\"]\n";
+    const auto outside = parseManifest(leaving, ManifestName);
+    ASSERT_FALSE(outside.has_value());
+    EXPECT_EQ(outside.error().key, "lib.public.include-dirs");
+    EXPECT_EQ(outside.error().message, "must not leave the project root");
+}
+
+/**
+ * A public table on an executable is reported with the reason, since public
+ * is a key a library takes.
+ */
+TEST(ManifestParserTest, ReportsAPublicTableOnAnExecutable)
+{
+    constexpr std::string_view text = R"(
+[package]
+name = "my-app"
+version = "0.1.0"
+
+[[bin]]
+name = "app"
+src = "src/main.cpp"
+
+[bin.public]
+defines = ["FOO"]
+)";
+
+    const auto manifest = parseManifest(text, ManifestName);
+
+    ASSERT_FALSE(manifest.has_value());
+    EXPECT_EQ(manifest.error().key, "bin.public");
+    EXPECT_EQ(manifest.error().message, "nothing uses an executable; write these settings directly in [[bin]]");
+}
+
+/**
+ * link-flags directly under a library are reported, since a static library
+ * is not linked.
+ */
+TEST(ManifestParserTest, ReportsLinkFlagsALibraryKeepsToItself)
+{
+    constexpr std::string_view text = R"(
+[package]
+name = "my-app"
+version = "0.1.0"
+
+[[lib]]
+name = "core"
+link-flags = ["-pthread"]
+)";
+
+    const auto manifest = parseManifest(text, ManifestName);
+
+    ASSERT_FALSE(manifest.has_value());
+    EXPECT_EQ(describe(manifest.error()), "scrap.toml:8:14: error: lib.link-flags: a static library is not linked; write it under lib.public");
+}
+
+/**
+ * The public table takes the settings and nothing else, and must be a table.
+ */
+TEST(ManifestParserTest, ReportsAPublicTableOfWrongShapeOrKey)
+{
+    constexpr std::string_view unknown = "[package]\nname = \"a\"\nversion = \"0.1.0\"\n"
+                                         "[[lib]]\nname = \"a\"\n[lib.public]\nname = \"b\"\n";
+    const auto withName = parseManifest(unknown, ManifestName);
+    ASSERT_FALSE(withName.has_value());
+    EXPECT_EQ(withName.error().key, "lib.public.name");
+    EXPECT_EQ(withName.error().message, "unknown key; expected one of include-dirs defines compile-flags link-flags");
+
+    constexpr std::string_view notATable = "[package]\nname = \"a\"\nversion = \"0.1.0\"\n"
+                                           "[[lib]]\nname = \"a\"\npublic = [\"-pthread\"]\n";
+    const auto array = parseManifest(notATable, ManifestName);
+    ASSERT_FALSE(array.has_value());
+    EXPECT_EQ(array.error().key, "lib.public");
+    EXPECT_EQ(array.error().message, "must be a table");
+}
+
+/**
+ * A library cannot add a file that is already an executable's entry point,
+ * however the path is spelled.
+ */
+TEST(ManifestParserTest, ReportsALibrarySourceThatIsAnEntryPoint)
+{
+    constexpr std::string_view text = R"(
+[package]
+name = "my-app"
+version = "0.1.0"
+
+[[bin]]
+name = "app"
+src = "src/main.cpp"
+
+[[lib]]
+name = "core"
+src = "./src/main.cpp"
+)";
+
+    const auto manifest = parseManifest(text, ManifestName);
+
+    ASSERT_FALSE(manifest.has_value());
+    EXPECT_EQ(describe(manifest.error()), "scrap.toml:12:7: error: lib.src: already the entry point of the executable 'app'");
 }

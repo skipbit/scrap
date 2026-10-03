@@ -105,8 +105,8 @@ TEST(SystemArchiverTest, ReportsAPathThatCannotBeRun)
 }
 
 /**
- * A compiler that cannot be asked is reported with the archiver's usual
- * name, and no archiver on the search paths stands in for it.
+ * A compiler that cannot be asked is reported as such, and no archiver on the
+ * search paths stands in for it.
  */
 TEST(SystemArchiverTest, ReportsACompilerThatCannotBeAsked)
 {
@@ -117,5 +117,5 @@ TEST(SystemArchiverTest, ReportsACompilerThatCannotBeAsked)
     const auto found = findArchiver(compiler, { temp.path() / "path" });
 
     ASSERT_FALSE(found.has_value());
-    EXPECT_EQ(found.error().named, "ar");
+    EXPECT_FALSE(found.error().named.has_value());
 }

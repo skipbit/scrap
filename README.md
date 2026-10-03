@@ -81,6 +81,21 @@ boost = { version = "1.84.0", features = ["filesystem", "asio"] }
 name is the compiler's to answer, and `scrap build` says so before it compiles
 anything.
 
+A target can add to the commands that build it. Settings written on a target
+apply to it alone; a library's settings under `[lib.public]` also apply to
+every executable that uses it:
+
+```toml
+[[lib]]
+name = "core"
+include-dirs = ["src"]
+compile-flags = ["-Werror"]
+
+[lib.public]
+compile-flags = ["-pthread"]
+link-flags = ["-pthread"]
+```
+
 ### 🎨 Project Templates
 
 Get started quickly with the built-in template:
@@ -138,6 +153,11 @@ scrap is in early alpha development. Currently implemented:
   `src/` become `build/<profile>/lib/lib<name>.a`, and each executable is
   built from its entry point and links that library. The archiver is the
   one the compiler names for `-print-prog-name=ar`
+- Settings per target: `include-dirs`, `defines` and `compile-flags` on a
+  `[[bin]]` or `[[lib]]`, and `link-flags` on a `[[bin]]`, apply to that
+  target alone. Under `[lib.public]` all four apply to the library and
+  every executable that uses it; a static library is not linked, so this
+  is where its `link-flags` go
 - Removing the build output (`scrap clean`): the project's `build/`
   directory is removed with everything in it
 - Running the project (`scrap run`): the executable named by `--bin`, or
@@ -155,7 +175,7 @@ scrap is in early alpha development. Currently implemented:
 
 🚧 **In Progress**
 - Template system with variable substitution
-- A chosen number of parallel jobs, and settings per target
+- A chosen number of parallel jobs
 - Configuration file parsing (`scrap.toml`) - `[dependencies]` and
   `[toolchain]` are accepted and not yet read
 - Git-based template repository integration

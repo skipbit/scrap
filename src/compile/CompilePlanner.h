@@ -41,9 +41,14 @@ struct BuildSettings {
  * builds for the profile with the common warnings on, keeps colour in the
  * compiler's diagnostics where the driver knows how, and searches include/
  * for headers; the compiler passes over that directory when a project has
- * none. A source whose path starts with '-' or '@' is written as ./<path>,
- * so the compiler reads it as a file rather than as an option or as a file
- * of options.
+ * none. A source or include directory whose path starts with '-' or '@' is
+ * written as ./<path>, so the compiler reads it as a file rather than as an
+ * option or as a file of options.
+ *
+ * The settings of the target follow: its include directories, then its
+ * defines, then its compile flags. Within each kind come the target's own,
+ * then its public ones, then the public ones of the library an executable
+ * uses. A define is joined to -D, and a flag goes on as written.
  *
  * @param settings What the commands of the build share.
  * @param targets Each target with its sources, as collectSources() returned them.
@@ -91,7 +96,9 @@ struct BuildSettings {
  * An executable is written to bin/<target> in the build directory, from the
  * object files planCompileCommands() gives its sources, in the same order,
  * followed by the library among @p targets, if any: an executable uses the
- * library of its project without naming it.
+ * library of its project without naming it. The link flags of the
+ * executable come next, then the public ones of that library, after every
+ * archive so a -l among them resolves what the archive needs.
  *
  * @param settings What the commands of the build share.
  * @param targets Each target with its sources, as collectSources() returned them.

@@ -23,6 +23,7 @@ using scrap::Build::StepFailure;
 using scrap::Build::StepFailureKind;
 using scrap::Build::StepKind;
 using scrap::Command::renderArchiverNotFound;
+using scrap::Command::renderArchiverNotNamed;
 using scrap::Command::renderCompilationDatabaseFailure;
 using scrap::Command::renderExecutableNotStarted;
 using scrap::Command::renderLibraryWithoutSources;
@@ -844,6 +845,17 @@ TEST(ProjectDiagnosticTest, RendersAnArchiverItCannotFind)
     EXPECT_EQ(renderArchiverNotFound("llvm-ar", "/usr/bin/clang++"),
               "error: cannot find the archiver 'llvm-ar' that '/usr/bin/clang++' uses\n"
               "hint: install it, or set CXX to another compiler\n");
+}
+
+/**
+ * A compiler that cannot say which archiver it uses is named, with what it
+ * was asked.
+ */
+TEST(ProjectDiagnosticTest, RendersACompilerThatCannotNameItsArchiver)
+{
+    EXPECT_EQ(renderArchiverNotNamed("/opt/cc/bin/c++"),
+              "error: cannot ask '/opt/cc/bin/c++' which archiver it uses\n"
+              "hint: set CXX to a compiler that answers -print-prog-name=ar\n");
 }
 
 /**

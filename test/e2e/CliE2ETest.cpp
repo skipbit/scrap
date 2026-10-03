@@ -1453,6 +1453,38 @@ TEST_F(CliE2ETest, BuildsALibraryAndLinksItIntoTheExecutable)
     EXPECT_EQ(ran.exitCode, 0);
 }
 
+/**
+ * A library's own settings reach its compilation alone, and its public ones
+ * reach both it and the executable that uses it, link included. Each source
+ * stops the build with #error when it sees a define it should not, and the
+ * executable links only if the object its library's public link flags name
+ * is passed along.
+ */
+TEST_F(CliE2ETest, BuildPassesALibrarysPublicSettingsAndNotItsOwnToTheExecutable)
+{
+    writeFile("scrap.toml",
+              std::string{ LibraryAndExecutableManifest } + "defines = [\"CORE_OWN\"]\n\n"
+                                                            "[lib.public]\ndefines = [\"CORE_SHARED\"]\nlink-flags = [\"extra.o\"]\n");
+    writeFile("src/core.cpp",
+              "#if !defined(CORE_OWN) || !defined(CORE_SHARED)\n#error the library misses a setting\n#endif\n"
+              "int extra();\nint answer() { return extra(); }\n");
+    writeFile("src/main.cpp",
+              "#ifdef CORE_OWN\n#error a setting the library keeps to itself reached the executable\n#endif\n"
+              "#ifndef CORE_SHARED\n#error a public setting of the library missed the executable\n#endif\n"
+              "int answer();\nint main() { return answer() == 42 ? 0 : 1; }\n");
+    writeFile("extra.cpp", "int extra() { return 42; }\n");
+    auto extra = runProgram({ SCRAP_TEST_CXX, "-c", "extra.cpp", "-o", "extra.o" }, {}, _root, BuildTimeout);
+    ASSERT_EQ(extra.exitCode, 0) << extra.stderrText;
+
+    auto result = runScrap({ "build" }, { realCompiler() }, _root, BuildTimeout);
+
+    ASSERT_TRUE(result.exitedNormally) << result.stderrText;
+    ASSERT_EQ(result.exitCode, 0) << result.stderrText;
+    auto ran = runProgram({ (_root / "build" / "debug" / "bin" / "app").string() }, {}, _root);
+    ASSERT_TRUE(ran.exitedNormally);
+    EXPECT_EQ(ran.exitCode, 0);
+}
+
 TEST_F(CliE2ETest, BuildsTheLibraryTheTargetNamedUses)
 {
     writeFile("scrap.toml", LibraryAndExecutableManifest);
@@ -1521,6 +1553,25 @@ TEST_F(CliE2ETest, BuildReportsAnArchiverTheCompilerNamesAndCannotBeFound)
     // It is reported before anything is compiled, once the database is written.
     EXPECT_FALSE(std::filesystem::exists(_root / "build" / "debug" / "obj"));
     EXPECT_NE(readFile("build/debug/compile_commands.json").find("\"file\": \"src/core.cpp\""), std::string::npos);
+}
+
+TEST_F(CliE2ETest, BuildReportsACompilerThatCannotNameItsArchiver)
+{
+    writeFile("scrap.toml", LibraryAndExecutableManifest);
+    writeFile("src/core.cpp", "int answer() { return 42; }\n");
+    writeFile("src/main.cpp", "int answer();\nint main() { return answer() == 42 ? 0 : 1; }\n");
+    makeDummy("mute-c++", std::string{ "case \"$1\" in -print-prog-name=ar) exit 1 ;; *) exec " } + SCRAP_TEST_CXX + " \"$@\" ;; esac");
+    const std::string compiler = (std::filesystem::canonical(_root) / "bin" / "mute-c++").string();
+
+    auto result = runScrap({ "build" }, { "CXX=" + compiler }, _root, BuildTimeout);
+
+    ASSERT_TRUE(result.exitedNormally) << result.stderrText;
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_NE(result.stderrText.find("error: cannot ask '" + compiler + "' which archiver it uses\n"
+                                                                        "hint: set CXX to a compiler that answers -print-prog-name=ar\n"),
+              std::string::npos)
+        << result.stderrText;
+    EXPECT_FALSE(std::filesystem::exists(_root / "build" / "debug" / "obj"));
 }
 
 TEST_F(CliE2ETest, BuildReportsATargetNameTheProjectLacks)

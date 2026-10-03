@@ -577,6 +577,14 @@ std::string renderArchiverNotFound(const std::string_view archiver, const std::f
     return text;
 }
 
+std::string renderArchiverNotNamed(const std::filesystem::path& compiler)
+{
+    std::string text = "error: cannot ask '";
+    text += printablePath(compiler);
+    text += "' which archiver it uses\nhint: set CXX to a compiler that answers -print-prog-name=ar\n";
+    return text;
+}
+
 std::string renderStepFailures(const std::vector<Build::FailedStep>& failures)
 {
     std::string text;

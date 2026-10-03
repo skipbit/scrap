@@ -121,7 +121,8 @@ std::expected<std::vector<Compile::ArchiveCommand>, int> planArchives(const Runt
     }
     const auto archiver = Toolchain::findArchiver(settings.compiler, env.systemSearchPaths);
     if (! archiver.has_value()) {
-        std::cerr << renderArchiverNotFound(archiver.error().named, settings.compiler);
+        const auto& named = archiver.error().named;
+        std::cerr << (named.has_value() ? renderArchiverNotFound(*named, settings.compiler) : renderArchiverNotNamed(settings.compiler));
         return std::unexpected(1);
     }
     return Compile::planArchiveCommands(settings, *archiver, targets);
