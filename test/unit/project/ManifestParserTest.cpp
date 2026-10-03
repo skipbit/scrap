@@ -884,3 +884,29 @@ TEST(ManifestParserTest, ReportsAPublicTableOfWrongShapeOrKey)
     EXPECT_EQ(array.error().key, "lib.public");
     EXPECT_EQ(array.error().message, "must be a table");
 }
+
+/**
+ * A library cannot add a file that is already an executable's entry point,
+ * however the path is spelled.
+ */
+TEST(ManifestParserTest, ReportsALibrarySourceThatIsAnEntryPoint)
+{
+    constexpr std::string_view text = R"(
+[package]
+name = "my-app"
+version = "0.1.0"
+
+[[bin]]
+name = "app"
+src = "src/main.cpp"
+
+[[lib]]
+name = "core"
+src = "./src/main.cpp"
+)";
+
+    const auto manifest = parseManifest(text, ManifestName);
+
+    ASSERT_FALSE(manifest.has_value());
+    EXPECT_EQ(describe(manifest.error()), "scrap.toml:12:7: error: lib.src: already the entry point of the executable 'app'");
+}

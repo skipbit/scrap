@@ -441,6 +441,26 @@ std::span<const std::string_view> knownTargetKeys(const TargetKind kind)
 }
 
 /**
+ * Reject a file a library adds that is already an executable's entry point.
+ *
+ * Compiled into both, it puts a second main() in the library, which a link
+ * pulls in when another source of the library uses something it defines.
+ */
+std::expected<void, ManifestError> rejectEntryPointInLibrary(const std::filesystem::path& file,
+                                                             const StringField& source,
+                                                             std::string key,
+                                                             const std::vector<Target>& targets)
+{
+    const std::filesystem::path named = std::filesystem::path{ source.value }.lexically_normal();
+    for (const Target& target : targets) {
+        if ((target.kind == TargetKind::Executable) && (target.source.lexically_normal() == named)) {
+            return std::unexpected(errorAt(file, *source.node, std::move(key), "already the entry point of the executable '" + target.name + "'"));
+        }
+    }
+    return {};
+}
+
+/**
  * Read the file src names, if the entry has one.
  *
  * A library is built from the sources below src/, so naming a file of its
@@ -449,7 +469,8 @@ std::span<const std::string_view> knownTargetKeys(const TargetKind kind)
 std::expected<std::filesystem::path, ManifestError> parseSource(const std::filesystem::path& file,
                                                                 const toml::table& table,
                                                                 std::string_view key,
-                                                                TargetKind kind)
+                                                                TargetKind kind,
+                                                                const std::vector<Target>& targets)
 {
     if ((kind == TargetKind::Library) && (table.get("src") == nullptr)) {
         return std::filesystem::path{};
@@ -460,6 +481,11 @@ std::expected<std::filesystem::path, ManifestError> parseSource(const std::files
     }
     if (auto valid = validateProjectPath(file, *source, dotted(key, "src")); ! valid.has_value()) {
         return std::unexpected(valid.error());
+    }
+    if (kind == TargetKind::Library) {
+        if (auto shared = rejectEntryPointInLibrary(file, *source, dotted(key, "src"), targets); ! shared.has_value()) {
+            return std::unexpected(shared.error());
+        }
     }
     return std::filesystem::path{ source->value };
 }
@@ -493,7 +519,7 @@ std::expected<void, ManifestError> parseTargetEntry(const std::filesystem::path&
         }
     }
 
-    auto source = parseSource(file, table, key, kind);
+    auto source = parseSource(file, table, key, kind, targets);
     if (! source.has_value()) {
         return std::unexpected(source.error());
     }
