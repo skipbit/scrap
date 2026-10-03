@@ -317,6 +317,12 @@ std::expected<void, ManifestError> parseTargetEntry(const std::filesystem::path&
         }
     }
 
+    // A library is built from the sources below src/, so naming a file of
+    // its own is optional; an executable is told apart by its entry point.
+    if ((kind == TargetKind::Library) && (table.get("src") == nullptr)) {
+        targets.push_back(Target{ .kind = kind, .name = std::move(name->value), .source = {} });
+        return {};
+    }
     auto source = requireString(file, table, key, "src");
     if (! source.has_value()) {
         return std::unexpected(source.error());
@@ -325,7 +331,7 @@ std::expected<void, ManifestError> parseTargetEntry(const std::filesystem::path&
         return std::unexpected(valid.error());
     }
 
-    targets.push_back(Target{ .kind = kind, .name = std::move(name->value), .entryPoint = source->value });
+    targets.push_back(Target{ .kind = kind, .name = std::move(name->value), .source = source->value });
     return {};
 }
 

@@ -26,7 +26,11 @@ enum class TargetKind : std::uint8_t {
 struct Target {
     TargetKind kind = TargetKind::Executable;
     std::string name;
-    std::filesystem::path entryPoint;  ///< Relative to the project root.
+    /**
+     * The file src names, relative to the project root: an executable's entry
+     * point, or a file a library adds; empty for a library that names none.
+     */
+    std::filesystem::path source;
 };
 
 /**

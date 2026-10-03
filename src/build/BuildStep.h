@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <optional>
@@ -10,12 +11,16 @@
 namespace scrap::Build {
 
 /**
- * @brief What a step of the build does.
+ * @brief What a step of the build does, listed in the order the kinds run in.
  */
 enum class StepKind : std::uint8_t {
     Compile,
+    Archive,
     Link
 };
+
+/// The number of kinds. Link is the last kind listed.
+inline constexpr std::size_t StepKindCount = static_cast<std::size_t>(StepKind::Link) + 1;
 
 /**
  * @brief One program the build runs, with what it is said to do.
@@ -23,7 +28,7 @@ enum class StepKind : std::uint8_t {
 struct BuildStep {
     StepKind kind = StepKind::Compile;
     std::string target;                  ///< The target the step builds.
-    std::filesystem::path subject;       ///< What names the step: the source, or the executable it links.
+    std::filesystem::path subject;       ///< What names the step: the source, or the file it writes.
     std::filesystem::path directory;     ///< Where the program runs, absolute.
     std::filesystem::path output;        ///< The file it writes, relative to the directory.
     std::vector<std::string> arguments;  ///< The command line, starting with the program.

@@ -127,12 +127,17 @@ scrap is in early alpha development. Currently implemented:
 - Project creation (`scrap new`) from the built-in template
 - Builds (`scrap build`): a debug build by default, and with `--release` an
   optimised one without debugging information, each in its own directory
-  below `build/`. The sources of each target are compiled and
-  each executable is linked, as many commands at once as there are
-  processors the build may run on, with `compile_commands.json` written
+  below `build/`. The sources of each target are compiled, the library is
+  archived and each executable is linked, as many commands at once as there
+  are processors the build may run on, with `compile_commands.json` written
   beside them. Once a command fails no further one starts, and the ones
-  still running are waited for. `--target <name>` builds only that target,
-  while `compile_commands.json` still describes every target
+  still running are waited for. `--target <name>` builds only that target
+  and the library it uses, while `compile_commands.json` still describes
+  every target
+- Static libraries: with a `[[lib]]` in `scrap.toml`, the sources below
+  `src/` become `build/<profile>/lib/lib<name>.a`, and each executable is
+  built from its entry point and links that library. The archiver is the
+  one the compiler names for `-print-prog-name=ar`
 - Removing the build output (`scrap clean`): the project's `build/`
   directory is removed with everything in it
 - Running the project (`scrap run`): the executable named by `--bin`, or
@@ -150,7 +155,7 @@ scrap is in early alpha development. Currently implemented:
 
 🚧 **In Progress**
 - Template system with variable substitution
-- A chosen number of parallel jobs, and libraries
+- A chosen number of parallel jobs, and settings per target
 - Configuration file parsing (`scrap.toml`) - `[dependencies]` and
   `[toolchain]` are accepted and not yet read
 - Git-based template repository integration

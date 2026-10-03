@@ -22,9 +22,10 @@ using scrap::Build::OutputRemovalProblem;
 using scrap::Build::StepFailure;
 using scrap::Build::StepFailureKind;
 using scrap::Build::StepKind;
+using scrap::Command::renderArchiverNotFound;
 using scrap::Command::renderCompilationDatabaseFailure;
 using scrap::Command::renderExecutableNotStarted;
-using scrap::Command::renderLibraryNotBuilt;
+using scrap::Command::renderLibraryWithoutSources;
 using scrap::Command::renderNoCompilerFound;
 using scrap::Command::renderNoExecutableNamed;
 using scrap::Command::renderNoExecutableToRun;
@@ -33,6 +34,7 @@ using scrap::Command::renderNoTargetToBuild;
 using scrap::Command::renderOutputRemovalFailure;
 using scrap::Command::renderProjectError;
 using scrap::Command::renderSeveralExecutablesToRun;
+using scrap::Command::renderSeveralLibraries;
 using scrap::Command::renderSourceScanFailure;
 using scrap::Command::renderStepFailures;
 using scrap::Command::renderUnsupportedStandard;
@@ -604,6 +606,19 @@ BuildStep compileStep(const char* source)
 }
 
 /**
+ * A step that archives the library of the target "core".
+ */
+BuildStep archiveStep()
+{
+    return BuildStep{ .kind = StepKind::Archive,
+                      .target = "core",
+                      .subject = "build/debug/lib/libcore.a",
+                      .directory = "/home/me/hello",
+                      .output = "build/debug/lib/libcore.a",
+                      .arguments = { "/usr/bin/ar" } };
+}
+
+/**
  * A step that links the executable of the target "hello".
  */
 BuildStep linkStep()
@@ -655,6 +670,50 @@ TEST(ProjectDiagnosticTest, RendersAnExecutableThatFailedToLink)
     EXPECT_EQ(renderStepFailures({ failed }),
               "error: failed to link '/home/me/hello/build/debug/bin/hello'\n"
               "hint: fix the errors reported above and run the command again\n");
+}
+
+/**
+ * An archive that failed names the library it was writing.
+ */
+TEST(ProjectDiagnosticTest, RendersALibraryThatFailedToArchive)
+{
+    const FailedStep failed{ .step = archiveStep(),
+                             .failure = StepFailure{ .kind = StepFailureKind::Exited, .path = {}, .code = {}, .status = 1 } };
+
+    EXPECT_EQ(renderStepFailures({ failed }),
+              "error: failed to archive '/home/me/hello/build/debug/lib/libcore.a'\n"
+              "hint: fix the errors reported above and run the command again\n");
+}
+
+/**
+ * An archiver a signal stopped is named as the archiver, not the compiler.
+ */
+TEST(ProjectDiagnosticTest, RendersAnArchiverASignalStopped)
+{
+    const FailedStep failed{ .step = archiveStep(),
+                             .failure = StepFailure{ .kind = StepFailureKind::Signalled, .path = {}, .code = {}, .status = 9 } };
+
+    EXPECT_EQ(renderStepFailures({ failed }),
+              "error: failed to archive '/home/me/hello/build/debug/lib/libcore.a': "
+              "the archiver was stopped by signal 9\n"
+              "hint: check that the system has enough memory and run the command again\n");
+}
+
+/**
+ * An archiver that could not be started is named with the system's reason,
+ * and a compiler with another archiver is what to turn to.
+ */
+TEST(ProjectDiagnosticTest, RendersAnArchiverThatCouldNotStart)
+{
+    const FailedStep failed{ .step = archiveStep(),
+                             .failure = StepFailure{ .kind = StepFailureKind::CannotStart,
+                                                     .path = "/usr/bin/ar",
+                                                     .code = std::make_error_code(std::errc::permission_denied),
+                                                     .status = 0 } };
+
+    EXPECT_EQ(renderStepFailures({ failed }),
+              "error: cannot run '/usr/bin/ar': " + std::make_error_code(std::errc::permission_denied).message()
+                  + "\nhint: check that the archiver can be run, or set CXX to another compiler\n");
 }
 
 /**
@@ -755,13 +814,36 @@ TEST(ProjectDiagnosticTest, RendersAStandardTheCompilerCannotBuild)
 }
 
 /**
- * A library is named with what removing its declaration would do.
+ * A second library is reported without naming either, since the fix is to
+ * move the others out, whichever they are.
  */
-TEST(ProjectDiagnosticTest, RendersALibraryItDoesNotBuild)
+TEST(ProjectDiagnosticTest, RendersSeveralLibraries)
 {
-    EXPECT_EQ(renderLibraryNotBuilt("core"),
-              "error: building the library 'core' is not supported yet\n"
-              "hint: remove the [[lib]] section from scrap.toml to build its sources into the executable\n");
+    EXPECT_EQ(renderSeveralLibraries(),
+              "error: only one [[lib]] is supported per project\n"
+              "hint: build the other libraries as projects of their own\n");
+}
+
+/**
+ * A library with nothing to build it from is named as the manifest states
+ * it.
+ */
+TEST(ProjectDiagnosticTest, RendersALibraryWithoutSources)
+{
+    EXPECT_EQ(renderLibraryWithoutSources("core"),
+              "error: the library 'core' has no sources\n"
+              "hint: add sources under src/, or name one with src\n");
+}
+
+/**
+ * An archiver that cannot be found is named as the compiler named it, with
+ * the compiler that named it.
+ */
+TEST(ProjectDiagnosticTest, RendersAnArchiverItCannotFind)
+{
+    EXPECT_EQ(renderArchiverNotFound("llvm-ar", "/usr/bin/clang++"),
+              "error: cannot find the archiver 'llvm-ar' that '/usr/bin/clang++' uses\n"
+              "hint: install it, or set CXX to another compiler\n");
 }
 
 /**
@@ -836,13 +918,14 @@ TEST(ProjectDiagnosticTest, RendersATargetNameTheProjectLacks)
 }
 
 /**
- * A project that declares no targets has none to list.
+ * A project that declares no targets has none to list, so the hint is to
+ * leave out --target.
  */
 TEST(ProjectDiagnosticTest, RendersATargetNameInAProjectWithNoTargets)
 {
     EXPECT_EQ(renderNoTargetNamed("/home/me/work/hello", "app", {}),
               "error: no target named 'app' in '/home/me/work/hello'\n"
-              "hint: pass one of the targets listed, or omit --target to build them all\n");
+              "hint: omit --target, since scrap.toml declares no targets\n");
 }
 
 /**

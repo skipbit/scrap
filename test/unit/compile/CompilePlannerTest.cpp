@@ -45,7 +45,7 @@ BuildSettings settingsFor(const CompilerIdentity& identity,
 
 TargetSources targetWithSources(TargetKind kind, const char* name, const char* entryPoint, std::vector<std::filesystem::path> sources)
 {
-    return TargetSources{ .target = Target{ .kind = kind, .name = name, .entryPoint = entryPoint }, .sources = std::move(sources) };
+    return TargetSources{ .target = Target{ .kind = kind, .name = name, .source = entryPoint }, .sources = std::move(sources) };
 }
 
 TargetSources executableWithSources(const char* name, const char* entryPoint, std::vector<std::filesystem::path> sources)
@@ -359,16 +359,50 @@ TEST(CompilePlannerTest, LinksEachExecutableFromItsOwnObjectFiles)
 }
 
 /**
- * A library is not linked into anything of its own.
+ * A library is not linked into anything of its own, and each executable
+ * links it after its own object files.
  */
-TEST(CompilePlannerTest, LinksNoLibrary)
+TEST(CompilePlannerTest, LinksTheLibraryIntoEachExecutable)
 {
-    const auto commands = planLinkCommands(settingsFor(Gcc13),
+    const auto commands = planLinkCommands(settingsFor(CompilerIdentity{}),
                                            { executableWithSources("app", "src/main.cpp", { "src/main.cpp" }),
-                                             targetWithSources(TargetKind::Library, "core", "src/core.cpp", { "src/core.cpp" }) });
+                                             executableWithSources("tool", "src/tool.cpp", { "src/tool.cpp" }),
+                                             targetWithSources(TargetKind::Library, "core", "", { "src/core.cpp" }) });
+
+    ASSERT_EQ(commands.size(), 2);
+    EXPECT_EQ(commands[0].arguments,
+              (std::vector<std::string>{
+                  "/usr/bin/c++", "build/debug/obj/app/src/main.cpp.o", "build/debug/lib/libcore.a", "-o", "build/debug/bin/app" }));
+    EXPECT_EQ(commands[1].target, "tool");
+    EXPECT_EQ(commands[1].arguments[2], "build/debug/lib/libcore.a");
+}
+
+/**
+ * A library is archived from the object files compiled for it, in the
+ * order of its sources, and executables are not archived.
+ */
+TEST(CompilePlannerTest, ArchivesTheLibraryFromItsObjectFiles)
+{
+    const auto commands = planArchiveCommands(settingsFor(Gcc13),
+                                              "/usr/bin/ar",
+                                              { executableWithSources("app", "src/main.cpp", { "src/main.cpp" }),
+                                                targetWithSources(TargetKind::Library, "core", "", { "src/a.cpp", "src/b.cpp" }) });
 
     ASSERT_EQ(commands.size(), 1);
-    EXPECT_EQ(commands[0].target, "app");
+    EXPECT_EQ(commands[0].target, "core");
+    EXPECT_EQ(commands[0].directory, settingsFor(Gcc13).projectRoot);
+    EXPECT_EQ(commands[0].output, "build/debug/lib/libcore.a");
+    EXPECT_EQ(commands[0].arguments,
+              (std::vector<std::string>{
+                  "/usr/bin/ar", "rcs", "build/debug/lib/libcore.a", "build/debug/obj/core/src/a.cpp.o", "build/debug/obj/core/src/b.cpp.o" }));
+}
+
+/**
+ * The library of a target is where its archive command writes it.
+ */
+TEST(CompilePlannerTest, NamesTheLibraryTheArchiveWrites)
+{
+    EXPECT_EQ(libraryFile("build/release", "core"), "build/release/lib/libcore.a");
 }
 
 /**

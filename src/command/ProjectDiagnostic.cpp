@@ -50,6 +50,12 @@ constexpr std::string_view CompilerMemoryHint = "hint: check that the compiler h
 /// Next step when the compiler found earlier could not be started.
 constexpr std::string_view CompilerRunHint = "hint: check that the compiler can be run, or set CXX to another one\n";
 
+/// What to do when a signal stopped the archiver.
+constexpr std::string_view ArchiverMemoryHint = "hint: check that the system has enough memory and run the command again\n";
+
+/// What to do when the archiver could not be started.
+constexpr std::string_view ArchiverRunHint = "hint: check that the archiver can be run, or set CXX to another compiler\n";
+
 /**
  * The rule a new project name follows, as scrap::Project::isValidProjectName()
  * checks it.
@@ -365,6 +371,12 @@ std::string renderNoTargetNamed(const std::filesystem::path& projectRoot,
     text += printableEcho(requested);
     text += "' in ";
     text += rootAndNames(projectRoot, names);
+    if (names.empty()) {
+        text += "\nhint: omit --target, since ";
+        text += Project::ManifestFileName;
+        text += " declares no targets\n";
+        return text;
+    }
     text += "\nhint: pass one of the targets listed, or omit --target to build them all\n";
     return text;
 }
@@ -443,18 +455,55 @@ namespace {
  */
 std::string describeFailedStep(const Build::BuildStep& step)
 {
-    if (step.kind == Build::StepKind::Link) {
+    switch (step.kind) {
+    case Build::StepKind::Compile: {
+        std::string text = "error: failed to compile '";
+        text += printablePath((step.directory / step.subject).lexically_normal());
+        text += "' for '";
+        text += printableName(step.target);
+        text += '\'';
+        return text;
+    }
+    case Build::StepKind::Archive: {
+        std::string text = "error: failed to archive '";
+        text += printablePath((step.directory / step.output).lexically_normal());
+        text += '\'';
+        return text;
+    }
+    case Build::StepKind::Link: {
         std::string text = "error: failed to link '";
         text += printablePath((step.directory / step.output).lexically_normal());
         text += '\'';
         return text;
     }
-    std::string text = "error: failed to compile '";
-    text += printablePath((step.directory / step.subject).lexically_normal());
-    text += "' for '";
-    text += printableName(step.target);
-    text += '\'';
-    return text;
+    }
+    // Every kind is answered above, so a kind added without a message here
+    // fails the build rather than being reported as one of the others.
+    std::unreachable();
+}
+
+/**
+ * The program a step of @p kind runs, as the messages name it, with what to
+ * do when it cannot be started or a signal stops it.
+ */
+struct StepTool {
+    std::string_view name;        ///< "the compiler" or "the archiver".
+    std::string_view runHint;     ///< Ends in a newline.
+    std::string_view memoryHint;  ///< Ends in a newline.
+};
+
+StepTool toolFor(const Build::StepKind kind)
+{
+    switch (kind) {
+    case Build::StepKind::Compile:
+    case Build::StepKind::Link:
+        return { .name = "the compiler", .runHint = CompilerRunHint, .memoryHint = CompilerMemoryHint };
+    case Build::StepKind::Archive:
+        return { .name = "the archiver", .runHint = ArchiverRunHint, .memoryHint = ArchiverMemoryHint };
+    }
+    // Every kind is answered above, so a kind added without a tool here
+    // fails the build rather than being reported as the compiler.
+    std::unreachable();
 }
 
 /**
@@ -467,16 +516,17 @@ struct StepFailureReport {
 
 StepFailureReport reportStepFailure(const Build::FailedStep& failed)
 {
+    const StepTool tool = toolFor(failed.step.kind);
     switch (failed.failure.kind) {
     case Build::StepFailureKind::CannotCreateDirectory:
         return { .error = "error: cannot create '" + printablePath(failed.failure.path) + "': " + failed.failure.code.message() + '\n',
                  .hint = cannotWriteBuildHint(failed.failure.code) };
     case Build::StepFailureKind::CannotStart:
         return { .error = "error: cannot run '" + printablePath(failed.failure.path) + "': " + failed.failure.code.message() + '\n',
-                 .hint = CompilerRunHint };
+                 .hint = tool.runHint };
     case Build::StepFailureKind::Signalled:
-        return { .error = describeFailedStep(failed.step) + ": the compiler was stopped by signal " + std::to_string(failed.failure.status) + '\n',
-                 .hint = CompilerMemoryHint };
+        return { .error = describeFailedStep(failed.step) + ": " + std::string{ tool.name } + " was stopped by signal " + std::to_string(failed.failure.status) + '\n',
+                 .hint = tool.memoryHint };
     case Build::StepFailureKind::Exited:
         return { .error = describeFailedStep(failed.step) + '\n', .hint = FixErrorsHint };
     }
@@ -499,13 +549,31 @@ std::string renderUnsupportedStandard(const std::filesystem::path& compiler, con
     return text;
 }
 
-std::string renderLibraryNotBuilt(const std::string_view name)
+std::string renderSeveralLibraries()
 {
-    std::string text = "error: building the library '";
+    return "error: only one [[lib]] is supported per project\n"
+           "hint: build the other libraries as projects of their own\n";
+}
+
+std::string renderLibraryWithoutSources(const std::string_view name)
+{
+    std::string text = "error: the library '";
     text += printableName(name);
-    text += "' is not supported yet\nhint: remove the [[lib]] section from ";
-    text += Project::ManifestFileName;
-    text += " to build its sources into the executable\n";
+    text += "' has no sources\nhint: add sources under src/, or name one with src\n";
+    return text;
+}
+
+/**
+ * The archiver's name is written as a path, since the compiler may answer
+ * with one.
+ */
+std::string renderArchiverNotFound(const std::string_view archiver, const std::filesystem::path& compiler)
+{
+    std::string text = "error: cannot find the archiver '";
+    text += printablePath(std::filesystem::path{ archiver });
+    text += "' that '";
+    text += printablePath(compiler);
+    text += "' uses\nhint: install it, or set CXX to another compiler\n";
     return text;
 }
 

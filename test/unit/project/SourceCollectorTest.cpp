@@ -18,12 +18,12 @@ constexpr const char* SourceText = "int value() { return 0; }\n";
 
 Target executableNamed(const char* name, const char* entryPoint)
 {
-    return Target{ .kind = TargetKind::Executable, .name = name, .entryPoint = entryPoint };
+    return Target{ .kind = TargetKind::Executable, .name = name, .source = entryPoint };
 }
 
 Target libraryNamed(const char* name, const char* entryPoint)
 {
-    return Target{ .kind = TargetKind::Library, .name = name, .entryPoint = entryPoint };
+    return Target{ .kind = TargetKind::Library, .name = name, .source = entryPoint };
 }
 
 }  // namespace
@@ -204,23 +204,58 @@ TEST(SourceCollectorTest, ReportsASourceDirectoryItCannotExamine)
 }
 
 /**
- * Targets of different kinds are not separated yet: an executable beside a
- * library is given the library's sources except its entry point. Pinned here
- * so that separating them is a deliberate change rather than a silent one.
+ * Beside a library, the sources below src/ belong to the library, except the
+ * entry points of the executables, and each executable keeps its entry point
+ * alone.
  */
-TEST(SourceCollectorTest, GivesAnExecutableTheSourcesBesideALibrary)
+TEST(SourceCollectorTest, GivesTheSourcesBesideALibraryToTheLibrary)
 {
     const TempDirectory temp;
     temp.writeFile("src/main.cpp", SourceText);
+    temp.writeFile("src/tool.cpp", SourceText);
     temp.writeFile("src/core.cpp", SourceText);
     temp.writeFile("src/detail.cpp", SourceText);
 
-    const auto collected = collectSources(temp.path(), { executableNamed("app", "src/main.cpp"), libraryNamed("core", "src/core.cpp") });
+    const auto collected = collectSources(temp.path(),
+                                          { executableNamed("app", "src/main.cpp"), executableNamed("tool", "src/tool.cpp"), libraryNamed("core", "") });
+
+    ASSERT_TRUE(collected.has_value());
+    ASSERT_EQ(collected->size(), 3);
+    EXPECT_EQ((*collected)[0].sources, (std::vector<std::filesystem::path>{ "src/main.cpp" }));
+    EXPECT_EQ((*collected)[1].sources, (std::vector<std::filesystem::path>{ "src/tool.cpp" }));
+    EXPECT_EQ((*collected)[2].sources, (std::vector<std::filesystem::path>{ "src/core.cpp", "src/detail.cpp" }));
+}
+
+/**
+ * The file a library names is added to its sources, wherever it sits.
+ */
+TEST(SourceCollectorTest, AddsTheFileALibraryNames)
+{
+    const TempDirectory temp;
+    temp.writeFile("src/core.cpp", SourceText);
+    temp.writeFile("extra/glue.cpp", SourceText);
+
+    const auto collected = collectSources(temp.path(), { libraryNamed("core", "./extra/glue.cpp") });
+
+    ASSERT_TRUE(collected.has_value());
+    ASSERT_EQ(collected->size(), 1);
+    EXPECT_EQ((*collected)[0].sources, (std::vector<std::filesystem::path>{ "extra/glue.cpp", "src/core.cpp" }));
+}
+
+/**
+ * A library with no src/ and no file named has no sources, which the build
+ * reports.
+ */
+TEST(SourceCollectorTest, GivesALibraryNothingWithoutSources)
+{
+    const TempDirectory temp;
+    temp.writeFile("src/main.cpp", SourceText);
+
+    const auto collected = collectSources(temp.path(), { executableNamed("app", "src/main.cpp"), libraryNamed("core", "") });
 
     ASSERT_TRUE(collected.has_value());
     ASSERT_EQ(collected->size(), 2);
-    EXPECT_EQ((*collected)[0].sources, (std::vector<std::filesystem::path>{ "src/detail.cpp", "src/main.cpp" }));
-    EXPECT_EQ((*collected)[1].sources, (std::vector<std::filesystem::path>{ "src/core.cpp", "src/detail.cpp" }));
+    EXPECT_TRUE((*collected)[1].sources.empty());
 }
 
 /**

@@ -1,5 +1,6 @@
 #include "compile/CompilePlanner.h"
 
+#include "compile/ArchiveCommand.h"
 #include "compile/BuildProfile.h"
 #include "compile/CompileCommand.h"
 #include "compile/CompilerDriver.h"
@@ -25,6 +26,9 @@ constexpr std::string_view ObjectDirectory = "obj";
 
 /// Directory below the build directory that holds executables.
 constexpr std::string_view ExecutableDirectory = "bin";
+
+/// Directory below the build directory that holds static libraries.
+constexpr std::string_view LibraryDirectory = "lib";
 
 /// Directory the default layout keeps public headers in.
 constexpr std::string_view HeaderDirectory = "include";
@@ -93,6 +97,20 @@ std::vector<std::string> sharedCompileArguments(const BuildSettings& settings)
     return arguments;
 }
 
+/**
+ * The object files planCompileCommands() gives the sources of @p entry, in
+ * the same order.
+ */
+std::vector<std::string> objectFiles(const BuildSettings& settings, const Project::TargetSources& entry)
+{
+    std::vector<std::string> objects;
+    objects.reserve(entry.sources.size());
+    for (const std::filesystem::path& source : entry.sources) {
+        objects.push_back(objectFile(settings, entry.target.name, source).string());
+    }
+    return objects;
+}
+
 }  // anonymous namespace
 
 std::vector<CompileCommand> planCompileCommands(const BuildSettings& settings, const std::vector<Project::TargetSources>& targets)
@@ -118,8 +136,41 @@ std::filesystem::path executableFile(const std::filesystem::path& buildDirectory
     return buildDirectory / ExecutableDirectory / target;
 }
 
+std::filesystem::path libraryFile(const std::filesystem::path& buildDirectory, std::string_view target)
+{
+    std::filesystem::path file = buildDirectory / LibraryDirectory;
+    file /= "lib" + std::string{ target } + ".a";
+    return file;
+}
+
+std::vector<ArchiveCommand> planArchiveCommands(const BuildSettings& settings,
+                                                const std::filesystem::path& archiver,
+                                                const std::vector<Project::TargetSources>& targets)
+{
+    std::vector<ArchiveCommand> commands;
+    for (const Project::TargetSources& entry : targets) {
+        if (entry.target.kind != Project::TargetKind::Library) {
+            continue;
+        }
+        const std::filesystem::path output = libraryFile(settings.buildDirectory, entry.target.name);
+
+        std::vector<std::string> arguments{ archiver.string(), "rcs", output.string() };
+        const std::vector<std::string> objects = objectFiles(settings, entry);
+        arguments.insert(arguments.end(), objects.begin(), objects.end());
+        commands.push_back(ArchiveCommand{ .target = entry.target.name, .directory = settings.projectRoot, .output = output, .arguments = std::move(arguments) });
+    }
+    return commands;
+}
+
 std::vector<LinkCommand> planLinkCommands(const BuildSettings& settings, const std::vector<Project::TargetSources>& targets)
 {
+    std::vector<std::string> libraries;
+    for (const Project::TargetSources& entry : targets) {
+        if (entry.target.kind == Project::TargetKind::Library) {
+            libraries.push_back(libraryFile(settings.buildDirectory, entry.target.name).string());
+        }
+    }
+
     std::vector<LinkCommand> commands;
     for (const Project::TargetSources& entry : targets) {
         if (entry.target.kind != Project::TargetKind::Executable) {
@@ -131,9 +182,9 @@ std::vector<LinkCommand> planLinkCommands(const BuildSettings& settings, const s
         if (const auto color = settings.driver.colorOption(); color.has_value()) {
             arguments.push_back(*color);
         }
-        for (const std::filesystem::path& source : entry.sources) {
-            arguments.push_back(objectFile(settings, entry.target.name, source).string());
-        }
+        const std::vector<std::string> objects = objectFiles(settings, entry);
+        arguments.insert(arguments.end(), objects.begin(), objects.end());
+        arguments.insert(arguments.end(), libraries.begin(), libraries.end());
         arguments.insert(arguments.end(), { "-o", output.string() });
         commands.push_back(LinkCommand{ .target = entry.target.name, .directory = settings.projectRoot, .output = output, .arguments = std::move(arguments) });
     }

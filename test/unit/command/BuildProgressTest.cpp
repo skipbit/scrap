@@ -28,6 +28,16 @@ BuildStep compileStep()
                       .arguments = {} };
 }
 
+BuildStep archiveStep()
+{
+    return BuildStep{ .kind = StepKind::Archive,
+                      .target = "core",
+                      .subject = "build/debug/lib/libcore.a",
+                      .directory = "/home/me/hello",
+                      .output = "build/debug/lib/libcore.a",
+                      .arguments = {} };
+}
+
 BuildStep linkStep()
 {
     return BuildStep{ .kind = StepKind::Link,
@@ -49,10 +59,12 @@ TEST(BuildProgressTest, WritesALineForEachStep)
     StreamBuildReporter reporter{ out, false };
 
     reporter.started(compileStep());
+    reporter.started(archiveStep());
     reporter.started(linkStep());
 
     EXPECT_EQ(out.str(),
               "   Compiling hello (src/main.cpp)\n"
+              "   Archiving core (build/debug/lib/libcore.a)\n"
               "     Linking hello (build/debug/bin/hello)\n");
 }
 

@@ -44,7 +44,7 @@ src = "src/main.cpp"
     ASSERT_EQ(manifest->targets.size(), 1);
     EXPECT_EQ(manifest->targets[0].kind, TargetKind::Executable);
     EXPECT_EQ(manifest->targets[0].name, "my-app");
-    EXPECT_EQ(manifest->targets[0].entryPoint, "src/main.cpp");
+    EXPECT_EQ(manifest->targets[0].source, "src/main.cpp");
 }
 
 /**
@@ -167,7 +167,29 @@ src = "src/lib.cpp"
     ASSERT_TRUE(manifest.has_value());
     ASSERT_EQ(manifest->targets.size(), 1);
     EXPECT_EQ(manifest->targets[0].kind, TargetKind::Library);
-    EXPECT_EQ(manifest->targets[0].entryPoint, "src/lib.cpp");
+    EXPECT_EQ(manifest->targets[0].source, "src/lib.cpp");
+}
+
+/**
+ * A library may leave out src, since it is built from the sources below src/.
+ */
+TEST(ManifestParserTest, ParsesALibraryWithoutSource)
+{
+    constexpr std::string_view text = R"(
+[package]
+name = "my-lib"
+version = "0.1.0"
+
+[[lib]]
+name = "my-lib"
+)";
+
+    const auto manifest = parseManifest(text, ManifestName);
+
+    ASSERT_TRUE(manifest.has_value());
+    ASSERT_EQ(manifest->targets.size(), 1);
+    EXPECT_EQ(manifest->targets[0].kind, TargetKind::Library);
+    EXPECT_TRUE(manifest->targets[0].source.empty());
 }
 
 /**

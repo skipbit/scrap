@@ -90,6 +90,9 @@ namespace scrap::Command {
  * @brief Describe a target asked for by a name the project has no target of,
  *        and what to do next.
  *
+ * A project that declares no targets has none to choose among, so leaving
+ * out --target is the next step.
+ *
  * @param projectRoot Directory the manifest was read from.
  * @param requested The name given on the command line.
  * @param names The project's targets, in the order the project states them.
@@ -153,12 +156,31 @@ namespace scrap::Command {
 [[nodiscard]] std::string renderUnsupportedStandard(const std::filesystem::path& compiler, Project::LanguageStandard standard);
 
 /**
- * @brief Describe a library this version does not build, and what to do next.
+ * @brief Describe a project that declares more than one library, and what to
+ *        do next.
+ *
+ * @return Text for standard error, each line ending in a newline.
+ */
+[[nodiscard]] std::string renderSeveralLibraries();
+
+/**
+ * @brief Describe a library with no sources to build it from, and what to do
+ *        next.
  *
  * @param name The library target the manifest declares.
  * @return Text for standard error, each line ending in a newline.
  */
-[[nodiscard]] std::string renderLibraryNotBuilt(std::string_view name);
+[[nodiscard]] std::string renderLibraryWithoutSources(std::string_view name);
+
+/**
+ * @brief Describe an archiver the compiler names that cannot be run, and what
+ *        to do next.
+ *
+ * @param archiver What the compiler named, as scrap::Toolchain::NoArchiver holds it.
+ * @param compiler The compiler in use, absolute.
+ * @return Text for standard error, each line ending in a newline.
+ */
+[[nodiscard]] std::string renderArchiverNotFound(std::string_view archiver, const std::filesystem::path& compiler);
 
 /**
  * @brief Describe the steps of the build that failed, and what to do next.

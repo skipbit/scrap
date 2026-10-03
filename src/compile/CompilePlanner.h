@@ -1,5 +1,6 @@
 #pragma once
 
+#include "compile/ArchiveCommand.h"
 #include "compile/BuildProfile.h"
 #include "compile/CompileCommand.h"
 #include "compile/CompilerDriver.h"
@@ -61,11 +62,36 @@ struct BuildSettings {
 [[nodiscard]] std::filesystem::path executableFile(const std::filesystem::path& buildDirectory, std::string_view target);
 
 /**
+ * @brief Where the static library of a target is written.
+ *
+ * @param buildDirectory The build directory, as BuildSettings holds it.
+ * @param target The name of the library target.
+ * @return lib/lib<target>.a in the build directory.
+ */
+[[nodiscard]] std::filesystem::path libraryFile(const std::filesystem::path& buildDirectory, std::string_view target);
+
+/**
+ * @brief Decide the command that archives each library.
+ *
+ * A library is written to lib/lib<target>.a in the build directory, from the
+ * object files planCompileCommands() gives its sources, in the same order.
+ *
+ * @param settings What the commands of the build share.
+ * @param archiver The archiver to run, as findArchiver() found it.
+ * @param targets Each target with its sources, as collectSources() returned them.
+ * @return One command per library, in the order the targets were given.
+ */
+[[nodiscard]] std::vector<ArchiveCommand> planArchiveCommands(const BuildSettings& settings,
+                                                              const std::filesystem::path& archiver,
+                                                              const std::vector<Project::TargetSources>& targets);
+
+/**
  * @brief Decide the command that links each executable.
  *
  * An executable is written to bin/<target> in the build directory, from the
- * object files planCompileCommands() gives its sources, in the same order.
- * Libraries are not linked.
+ * object files planCompileCommands() gives its sources, in the same order,
+ * followed by the library among @p targets, if any: an executable uses the
+ * library of its project without naming it.
  *
  * @param settings What the commands of the build share.
  * @param targets Each target with its sources, as collectSources() returned them.

@@ -28,12 +28,13 @@ struct SourceScanFailure {
 /**
  * @brief Decide which sources each target is built from.
  *
- * Every source below src/ belongs to a target, except the entry points of the
- * other targets: two executables share the code beside them and differ in the
- * file that starts each one. A target keeps its own entry point wherever it
- * sits, since a declaration states what to build whether or not the default
- * layout expects the file there. Paths are compared once normalized, so
- * "./src/main.cpp" and "src/main.cpp" name the same file.
+ * Without a library, every source below src/ belongs to each executable,
+ * except the entry points of the other executables: two executables share the
+ * code beside them and differ in the file that starts each one. A target keeps
+ * its own entry point wherever it sits, since a declaration states what to
+ * build whether or not the default layout expects the file there. Paths are
+ * compared once normalized, so "./src/main.cpp" and "src/main.cpp" name the
+ * same file.
  *
  * A source is recognised by its extension, spelled in lower case: .cpp, .cc
  * or .cxx. The list comes back sorted, so a build reads the same sources
@@ -45,10 +46,10 @@ struct SourceScanFailure {
  * symbolic link to a directory is listed and not followed, so sources below
  * it are left out; a link to a file is read as the file it names.
  *
- * Targets of different kinds are not separated yet: an executable beside a
- * library is given the library's sources except its entry point. Whether an
- * executable compiles a library's sources or links the library they produce
- * belongs with the step that links them.
+ * A project with a library gives the sources below src/ to the library, except
+ * the entry points of the executables, and adds the file the library names,
+ * if any. Each executable is then built from its entry point alone and links
+ * the library.
  *
  * @param projectRoot Directory the manifest was read from.
  * @param targets Targets to build, as resolveTargets() returned them.

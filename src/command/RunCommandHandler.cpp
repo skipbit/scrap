@@ -54,12 +54,14 @@ int RunCommandHandler::execute(const InvocationContext& ctx)
     // nothing.
     const auto executables = executablesAmong(Project::resolveTargets(project->root, project->manifest));
     const std::optional<std::string> requested = requestedName(ctx.options, BinOption);
-    if (requested.has_value() && (std::ranges::find(executables, *requested) == executables.end())) {
-        std::cerr << renderNoExecutableNamed(project->root, *requested, executables);
-        return 1;
-    }
+    // A project with no executable is answered the same whatever name was
+    // asked for, since no name would run anything.
     if (executables.empty()) {
         std::cerr << renderNoExecutableToRun(project->root);
+        return 1;
+    }
+    if (requested.has_value() && (std::ranges::find(executables, *requested) == executables.end())) {
+        std::cerr << renderNoExecutableNamed(project->root, *requested, executables);
         return 1;
     }
     if ((! requested.has_value()) && (executables.size() > 1)) {

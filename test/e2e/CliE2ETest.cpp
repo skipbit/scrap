@@ -84,6 +84,11 @@ constexpr std::string_view TwoExecutablesManifest = "[package]\nname = \"app\"\n
                                                     "[[bin]]\nname = \"app\"\nsrc = \"src/main.cpp\"\n\n"
                                                     "[[bin]]\nname = \"tool\"\nsrc = \"src/tool.cpp\"\n";
 
+/// A library beside an executable that uses it.
+constexpr std::string_view LibraryAndExecutableManifest = "[package]\nname = \"app\"\nversion = \"0.1.0\"\n\n"
+                                                          "[[bin]]\nname = \"app\"\nsrc = \"src/main.cpp\"\n\n"
+                                                          "[[lib]]\nname = \"core\"\n";
+
 /// A program that writes the profile it was compiled for, as NDEBUG tells it.
 constexpr std::string_view ProfileSource = "#include <cstdio>\n"
                                            "int main()\n"
@@ -1264,20 +1269,33 @@ TEST_F(CliE2ETest, BuildLeavesColorOutOfOutputThatIsNotATerminal)
     EXPECT_EQ(result.stderrText.find('\033'), std::string::npos) << result.stderrText;
 }
 
-TEST_F(CliE2ETest, BuildReportsALibraryItCannotBuild)
+TEST_F(CliE2ETest, BuildReportsMoreThanOneLibrary)
 {
-    // The database is written first, so an editor still reads the library's
-    // sources while the build itself stops.
-    writeFile("scrap.toml", "[package]\nname = \"app\"\nversion = \"0.1.0\"\n\n[[lib]]\nname = \"core\"\nsrc = \"src/core.cpp\"\n");
+    writeFile("scrap.toml", "[package]\nname = \"app\"\nversion = \"0.1.0\"\n\n[[lib]]\nname = \"a\"\n\n[[lib]]\nname = \"b\"\n");
     writeFile("src/core.cpp", "int answer() { return 42; }\n");
 
     auto result = runScrap({ "build" }, { dummyCompiler() }, _root);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 1);
-    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
-    EXPECT_NE(result.stderrText.find("error: building the library 'core' is not supported yet\n"), std::string::npos) << result.stderrText;
-    EXPECT_NE(readFile("build/debug/compile_commands.json").find("\"file\": \"src/core.cpp\""), std::string::npos);
+    EXPECT_EQ(result.stderrText,
+              "error: only one [[lib]] is supported per project\n"
+              "hint: build the other libraries as projects of their own\n");
+    EXPECT_FALSE(std::filesystem::exists(_root / "build"));
+}
+
+TEST_F(CliE2ETest, BuildReportsALibraryWithoutSources)
+{
+    writeFile("scrap.toml", "[package]\nname = \"app\"\nversion = \"0.1.0\"\n\n[[lib]]\nname = \"core\"\n");
+
+    auto result = runScrap({ "build" }, { dummyCompiler() }, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_EQ(result.stderrText,
+              "error: the library 'core' has no sources\n"
+              "hint: add sources under src/, or name one with src\n");
+    EXPECT_FALSE(std::filesystem::exists(_root / "build"));
 }
 
 TEST_F(CliE2ETest, BuildReportsAStandardTheCompilerCannotBuild)
@@ -1408,6 +1426,101 @@ TEST_F(CliE2ETest, BuildsEveryTargetOrOnlyTheOneNamed)
     EXPECT_FALSE(std::filesystem::exists(_root / "build" / "debug" / "obj" / "app"));
     // The database still describes the target left unbuilt.
     EXPECT_NE(readFile("build/debug/compile_commands.json").find("\"output\": \"build/debug/obj/app/src/main.cpp.o\""), std::string::npos);
+}
+
+TEST_F(CliE2ETest, BuildsALibraryAndLinksItIntoTheExecutable)
+{
+    writeFile("scrap.toml", LibraryAndExecutableManifest);
+    writeFile("src/core.cpp", "int answer() { return 42; }\n");
+    writeFile("src/main.cpp", "int answer();\nint main() { return answer() == 42 ? 0 : 1; }\n");
+
+    auto result = runScrap({ "build" }, { realCompiler() }, _root, BuildTimeout);
+
+    ASSERT_TRUE(result.exitedNormally) << result.stderrText;
+    ASSERT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_NE(result.stderrText.find("Archiving core (build/debug/lib/libcore.a)\n"), std::string::npos) << result.stderrText;
+    EXPECT_TRUE(std::filesystem::is_regular_file(_root / "build" / "debug" / "lib" / "libcore.a"));
+    // The library's sources are compiled for the library alone, not again
+    // for the executable that uses it.
+    const std::string database = readFile("build/debug/compile_commands.json");
+    EXPECT_NE(database.find("\"output\": \"build/debug/obj/core/src/core.cpp.o\""), std::string::npos) << database;
+    EXPECT_EQ(database.find("build/debug/obj/app/src/core.cpp.o"), std::string::npos) << database;
+    EXPECT_FALSE(std::filesystem::exists(_root / "build" / "debug" / "obj" / "app" / "src" / "core.cpp.o"));
+
+    auto ran = runProgram({ (_root / "build" / "debug" / "bin" / "app").string() }, {}, _root);
+
+    ASSERT_TRUE(ran.exitedNormally);
+    EXPECT_EQ(ran.exitCode, 0);
+}
+
+TEST_F(CliE2ETest, BuildsTheLibraryTheTargetNamedUses)
+{
+    writeFile("scrap.toml", LibraryAndExecutableManifest);
+    writeFile("src/core.cpp", "int answer() { return 42; }\n");
+    writeFile("src/main.cpp", "int answer();\nint main() { return answer() == 42 ? 0 : 1; }\n");
+
+    auto result = runScrap({ "build", "--target", "app" }, { realCompiler() }, _root, BuildTimeout);
+
+    ASSERT_TRUE(result.exitedNormally) << result.stderrText;
+    ASSERT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_TRUE(std::filesystem::is_regular_file(_root / "build" / "debug" / "lib" / "libcore.a"));
+    EXPECT_TRUE(std::filesystem::is_regular_file(_root / "build" / "debug" / "bin" / "app"));
+}
+
+TEST_F(CliE2ETest, RunStartsTheExecutableBesideALibrary)
+{
+    // The library is not a second program to choose between.
+    writeFile("scrap.toml", LibraryAndExecutableManifest);
+    writeFile("src/core.cpp", "int answer() { return 42; }\n");
+    writeFile("src/main.cpp", "#include <cstdio>\nint answer();\nint main() { std::printf(\"%d\\n\", answer()); }\n");
+
+    auto result = runScrap({ "run" }, { realCompiler() }, _root, BuildTimeout);
+
+    ASSERT_TRUE(result.exitedNormally) << result.stderrText;
+    ASSERT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_EQ(result.stdoutText, "42\n");
+}
+
+TEST_F(CliE2ETest, BuildLeavesNoObjectOfARemovedSourceInTheLibrary)
+{
+    writeFile("scrap.toml", LibraryAndExecutableManifest);
+    writeFile("src/core.cpp", "int answer() { return 42; }\n");
+    writeFile("src/gone.cpp", "int gone() { return 1; }\n");
+    writeFile("src/main.cpp", "int answer();\nint main() { return answer() == 42 ? 0 : 1; }\n");
+    auto first = runScrap({ "build" }, { realCompiler() }, _root, BuildTimeout);
+    ASSERT_EQ(first.exitCode, 0) << first.stderrText;
+    ASSERT_NE(readFile("build/debug/lib/libcore.a").find("gone.cpp.o"), std::string::npos);
+
+    std::filesystem::remove(_root / "src" / "gone.cpp");
+    auto second = runScrap({ "build" }, { realCompiler() }, _root, BuildTimeout);
+
+    ASSERT_EQ(second.exitCode, 0) << second.stderrText;
+    // An archive names each member in its header, so the name is absent once
+    // the object is.
+    const std::string library = readFile("build/debug/lib/libcore.a");
+    EXPECT_NE(library.find("core.cpp.o"), std::string::npos);
+    EXPECT_EQ(library.find("gone.cpp.o"), std::string::npos);
+}
+
+TEST_F(CliE2ETest, BuildReportsAnArchiverTheCompilerNamesAndCannotBeFound)
+{
+    writeFile("scrap.toml", LibraryAndExecutableManifest);
+    writeFile("src/core.cpp", "int answer() { return 42; }\n");
+    writeFile("src/main.cpp", "int answer();\nint main() { return answer() == 42 ? 0 : 1; }\n");
+    makeDummy("named-ar-c++", std::string{ "case \"$1\" in -print-prog-name=ar) echo no-such-ar ;; *) exec " } + SCRAP_TEST_CXX + " \"$@\" ;; esac");
+    const std::string compiler = (std::filesystem::canonical(_root) / "bin" / "named-ar-c++").string();
+
+    auto result = runScrap({ "build" }, { "CXX=" + compiler }, _root, BuildTimeout);
+
+    ASSERT_TRUE(result.exitedNormally) << result.stderrText;
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_NE(result.stderrText.find("error: cannot find the archiver 'no-such-ar' that '" + compiler + "' uses\n"
+                                                                                                        "hint: install it, or set CXX to another compiler\n"),
+              std::string::npos)
+        << result.stderrText;
+    // It is reported before anything is compiled, once the database is written.
+    EXPECT_FALSE(std::filesystem::exists(_root / "build" / "debug" / "obj"));
+    EXPECT_NE(readFile("build/debug/compile_commands.json").find("\"file\": \"src/core.cpp\""), std::string::npos);
 }
 
 TEST_F(CliE2ETest, BuildReportsATargetNameTheProjectLacks)
@@ -1620,6 +1733,36 @@ TEST_F(CliE2ETest, RunReportsAProjectWithNoExecutable)
               "error: no executable to run in '" + root + "'\n"
                                                           "hint: add a [[bin]] section to scrap.toml, or create src/main.cpp\n");
     EXPECT_FALSE(std::filesystem::exists(_root / "build"));
+}
+
+TEST_F(CliE2ETest, RunReportsAProjectWithNoExecutableWhateverItIsAskedFor)
+{
+    writeFile("scrap.toml", "[package]\nname = \"app\"\nversion = \"0.1.0\"\n\n[[lib]]\nname = \"core\"\n");
+    writeFile("src/core.cpp", "int answer() { return 42; }\n");
+    const std::string root = std::filesystem::canonical(_root).string();
+
+    auto result = runScrap({ "run", "--bin", "core" }, { dummyCompiler() }, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_EQ(result.stderrText,
+              "error: no executable to run in '" + root + "'\n"
+                                                          "hint: add a [[bin]] section to scrap.toml, or create src/main.cpp\n");
+    EXPECT_FALSE(std::filesystem::exists(_root / "build"));
+}
+
+TEST_F(CliE2ETest, BuildReportsATargetNameInAProjectWithNoTargets)
+{
+    writeFile("scrap.toml", ManifestWithoutTargets);
+    const std::string root = std::filesystem::canonical(_root).string();
+
+    auto result = runScrap({ "build", "--target", "app" }, { dummyCompiler() }, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_EQ(result.stderrText,
+              "error: no target named 'app' in '" + root + "'\n"
+                                                           "hint: omit --target, since scrap.toml declares no targets\n");
 }
 
 TEST_F(CliE2ETest, RunReportsAProjectWithMoreThanOneExecutable)
