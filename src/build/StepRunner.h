@@ -33,8 +33,10 @@ protected:
  * @brief Carries out a step by running its program.
  *
  * The directory the output goes in is created first, since a compiler does
- * not create it. Both output streams are read back together, so what the
- * program wrote reaches the reporter in the order it was written.
+ * not create it. An archive left by an earlier build is removed before the
+ * archiver runs, since the archiver adds to an archive rather than replacing
+ * it. Both output streams are read back together, so what the program wrote
+ * reaches the reporter in the order it was written.
  */
 class ProgramStepRunner final : public StepRunner {
 public:
