@@ -1453,6 +1453,38 @@ TEST_F(CliE2ETest, BuildsALibraryAndLinksItIntoTheExecutable)
     EXPECT_EQ(ran.exitCode, 0);
 }
 
+/**
+ * A library's own settings reach its compilation alone, and its public ones
+ * reach both it and the executable that uses it, link included. Each source
+ * stops the build with #error when it sees a define it should not, and the
+ * executable links only if the object its library's public link flags name
+ * is passed along.
+ */
+TEST_F(CliE2ETest, BuildPassesALibrarysPublicSettingsAndNotItsOwnToTheExecutable)
+{
+    writeFile("scrap.toml",
+              std::string{ LibraryAndExecutableManifest } + "defines = [\"CORE_OWN\"]\n\n"
+                                                            "[lib.public]\ndefines = [\"CORE_SHARED\"]\nlink-flags = [\"extra.o\"]\n");
+    writeFile("src/core.cpp",
+              "#if !defined(CORE_OWN) || !defined(CORE_SHARED)\n#error the library misses a setting\n#endif\n"
+              "int extra();\nint answer() { return extra(); }\n");
+    writeFile("src/main.cpp",
+              "#ifdef CORE_OWN\n#error a setting the library keeps to itself reached the executable\n#endif\n"
+              "#ifndef CORE_SHARED\n#error a public setting of the library missed the executable\n#endif\n"
+              "int answer();\nint main() { return answer() == 42 ? 0 : 1; }\n");
+    writeFile("extra.cpp", "int extra() { return 42; }\n");
+    auto extra = runProgram({ SCRAP_TEST_CXX, "-c", "extra.cpp", "-o", "extra.o" }, {}, _root, BuildTimeout);
+    ASSERT_EQ(extra.exitCode, 0) << extra.stderrText;
+
+    auto result = runScrap({ "build" }, { realCompiler() }, _root, BuildTimeout);
+
+    ASSERT_TRUE(result.exitedNormally) << result.stderrText;
+    ASSERT_EQ(result.exitCode, 0) << result.stderrText;
+    auto ran = runProgram({ (_root / "build" / "debug" / "bin" / "app").string() }, {}, _root);
+    ASSERT_TRUE(ran.exitedNormally);
+    EXPECT_EQ(ran.exitCode, 0);
+}
+
 TEST_F(CliE2ETest, BuildsTheLibraryTheTargetNamedUses)
 {
     writeFile("scrap.toml", LibraryAndExecutableManifest);
