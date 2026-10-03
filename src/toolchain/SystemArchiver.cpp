@@ -7,11 +7,15 @@
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace scrap::Toolchain {
 
 namespace {
+
+/// The program the compiler is asked to name with -print-prog-name.
+constexpr std::string_view ArchiverProgramName = "ar";
 
 /**
  * What @p compiler names as its archiver, without the line end it prints, or
@@ -19,7 +23,7 @@ namespace {
  */
 std::optional<std::string> askForArchiver(const std::filesystem::path& compiler)
 {
-    const std::vector<std::string> arguments{ compiler.string(), "-print-prog-name=" + std::string{ DefaultArchiverName } };
+    const std::vector<std::string> arguments{ compiler.string(), "-print-prog-name=" + std::string{ ArchiverProgramName } };
     const auto completion = Process::runProgram(arguments, { .workingDirectory = {}, .capture = Process::OutputCapture::StandardOutput, .group = Process::ProcessGroup::Caller, .timeout = std::nullopt, .outputLimit = std::nullopt });
     if ((! completion.has_value()) || (completion->exitCode != 0)) {
         return std::nullopt;

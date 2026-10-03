@@ -331,22 +331,23 @@ std::expected<std::vector<StringField>, ManifestError> readStringArray(const std
 }
 
 /**
- * Read the array of strings at @p name in @p table into @p values.
+ * Read the array of strings at @p name in @p table, if the table has one.
  */
-std::expected<void, ManifestError> readStrings(const std::filesystem::path& file,
-                                               const toml::table& table,
-                                               std::string_view prefix,
-                                               std::string_view name,
-                                               std::vector<std::string>& values)
+std::expected<std::vector<std::string>, ManifestError> readStrings(const std::filesystem::path& file,
+                                                                   const toml::table& table,
+                                                                   std::string_view prefix,
+                                                                   std::string_view name)
 {
     auto fields = readStringArray(file, table, prefix, name);
     if (! fields.has_value()) {
         return std::unexpected(fields.error());
     }
+    std::vector<std::string> values;
+    values.reserve(fields->size());
     for (StringField& field : *fields) {
         values.push_back(std::move(field.value));
     }
-    return {};
+    return values;
 }
 
 /**
@@ -369,15 +370,21 @@ std::expected<TargetSettings, ManifestError> parseSettings(const std::filesystem
         settings.includeDirectories.emplace_back(field.value);
     }
 
-    if (auto read = readStrings(file, table, prefix, "defines", settings.defines); ! read.has_value()) {
-        return std::unexpected(read.error());
+    auto defines = readStrings(file, table, prefix, "defines");
+    if (! defines.has_value()) {
+        return std::unexpected(defines.error());
     }
-    if (auto read = readStrings(file, table, prefix, "compile-flags", settings.compileFlags); ! read.has_value()) {
-        return std::unexpected(read.error());
+    settings.defines = std::move(*defines);
+    auto compileFlags = readStrings(file, table, prefix, "compile-flags");
+    if (! compileFlags.has_value()) {
+        return std::unexpected(compileFlags.error());
     }
-    if (auto read = readStrings(file, table, prefix, "link-flags", settings.linkFlags); ! read.has_value()) {
-        return std::unexpected(read.error());
+    settings.compileFlags = std::move(*compileFlags);
+    auto linkFlags = readStrings(file, table, prefix, "link-flags");
+    if (! linkFlags.has_value()) {
+        return std::unexpected(linkFlags.error());
     }
+    settings.linkFlags = std::move(*linkFlags);
     return settings;
 }
 
@@ -445,6 +452,8 @@ std::span<const std::string_view> knownTargetKeys(const TargetKind kind)
  *
  * Compiled into both, it puts a second main() in the library, which a link
  * pulls in when another source of the library uses something it defines.
+ * The executables are parsed before any library, so @p targets holds all of
+ * them.
  */
 std::expected<void, ManifestError> rejectEntryPointInLibrary(const std::filesystem::path& file,
                                                              const StringField& source,

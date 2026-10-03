@@ -4,13 +4,9 @@
 #include <filesystem>
 #include <optional>
 #include <string>
-#include <string_view>
 #include <vector>
 
 namespace scrap::Toolchain {
-
-/// The name the compiler is asked to resolve to the archiver it uses.
-inline constexpr std::string_view DefaultArchiverName = "ar";
 
 /**
  * @brief Why no archiver was settled on.

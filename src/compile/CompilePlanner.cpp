@@ -98,6 +98,23 @@ std::vector<std::string> sharedCompileArguments(const BuildSettings& settings)
 }
 
 /**
+ * The libraries among @p targets that @p target uses: an executable uses
+ * every library of its project without naming it, a library uses none.
+ */
+std::vector<const Project::TargetSources*> librariesUsedBy(const Project::Target& target, const std::vector<Project::TargetSources>& targets)
+{
+    std::vector<const Project::TargetSources*> libraries;
+    if (target.kind == Project::TargetKind::Executable) {
+        for (const Project::TargetSources& entry : targets) {
+            if (entry.target.kind == Project::TargetKind::Library) {
+                libraries.push_back(&entry);
+            }
+        }
+    }
+    return libraries;
+}
+
+/**
  * The settings that reach the commands of @p target, in the order they go
  * on the command line: its own, its public ones, then the public ones of
  * each library among @p targets that it uses.
@@ -105,12 +122,8 @@ std::vector<std::string> sharedCompileArguments(const BuildSettings& settings)
 std::vector<const Project::TargetSettings*> appliedSettings(const Project::Target& target, const std::vector<Project::TargetSources>& targets)
 {
     std::vector<const Project::TargetSettings*> applied{ &target.settings, &target.publicSettings };
-    if (target.kind == Project::TargetKind::Executable) {
-        for (const Project::TargetSources& entry : targets) {
-            if (entry.target.kind == Project::TargetKind::Library) {
-                applied.push_back(&entry.target.publicSettings);
-            }
-        }
+    for (const Project::TargetSources* library : librariesUsedBy(target, targets)) {
+        applied.push_back(&library->target.publicSettings);
     }
     return applied;
 }
@@ -219,13 +232,6 @@ std::vector<ArchiveCommand> planArchiveCommands(const BuildSettings& settings,
 
 std::vector<LinkCommand> planLinkCommands(const BuildSettings& settings, const std::vector<Project::TargetSources>& targets)
 {
-    std::vector<std::string> libraries;
-    for (const Project::TargetSources& entry : targets) {
-        if (entry.target.kind == Project::TargetKind::Library) {
-            libraries.push_back(libraryFile(settings.buildDirectory, entry.target.name).string());
-        }
-    }
-
     std::vector<LinkCommand> commands;
     for (const Project::TargetSources& entry : targets) {
         if (entry.target.kind != Project::TargetKind::Executable) {
@@ -239,7 +245,9 @@ std::vector<LinkCommand> planLinkCommands(const BuildSettings& settings, const s
         }
         const std::vector<std::string> objects = objectFiles(settings, entry);
         arguments.insert(arguments.end(), objects.begin(), objects.end());
-        arguments.insert(arguments.end(), libraries.begin(), libraries.end());
+        for (const Project::TargetSources* library : librariesUsedBy(entry.target, targets)) {
+            arguments.push_back(libraryFile(settings.buildDirectory, library->target.name).string());
+        }
         const std::vector<std::string> added = settingsLinkArguments(appliedSettings(entry.target, targets));
         arguments.insert(arguments.end(), added.begin(), added.end());
         arguments.insert(arguments.end(), { "-o", output.string() });
