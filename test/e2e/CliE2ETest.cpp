@@ -1555,6 +1555,25 @@ TEST_F(CliE2ETest, BuildReportsAnArchiverTheCompilerNamesAndCannotBeFound)
     EXPECT_NE(readFile("build/debug/compile_commands.json").find("\"file\": \"src/core.cpp\""), std::string::npos);
 }
 
+TEST_F(CliE2ETest, BuildReportsACompilerThatCannotNameItsArchiver)
+{
+    writeFile("scrap.toml", LibraryAndExecutableManifest);
+    writeFile("src/core.cpp", "int answer() { return 42; }\n");
+    writeFile("src/main.cpp", "int answer();\nint main() { return answer() == 42 ? 0 : 1; }\n");
+    makeDummy("mute-c++", std::string{ "case \"$1\" in -print-prog-name=ar) exit 1 ;; *) exec " } + SCRAP_TEST_CXX + " \"$@\" ;; esac");
+    const std::string compiler = (std::filesystem::canonical(_root) / "bin" / "mute-c++").string();
+
+    auto result = runScrap({ "build" }, { "CXX=" + compiler }, _root, BuildTimeout);
+
+    ASSERT_TRUE(result.exitedNormally) << result.stderrText;
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_NE(result.stderrText.find("error: cannot ask '" + compiler + "' which archiver it uses\n"
+                                                                        "hint: set CXX to a compiler that answers -print-prog-name=ar\n"),
+              std::string::npos)
+        << result.stderrText;
+    EXPECT_FALSE(std::filesystem::exists(_root / "build" / "debug" / "obj"));
+}
+
 TEST_F(CliE2ETest, BuildReportsATargetNameTheProjectLacks)
 {
     writeFile("scrap.toml", TwoExecutablesManifest);

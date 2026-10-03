@@ -41,11 +41,11 @@ std::expected<std::filesystem::path, NoArchiver> findArchiver(const std::filesys
 {
     const auto named = askForArchiver(compiler);
     if (! named.has_value()) {
-        return std::unexpected(NoArchiver{ .named = std::string{ DefaultArchiverName } });
+        return std::unexpected(NoArchiver{ .named = std::nullopt });
     }
     const auto found = findProgram(*named, systemSearchPaths);
     if (! found.has_value()) {
-        return std::unexpected(NoArchiver{ .named = *named });
+        return std::unexpected(NoArchiver{ .named = named });
     }
     return absoluteProgramPath(*found);
 }

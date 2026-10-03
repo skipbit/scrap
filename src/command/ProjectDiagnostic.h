@@ -183,6 +183,15 @@ namespace scrap::Command {
 [[nodiscard]] std::string renderArchiverNotFound(std::string_view archiver, const std::filesystem::path& compiler);
 
 /**
+ * @brief Describe a compiler that could not say which archiver it uses, and
+ *        what to do next.
+ *
+ * @param compiler The compiler in use, absolute.
+ * @return Text for standard error, each line ending in a newline.
+ */
+[[nodiscard]] std::string renderArchiverNotNamed(const std::filesystem::path& compiler);
+
+/**
  * @brief Describe the steps of the build that failed, and what to do next.
  *
  * The compiler has already written its own diagnostics, which say what is
