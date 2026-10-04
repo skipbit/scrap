@@ -8,4 +8,4 @@ Keep vulnerability details out of public issues, pull requests, and discussions.
 
 ## Supported versions
 
-scrap has no release yet. Security fixes land on the `main` branch.
+Only the latest release is supported. Security fixes land on the `main` branch and ship in the next release.
