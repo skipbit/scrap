@@ -18,6 +18,9 @@ jobs:
     with:
       build-system: 'cmake'
 
+  examples:
+    uses: ./.github/workflows/examples.yml
+
   coverage:
     runs-on: ubuntu-24.04
     steps:

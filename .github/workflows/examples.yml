@@ -1,0 +1,155 @@
+# Builds the example projects under examples/ with the scrap this commit
+# builds, on the toolchains build-and-test.yml covers.
+#
+# Called by pr-checks.yml and main-checks.yml. The release does not run it: a
+# tag is cut from a commit these checks already passed, and the version the
+# release bakes in does not change what scrap builds here.
+
+name: Examples
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  # dross, fetched at a tag, built as a static library together with a program
+  # that uses it, in both profiles.
+  dross:
+    name: ${{ matrix.toolchain.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # The same toolchains as build-and-test.yml; keep the two in step.
+        toolchain:
+          - { name: gcc-13, os: ubuntu-24.04, cc: gcc-13, cxx: g++-13, stdlib: '_GLIBCXX_RELEASE 13' }
+          - { name: gcc-15, os: ubuntu-26.04, cc: gcc-15, cxx: g++-15, stdlib: '_GLIBCXX_RELEASE 15' }
+          - { name: clang-20, os: ubuntu-26.04, cc: clang-20, cxx: clang++-20, stdlib: _GLIBCXX_RELEASE }
+          - { name: clang-22, os: ubuntu-26.04, cc: clang-22, cxx: clang++-22, stdlib: _GLIBCXX_RELEASE }
+          - { name: clang-20-libstdc++-13, os: ubuntu-26.04, cc: clang-20, cxx: clang++-20, stdlib: '_GLIBCXX_RELEASE 13', packages: libstdc++-13-dev, flags: '--gcc-install-dir=/usr/lib/gcc/x86_64-linux-gnu/13' }
+          - { name: clang-20-libstdc++-14, os: ubuntu-26.04, cc: clang-20, cxx: clang++-20, stdlib: '_GLIBCXX_RELEASE 14', packages: libstdc++-14-dev, flags: '--gcc-install-dir=/usr/lib/gcc/x86_64-linux-gnu/14' }
+          - { name: clang-22-libstdc++-13, os: ubuntu-26.04, cc: clang-22, cxx: clang++-22, stdlib: '_GLIBCXX_RELEASE 13', packages: libstdc++-13-dev, flags: '--gcc-install-dir=/usr/lib/gcc/x86_64-linux-gnu/13' }
+          - { name: clang-22-libstdc++-14, os: ubuntu-26.04, cc: clang-22, cxx: clang++-22, stdlib: '_GLIBCXX_RELEASE 14', packages: libstdc++-14-dev, flags: '--gcc-install-dir=/usr/lib/gcc/x86_64-linux-gnu/14' }
+          - { name: clang-20-libc++, os: ubuntu-26.04, cc: clang-20, cxx: clang++-20, stdlib: _LIBCPP_VERSION, packages: 'libc++-20-dev libc++abi-20-dev', flags: '-stdlib=libc++' }
+          - { name: clang-22-libc++, os: ubuntu-26.04, cc: clang-22, cxx: clang++-22, stdlib: _LIBCPP_VERSION, packages: 'libc++-22-dev libc++abi-22-dev', flags: '-stdlib=libc++' }
+          - { name: macos-15, os: macos-15, stdlib: _LIBCPP_VERSION }
+          - { name: macos-26, os: macos-26, stdlib: _LIBCPP_VERSION }
+    runs-on: ${{ matrix.toolchain.os }}
+    # Named, so that bash runs with pipefail: the runs below pipe the program
+    # through tee, which would otherwise hide a failed build.
+    defaults:
+      run:
+        shell: bash
+    env:
+      CC: ${{ matrix.toolchain.cc }}
+      CXX: ${{ matrix.toolchain.cxx }}
+      CXXFLAGS: ${{ matrix.toolchain.flags }}
+      LDFLAGS: ${{ matrix.toolchain.flags }}
+      CMAKE_CXX_COMPILER_LAUNCHER: ccache
+      CCACHE_BASEDIR: ${{ github.workspace }}
+      DROSS_REF: v0.1.0
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install packages
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            sudo apt-get update -qq
+            read -r -a packages <<< "ccache ${{ matrix.toolchain.packages }}"
+            sudo apt-get install -y -qq "${packages[@]}"
+          elif [ "$RUNNER_OS" = "macOS" ]; then
+            if ! command -v ccache &>/dev/null; then
+              brew install ccache
+            fi
+          fi
+
+      - name: Set the ccache directory
+        run: echo "CCACHE_DIR=$HOME/.ccache" >> "$GITHUB_ENV"
+
+      - name: Restore ccache
+        uses: actions/cache@v6
+        with:
+          path: ~/.ccache
+          key: ccache-examples-${{ matrix.toolchain.os }}-${{ matrix.toolchain.name }}-${{ github.run_id }}
+          restore-keys: |
+            ccache-examples-${{ matrix.toolchain.os }}-${{ matrix.toolchain.name }}-
+
+      - name: Configure ccache
+        run: |
+          ccache --set-config=max_size=2G
+          ccache --set-config=compression=true
+          ccache --set-config=compiler_check=content
+          ccache --zero-stats
+
+      - name: Report toolchain versions
+        run: |
+          "${CXX:-c++}" --version
+          if [ "$RUNNER_OS" = macOS ]; then xcrun --show-sdk-version; fi
+          cmake --version
+
+      # The tests are left to build-and-test.yml. Whatever replaces this step
+      # once scrap is distributed has to install the scrap of this commit.
+      - name: Build scrap
+        run: |
+          cmake --preset release-no-tests
+          cmake --build --preset release-no-tests -j"$(getconf _NPROCESSORS_ONLN)"
+          echo "SCRAP=$GITHUB_WORKSPACE/build/release-no-tests/bin/scrap" >> "$GITHUB_ENV"
+
+      - name: Check out dross
+        uses: actions/checkout@v7
+        with:
+          repository: skipbit/dross
+          ref: ${{ env.DROSS_REF }}
+          path: dross
+
+      - name: Report the dross commit
+        run: echo "dross $DROSS_REF is $(git -C dross rev-parse HEAD)"
+
+      - name: Place the example in dross
+        run: |
+          cp examples/dross/scrap.toml dross/scrap.toml
+          mkdir dross/check
+          cp examples/dross/main.cpp dross/check/main.cpp
+
+      # scrap reads CXX and not CXXFLAGS or LDFLAGS, so the standard library
+      # this job names reaches the build through the manifest. [lib.public]
+      # passes it to the library and to the program alike.
+      - name: Pass the job's flags to the example
+        if: matrix.toolchain.flags
+        run: |
+          read -r -a flags <<< "$CXXFLAGS"
+          extra=$(printf ', "%s"' "${flags[@]}")
+          for key in compile-flags link-flags; do
+            sed -i "s|^$key = \[\"-pthread\"\]\$|$key = [\"-pthread\"$extra]|" dross/scrap.toml
+            if ! grep -qF "$key = [\"-pthread\"$extra]" dross/scrap.toml; then
+              echo "::error::$key in dross/scrap.toml does not carry $CXXFLAGS"
+              exit 1
+            fi
+          done
+          cat dross/scrap.toml
+
+      - name: Build and run (debug)
+        working-directory: dross
+        run: |
+          "$SCRAP" run --bin check | tee "$RUNNER_TEMP/debug.out"
+
+      - name: Build and run (release)
+        working-directory: dross
+        run: |
+          "$SCRAP" run --release --bin check | tee "$RUNNER_TEMP/release.out"
+
+      - name: Check the standard library the program saw
+        run: |
+          for profile in debug release; do
+            if ! grep -Eq '^standard library: ${{ matrix.toolchain.stdlib }}( |$)' "$RUNNER_TEMP/$profile.out"; then
+              echo "::error::expected ${{ matrix.toolchain.stdlib }} in the $profile build, the program reports: $(grep '^standard library:' "$RUNNER_TEMP/$profile.out")"
+              exit 1
+            fi
+          done
+          grep -h '^standard library:' "$RUNNER_TEMP/debug.out" "$RUNNER_TEMP/release.out"
+
+      - name: Print ccache statistics
+        if: always()
+        run: ccache --show-stats
