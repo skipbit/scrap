@@ -42,6 +42,7 @@ jobs:
       fail-fast: false
       matrix:
         preset: [release]
+        # examples.yml repeats these toolchains; keep the two in step.
         toolchain:
           # stdlib: the macro the standard library defines, with the release
           # where a job pins one.

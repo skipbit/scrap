@@ -19,6 +19,9 @@ jobs:
     with:
       build-system: 'cmake'
 
+  examples:
+    uses: ./.github/workflows/examples.yml
+
   # Both run through scripts/tools.sh, in the container docker/Dockerfile
   # describes, so the tools and the file lists are the ones a developer runs.
   lint:
