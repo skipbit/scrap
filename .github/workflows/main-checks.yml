@@ -21,6 +21,9 @@ jobs:
   examples:
     uses: ./.github/workflows/examples.yml
 
+  package:
+    uses: ./.github/workflows/package.yml
+
   coverage:
     runs-on: ubuntu-24.04
     steps:

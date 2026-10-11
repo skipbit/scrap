@@ -1,0 +1,215 @@
+# Reusable workflow that builds the binaries a release attaches.
+#
+# Called by pr-checks.yml and main-checks.yml, so a change that breaks the
+# packaged build fails before it reaches a tag. Each job builds, runs the
+# tests on what it built, packs it with scripts/package.sh, and uploads the
+# archive and its checksum as a workflow artifact.
+#
+# Linux builds in ubuntu:20.04 (glibc 2.31) with the GCC scrap-toolchain
+# distributes, linking libstdc++ and libgcc statically, so the binary needs
+# only the C library of the machine it runs on. macOS builds for 15.0, the
+# oldest release the build-and-test matrix runs on.
+
+name: Package
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: 'Git ref to checkout (empty = caller default)'
+        type: string
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    # Named so that a failing command on the left of a pipe fails the step.
+    shell: bash
+
+jobs:
+  linux-x86_64:
+    runs-on: ubuntu-24.04
+    container: ubuntu:20.04
+    timeout-minutes: 60
+    env:
+      CMAKE_VERSION: 3.31.12
+      CMAKE_SHA256: 0dc2e9a6860f06bf10bd8fadc03e35d9eeb4df46e33763a7e480e987758f385c
+      # gcc 15.3.0 for linux-x86_64, by the digest scrap-toolchain's
+      # index.toml lists.
+      GCC_INGOT: ghcr.io/skipbit/scrap-toolchain/gcc@sha256:cc427ac2c492e10812f8ddfee5d4a976078b6e40551ab2119ba1a8f5c8e890ed
+      CC: /opt/gcc/bin/gcc
+      CXX: /opt/gcc/bin/g++
+      LDFLAGS: -static-libstdc++ -static-libgcc
+    steps:
+      # The compiler's own programs link isl, mpc, mpfr and gmp from the
+      # image the ingot was built in, which is this one. git comes from the
+      # git-core PPA: the version tests read archives made with
+      # %(describe), which the git of 20.04 does not know. It is installed
+      # before the checkout, which otherwise downloads the tree without its
+      # history and the build reports 0.0.0.
+      - name: Install packages
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          apt-get update -qq
+          apt-get install -y -qq --no-install-recommends \
+            software-properties-common gpg-agent ca-certificates curl xz-utils \
+            make binutils libc6-dev libisl22 libmpc3 libmpfr6 libgmp10
+          add-apt-repository -y ppa:git-core/ppa
+          apt-get install -y -qq --no-install-recommends git
+
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+          # The version is derived from git tags, which a shallow checkout
+          # does not carry: without the history the build reports 0.0.0.
+          fetch-depth: 0
+
+      # The tree belongs to the runner's user, and git refuses to read it
+      # as root otherwise.
+      - name: Trust the checkout
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      # The CMake of 20.04 is older than the 3.20 the project requires.
+      - name: Install CMake
+        run: |
+          archive="$RUNNER_TEMP/cmake.tar.gz"
+          curl -fsSL -o "$archive" \
+            "https://github.com/Kitware/CMake/releases/download/v$CMAKE_VERSION/cmake-$CMAKE_VERSION-linux-x86_64.tar.gz"
+          echo "$CMAKE_SHA256  $archive" | sha256sum -c -
+          mkdir -p /opt/cmake
+          tar -xzf "$archive" -C /opt/cmake --strip-components=1
+          echo /opt/cmake/bin >> "$GITHUB_PATH"
+
+      - name: Set up oras
+        uses: oras-project/setup-oras@v2
+        with:
+          version: '1.2.2'
+
+      # The tests run programs they build, which load the libstdc++ of this
+      # compiler; scrap itself carries its own copy.
+      - name: Install GCC
+        run: |
+          oras pull "$GCC_INGOT" -o "$RUNNER_TEMP/ingot"
+          mapfile -t archives < <(find "$RUNNER_TEMP/ingot" -name '*.tar.xz')
+          if [ "${#archives[@]}" -ne 1 ]; then
+            echo "::error::expected one archive in the ingot, found ${#archives[@]}"
+            exit 1
+          fi
+          mkdir -p /opt/gcc
+          tar -xJf "${archives[0]}" -C /opt/gcc
+          echo /opt/gcc/lib64 > /etc/ld.so.conf.d/gcc.conf
+          ldconfig
+
+      - name: Report toolchain versions
+        run: |
+          "$CXX" --version
+          cmake --version
+          git --version
+          ld --version | sed -n 1p
+          ldd --version | sed -n 1p
+
+      - name: Build and test
+        run: |
+          jobs=$(nproc)
+          CMAKE_BUILD_PARALLEL_LEVEL=$jobs CTEST_PARALLEL_LEVEL=$jobs cmake --workflow --preset release
+
+      # What the build was configured with, as CMake recorded it.
+      - name: Report the configuration the build used
+        run: grep -E '^(CMAKE_CXX_COMPILER|CMAKE_BUILD_TYPE|CMAKE_CXX_FLAGS|CMAKE_EXE_LINKER_FLAGS|BUILD_TESTS):' build/release/CMakeCache.txt
+
+      # The ingot's static libraries carry debug info, about 12 MB of the
+      # linked binary; scrap's own code is built without it.
+      - name: Strip the binary
+        run: strip build/release/bin/scrap
+
+      # LDFLAGS is read once, when the cache is created, and the build links
+      # either way.
+      - name: Check the binary links only the C library
+        run: |
+          needed=$(readelf -d build/release/bin/scrap | sed -n 's/.*(NEEDED).*\[\(.*\)\]/\1/p')
+          echo "$needed"
+          if grep -v -E '^(libc|libm|libpthread|libdl|librt)\.so\.[0-9]+$|^ld-linux-x86-64\.so\.2$' <<< "$needed"; then
+            echo "::error::the binary loads the libraries above at run time"
+            exit 1
+          fi
+
+      # The newest symbol version the binary asks of glibc is the oldest
+      # glibc it runs on.
+      - name: Report the glibc the binary needs
+        run: |
+          symbols=$(objdump -T build/release/bin/scrap)
+          glibc=$(grep -o 'GLIBC_[0-9.]*' <<< "$symbols" | sort -u -V | tail -n 1)
+          echo "the binary needs ${glibc#GLIBC_} or later, for:"
+          # objdump of binutils 2.34 prints the version bare, later ones
+          # in parentheses.
+          awk -v v="$glibc" '$0 ~ "[ (]" v "[) ]"' <<< "$symbols"
+          echo "glibc: ${glibc#GLIBC_} or later" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Package
+        run: scripts/package.sh build/release/bin/scrap linux-x86_64 dist
+
+      - name: Upload the archive
+        uses: actions/upload-artifact@v7
+        with:
+          name: scrap-linux-x86_64
+          path: dist/
+          if-no-files-found: error
+
+  darwin-aarch64:
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      # CMake reads this as the default of CMAKE_OSX_DEPLOYMENT_TARGET.
+      MACOSX_DEPLOYMENT_TARGET: '15.0'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+          # The version is derived from git tags, which a shallow checkout
+          # does not carry: without the history the build reports 0.0.0.
+          fetch-depth: 0
+
+      - name: Report toolchain versions
+        run: |
+          c++ --version
+          xcrun --show-sdk-version
+          cmake --version
+
+      # The build is sequential, as in build-and-test: the runners hit
+      # posix_spawn limits with unlimited parallelism.
+      - name: Build and test
+        run: |
+          CMAKE_BUILD_PARALLEL_LEVEL=1 CTEST_PARALLEL_LEVEL=$(getconf _NPROCESSORS_ONLN) cmake --workflow --preset release
+
+      # What the build was configured with, as CMake recorded it.
+      - name: Report the configuration the build used
+        run: grep -E '^(CMAKE_CXX_COMPILER|CMAKE_BUILD_TYPE|CMAKE_CXX_FLAGS|CMAKE_OSX_DEPLOYMENT_TARGET|BUILD_TESTS):' build/release/CMakeCache.txt
+
+      # The environment is read once, when the cache is created, and the
+      # build passes either way.
+      - name: Check the macOS the binary needs
+        run: |
+          build=$(vtool -show-build build/release/bin/scrap)
+          echo "$build"
+          minos=$(awk '$1 == "minos" { print $2 }' <<< "$build")
+          if [ "$minos" != "$MACOSX_DEPLOYMENT_TARGET" ]; then
+            echo "::error::the binary needs macOS $minos, not $MACOSX_DEPLOYMENT_TARGET"
+            exit 1
+          fi
+          echo "macOS: $minos or later" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Package
+        run: scripts/package.sh build/release/bin/scrap darwin-aarch64 dist
+
+      - name: Upload the archive
+        uses: actions/upload-artifact@v7
+        with:
+          name: scrap-darwin-aarch64
+          path: dist/
+          if-no-files-found: error
