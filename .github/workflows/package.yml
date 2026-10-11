@@ -122,6 +122,11 @@ jobs:
       - name: Report the configuration the build used
         run: grep -E '^(CMAKE_CXX_COMPILER|CMAKE_BUILD_TYPE|CMAKE_CXX_FLAGS|CMAKE_EXE_LINKER_FLAGS|BUILD_TESTS):' build/release/CMakeCache.txt
 
+      # The ingot's static libraries carry debug info, about 12 MB of the
+      # linked binary; scrap's own code is built without it.
+      - name: Strip the binary
+        run: strip build/release/bin/scrap
+
       # LDFLAGS is read once, when the cache is created, and the build links
       # either way.
       - name: Check the binary links only the C library
