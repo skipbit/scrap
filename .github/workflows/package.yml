@@ -128,7 +128,7 @@ jobs:
         run: |
           needed=$(readelf -d build/release/bin/scrap | sed -n 's/.*(NEEDED).*\[\(.*\)\]/\1/p')
           echo "$needed"
-          if grep -E '^lib(stdc\+\+|gcc_s)\.' <<< "$needed"; then
+          if grep -v -E '^(libc|libm|libpthread|libdl|librt)\.so\.[0-9]+$|^ld-linux-x86-64\.so\.2$' <<< "$needed"; then
             echo "::error::the binary loads the libraries above at run time"
             exit 1
           fi
@@ -140,7 +140,9 @@ jobs:
           symbols=$(objdump -T build/release/bin/scrap)
           glibc=$(grep -o 'GLIBC_[0-9.]*' <<< "$symbols" | sort -u -V | tail -n 1)
           echo "the binary needs ${glibc#GLIBC_} or later, for:"
-          grep -F "($glibc)" <<< "$symbols"
+          # objdump of binutils 2.34 prints the version bare, later ones
+          # in parentheses.
+          awk -v v="$glibc" '$0 ~ "[ (]" v "[) ]"' <<< "$symbols"
           echo "glibc: ${glibc#GLIBC_} or later" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Package
@@ -174,8 +176,8 @@ jobs:
           xcrun --show-sdk-version
           cmake --version
 
-      # Sequential, as in build-and-test: the runners hit posix_spawn limits
-      # with unlimited parallelism.
+      # The build is sequential, as in build-and-test: the runners hit
+      # posix_spawn limits with unlimited parallelism.
       - name: Build and test
         run: |
           CMAKE_BUILD_PARALLEL_LEVEL=1 CTEST_PARALLEL_LEVEL=$(getconf _NPROCESSORS_ONLN) cmake --workflow --preset release
