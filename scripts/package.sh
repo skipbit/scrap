@@ -11,7 +11,8 @@
 # after it. The checksum file is in the format `sha256sum -c` reads.
 #
 # Fails when the binary does not report the version the tree describes, and
-# checks the archive by unpacking it and asking the copy inside.
+# checks the archive by unpacking it and asking the copy inside. Nothing is
+# written to the output directory unless both checks pass.
 
 set -euo pipefail
 
@@ -43,14 +44,15 @@ check_banner() {
 check_banner "$binary"
 
 name="scrap-${describe#v}-$platform"
-mkdir -p "$work/$name" "$out"
+mkdir -p "$work/$name" "$work/dist" "$work/unpacked"
 cp "$binary" "$work/$name/scrap"
 cp "$root/LICENSE" "$root/README.md" "$work/$name/"
-tar -C "$work" -czf "$out/$name.tar.gz" "$name"
-(cd "$out" && cmake -E sha256sum "$name.tar.gz" > "$name.tar.gz.sha256")
+tar -C "$work" -czf "$work/dist/$name.tar.gz" "$name"
+(cd "$work/dist" && cmake -E sha256sum "$name.tar.gz" > "$name.tar.gz.sha256")
 
-mkdir "$work/unpacked"
-tar -C "$work/unpacked" -xzf "$out/$name.tar.gz"
+tar -C "$work/unpacked" -xzf "$work/dist/$name.tar.gz"
 check_banner "$work/unpacked/$name/scrap"
 
+mkdir -p "$out"
+mv "$work/dist/$name.tar.gz" "$work/dist/$name.tar.gz.sha256" "$out/"
 echo "$out/$name.tar.gz"
