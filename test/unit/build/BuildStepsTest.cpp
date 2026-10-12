@@ -399,12 +399,14 @@ TEST(BuildStepsTest, CompilesThenArchivesThenLinks)
                                                                 .directory = "/home/me/app",
                                                                 .file = "src/main.cpp",
                                                                 .output = "build/debug/obj/app/src/main.cpp.o",
-                                                                .arguments = { "/usr/bin/c++", "-c", "src/main.cpp" } },
+                                                                .arguments = { "/usr/bin/c++", "-c", "src/main.cpp" },
+                                                                .dependencyFile = std::nullopt },
                                                 CompileCommand{ .target = "tool",
                                                                 .directory = "/home/me/app",
                                                                 .file = "src/tool.cpp",
                                                                 .output = "build/debug/obj/tool/src/tool.cpp.o",
-                                                                .arguments = { "/usr/bin/c++", "-c", "src/tool.cpp" } } };
+                                                                .arguments = { "/usr/bin/c++", "-c", "src/tool.cpp" },
+                                                                .dependencyFile = std::nullopt } };
     const std::vector<LinkCommand> links{ LinkCommand{ .target = "app",
                                                        .directory = "/home/me/app",
                                                        .output = "build/debug/bin/app",

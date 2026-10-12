@@ -1342,6 +1342,20 @@ TEST_F(CliE2ETest, BuildsAndRunsAProjectWithTheRealCompiler)
     EXPECT_EQ(ran.stdoutText, "Hello, world!\n");
 }
 
+TEST_F(CliE2ETest, BuildListsWhatTheRealCompilerReadBesideTheObject)
+{
+    std::filesystem::create_directories(_root / "work");
+    auto created = runScrap({ "new", "hello" }, {}, _root / "work");
+    ASSERT_EQ(created.exitCode, 0) << created.stderrText;
+
+    auto result = runScrap({ "build" }, { realCompiler() }, _root / "work" / "hello", BuildTimeout);
+
+    ASSERT_TRUE(result.exitedNormally) << result.stderrText;
+    ASSERT_EQ(result.exitCode, 0) << result.stderrText;
+    const std::string listed = readFile("work/hello/build/debug/obj/hello/src/main.cpp.o.d");
+    EXPECT_TRUE(listed.starts_with("build/debug/obj/hello/src/main.cpp.o: src/main.cpp ")) << listed;
+}
+
 TEST_F(CliE2ETest, BuildsANewProjectForReleaseApartFromDebug)
 {
     std::filesystem::create_directories(_root / "work");

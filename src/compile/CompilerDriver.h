@@ -3,8 +3,10 @@
 #include "project/LanguageStandard.h"
 #include "toolchain/CompilerIdentity.h"
 
+#include <filesystem>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace scrap::Compile {
 
@@ -38,6 +40,15 @@ public:
      *         which might reject it.
      */
     [[nodiscard]] std::optional<std::string> colorOption() const;
+
+    /**
+     * @brief The options that have the compiler list in @p file every file
+     *        a compilation reads, the system headers among them.
+     *
+     * @return The options, or nothing for a compiler whose family is
+     *         unknown, which might reject them.
+     */
+    [[nodiscard]] std::optional<std::vector<std::string>> dependencyFileOptions(const std::filesystem::path& file) const;
 
 private:
     Toolchain::CompilerIdentity _identity;

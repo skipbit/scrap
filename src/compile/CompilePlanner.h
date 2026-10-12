@@ -50,6 +50,10 @@ struct BuildSettings {
  * then its public ones, then the public ones of the library an executable
  * uses. A define is joined to -D, and a flag goes on as written.
  *
+ * Where the driver knows how, the compiler is then asked to list what the
+ * compilation read in the object file's path with .d added. The source and
+ * the object file come last.
+ *
  * @param settings What the commands of the build share.
  * @param targets Each target with its sources, as collectSources() returned them.
  * @return One command per source of each target, targets in the order given.

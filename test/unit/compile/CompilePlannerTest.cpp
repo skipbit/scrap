@@ -87,7 +87,8 @@ std::vector<std::filesystem::path> outputsOf(const std::vector<CompileCommand>& 
 /**
  * A command runs in the project root and names the source and the object file
  * relative to it, so diagnostics and __FILE__ carry the short path. It builds
- * for debugging, with the common warnings on and colour kept in diagnostics.
+ * for debugging, with the common warnings on and colour kept in diagnostics,
+ * and lists what it read beside the object file.
  */
 TEST(CompilePlannerTest, CompilesASourceFromTheProjectRoot)
 {
@@ -98,6 +99,7 @@ TEST(CompilePlannerTest, CompilesASourceFromTheProjectRoot)
     EXPECT_EQ(commands[0].directory, ProjectRoot);
     EXPECT_EQ(commands[0].file, "src/main.cpp");
     EXPECT_EQ(commands[0].output, "build/debug/obj/hello/src/main.cpp.o");
+    EXPECT_EQ(commands[0].dependencyFile, "build/debug/obj/hello/src/main.cpp.o.d");
     EXPECT_EQ(commands[0].arguments,
               (std::vector<std::string>{ "/usr/bin/c++",
                                          "-std=c++23",
@@ -109,6 +111,9 @@ TEST(CompilePlannerTest, CompilesASourceFromTheProjectRoot)
                                          "-fdiagnostics-color=always",
                                          "-I",
                                          "include",
+                                         "-MD",
+                                         "-MF",
+                                         "build/debug/obj/hello/src/main.cpp.o.d",
                                          "-c",
                                          "src/main.cpp",
                                          "-o",
@@ -136,6 +141,9 @@ TEST(CompilePlannerTest, CompilesASourceForRelease)
                                          "-fdiagnostics-color=always",
                                          "-I",
                                          "include",
+                                         "-MD",
+                                         "-MF",
+                                         "build/release/obj/hello/src/main.cpp.o.d",
                                          "-c",
                                          "src/main.cpp",
                                          "-o",
@@ -190,12 +198,13 @@ TEST(CompilePlannerTest, NamesAStandardTheCompilerCannotBuild)
  * A compiler of unknown family is given nothing it might reject beyond what
  * every build asks for.
  */
-TEST(CompilePlannerTest, GivesAnUnknownCompilerNoColorOption)
+TEST(CompilePlannerTest, GivesAnUnknownCompilerNoOptionItMightReject)
 {
     const auto commands
         = planCompileCommands(settingsFor(CompilerIdentity{}), { executableWithSources("hello", "src/main.cpp", { "src/main.cpp" }) });
 
     ASSERT_EQ(commands.size(), 1);
+    EXPECT_FALSE(commands[0].dependencyFile.has_value());
     EXPECT_EQ(commands[0].arguments,
               (std::vector<std::string>{ "/usr/bin/c++",
                                          "-std=c++23",

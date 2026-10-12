@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -18,6 +19,9 @@ struct CompileCommand {
     std::filesystem::path file;          ///< The source, relative to the directory.
     std::filesystem::path output;        ///< The object file, relative to the directory.
     std::vector<std::string> arguments;  ///< The command line, starting with the compiler.
+    /// The file the compiler lists what the compilation read in, relative to
+    /// the directory, or nothing when the compiler is not asked for one.
+    std::optional<std::filesystem::path> dependencyFile;
 };
 
 }  // namespace scrap::Compile
