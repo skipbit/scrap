@@ -4,11 +4,13 @@
 #include "toolchain/CompilerIdentity.h"
 
 #include <array>
+#include <filesystem>
 #include <optional>
 #include <span>
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 namespace scrap::Compile {
 
@@ -118,6 +120,14 @@ std::optional<std::string> CompilerDriver::colorOption() const
         return std::nullopt;
     }
     return std::string{ ColorOption };
+}
+
+std::optional<std::vector<std::string>> CompilerDriver::dependencyFileOptions(const std::filesystem::path& file) const
+{
+    if (_identity.family == CompilerFamily::Unknown) {
+        return std::nullopt;
+    }
+    return std::vector<std::string>{ "-MD", "-MF", file.string() };
 }
 
 std::string standardNameOption(const LanguageStandard standard)

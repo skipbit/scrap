@@ -69,6 +69,7 @@ add_library(scrap_compile STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/compile/CompilationDatabase.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/compile/CompilePlanner.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/compile/CompilerDriver.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/compile/DependencyFile.cpp
 )
 target_include_directories(scrap_compile PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 # The compile headers name project and toolchain types.

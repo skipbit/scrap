@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <system_error>
 #include <unistd.h>
@@ -22,7 +23,8 @@ CompileCommand commandFor(const char* source, const char* output)
                            .directory = "/home/me/hello",
                            .file = source,
                            .output = output,
-                           .arguments = { "/usr/bin/c++", "-c", source, "-o", output } };
+                           .arguments = { "/usr/bin/c++", "-c", source, "-o", output },
+                           .dependencyFile = std::nullopt };
 }
 
 /**
@@ -93,7 +95,8 @@ TEST(CompilationDatabaseTest, EscapesWhatJsonRequires)
                                   .directory = "/home/me/\xe3\x81\x82 \"q\"",
                                   .file = "src/back\\slash.cpp",
                                   .output = "o\nline\x01.o",
-                                  .arguments = {} };
+                                  .arguments = {},
+                                  .dependencyFile = std::nullopt };
 
     const std::string rendered = renderCompilationDatabase({ command });
 

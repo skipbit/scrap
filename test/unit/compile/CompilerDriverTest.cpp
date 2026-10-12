@@ -145,6 +145,20 @@ TEST(CompilerDriverTest, KeepsColorForTheKnownFamilies)
 }
 
 /**
+ * The known families list what a compilation read, system headers included,
+ * in the file named; an unknown one is not given options it might reject.
+ */
+TEST(CompilerDriverTest, AsksTheKnownFamiliesForADependencyFile)
+{
+    for (const CompilerFamily family : { CompilerFamily::Gcc, CompilerFamily::Clang, CompilerFamily::AppleClang }) {
+        const CompilerDriver driver{ CompilerIdentity{ .family = family, .version = { .major = 15, .minor = 0, .patch = 0 } } };
+        EXPECT_EQ(driver.dependencyFileOptions("obj/a.cpp.o.d"), (std::vector<std::string>{ "-MD", "-MF", "obj/a.cpp.o.d" }))
+            << static_cast<int>(family);
+    }
+    EXPECT_FALSE(CompilerDriver{ CompilerIdentity{} }.dependencyFileOptions("obj/a.cpp.o.d").has_value());
+}
+
+/**
  * A standard's own name is -std=c++ followed by its number.
  */
 TEST(CompilerDriverTest, NamesAStandardByItsNumber)

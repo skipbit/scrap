@@ -80,6 +80,16 @@ std::filesystem::path objectFile(const BuildSettings& settings, const std::strin
 }
 
 /**
+ * Where the compiler lists what the compilation writing @p object read.
+ */
+std::filesystem::path dependencyFileOf(const std::filesystem::path& object)
+{
+    std::filesystem::path file = object;
+    file += ".d";
+    return file;
+}
+
+/**
  * The command line every compilation shares, up to the source it compiles.
  */
 std::vector<std::string> sharedCompileArguments(const BuildSettings& settings)
@@ -192,8 +202,14 @@ std::vector<CompileCommand> planCompileCommands(const BuildSettings& settings, c
 
             std::vector<std::string> arguments = shared;
             arguments.insert(arguments.end(), added.begin(), added.end());
+            const std::filesystem::path dependencies = dependencyFileOf(output);
+            std::optional<std::filesystem::path> dependencyFile;
+            if (const auto options = settings.driver.dependencyFileOptions(dependencies); options.has_value()) {
+                arguments.insert(arguments.end(), options->begin(), options->end());
+                dependencyFile = dependencies;
+            }
             arguments.insert(arguments.end(), { "-c", file.string(), "-o", output.string() });
-            commands.push_back(CompileCommand{ .target = entry.target.name, .directory = settings.projectRoot, .file = file, .output = output, .arguments = std::move(arguments) });
+            commands.push_back(CompileCommand{ .target = entry.target.name, .directory = settings.projectRoot, .file = file, .output = output, .arguments = std::move(arguments), .dependencyFile = std::move(dependencyFile) });
         }
     }
     return commands;
