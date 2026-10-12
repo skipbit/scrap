@@ -149,6 +149,12 @@ main() {
   fi
 
   target="$(platform)"
+  # The directory is written into the shell's startup file.
+  home="${SCRAP_HOME:-$HOME/.scrap}"
+  case "$home" in
+    /*) ;;
+    *) die "SCRAP_HOME must be an absolute path, not '$home'" ;;
+  esac
   if [ "$#" -eq 1 ]; then
     tag="v${1#v}"
   else
@@ -179,7 +185,6 @@ main() {
   banner="$("$work/$name/scrap" --version)" ||
     die "the downloaded scrap does not run on this machine"
 
-  home="${SCRAP_HOME:-$HOME/.scrap}"
   mkdir -p "$home/bin"
   # Replaced by a rename, so a scrap that is running keeps its own file.
   cp "$work/$name/scrap" "$home/bin/scrap.new"
