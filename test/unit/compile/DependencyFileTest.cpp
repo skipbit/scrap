@@ -40,6 +40,21 @@ TEST(DependencyFileTest, UndoesTheEscapesInNames)
 }
 
 /**
+ * A tab is escaped as a space is, and the backslashes before either are
+ * doubled with one added, as GCC 13 writes a header named "ta<tab>b.h", one
+ * named "bs\ sp.h" and one named "bs2\\ sp.h". An even count of them ends
+ * the name after half.
+ */
+TEST(DependencyFileTest, UndoesTheEscapesBeforeABlank)
+{
+    const std::string gcc = "x.o: m.cpp ta\\\tb.h bs\\\\\\ sp.h \\\n"
+                            " bs2\\\\\\\\\\ sp.h\n";
+
+    EXPECT_EQ(parseDependencyFile(gcc), (Paths{ "m.cpp", "ta\tb.h", "bs\\ sp.h", "bs2\\\\ sp.h" }));
+    EXPECT_EQ(parseDependencyFile("x.o: a\\\\ b.h\n"), (Paths{ "a\\", "b.h" }));
+}
+
+/**
  * A backslash before anything other than a space, a '#' or a line break is
  * part of the name, and a lone '$' too.
  */

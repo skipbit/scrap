@@ -13,8 +13,9 @@ namespace scrap::Compile {
  *
  * The file holds a rule in make's syntax: the object file, a colon, then
  * every file the compilation read, split across lines that end in a
- * backslash. A space or a '#' in a name is preceded by a backslash and a '$'
- * is doubled; a backslash before anything else is kept. The rules -MP adds
+ * backslash. A space, a tab or a '#' in a name is preceded by a backslash
+ * and a '$' is doubled; GCC also doubles the backslashes before a space or a
+ * tab. A backslash before anything else is kept. The rules -MP adds
  * after it, a header and a colon with nothing after them, are passed over.
  *
  * @param text What the compiler wrote.

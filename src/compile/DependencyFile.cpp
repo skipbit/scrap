@@ -19,6 +19,43 @@ bool separatesWords(const char ch)
 }
 
 /**
+ * Undo the escape that the backslashes starting at @p index in @p text begin,
+ * adding what they stand for to @p word, and return the index of the last
+ * character they take.
+ *
+ * Before a space or a tab, GCC doubles each backslash and adds one, so an odd
+ * count escapes the blank and an even one ends the word after half of them.
+ * A single backslash before a '#' escapes it, and one before a line break
+ * continues the line, which ends the word as the line break would. Backslashes
+ * before anything else are part of the name.
+ */
+std::size_t takeBackslashes(const std::string_view text, const std::size_t index, std::string& word)
+{
+    const std::size_t end = std::min(text.find_first_not_of('\\', index), text.size());
+    const std::size_t count = end - index;
+    const char after = (end < text.size()) ? text[end] : '\0';
+    if ((after == ' ') || (after == '\t')) {
+        word.append(count / 2, '\\');
+        if ((count % 2) == 0) {
+            return end - 1;
+        }
+        word += after;
+        return end;
+    }
+    if (after == '#') {
+        word.append(count - 1, '\\');
+        word += '#';
+        return end;
+    }
+    if (after == '\n') {
+        word.append(count - 1, '\\');
+        return end - 1;
+    }
+    word.append(count, '\\');
+    return end - 1;
+}
+
+/**
  * The words of @p text, with the escapes undone and the lines a backslash
  * continues joined.
  */
@@ -35,12 +72,8 @@ std::vector<std::string> wordsOf(const std::string_view text)
     for (std::size_t index = 0; index < text.size(); ++index) {
         const char ch = text[index];
         const char next = (index + 1 < text.size()) ? text[index + 1] : '\0';
-        if ((ch == '\\') && (next == '\n')) {
-            endWord();
-            ++index;
-        } else if ((ch == '\\') && ((next == ' ') || (next == '#'))) {
-            word += next;
-            ++index;
+        if (ch == '\\') {
+            index = takeBackslashes(text, index, word);
         } else if ((ch == '$') && (next == '$')) {
             word += '$';
             ++index;
