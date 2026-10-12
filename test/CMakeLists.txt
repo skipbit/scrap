@@ -114,6 +114,7 @@ add_executable(scrap_gtest_build
     unit/build/BuildStepsTest.cpp
     unit/build/ParallelismTest.cpp
     unit/build/ProgramStepRunnerTest.cpp
+    unit/build/StepObservationTest.cpp
     unit/build/StepRecordTest.cpp
 )
 

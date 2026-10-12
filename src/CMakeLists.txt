@@ -89,13 +89,14 @@ add_library(scrap_build STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/build/BuildReporter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/build/BuildSteps.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/build/Parallelism.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/build/StepObservation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/build/StepRecord.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/build/StepRunner.cpp
 )
 target_include_directories(scrap_build PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 # The build headers name compile types; running a program and the threads
 # that run steps together stay inside.
-target_link_libraries(scrap_build PUBLIC scrap_compile PRIVATE scrap_process Threads::Threads)
+target_link_libraries(scrap_build PUBLIC scrap_compile PRIVATE scrap_file scrap_process Threads::Threads)
 scrap_apply_compile_settings(scrap_build WARNINGS_AS_ERRORS)
 
 # Command architecture, with the version banner it prints
