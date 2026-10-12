@@ -158,6 +158,8 @@ main() {
 
   work="$(mktemp -d)"
   trap 'rm -rf "$work"' EXIT
+  # dash runs the EXIT trap on exit but not when a signal ends the script.
+  trap 'exit 1' INT TERM HUP
 
   say "Downloading $name.tar.gz"
   download "$name.tar.gz"
