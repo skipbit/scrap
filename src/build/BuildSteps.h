@@ -2,6 +2,7 @@
 
 #include "build/BuildReporter.h"
 #include "build/BuildStep.h"
+#include "build/StepHistory.h"
 #include "build/StepRunner.h"
 #include "compile/ArchiveCommand.h"
 #include "compile/CompileCommand.h"
@@ -39,13 +40,20 @@ namespace scrap::Build {
  * compile or link on top of an error already reported. The steps already
  * running are waited for, and may fail too.
  *
- * The runner is called from several threads at once. The reporter is told of
- * one step at a time, never from two threads together: of each step as it
- * starts, and again once it has ended, with what its program wrote. What
- * steps wrote therefore reaches it in the order they ended.
+ * A step that @p history finds up to date, once the steps of the kinds
+ * before its own have ended, is not run and the reporter is not told of it.
+ * The history is told of each other step as it starts, and of each that
+ * succeeded once it has ended.
+ *
+ * The runner and the history are called from several threads at once. The
+ * reporter is told of one step at a time, never from two threads together:
+ * of each step as it starts, and again once it has ended, with what its
+ * program wrote. What steps wrote therefore reaches it in the order they
+ * ended.
  *
  * @param steps The steps to run, in order.
  * @param runner Carries out each step.
+ * @param history Tells whether a step needs to run, and remembers what ran.
  * @param reporter Told of each step as it runs.
  * @param parallelism How many steps may run at once. 0 is taken as 1.
  * @return Nothing when every step succeeded, or the steps that failed, in the
@@ -53,6 +61,7 @@ namespace scrap::Build {
  */
 [[nodiscard]] std::expected<void, std::vector<FailedStep>> runSteps(const std::vector<BuildStep>& steps,
                                                                     StepRunner& runner,
+                                                                    StepHistory& history,
                                                                     BuildReporter& reporter,
                                                                     unsigned parallelism);
 

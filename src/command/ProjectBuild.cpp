@@ -2,6 +2,7 @@
 
 #include "build/BuildSteps.h"
 #include "build/Parallelism.h"
+#include "build/StepHistory.h"
 #include "build/StepRunner.h"
 #include "command/BuildProgress.h"
 #include "command/ParsedOptions.h"
@@ -202,7 +203,8 @@ std::vector<Project::TargetSources> sourcesOf(const std::vector<Project::TargetS
 
 /**
  * Compile, archive and link @p targets, as many steps at once as the system
- * has processors for, reporting each step as it runs.
+ * has processors for, reporting each step as it runs. A step whose inputs
+ * have not changed since it last succeeded is not run.
  */
 std::expected<void, int> runBuild(const RuntimeEnvironment& env,
                                   const Compile::BuildSettings& settings,
@@ -213,9 +215,10 @@ std::expected<void, int> runBuild(const RuntimeEnvironment& env,
         return std::unexpected(archives.error());
     }
     Build::ProgramStepRunner runner;
+    Build::RecordedStepHistory history{ settings.buildDirectory };
     StreamBuildReporter reporter{ std::cerr, standardErrorIsTerminal() };
     const auto steps = Build::buildSteps(Compile::planCompileCommands(settings, targets), *archives, Compile::planLinkCommands(settings, targets));
-    const auto built = Build::runSteps(steps, runner, reporter, Build::availableParallelism());
+    const auto built = Build::runSteps(steps, runner, history, reporter, Build::availableParallelism());
     if (! built.has_value()) {
         std::cerr << renderStepFailures(built.error());
         return std::unexpected(1);

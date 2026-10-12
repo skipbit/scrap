@@ -2,6 +2,7 @@
 
 #include "build/BuildReporter.h"
 #include "build/BuildStep.h"
+#include "build/StepHistory.h"
 #include "build/StepRunner.h"
 #include "compile/ArchiveCommand.h"
 #include "compile/CompileCommand.h"
@@ -16,9 +17,11 @@
 #include <map>
 #include <mutex>
 #include <optional>
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 using namespace scrap::Build;
@@ -160,6 +163,46 @@ private:
 };
 
 /**
+ * Finds up to date the steps it is told of by subject, and writes down what
+ * it hears of the others.
+ */
+class ScriptedHistory final : public StepHistory {
+public:
+    std::set<std::filesystem::path> upToDateSubjects;
+
+    bool upToDate(const BuildStep& step) override
+    {
+        return upToDateSubjects.contains(step.subject);
+    }
+
+    void starting(const BuildStep& step) override
+    {
+        add("starting " + step.subject.string());
+    }
+
+    void succeeded(const BuildStep& step) override
+    {
+        add("succeeded " + step.subject.string());
+    }
+
+    [[nodiscard]] std::vector<std::string> events() const
+    {
+        const std::scoped_lock lock{ _mutex };
+        return _events;
+    }
+
+private:
+    void add(std::string event)
+    {
+        const std::scoped_lock lock{ _mutex };
+        _events.push_back(std::move(event));
+    }
+
+    mutable std::mutex _mutex;
+    std::vector<std::string> _events;
+};
+
+/**
  * A result that fails as a compiler that exits with 1, having written
  * @p output.
  */
@@ -197,8 +240,9 @@ TEST(BuildStepsTest, RunsStepsAtTheSameTime)
         return StepResult{};
     };
     RecordingReporter reporter{ timeline };
+    ScriptedHistory history;
 
-    const auto result = runSteps({ stepFor("src/a.cpp"), stepFor("src/b.cpp") }, runner, reporter, 2);
+    const auto result = runSteps({ stepFor("src/a.cpp"), stepFor("src/b.cpp") }, runner, history, reporter, 2);
 
     EXPECT_TRUE(result.has_value());
 }
@@ -220,8 +264,9 @@ TEST(BuildStepsTest, ReportsWhatStepsWroteInTheOrderTheyEnded)
         return StepResult{ .output = "from b", .failure = std::nullopt };
     };
     RecordingReporter reporter{ timeline };
+    ScriptedHistory history;
 
-    const auto result = runSteps({ stepFor("src/a.cpp"), stepFor("src/b.cpp") }, runner, reporter, 2);
+    const auto result = runSteps({ stepFor("src/a.cpp"), stepFor("src/b.cpp") }, runner, history, reporter, 2);
 
     EXPECT_TRUE(result.has_value());
     EXPECT_EQ(reported(timeline),
@@ -245,9 +290,11 @@ TEST(BuildStepsTest, WaitsForTheRunningStepsAfterAFailure)
         return failedWith("b: error");
     };
     RecordingReporter reporter{ timeline };
+    ScriptedHistory history;
 
     const auto result = runSteps({ stepFor("src/a.cpp"), stepFor("src/b.cpp"), stepFor("src/c.cpp"), stepFor("bin/app", StepKind::Link) },
                                  runner,
+                                 history,
                                  reporter,
                                  2);
 
@@ -277,8 +324,9 @@ TEST(BuildStepsTest, LinksOnceEveryCompilationHasEnded)
         return StepResult{};
     };
     RecordingReporter reporter{ timeline };
+    ScriptedHistory history;
 
-    const auto result = runSteps({ stepFor("src/a.cpp"), stepFor("src/b.cpp"), stepFor("bin/app", StepKind::Link) }, runner, reporter, 2);
+    const auto result = runSteps({ stepFor("src/a.cpp"), stepFor("src/b.cpp"), stepFor("bin/app", StepKind::Link) }, runner, history, reporter, 2);
 
     EXPECT_TRUE(result.has_value());
     const auto events = reported(timeline);
@@ -302,9 +350,10 @@ TEST(BuildStepsTest, ArchivesOnceEveryCompilationHasEnded)
         return StepResult{};
     };
     RecordingReporter reporter{ timeline };
+    ScriptedHistory history;
 
     const auto result
-        = runSteps({ stepFor("src/a.cpp"), stepFor("src/b.cpp"), stepFor("lib/libcore.a", StepKind::Archive) }, runner, reporter, 2);
+        = runSteps({ stepFor("src/a.cpp"), stepFor("src/b.cpp"), stepFor("lib/libcore.a", StepKind::Archive) }, runner, history, reporter, 2);
 
     EXPECT_TRUE(result.has_value());
     const auto events = reported(timeline);
@@ -328,10 +377,12 @@ TEST(BuildStepsTest, LinksOnceEveryArchiveHasEnded)
         return StepResult{};
     };
     RecordingReporter reporter{ timeline };
+    ScriptedHistory history;
 
     const auto result = runSteps(
         { stepFor("lib/liba.a", StepKind::Archive), stepFor("lib/libb.a", StepKind::Archive), stepFor("bin/app", StepKind::Link) },
         runner,
+        history,
         reporter,
         2);
 
@@ -349,9 +400,10 @@ TEST(BuildStepsTest, RunsACompilationThatComesAfterALinkInTheSteps)
     Timeline timeline;
     ScriptedRunner runner{ timeline };
     RecordingReporter reporter{ timeline };
+    ScriptedHistory history;
 
     const auto result
-        = runSteps({ stepFor("src/a.cpp"), stepFor("bin/app", StepKind::Link), stepFor("src/b.cpp") }, runner, reporter, 2);
+        = runSteps({ stepFor("src/a.cpp"), stepFor("bin/app", StepKind::Link), stepFor("src/b.cpp") }, runner, history, reporter, 2);
 
     EXPECT_TRUE(result.has_value());
     EXPECT_EQ(timeline.eventsStartingWith("run ").size(), 3);
@@ -370,8 +422,9 @@ TEST(BuildStepsTest, RunsOneStepAtATimeWhenToldTo)
         return StepResult{ .output = "warning", .failure = std::nullopt };
     };
     RecordingReporter reporter{ timeline };
+    ScriptedHistory history;
 
-    const auto result = runSteps({ stepFor("src/a.cpp"), stepFor("src/b.cpp") }, runner, reporter, 1);
+    const auto result = runSteps({ stepFor("src/a.cpp"), stepFor("src/b.cpp") }, runner, history, reporter, 1);
 
     EXPECT_TRUE(result.has_value());
     EXPECT_EQ(reported(timeline),
@@ -386,8 +439,9 @@ TEST(BuildStepsTest, SucceedsWithNothingToRun)
     Timeline timeline;
     ScriptedRunner runner{ timeline };
     RecordingReporter reporter{ timeline };
+    ScriptedHistory history;
 
-    EXPECT_TRUE(runSteps({}, runner, reporter, 4).has_value());
+    EXPECT_TRUE(runSteps({}, runner, history, reporter, 4).has_value());
     EXPECT_TRUE(timeline.events().empty());
 }
 
@@ -402,8 +456,9 @@ TEST(BuildStepsTest, PassesOnWhatAStepThrows)
         throw std::runtime_error{ "out of memory" };
     };
     RecordingReporter reporter{ timeline };
+    ScriptedHistory history;
 
-    EXPECT_THROW((void)runSteps({ stepFor("src/a.cpp"), stepFor("src/b.cpp") }, runner, reporter, 1), std::runtime_error);
+    EXPECT_THROW((void)runSteps({ stepFor("src/a.cpp"), stepFor("src/b.cpp") }, runner, history, reporter, 1), std::runtime_error);
     EXPECT_EQ(timeline.eventsStartingWith("run "), (std::vector<std::string>{ "run src/a.cpp" }));
 }
 
@@ -448,4 +503,42 @@ TEST(BuildStepsTest, CompilesThenArchivesThenLinks)
     EXPECT_EQ(steps[3].directory, "/home/me/app");
     EXPECT_EQ(steps[3].arguments, links[0].arguments);
     EXPECT_EQ(steps[3].inputs, links[0].inputs);
+}
+
+/**
+ * A step the history finds up to date is neither run nor reported, and the
+ * history hears only of the others.
+ */
+TEST(BuildStepsTest, SkipsAStepThatIsUpToDate)
+{
+    Timeline timeline;
+    ScriptedRunner runner{ timeline };
+    RecordingReporter reporter{ timeline };
+    ScriptedHistory history;
+    history.upToDateSubjects = { "src/a.cpp", "bin/app" };
+
+    const auto result = runSteps({ stepFor("src/a.cpp"), stepFor("src/b.cpp"), stepFor("bin/app", StepKind::Link) }, runner, history, reporter, 1);
+
+    EXPECT_TRUE(result.has_value());
+    EXPECT_EQ(timeline.events(), (std::vector<std::string>{ "started src/b.cpp", "run src/b.cpp", "finished src/b.cpp []" }));
+    EXPECT_EQ(history.events(), (std::vector<std::string>{ "starting src/b.cpp", "succeeded src/b.cpp" }));
+}
+
+/**
+ * A step that failed is not remembered as having succeeded.
+ */
+TEST(BuildStepsTest, RemembersOnlyTheStepsThatSucceeded)
+{
+    Timeline timeline;
+    ScriptedRunner runner{ timeline };
+    runner.scripts["src/b.cpp"] = [] {
+        return failedWith("error");
+    };
+    RecordingReporter reporter{ timeline };
+    ScriptedHistory history;
+
+    const auto result = runSteps({ stepFor("src/a.cpp"), stepFor("src/b.cpp") }, runner, history, reporter, 1);
+
+    EXPECT_FALSE(result.has_value());
+    EXPECT_EQ(history.events(), (std::vector<std::string>{ "starting src/a.cpp", "succeeded src/a.cpp", "starting src/b.cpp" }));
 }

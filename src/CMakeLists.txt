@@ -89,6 +89,7 @@ add_library(scrap_build STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/build/BuildReporter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/build/BuildSteps.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/build/Parallelism.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/build/StepHistory.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/build/StepObservation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/build/StepRecord.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/build/StepRunner.cpp
