@@ -265,7 +265,8 @@ jobs:
         working-directory: dist
         run: |
           gh release view "$GITHUB_REF_NAME" --json assets \
-            --jq '.assets[] | "\(.digest | sub("^sha256:"; ""))  \(.name)"' > "$RUNNER_TEMP/attached"
+            --jq '.assets[] | "\(.digest // error("no digest for \(.name)") | sub("^sha256:"; ""))  \(.name)"' \
+            > "$RUNNER_TEMP/attached"
           cat "$RUNNER_TEMP/attached"
           sha256sum -c "$RUNNER_TEMP/attached"
           if [ "$(wc -l < "$RUNNER_TEMP/attached")" -ne 4 ]; then
