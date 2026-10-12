@@ -3,9 +3,23 @@
 #include "build/BuildStep.h"
 #include "build/StepRecord.h"
 
+#include <filesystem>
 #include <optional>
+#include <set>
+#include <vector>
 
 namespace scrap::Build {
+
+/**
+ * @brief The paths where a file could appear in place of one of @p files.
+ *
+ * A file below one of @p places is named there by its path below that place,
+ * so the same name below each of the other places is listed, sorted, unless
+ * it is that file itself. Paths are compared after lexical normalisation.
+ * Whether anything is at a path is not looked at.
+ */
+[[nodiscard]] std::vector<std::filesystem::path> shadowingPaths(const std::set<std::filesystem::path>& places,
+                                                                const std::vector<std::filesystem::path>& files);
 
 /**
  * @brief What @p step reads, as it stands now, in the form a record keeps.

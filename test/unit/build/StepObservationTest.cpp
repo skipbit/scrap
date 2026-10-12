@@ -8,6 +8,7 @@
 
 #include <filesystem>
 #include <optional>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -204,3 +205,65 @@ TEST_F(StepObservationTest, ObservesWhatALinkReads)
     EXPECT_EQ(pathsOf(*record), (Paths{ compiler(), "build/obj/main.o" }));
     EXPECT_TRUE(record->absent.empty());
 }
+
+namespace {
+
+/**
+ * Places, the files read, and the paths a file could appear at in place of
+ * one of them.
+ */
+struct ShadowingCase {
+    const char* name;
+    std::set<std::filesystem::path> places;
+    Paths files;
+    Paths expected;
+};
+
+class ShadowingPathsTest : public ::testing::TestWithParam<ShadowingCase> { };
+
+}  // anonymous namespace
+
+/**
+ * The paths are the same name below each other place, sorted, whatever is
+ * at them.
+ */
+TEST_P(ShadowingPathsTest, ListsTheSameNameBelowEachOtherPlace)
+{
+    const ShadowingCase& shadowing = GetParam();
+
+    EXPECT_EQ(shadowingPaths(shadowing.places, shadowing.files), shadowing.expected);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    Cases,
+    ShadowingPathsTest,
+    ::testing::Values(
+        ShadowingCase{ .name = "NoPlaces", .places = {}, .files = { "include/a.h" }, .expected = {} },
+        ShadowingCase{ .name = "OnePlace", .places = { "include" }, .files = { "include/a.h" }, .expected = {} },
+        ShadowingCase{ .name = "TwoPlaces",
+                       .places = { "include", "src" },
+                       .files = { "include/a.h" },
+                       .expected = { "src/a.h" } },
+        ShadowingCase{ .name = "KeepsTheDirectoriesBelowThePlace",
+                       .places = { "include", "src" },
+                       .files = { "include/lib/a.h" },
+                       .expected = { "src/lib/a.h" } },
+        ShadowingCase{ .name = "NamedBelowTwoPlaces",
+                       .places = { ".", "include" },
+                       .files = { "include/a.h" },
+                       .expected = { "a.h", "include/include/a.h" } },
+        ShadowingCase{ .name = "NormalisesTheFile",
+                       .places = { "include", "src" },
+                       .files = { "src/../include/./a.h" },
+                       .expected = { "src/a.h" } },
+        ShadowingCase{ .name = "IgnoresAFileBelowNoPlace",
+                       .places = { "include", "src" },
+                       .files = { "/usr/include/vector" },
+                       .expected = {} },
+        ShadowingCase{ .name = "ListsEachPathOnceSorted",
+                       .places = { "include", "src", "third" },
+                       .files = { "src/b.h", "include/a.h", "third/a.h" },
+                       .expected = { "include/a.h", "include/b.h", "src/a.h", "third/a.h", "third/b.h" } }),
+    [](const ::testing::TestParamInfo<ShadowingCase>& info) {
+        return std::string{ info.param.name };
+    });

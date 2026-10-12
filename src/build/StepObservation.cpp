@@ -111,45 +111,54 @@ std::set<std::filesystem::path> placesSearched(const BuildStep& step, const std:
 }
 
 /**
- * Add to @p absent each path below @p places, other than @p file, where a
- * file named @p name would be found and nothing is.
+ * Add to @p paths each path below @p places, other than @p file, where a file
+ * named @p name would be found.
  */
-void addAbsent(std::set<std::filesystem::path>& absent,
-               const std::filesystem::path& file,
-               const std::filesystem::path& name,
-               const std::set<std::filesystem::path>& places,
-               const std::filesystem::path& directory)
+void addShadowing(std::set<std::filesystem::path>& paths,
+                  const std::filesystem::path& file,
+                  const std::filesystem::path& name,
+                  const std::set<std::filesystem::path>& places)
 {
     for (const std::filesystem::path& place : places) {
         std::filesystem::path candidate = (place / name).lexically_normal();
-        std::error_code ec;
-        if ((candidate != file) && (! std::filesystem::exists(directory / candidate, ec)) && (! ec)) {
-            absent.insert(std::move(candidate));
+        if (candidate != file) {
+            paths.insert(std::move(candidate));
         }
     }
 }
 
 /**
- * The paths below @p places where a file named as one of @p files is named
- * below another place would be found, and nothing is.
+ * Those of @p paths, named relative to @p directory, where nothing is.
  */
-std::vector<std::filesystem::path> absentPaths(const std::set<std::filesystem::path>& places,
-                                               const std::vector<std::filesystem::path>& files,
+std::vector<std::filesystem::path> absentPaths(const std::vector<std::filesystem::path>& paths,
                                                const std::filesystem::path& directory)
 {
-    std::set<std::filesystem::path> absent;
+    std::vector<std::filesystem::path> absent;
+    for (const std::filesystem::path& path : paths) {
+        std::error_code ec;
+        if ((! std::filesystem::exists(directory / path, ec)) && (! ec)) {
+            absent.push_back(path);
+        }
+    }
+    return absent;
+}
+
+}  // anonymous namespace
+
+std::vector<std::filesystem::path> shadowingPaths(const std::set<std::filesystem::path>& places,
+                                                  const std::vector<std::filesystem::path>& files)
+{
+    std::set<std::filesystem::path> paths;
     for (const std::filesystem::path& listed : files) {
         const std::filesystem::path file = listed.lexically_normal();
         for (const std::filesystem::path& place : places) {
             if (const auto name = below(file, place); name.has_value()) {
-                addAbsent(absent, file, *name, places, directory);
+                addShadowing(paths, file, *name, places);
             }
         }
     }
-    return { absent.begin(), absent.end() };
+    return { paths.begin(), paths.end() };
 }
-
-}  // anonymous namespace
 
 std::optional<StepRecord> observeStep(const BuildStep& step)
 {
@@ -171,7 +180,7 @@ std::optional<StepRecord> observeStep(const BuildStep& step)
     if ((! files.has_value()) || (! addStamps(record.inputs, *files, step.directory))) {
         return std::nullopt;
     }
-    record.absent = absentPaths(placesSearched(step, *files), *files, step.directory);
+    record.absent = absentPaths(shadowingPaths(placesSearched(step, *files), *files), step.directory);
     return record;
 }
 
