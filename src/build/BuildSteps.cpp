@@ -30,13 +30,37 @@ std::vector<BuildStep> buildSteps(const std::vector<Compile::CompileCommand>& co
     std::vector<BuildStep> steps;
     steps.reserve(compiles.size() + archives.size() + links.size());
     for (const Compile::CompileCommand& command : compiles) {
-        steps.push_back(BuildStep{ .kind = StepKind::Compile, .target = command.target, .subject = command.file, .directory = command.directory, .output = command.output, .arguments = command.arguments });
+        steps.push_back(BuildStep{ .kind = StepKind::Compile,
+                                   .target = command.target,
+                                   .subject = command.file,
+                                   .directory = command.directory,
+                                   .output = command.output,
+                                   .arguments = command.arguments,
+                                   .inputs = { command.file },
+                                   .searchedDirectories = command.searchedDirectories,
+                                   .dependencyFile = command.dependencyFile });
     }
     for (const Compile::ArchiveCommand& command : archives) {
-        steps.push_back(BuildStep{ .kind = StepKind::Archive, .target = command.target, .subject = command.output, .directory = command.directory, .output = command.output, .arguments = command.arguments });
+        steps.push_back(BuildStep{ .kind = StepKind::Archive,
+                                   .target = command.target,
+                                   .subject = command.output,
+                                   .directory = command.directory,
+                                   .output = command.output,
+                                   .arguments = command.arguments,
+                                   .inputs = command.inputs,
+                                   .searchedDirectories = {},
+                                   .dependencyFile = std::nullopt });
     }
     for (const Compile::LinkCommand& command : links) {
-        steps.push_back(BuildStep{ .kind = StepKind::Link, .target = command.target, .subject = command.output, .directory = command.directory, .output = command.output, .arguments = command.arguments });
+        steps.push_back(BuildStep{ .kind = StepKind::Link,
+                                   .target = command.target,
+                                   .subject = command.output,
+                                   .directory = command.directory,
+                                   .output = command.output,
+                                   .arguments = command.arguments,
+                                   .inputs = command.inputs,
+                                   .searchedDirectories = {},
+                                   .dependencyFile = std::nullopt });
     }
     return steps;
 }

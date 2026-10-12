@@ -29,6 +29,22 @@ using scrap::Compile::LinkCommand;
 namespace {
 
 /**
+ * The command that compiles @p source for @p target, with what a known
+ * compiler is given.
+ */
+CompileCommand compileCommand(const char* target, const char* source)
+{
+    const std::string output = std::string{ "build/debug/obj/" } + target + "/" + source + ".o";
+    return CompileCommand{ .target = target,
+                           .directory = "/home/me/app",
+                           .file = source,
+                           .output = output,
+                           .arguments = { "/usr/bin/c++", "-c", source },
+                           .dependencyFile = output + ".d",
+                           .searchedDirectories = { "include", "src" } };
+}
+
+/**
  * A step named by its subject alone.
  */
 BuildStep stepFor(const char* subject, StepKind kind = StepKind::Compile)
@@ -38,7 +54,10 @@ BuildStep stepFor(const char* subject, StepKind kind = StepKind::Compile)
                       .subject = subject,
                       .directory = "/home/me/hello",
                       .output = std::string{ subject } + ".o",
-                      .arguments = { "/usr/bin/c++", subject } };
+                      .arguments = { "/usr/bin/c++", subject },
+                      .inputs = {},
+                      .searchedDirectories = {},
+                      .dependencyFile = std::nullopt };
 }
 
 /**
@@ -395,27 +414,17 @@ TEST(BuildStepsTest, PassesOnWhatAStepThrows)
  */
 TEST(BuildStepsTest, CompilesThenArchivesThenLinks)
 {
-    const std::vector<CompileCommand> compiles{ CompileCommand{ .target = "app",
-                                                                .directory = "/home/me/app",
-                                                                .file = "src/main.cpp",
-                                                                .output = "build/debug/obj/app/src/main.cpp.o",
-                                                                .arguments = { "/usr/bin/c++", "-c", "src/main.cpp" },
-                                                                .dependencyFile = std::nullopt },
-                                                CompileCommand{ .target = "tool",
-                                                                .directory = "/home/me/app",
-                                                                .file = "src/tool.cpp",
-                                                                .output = "build/debug/obj/tool/src/tool.cpp.o",
-                                                                .arguments = { "/usr/bin/c++", "-c", "src/tool.cpp" },
-                                                                .dependencyFile = std::nullopt } };
-    const std::vector<LinkCommand> links{ LinkCommand{ .target = "app",
-                                                       .directory = "/home/me/app",
-                                                       .output = "build/debug/bin/app",
-                                                       .arguments = { "/usr/bin/c++", "-o", "build/debug/bin/app" } } };
-
+    const std::vector<CompileCommand> compiles{ compileCommand("app", "src/main.cpp"), compileCommand("tool", "src/tool.cpp") };
     const std::vector<ArchiveCommand> archives{ ArchiveCommand{ .target = "core",
                                                                 .directory = "/home/me/app",
                                                                 .output = "build/debug/lib/libcore.a",
-                                                                .arguments = { "/usr/bin/ar", "rcs", "build/debug/lib/libcore.a" } } };
+                                                                .arguments = { "/usr/bin/ar", "rcs", "build/debug/lib/libcore.a", "core.o" },
+                                                                .inputs = { "core.o" } } };
+    const std::vector<LinkCommand> links{ LinkCommand{ .target = "app",
+                                                       .directory = "/home/me/app",
+                                                       .output = "build/debug/bin/app",
+                                                       .arguments = { "/usr/bin/c++", "main.o", "-o", "build/debug/bin/app" },
+                                                       .inputs = { "main.o", "build/debug/lib/libcore.a" } } };
 
     const auto steps = buildSteps(compiles, archives, links);
 
@@ -423,15 +432,20 @@ TEST(BuildStepsTest, CompilesThenArchivesThenLinks)
     EXPECT_EQ(steps[0].kind, StepKind::Compile);
     EXPECT_EQ(steps[0].subject, "src/main.cpp");
     EXPECT_EQ(steps[0].output, "build/debug/obj/app/src/main.cpp.o");
+    EXPECT_EQ(steps[0].inputs, std::vector<std::filesystem::path>{ "src/main.cpp" });
+    EXPECT_EQ(steps[0].searchedDirectories, compiles[0].searchedDirectories);
+    EXPECT_EQ(steps[0].dependencyFile, compiles[0].dependencyFile);
     EXPECT_EQ(steps[1].target, "tool");
     EXPECT_EQ(steps[2].kind, StepKind::Archive);
     EXPECT_EQ(steps[2].target, "core");
     EXPECT_EQ(steps[2].subject, "build/debug/lib/libcore.a");
     EXPECT_EQ(steps[2].output, "build/debug/lib/libcore.a");
     EXPECT_EQ(steps[2].arguments, archives[0].arguments);
+    EXPECT_EQ(steps[2].inputs, archives[0].inputs);
     EXPECT_EQ(steps[3].kind, StepKind::Link);
     EXPECT_EQ(steps[3].target, "app");
     EXPECT_EQ(steps[3].subject, "build/debug/bin/app");
     EXPECT_EQ(steps[3].directory, "/home/me/app");
     EXPECT_EQ(steps[3].arguments, links[0].arguments);
+    EXPECT_EQ(steps[3].inputs, links[0].inputs);
 }

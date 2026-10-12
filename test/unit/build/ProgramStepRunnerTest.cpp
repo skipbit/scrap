@@ -6,6 +6,7 @@
 
 #include <csignal>
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <system_error>
 #include <vector>
@@ -26,7 +27,10 @@ BuildStep shellStep(const std::filesystem::path& directory, const char* output, 
                       .subject = "src/main.cpp",
                       .directory = directory,
                       .output = output,
-                      .arguments = { "/bin/sh", "-c", script } };
+                      .arguments = { "/bin/sh", "-c", script },
+                      .inputs = {},
+                      .searchedDirectories = {},
+                      .dependencyFile = std::nullopt };
 }
 
 }  // namespace

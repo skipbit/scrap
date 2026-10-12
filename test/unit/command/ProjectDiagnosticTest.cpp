@@ -603,7 +603,10 @@ BuildStep compileStep(const char* source)
                       .subject = source,
                       .directory = "/home/me/hello",
                       .output = "build/debug/obj/hello/src/main.cpp.o",
-                      .arguments = { "/usr/bin/c++" } };
+                      .arguments = { "/usr/bin/c++" },
+                      .inputs = {},
+                      .searchedDirectories = {},
+                      .dependencyFile = std::nullopt };
 }
 
 /**
@@ -616,7 +619,10 @@ BuildStep archiveStep()
                       .subject = "build/debug/lib/libcore.a",
                       .directory = "/home/me/hello",
                       .output = "build/debug/lib/libcore.a",
-                      .arguments = { "/usr/bin/ar" } };
+                      .arguments = { "/usr/bin/ar" },
+                      .inputs = {},
+                      .searchedDirectories = {},
+                      .dependencyFile = std::nullopt };
 }
 
 /**
@@ -629,7 +635,10 @@ BuildStep linkStep()
                       .subject = "build/debug/bin/hello",
                       .directory = "/home/me/hello",
                       .output = "build/debug/bin/hello",
-                      .arguments = { "/usr/bin/c++" } };
+                      .arguments = { "/usr/bin/c++" },
+                      .inputs = {},
+                      .searchedDirectories = {},
+                      .dependencyFile = std::nullopt };
 }
 
 }  // namespace

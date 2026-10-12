@@ -22,6 +22,9 @@ struct CompileCommand {
     /// The file the compiler lists what the compilation read in, relative to
     /// the directory, or nothing when the compiler is not asked for one.
     std::optional<std::filesystem::path> dependencyFile;
+    /// The directories the command names for headers, in the order named, as
+    /// written: a header added to one may change what the source includes.
+    std::vector<std::filesystem::path> searchedDirectories;
 };
 
 }  // namespace scrap::Compile

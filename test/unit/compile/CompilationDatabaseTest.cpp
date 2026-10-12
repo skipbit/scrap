@@ -24,7 +24,8 @@ CompileCommand commandFor(const char* source, const char* output)
                            .file = source,
                            .output = output,
                            .arguments = { "/usr/bin/c++", "-c", source, "-o", output },
-                           .dependencyFile = std::nullopt };
+                           .dependencyFile = std::nullopt,
+                           .searchedDirectories = {} };
 }
 
 /**
@@ -96,7 +97,8 @@ TEST(CompilationDatabaseTest, EscapesWhatJsonRequires)
                                   .file = "src/back\\slash.cpp",
                                   .output = "o\nline\x01.o",
                                   .arguments = {},
-                                  .dependencyFile = std::nullopt };
+                                  .dependencyFile = std::nullopt,
+                                  .searchedDirectories = {} };
 
     const std::string rendered = renderCompilationDatabase({ command });
 
