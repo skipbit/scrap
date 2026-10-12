@@ -64,13 +64,16 @@ bool namesTarget(const std::string& word)
 std::optional<std::vector<std::filesystem::path>> parseDependencyFile(const std::string_view text)
 {
     const std::vector<std::string> words = wordsOf(text);
-    if (words.empty() || (! namesTarget(words.front())) || (words.front().size() == 1)) {
+    if (words.empty() || (! namesTarget(words.front())) || (std::ranges::find(words, ":") != words.end())) {
         return std::nullopt;
     }
-    if (std::ranges::any_of(words.begin() + 1, words.end(), namesTarget)) {
+    // What follows the files of the first rule can only be the rules -MP
+    // adds, each a header named as a target with nothing after it.
+    const auto files = std::ranges::find_if(words.begin() + 1, words.end(), namesTarget);
+    if (! std::ranges::all_of(files, words.end(), namesTarget)) {
         return std::nullopt;
     }
-    return std::vector<std::filesystem::path>(words.begin() + 1, words.end());
+    return std::vector<std::filesystem::path>(words.begin() + 1, files);
 }
 
 }  // namespace scrap::Compile

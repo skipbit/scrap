@@ -58,20 +58,44 @@ TEST(DependencyFileTest, ReadsARuleWithoutFiles)
 }
 
 /**
- * What is not a single rule is not read: no target, an empty target, or a
- * second target, as -MP would add.
+ * The rules -MP adds after the first, a header with nothing after its colon,
+ * are passed over, as GCC 13 and Clang 22 write them.
+ */
+TEST(DependencyFileTest, PassesOverTheRulesMpAdds)
+{
+    const std::string gcc = "x.o: m\\ a.cpp /usr/include/stdc-predef.h h\\#a$$sh.h \\\n"
+                            " co:lon.h\n"
+                            "/usr/include/stdc-predef.h:\n"
+                            "h\\#a$$sh.h:\n"
+                            "co:lon.h:\n";
+    const std::string clang = "x.o: m\\ a.cpp h\\#a$$sh.h co:lon.h\n"
+                              "h\\#a$$sh.h:\n"
+                              "co:lon.h:\n";
+
+    EXPECT_EQ(parseDependencyFile(gcc), (Paths{ "m a.cpp", "/usr/include/stdc-predef.h", "h#a$sh.h", "co:lon.h" }));
+    EXPECT_EQ(parseDependencyFile(clang), (Paths{ "m a.cpp", "h#a$sh.h", "co:lon.h" }));
+}
+
+/**
+ * What is not a rule followed only by rules without files is not read.
  */
 TEST(DependencyFileTest, RejectsWhatIsNotASingleRule)
 {
-    const std::vector<std::string> rejected = {
-        "",
-        "\n",
-        "x.o a.cpp\n",
-        ": a.cpp\n",
-        "x.o : a.cpp\n",
-        "x.o: a.cpp a.h\na.h:\n",
+    struct Rejected {
+        const char* reason;
+        std::string text;
     };
-    for (const std::string& text : rejected) {
-        EXPECT_EQ(parseDependencyFile(text), std::nullopt) << "text: " << text;
+    const std::vector<Rejected> rejected = {
+        { "empty", "" },
+        { "only a line break", "\n" },
+        { "no colon", "x.o a.cpp\n" },
+        { "empty target", ": a.cpp\n" },
+        { "colon apart from the target", "x.o : a.cpp\n" },
+        { "second rule with files", "x.o: a.cpp\ny.o: b.cpp\n" },
+        { "added rule with a file", "x.o: a.cpp a.h\na.h: b.h\n" },
+        { "empty target after the rule", "x.o: a.cpp\n:\n" },
+    };
+    for (const Rejected& each : rejected) {
+        EXPECT_EQ(parseDependencyFile(each.text), std::nullopt) << "reason: " << each.reason << "\ntext: " << each.text;
     }
 }
