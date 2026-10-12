@@ -8,8 +8,10 @@
 # source, which the tag does not change, and the commit carries their result
 # from the checks it passed on its way into main.
 #
-# Nothing is attached to the release. The build below exists to be asked for
-# its version; GitHub's source archives are the artefacts.
+# The release is created as a draft, the binaries package.yml builds and
+# their checksums are attached to it, and only then is it published: once
+# published, a release in a repository with immutable releases can no longer
+# change its assets.
 
 name: Release
 
@@ -132,12 +134,20 @@ jobs:
       build-system: 'cmake'
       ref: ${{ github.sha }}
 
+  package:
+    needs: check-version
+    uses: ./.github/workflows/package.yml
+    with:
+      ref: ${{ github.sha }}
+
   release:
-    needs: build-and-test
+    needs: [build-and-test, package]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
-      contents: write  # creating the release
+      contents: write      # creating the release
+      id-token: write      # signing the attestation
+      attestations: write  # storing the attestation
 
     steps:
       - name: Checkout
@@ -156,29 +166,115 @@ jobs:
             exit 1
           fi
 
-      # An existing release is an error rather than a no-op: a tag that was
-      # moved and re-pushed would otherwise pass every check above and leave
-      # the stale release in place, reported as success. A lookup that fails
-      # for any other reason is an error too -- treating it as "no release
-      # exists" would disable the guard exactly when the API is unreliable.
+      # Before anything is attested, so a run that stops here leaves nothing
+      # behind.
       #
-      # --verify-tag: without it gh creates the tag when it is missing, at the
-      # default branch's head, publishing a release for a commit that was
-      # never built here.
-      - name: Create the release
+      # A published release is an error rather than a no-op: a tag that was
+      # moved and re-pushed would otherwise pass every check above and leave
+      # the stale release in place, reported as success. A draft is what a
+      # failed run leaves, and is deleted so that re-running recovers. A
+      # lookup that fails for any other reason is an error too -- treating it
+      # as "no release exists" would disable the guard exactly when the API
+      # is unreliable.
+      - name: Check the tag is not released yet
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if lookup="$(gh release view "$GITHUB_REF_NAME" 2>&1)"; then
-            echo "::error::a release for $GITHUB_REF_NAME already exists; delete it before re-running"
-            exit 1
-          elif ! printf '%s' "$lookup" | grep -qi "release not found"; then
-            echo "::error::could not determine whether $GITHUB_REF_NAME is released: $lookup"
+          if draft="$(gh release view "$GITHUB_REF_NAME" --json isDraft --jq .isDraft 2>&1)"; then
+            if [ "$draft" != true ]; then
+              echo "::error::a release for $GITHUB_REF_NAME already exists"
+              exit 1
+            fi
+            echo "::warning::deleting the draft release a previous run left for $GITHUB_REF_NAME"
+            gh release delete "$GITHUB_REF_NAME" --yes
+          elif ! printf '%s' "$draft" | grep -qi "release not found"; then
+            echo "::error::could not determine whether $GITHUB_REF_NAME is released: $draft"
             exit 1
           fi
 
-          flags=(--generate-notes --verify-tag)
+      - name: Download the archives
+        uses: actions/download-artifact@v8
+        with:
+          pattern: scrap-*
+          path: dist
+          merge-multiple: true
+
+      # Both platforms, named for this tag, each matching its checksum.
+      - name: Check the archives
+        working-directory: dist
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          for platform in linux-x86_64 darwin-aarch64; do
+            sha256sum -c "scrap-$version-$platform.tar.gz.sha256"
+          done
+          files=(*)
+          if [ "${#files[@]}" -ne 4 ]; then
+            echo "::error::expected 2 archives and 2 checksums, found: ${files[*]}"
+            exit 1
+          fi
+
+      - name: Attest the archives
+        uses: actions/attest@v4
+        with:
+          subject-path: dist/*.tar.gz
+
+      # --verify-tag: without it gh creates the tag when it is missing, at the
+      # default branch's head, publishing a release for a commit that was
+      # never built here.
+      - name: Create the release as a draft
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GLIBC: ${{ needs.package.outputs.glibc }}
+          MACOS: ${{ needs.package.outputs.macos }}
+        run: |
+          if [ -z "$GLIBC" ] || [ -z "$MACOS" ]; then
+            echo "::error::package.yml reported glibc '$GLIBC' and macOS '$MACOS'"
+            exit 1
+          fi
+          version="${GITHUB_REF_NAME#v}"
+          {
+            echo '## Downloads'
+            echo
+            echo '| Platform | Archive | Requires |'
+            echo '| --- | --- | --- |'
+            echo "| Linux x86_64 | scrap-$version-linux-x86_64.tar.gz | glibc $GLIBC or later |"
+            echo "| macOS (Apple silicon) | scrap-$version-darwin-aarch64.tar.gz | macOS $MACOS or later |"
+            echo
+            echo 'Each archive has a .sha256 beside it and a build provenance attestation:'
+            echo
+            echo "\`gh attestation verify <archive> -R $GITHUB_REPOSITORY\`"
+          } > "$RUNNER_TEMP/notes.md"
+
+          # The notes above come before the generated ones.
+          flags=(--draft --notes-file "$RUNNER_TEMP/notes.md" --generate-notes --verify-tag)
           case "$GITHUB_REF_NAME" in
             *-*) flags+=(--prerelease) ;;
           esac
           gh release create "$GITHUB_REF_NAME" "${flags[@]}"
+
+      - name: Attach the archives
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "$GITHUB_REF_NAME" dist/*
+
+      # The digests GitHub computed for the uploads, checked against the
+      # files that were attested.
+      - name: Check the attached archives
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        working-directory: dist
+        run: |
+          gh release view "$GITHUB_REF_NAME" --json assets \
+            --jq '.assets[] | "\(.digest // error("no digest for \(.name)") | sub("^sha256:"; ""))  \(.name)"' \
+            > "$RUNNER_TEMP/attached"
+          cat "$RUNNER_TEMP/attached"
+          sha256sum -c "$RUNNER_TEMP/attached"
+          if [ "$(wc -l < "$RUNNER_TEMP/attached")" -ne 4 ]; then
+            echo "::error::expected 4 assets on the release"
+            exit 1
+          fi
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "$GITHUB_REF_NAME" --draft=false
