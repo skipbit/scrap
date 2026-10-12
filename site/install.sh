@@ -58,6 +58,15 @@ latest() {
   esac
 }
 
+# Downloads the file $1 of release $tag into the work directory.
+download() {
+  status="$(curl -fsSL -o "$work/$1" -w '%{http_code}' "$repo/releases/download/$tag/$1")" && return
+  if [ "$status" = 404 ]; then
+    die "$tag has no $1: the release does not exist or has no prebuilt scrap for $target"
+  fi
+  die "could not download $1 from $tag"
+}
+
 sha256() {
   if command -v sha256sum > /dev/null 2>&1; then
     sha256sum "$1" | cut -d ' ' -f 1
@@ -147,10 +156,8 @@ main() {
   trap 'rm -rf "$work"' EXIT
 
   say "Downloading $name.tar.gz"
-  curl -fsSL -o "$work/$name.tar.gz" "$repo/releases/download/$tag/$name.tar.gz" ||
-    die "could not download $name.tar.gz from $tag"
-  curl -fsSL -o "$work/$name.tar.gz.sha256" "$repo/releases/download/$tag/$name.tar.gz.sha256" ||
-    die "could not download $name.tar.gz.sha256 from $tag"
+  download "$name.tar.gz"
+  download "$name.tar.gz.sha256"
 
   expected="$(cut -d ' ' -f 1 "$work/$name.tar.gz.sha256")"
   actual="$(sha256 "$work/$name.tar.gz")"
