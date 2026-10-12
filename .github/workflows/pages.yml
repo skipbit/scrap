@@ -22,7 +22,7 @@ permissions:
 
 # A deployment is not cancelled halfway; the newer one follows it.
 concurrency:
-  group: pages-${{ github.event_name }}-${{ github.ref }}
+  group: pages-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
