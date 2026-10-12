@@ -166,6 +166,32 @@ jobs:
             exit 1
           fi
 
+      # Before anything is attested, so a run that stops here leaves nothing
+      # behind.
+      #
+      # A published release is an error rather than a no-op: a tag that was
+      # moved and re-pushed would otherwise pass every check above and leave
+      # the stale release in place, reported as success. A draft is what a
+      # failed run leaves, and is deleted so that re-running recovers. A
+      # lookup that fails for any other reason is an error too -- treating it
+      # as "no release exists" would disable the guard exactly when the API
+      # is unreliable.
+      - name: Check the tag is not released yet
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if draft="$(gh release view "$GITHUB_REF_NAME" --json isDraft --jq .isDraft 2>&1)"; then
+            if [ "$draft" != true ]; then
+              echo "::error::a release for $GITHUB_REF_NAME already exists"
+              exit 1
+            fi
+            echo "::warning::deleting the draft release a previous run left for $GITHUB_REF_NAME"
+            gh release delete "$GITHUB_REF_NAME" --yes
+          elif ! printf '%s' "$draft" | grep -qi "release not found"; then
+            echo "::error::could not determine whether $GITHUB_REF_NAME is released: $draft"
+            exit 1
+          fi
+
       - name: Download the archives
         uses: actions/download-artifact@v8
         with:
@@ -192,12 +218,6 @@ jobs:
         with:
           subject-path: dist/*.tar.gz
 
-      # An existing release is an error rather than a no-op: a tag that was
-      # moved and re-pushed would otherwise pass every check above and leave
-      # the stale release in place, reported as success. A lookup that fails
-      # for any other reason is an error too -- treating it as "no release
-      # exists" would disable the guard exactly when the API is unreliable.
-      #
       # --verify-tag: without it gh creates the tag when it is missing, at the
       # default branch's head, publishing a release for a commit that was
       # never built here.
@@ -207,14 +227,6 @@ jobs:
           GLIBC: ${{ needs.package.outputs.glibc }}
           MACOS: ${{ needs.package.outputs.macos }}
         run: |
-          if lookup="$(gh release view "$GITHUB_REF_NAME" 2>&1)"; then
-            echo "::error::a release for $GITHUB_REF_NAME already exists; delete it before re-running"
-            exit 1
-          elif ! printf '%s' "$lookup" | grep -qi "release not found"; then
-            echo "::error::could not determine whether $GITHUB_REF_NAME is released: $lookup"
-            exit 1
-          fi
-
           if [ -z "$GLIBC" ] || [ -z "$MACOS" ]; then
             echo "::error::package.yml reported glibc '$GLIBC' and macOS '$MACOS'"
             exit 1
