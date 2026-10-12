@@ -1,9 +1,11 @@
 # Reusable workflow that builds the binaries a release attaches.
 #
 # Called by pr-checks.yml and main-checks.yml, so a change that breaks the
-# packaged build fails before it reaches a tag. Each job builds, runs the
-# tests on what it built, packs it with scripts/package.sh, and uploads the
-# archive and its checksum as a workflow artifact.
+# packaged build fails before it reaches a tag, and by release.yml, which
+# attaches what it uploads. Each job builds, runs the tests on what it built,
+# packs it with scripts/package.sh, and uploads the archive and its checksum
+# as a workflow artifact. The oldest glibc and macOS the binaries run on are
+# its outputs.
 #
 # Linux builds in ubuntu:20.04 (glibc 2.31) with the GCC scrap-toolchain
 # distributes, linking libstdc++ and libgcc statically, so the binary needs
@@ -20,6 +22,13 @@ on:
         type: string
         required: false
         default: ''
+    outputs:
+      glibc:
+        description: 'Oldest glibc the Linux binary runs on'
+        value: ${{ jobs.linux-x86_64.outputs.glibc }}
+      macos:
+        description: 'Oldest macOS the macOS binary runs on'
+        value: ${{ jobs.darwin-aarch64.outputs.macos }}
 
 permissions:
   contents: read
@@ -34,6 +43,8 @@ jobs:
     runs-on: ubuntu-24.04
     container: ubuntu:20.04
     timeout-minutes: 60
+    outputs:
+      glibc: ${{ steps.glibc.outputs.version }}
     env:
       CMAKE_VERSION: 3.31.12
       CMAKE_SHA256: 0dc2e9a6860f06bf10bd8fadc03e35d9eeb4df46e33763a7e480e987758f385c
@@ -141,6 +152,7 @@ jobs:
       # The newest symbol version the binary asks of glibc is the oldest
       # glibc it runs on.
       - name: Report the glibc the binary needs
+        id: glibc
         run: |
           symbols=$(objdump -T build/release/bin/scrap)
           glibc=$(grep -o 'GLIBC_[0-9.]*' <<< "$symbols" | sort -u -V | tail -n 1)
@@ -149,6 +161,7 @@ jobs:
           # in parentheses.
           awk -v v="$glibc" '$0 ~ "[ (]" v "[) ]"' <<< "$symbols"
           echo "glibc: ${glibc#GLIBC_} or later" >> "$GITHUB_STEP_SUMMARY"
+          echo "version=${glibc#GLIBC_}" >> "$GITHUB_OUTPUT"
 
       - name: Package
         run: scripts/package.sh build/release/bin/scrap linux-x86_64 dist
@@ -163,6 +176,8 @@ jobs:
   darwin-aarch64:
     runs-on: macos-15
     timeout-minutes: 60
+    outputs:
+      macos: ${{ steps.macos.outputs.version }}
     env:
       # CMake reads this as the default of CMAKE_OSX_DEPLOYMENT_TARGET.
       MACOSX_DEPLOYMENT_TARGET: '15.0'
@@ -194,6 +209,7 @@ jobs:
       # The environment is read once, when the cache is created, and the
       # build passes either way.
       - name: Check the macOS the binary needs
+        id: macos
         run: |
           build=$(vtool -show-build build/release/bin/scrap)
           echo "$build"
@@ -203,6 +219,7 @@ jobs:
             exit 1
           fi
           echo "macOS: $minos or later" >> "$GITHUB_STEP_SUMMARY"
+          echo "version=$minos" >> "$GITHUB_OUTPUT"
 
       - name: Package
         run: scripts/package.sh build/release/bin/scrap darwin-aarch64 dist
