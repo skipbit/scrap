@@ -99,6 +99,7 @@ add_executable(scrap_gtest_build
     unit/build/BuildStepsTest.cpp
     unit/build/ParallelismTest.cpp
     unit/build/ProgramStepRunnerTest.cpp
+    unit/build/StepRecordTest.cpp
 )
 
 target_link_libraries(scrap_gtest_build PRIVATE
