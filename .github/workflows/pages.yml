@@ -1,0 +1,63 @@
+# Publishes site/ to GitHub Pages, which serves the install script at
+# https://skipbit.github.io/scrap/install.sh.
+#
+# Pull requests that touch site/ run the checks only; main deploys.
+
+name: Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - '.github/workflows/pages.yml'
+  pull_request:
+    paths:
+      - 'site/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A deployment is not cancelled halfway; the newer one follows it.
+concurrency:
+  group: pages-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # The script runs under the sh of whoever pipes it, dash on Debian
+      # and Ubuntu.
+      - name: Check install.sh
+        run: |
+          shellcheck --version
+          shellcheck -s sh site/install.sh
+          dash -n site/install.sh
+
+      - name: Upload the site
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      pages: write     # deploying to Pages
+      id-token: write  # proving where the deployment comes from
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v5
