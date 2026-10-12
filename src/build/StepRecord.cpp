@@ -4,7 +4,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
-#include <span>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -64,23 +63,32 @@ std::optional<std::string> unescape(const std::string_view text)
 }
 
 /**
- * The number at the start of @p text, written as renderStepRecord() writes
- * it and followed by @p separator, with @p text moved past both.
+ * The number @p field is as a whole, or nothing when it holds anything else.
  */
 template <typename Number>
-std::optional<Number> takeNumber(std::string_view& text, const std::string_view separator)
+std::optional<Number> numberIn(const std::string_view field)
 {
     Number number{};
-    const auto [end, ec] = std::from_chars(text.data(), text.data() + text.size(), number);
-    if (ec != std::errc{}) {
+    const auto [end, ec] = std::from_chars(field.data(), field.data() + field.size(), number);
+    if ((ec != std::errc{}) || (end != field.data() + field.size())) {
         return std::nullopt;
     }
-    text.remove_prefix(static_cast<std::size_t>(end - text.data()));
-    if (! text.starts_with(separator)) {
-        return std::nullopt;
-    }
-    text.remove_prefix(separator.size());
     return number;
+}
+
+/**
+ * The part of @p text before its first space, with @p text moved past that
+ * space, or nothing when @p text holds none.
+ */
+std::optional<std::string_view> takeField(std::string_view& text)
+{
+    const std::size_t space = text.find(' ');
+    if (space == std::string_view::npos) {
+        return std::nullopt;
+    }
+    const std::string_view field = text.substr(0, space);
+    text.remove_prefix(space + 1);
+    return field;
 }
 
 /**
@@ -88,33 +96,46 @@ std::optional<Number> takeNumber(std::string_view& text, const std::string_view 
  */
 std::optional<InputStamp> parseInput(std::string_view text)
 {
-    const auto modified = takeNumber<std::int64_t>(text, " ");
-    if (! modified.has_value()) {
+    const auto modifiedField = takeField(text);
+    if (! modifiedField.has_value()) {
         return std::nullopt;
     }
-    const auto size = takeNumber<std::uintmax_t>(text, " ");
-    if (! size.has_value()) {
+    const auto sizeField = takeField(text);
+    if (! sizeField.has_value()) {
         return std::nullopt;
     }
+    const auto modified = numberIn<std::int64_t>(*modifiedField);
+    const auto size = numberIn<std::uintmax_t>(*sizeField);
     auto path = unescape(text);
-    if (! path.has_value()) {
+    if (! (modified.has_value() && size.has_value() && path.has_value())) {
         return std::nullopt;
     }
     return InputStamp{ .path = std::move(*path), .modified = *modified, .size = *size };
 }
 
 /**
- * Whether @p text is the line that ends @p record.
+ * How many arguments and inputs the record says it holds.
  */
-bool endsRecord(std::string_view text, const StepRecord& record)
+struct ItemCounts {
+    std::size_t arguments;
+    std::size_t inputs;
+};
+
+/**
+ * The counts an "end" line gives, from what follows the tag.
+ */
+std::optional<ItemCounts> parseEnd(std::string_view text)
 {
-    const auto arguments = takeNumber<std::size_t>(text, " ");
-    if (! arguments.has_value()) {
-        return false;
+    const auto argumentsField = takeField(text);
+    if (! argumentsField.has_value()) {
+        return std::nullopt;
     }
-    std::size_t inputs = 0;
-    const auto [end, ec] = std::from_chars(text.data(), text.data() + text.size(), inputs);
-    return (ec == std::errc{}) && (end == text.data() + text.size()) && (*arguments == record.arguments.size()) && (inputs == record.inputs.size());
+    const auto arguments = numberIn<std::size_t>(*argumentsField);
+    const auto inputs = numberIn<std::size_t>(text);
+    if (! (arguments.has_value() && inputs.has_value())) {
+        return std::nullopt;
+    }
+    return ItemCounts{ .arguments = *arguments, .inputs = *inputs };
 }
 
 }  // anonymous namespace
@@ -165,24 +186,26 @@ std::optional<StepRecord> parseStepRecord(std::string_view text)
     }
 
     StepRecord record;
-    for (const std::string_view line : std::span{ lines }.subspan(1, lines.size() - 2)) {
-        if (line.starts_with(ArgumentTag) && record.inputs.empty()) {
-            auto argument = unescape(line.substr(ArgumentTag.size()));
-            if (! argument.has_value()) {
-                return std::nullopt;
-            }
-            record.arguments.push_back(std::move(*argument));
-        } else if (line.starts_with(InputTag)) {
-            auto input = parseInput(line.substr(InputTag.size()));
-            if (! input.has_value()) {
-                return std::nullopt;
-            }
-            record.inputs.push_back(std::move(*input));
-        } else {
+    std::size_t next = 1;
+    for (; (next < lines.size()) && lines[next].starts_with(ArgumentTag); ++next) {
+        auto argument = unescape(lines[next].substr(ArgumentTag.size()));
+        if (! argument.has_value()) {
             return std::nullopt;
         }
+        record.arguments.push_back(std::move(*argument));
     }
-    if (! (lines.back().starts_with(EndTag) && endsRecord(lines.back().substr(EndTag.size()), record))) {
+    for (; (next < lines.size()) && lines[next].starts_with(InputTag); ++next) {
+        auto input = parseInput(lines[next].substr(InputTag.size()));
+        if (! input.has_value()) {
+            return std::nullopt;
+        }
+        record.inputs.push_back(std::move(*input));
+    }
+    if ((next + 1 != lines.size()) || ! lines[next].starts_with(EndTag)) {
+        return std::nullopt;
+    }
+    const auto counts = parseEnd(lines[next].substr(EndTag.size()));
+    if ((! counts.has_value()) || (counts->arguments != record.arguments.size()) || (counts->inputs != record.inputs.size())) {
         return std::nullopt;
     }
     return record;

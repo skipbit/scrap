@@ -110,31 +110,35 @@ TEST(StepRecordTest, RejectsWhatIsNotAWholeRecord)
     const std::string withoutEnd = whole.substr(0, whole.rfind("end "));
     const std::string withoutLastInput = whole.substr(0, whole.rfind("input ")) + "end 5 2\n";
 
-    const std::vector<std::string> rejected = {
-        "",
-        "\n",
-        "scrap-step-record 1\n",
-        whole.substr(0, whole.size() - 1),
-        withoutEnd,
-        withoutLastInput,
-        "scrap-step-record 2\nargument c++\nend 1 0\n",
-        "scrap-step-record 1\nargument c++\nend 2 0\n",
-        "scrap-step-record 1\nargument c++\nend 1 0\nargument c++\n",
-        "scrap-step-record 1\nargument c++\nend 1 0\n\n",
-        "scrap-step-record 1\ninput 1 2 a\nargument c++\nend 1 1\n",
-        "scrap-step-record 1\nargument a\\tb\nend 1 0\n",
-        "scrap-step-record 1\nargument a\\\nend 1 0\n",
-        "scrap-step-record 1\ninput x 2 a\nend 0 1\n",
-        "scrap-step-record 1\ninput +1 2 a\nend 0 1\n",
-        "scrap-step-record 1\ninput 1 -2 a\nend 0 1\n",
-        "scrap-step-record 1\ninput 1 2\nend 0 1\n",
-        "scrap-step-record 1\ninput 99999999999999999999 2 a\nend 0 1\n",
-        "scrap-step-record 1\nargument c++\nend 1 0 \n",
-        "scrap-step-record 1\nargument c++\nend 1\n",
-        "scrap-step-record 1\nother c++\nend 1 0\n",
-        "scrap-step-record 1\r\nargument c++\nend 1 0\n",
+    struct Rejected {
+        const char* reason;
+        std::string text;
     };
-    for (const std::string& text : rejected) {
-        EXPECT_EQ(parseStepRecord(text), std::nullopt) << "text: " << text;
+    const std::vector<Rejected> rejected = {
+        { "empty", "" },
+        { "only a line break", "\n" },
+        { "header only", "scrap-step-record 1\n" },
+        { "no final line break", whole.substr(0, whole.size() - 1) },
+        { "cut before the end line", withoutEnd },
+        { "a line lost before the end line", withoutLastInput },
+        { "another version", "scrap-step-record 2\nargument c++\nend 1 0\n" },
+        { "argument count differs", "scrap-step-record 1\nargument c++\nend 2 0\n" },
+        { "line after the end line", "scrap-step-record 1\nargument c++\nend 1 0\nargument c++\n" },
+        { "blank line after the end line", "scrap-step-record 1\nargument c++\nend 1 0\n\n" },
+        { "argument after an input", "scrap-step-record 1\ninput 1 2 a\nargument c++\nend 1 1\n" },
+        { "unknown escape", "scrap-step-record 1\nargument a\\tb\nend 1 0\n" },
+        { "trailing backslash", "scrap-step-record 1\nargument a\\\nend 1 0\n" },
+        { "modified time not a number", "scrap-step-record 1\ninput x 2 a\nend 0 1\n" },
+        { "plus sign", "scrap-step-record 1\ninput +1 2 a\nend 0 1\n" },
+        { "negative size", "scrap-step-record 1\ninput 1 -2 a\nend 0 1\n" },
+        { "no path", "scrap-step-record 1\ninput 1 2\nend 0 1\n" },
+        { "modified time overflows", "scrap-step-record 1\ninput 99999999999999999999 2 a\nend 0 1\n" },
+        { "space after the last count", "scrap-step-record 1\nargument c++\nend 1 0 \n" },
+        { "one count only", "scrap-step-record 1\nargument c++\nend 1\n" },
+        { "unknown tag", "scrap-step-record 1\nother c++\nend 1 0\n" },
+        { "carriage return after the header", "scrap-step-record 1\r\nargument c++\nend 1 0\n" },
+    };
+    for (const Rejected& each : rejected) {
+        EXPECT_EQ(parseStepRecord(each.text), std::nullopt) << "reason: " << each.reason << "\ntext: " << each.text;
     }
 }
