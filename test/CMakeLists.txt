@@ -56,6 +56,20 @@ scrap_apply_compile_settings(scrap_gtest_cli11 WARNINGS_AS_ERRORS)
 
 gtest_discover_tests(scrap_gtest_cli11)
 
+# --- Whole file tests ---
+add_executable(scrap_gtest_file
+    unit/file/WholeFileTest.cpp
+)
+
+target_link_libraries(scrap_gtest_file PRIVATE
+    scrap_file
+    scrap_test_support
+    GTest::gtest_main
+)
+scrap_apply_compile_settings(scrap_gtest_file WARNINGS_AS_ERRORS)
+
+gtest_discover_tests(scrap_gtest_file)
+
 # --- Project configuration tests ---
 add_executable(scrap_gtest_project
     unit/project/DiskProjectFileSystemTest.cpp

@@ -313,6 +313,7 @@ ctest --preset debug --verbose
 # Run a specific test executable directly
 ./build/debug/test/scrap_gtest
 ./build/debug/test/scrap_gtest_cli11
+./build/debug/test/scrap_gtest_file
 ./build/debug/test/scrap_gtest_project
 ./build/debug/test/scrap_gtest_compile
 ./build/debug/test/scrap_gtest_build
@@ -324,6 +325,7 @@ cmake --workflow --preset release
 
 **Test Structure:**
 - `test/unit/command/` - Unit tests for the command layer
+- `test/unit/file/` - Unit tests for reading and writing whole files
 - `test/unit/project/` - Unit tests for project configuration (`scrap.toml`) and layout
 - `test/unit/process/` - Unit tests for running other programs
 - `test/unit/toolchain/` - Unit tests for toolchain detection
