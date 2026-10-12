@@ -80,7 +80,7 @@ sha256() {
 path_entry() {
   case "${SHELL:-}" in
     */zsh)
-      printf '%s\n' "$HOME/.zshrc" "export PATH=\"$1:\$PATH\""
+      printf '%s\n' "${ZDOTDIR:-$HOME}/.zshrc" "export PATH=\"$1:\$PATH\""
       ;;
     */bash)
       if [ "$(uname -s)" = Darwin ]; then
