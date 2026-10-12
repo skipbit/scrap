@@ -5,6 +5,7 @@
 
 #include <gtest/gtest.h>
 
+#include <chrono>
 #include <filesystem>
 #include <optional>
 
@@ -14,7 +15,8 @@ using scrap::TestSupport::TempDirectory;
 namespace {
 
 /**
- * A project whose link has already written its executable.
+ * A project whose link has already written its executable, from files written
+ * an hour before the test starts.
  */
 class StepHistoryTest : public ::testing::Test {
 protected:
@@ -23,6 +25,19 @@ protected:
         _temp.writeFile("cc", "compiler");
         _temp.writeFile("build/obj/main.o", "object");
         _temp.writeFile("build/bin/app", "executable");
+        for (const char* file : { "cc", "build/obj/main.o", "build/bin/app" }) {
+            std::filesystem::last_write_time(_temp.path() / file, std::filesystem::file_time_type::clock::now() - std::chrono::hours{ 1 });
+        }
+    }
+
+    /**
+     * Run @p step through the history as a build would, for a step that
+     * succeeds.
+     */
+    void succeed(const BuildStep& step)
+    {
+        _history.starting(step);
+        _history.succeeded(step);
     }
 
     [[nodiscard]] BuildStep linkStep(const std::filesystem::path& output = "build/bin/app") const
@@ -63,7 +78,7 @@ TEST_F(StepHistoryTest, RunsAStepWithoutARecord)
  */
 TEST_F(StepHistoryTest, KeepsARecordOfAStepThatSucceeded)
 {
-    _history.succeeded(linkStep());
+    succeed(linkStep());
 
     EXPECT_TRUE(std::filesystem::is_regular_file(recordOfTheLink()));
     EXPECT_TRUE(_history.upToDate(linkStep()));
@@ -74,7 +89,7 @@ TEST_F(StepHistoryTest, KeepsARecordOfAStepThatSucceeded)
  */
 TEST_F(StepHistoryTest, RunsAStepWhoseInputOrCommandChanged)
 {
-    _history.succeeded(linkStep());
+    succeed(linkStep());
 
     BuildStep withAnotherFlag = linkStep();
     withAnotherFlag.arguments.emplace_back("-s");
@@ -89,7 +104,7 @@ TEST_F(StepHistoryTest, RunsAStepWhoseInputOrCommandChanged)
  */
 TEST_F(StepHistoryTest, RunsAStepWhoseOutputIsGone)
 {
-    _history.succeeded(linkStep());
+    succeed(linkStep());
     std::filesystem::remove(_temp.path() / "build/bin/app");
 
     EXPECT_FALSE(_history.upToDate(linkStep()));
@@ -100,21 +115,64 @@ TEST_F(StepHistoryTest, RunsAStepWhoseOutputIsGone)
  */
 TEST_F(StepHistoryTest, RunsAStepWhoseRecordIsBroken)
 {
-    _history.succeeded(linkStep());
+    succeed(linkStep());
     _temp.writeFile("build/records/bin/app", "broken");
 
     EXPECT_FALSE(_history.upToDate(linkStep()));
 }
 
 /**
- * The record is forgotten as the step starts, so a step stopped before it
+ * The record is emptied as the step starts, so a step stopped before it
  * succeeds runs again.
  */
-TEST_F(StepHistoryTest, ForgetsTheRecordAsTheStepStarts)
+TEST_F(StepHistoryTest, EmptiesTheRecordAsTheStepStarts)
 {
-    _history.succeeded(linkStep());
+    succeed(linkStep());
 
     _history.starting(linkStep());
+
+    EXPECT_TRUE(std::filesystem::is_regular_file(recordOfTheLink()));
+    EXPECT_EQ(std::filesystem::file_size(recordOfTheLink()), 0U);
+    EXPECT_FALSE(_history.upToDate(linkStep()));
+}
+
+/**
+ * A file modified after the step started may have changed after the step read
+ * it, so the step runs again.
+ */
+TEST_F(StepHistoryTest, RunsAStepWhoseInputChangedAsItRan)
+{
+    _history.starting(linkStep());
+    const auto started = std::filesystem::last_write_time(recordOfTheLink());
+    std::filesystem::last_write_time(_temp.path() / "build/obj/main.o", started + std::chrono::seconds{ 1 });
+
+    _history.succeeded(linkStep());
+
+    EXPECT_FALSE(_history.upToDate(linkStep()));
+}
+
+/**
+ * A file modified as the step started, but not after, leaves the step up to
+ * date.
+ */
+TEST_F(StepHistoryTest, KeepsAStepWhoseInputChangedAsItStarted)
+{
+    _history.starting(linkStep());
+    const auto started = std::filesystem::last_write_time(recordOfTheLink());
+    std::filesystem::last_write_time(_temp.path() / "build/obj/main.o", started);
+
+    _history.succeeded(linkStep());
+
+    EXPECT_TRUE(_history.upToDate(linkStep()));
+}
+
+/**
+ * A step not seen starting keeps no record, since when it started cannot be
+ * told.
+ */
+TEST_F(StepHistoryTest, KeepsNoRecordOfAStepNotSeenStarting)
+{
+    _history.succeeded(linkStep());
 
     EXPECT_FALSE(std::filesystem::exists(recordOfTheLink()));
     EXPECT_FALSE(_history.upToDate(linkStep()));
@@ -127,7 +185,7 @@ TEST_F(StepHistoryTest, KeepsNoRecordOutsideTheBuildDirectory)
 {
     _temp.writeFile("elsewhere/app", "executable");
 
-    _history.succeeded(linkStep("elsewhere/app"));
+    succeed(linkStep("elsewhere/app"));
 
     EXPECT_FALSE(std::filesystem::exists(_temp.path() / "build" / "records"));
     EXPECT_FALSE(_history.upToDate(linkStep("elsewhere/app")));

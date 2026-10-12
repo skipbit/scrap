@@ -23,27 +23,6 @@ namespace {
 constexpr std::int64_t NanosecondsPerSecond = 1'000'000'000;
 
 /**
- * The stamp of @p path, named relative to @p directory, following links, or
- * nothing when it cannot be examined.
- */
-std::optional<InputStamp> stampOf(const std::filesystem::path& path, const std::filesystem::path& directory)
-{
-    const std::filesystem::path file = directory / path;
-    struct stat status { };
-    if (::stat(file.c_str(), &status) != 0) {
-        return std::nullopt;
-    }
-#if defined(__APPLE__)
-    const timespec& modified = status.st_mtimespec;
-#else
-    const timespec& modified = status.st_mtim;
-#endif
-    return InputStamp{ .path = path,
-                       .modified = (static_cast<std::int64_t>(modified.tv_sec) * NanosecondsPerSecond) + modified.tv_nsec,
-                       .size = static_cast<std::uintmax_t>(status.st_size) };
-}
-
-/**
  * Add the stamp of each of @p paths to @p stamps, or report that one of them
  * cannot be examined.
  */
@@ -144,6 +123,23 @@ std::vector<std::filesystem::path> absentPaths(const std::vector<std::filesystem
 }
 
 }  // anonymous namespace
+
+std::optional<InputStamp> stampOf(const std::filesystem::path& path, const std::filesystem::path& directory)
+{
+    const std::filesystem::path file = directory / path;
+    struct stat status { };
+    if (::stat(file.c_str(), &status) != 0) {
+        return std::nullopt;
+    }
+#if defined(__APPLE__)
+    const timespec& modified = status.st_mtimespec;
+#else
+    const timespec& modified = status.st_mtim;
+#endif
+    return InputStamp{ .path = path,
+                       .modified = (static_cast<std::int64_t>(modified.tv_sec) * NanosecondsPerSecond) + modified.tv_nsec,
+                       .size = static_cast<std::uintmax_t>(status.st_size) };
+}
 
 std::vector<std::filesystem::path> shadowingPaths(const std::set<std::filesystem::path>& places,
                                                   const std::vector<std::filesystem::path>& files)

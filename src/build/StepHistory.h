@@ -50,9 +50,12 @@ protected:
  * now, as observeStep() sees it. A step whose output lies outside the build
  * directory, or below records/, keeps no record, so it always runs.
  *
- * The record is removed before the step runs and written only once it has
- * succeeded, so a step that failed or was stopped runs again. A record that
- * cannot be removed or written leaves the step to run again next time.
+ * The record is emptied before the step runs and written only once it has
+ * succeeded, so a step that failed or was stopped runs again. The time the
+ * empty record was written is when the step started: a file the record would
+ * hold that was modified after it may have changed after the step read it, so
+ * the record stays empty. A record that cannot be emptied is removed, and one
+ * that cannot be written leaves the step to run again next time.
  */
 class RecordedStepHistory final : public StepHistory {
 public:

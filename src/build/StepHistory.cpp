@@ -5,6 +5,8 @@
 #include "build/StepRecord.h"
 #include "file/WholeFile.h"
 
+#include <algorithm>
+#include <cstdint>
 #include <filesystem>
 #include <optional>
 #include <string_view>
@@ -17,6 +19,17 @@ namespace {
 
 /// Directory below the build directory that holds the records of the steps.
 constexpr std::string_view RecordDirectory = "records";
+
+/**
+ * Whether a file @p record holds was modified after @p started, so the step
+ * may have read it before it changed.
+ */
+bool changedSince(const StepRecord& record, std::int64_t started)
+{
+    return std::ranges::any_of(record.inputs, [started](const InputStamp& input) {
+        return input.modified > started;
+    });
+}
 
 }  // anonymous namespace
 
@@ -57,8 +70,14 @@ bool RecordedStepHistory::upToDate(const BuildStep& step)
 
 void RecordedStepHistory::starting(const BuildStep& step)
 {
-    if (const auto file = recordFile(step); file.has_value()) {
-        std::error_code ec;
+    const auto file = recordFile(step);
+    if (! file.has_value()) {
+        return;
+    }
+    // An empty record runs the step again, and its time is when the step started.
+    std::error_code ec;
+    std::filesystem::create_directories(file->parent_path(), ec);
+    if (ec || File::replaceFile(*file, {})) {
         std::filesystem::remove(*file, ec);
     }
 }
@@ -66,8 +85,12 @@ void RecordedStepHistory::starting(const BuildStep& step)
 void RecordedStepHistory::succeeded(const BuildStep& step)
 {
     const auto file = recordFile(step);
+    if (! file.has_value()) {
+        return;
+    }
+    const auto started = stampOf(*file, {});
     const auto observed = observeStep(step);
-    if ((! file.has_value()) || (! observed.has_value())) {
+    if ((! started.has_value()) || (! observed.has_value()) || changedSince(*observed, started->modified)) {
         return;
     }
     // A record that cannot be written leaves the step to run next time.

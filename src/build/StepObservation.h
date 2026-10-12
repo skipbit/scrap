@@ -11,6 +11,12 @@
 namespace scrap::Build {
 
 /**
+ * @brief The stamp of @p path, named relative to @p directory, following
+ *        links, or nothing when it cannot be examined.
+ */
+[[nodiscard]] std::optional<InputStamp> stampOf(const std::filesystem::path& path, const std::filesystem::path& directory);
+
+/**
  * @brief The paths where a file could appear in place of one of @p files.
  *
  * A file below one of @p places is named there by its path below that place,
