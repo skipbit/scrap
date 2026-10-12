@@ -189,6 +189,29 @@ scrap is in early alpha development. Currently implemented:
 
 ## 🛠️ Installation
 
+### Install a prebuilt binary
+
+```bash
+curl -fsSL https://skipbit.github.io/scrap/install.sh | sh
+```
+
+This installs the latest release to `~/.scrap/bin/scrap` (`$SCRAP_HOME/bin`
+when `SCRAP_HOME` is set), after checking the archive against its published
+sha256, and offers to add that directory to `PATH`. To install a specific
+release:
+
+```bash
+curl -fsSL https://skipbit.github.io/scrap/install.sh | sh -s -- v0.3.0
+```
+
+Prebuilt binaries are available for:
+
+- Linux x86_64, with glibc 2.29 or later
+- macOS on Apple silicon, 15.0 or later
+
+The archives, their checksums and build provenance attestations are on the
+[releases page](https://github.com/skipbit/scrap/releases).
+
 ### Prerequisites
 
 - A C++23 compiler and standard library. On Linux:
