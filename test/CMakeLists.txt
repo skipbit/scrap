@@ -82,6 +82,7 @@ add_executable(scrap_gtest_compile
     unit/compile/CompilationDatabaseTest.cpp
     unit/compile/CompilePlannerTest.cpp
     unit/compile/CompilerDriverTest.cpp
+    unit/compile/DependencyFileTest.cpp
 )
 
 target_link_libraries(scrap_gtest_compile PRIVATE
