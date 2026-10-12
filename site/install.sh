@@ -42,6 +42,10 @@ platform() {
     arm64 | aarch64) arch=aarch64 ;;
     *) arch="$(uname -m)" ;;
   esac
+  # A shell running under Rosetta reports x86_64 on Apple silicon.
+  if [ "$os-$arch" = darwin-x86_64 ] && [ "$(sysctl -n hw.optional.arm64 2> /dev/null)" = 1 ]; then
+    arch=aarch64
+  fi
   case "$os-$arch" in
     linux-x86_64 | darwin-aarch64) printf '%s\n' "$os-$arch" ;;
     *) die "no prebuilt scrap for $os-$arch; prebuilt: linux-x86_64, darwin-aarch64" ;;
