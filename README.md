@@ -153,11 +153,12 @@ scrap is in early alpha development. Currently implemented:
   header it includes, the compiler or its command has changed since it was
   last compiled, or when a header of the same name has appeared where the
   compiler would find it first; a library or an executable is made again
-  only when what it is made from has changed. The headers each compilation
-  read are learned from the compiler (`-MD`), so a compiler scrap does not
-  recognise is run every time. What each step read is kept below
-  `build/<profile>/records/`, and a step whose record is missing or cannot
-  be read runs
+  only when what it is made from has changed. A header appearing in a
+  directory the system searches, or in one named only in `compile-flags`,
+  is not noticed. The headers each compilation read are learned from the
+  compiler (`-MD`), so a compiler scrap does not recognise is run every
+  time. What each step read is kept below `build/<profile>/records/`, and
+  a step whose record is missing or cannot be read runs
 - Static libraries: with a `[[lib]]` in `scrap.toml`, the sources below
   `src/` become `build/<profile>/lib/lib<name>.a`, and each executable is
   built from its entry point and links that library. The archiver is the
