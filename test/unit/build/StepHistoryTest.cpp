@@ -25,7 +25,10 @@ protected:
         _temp.writeFile("cc", "compiler");
         _temp.writeFile("build/obj/main.o", "object");
         _temp.writeFile("build/bin/app", "executable");
-        for (const char* file : { "cc", "build/obj/main.o", "build/bin/app" }) {
+        _temp.writeFile("src/main.cpp", "#include \"hello.h\"\n");
+        _temp.writeFile("include/hello.h", "int hello;\n");
+        _temp.writeFile("build/obj/main.o.d", "build/obj/main.o: src/main.cpp include/hello.h\n");
+        for (const char* file : { "cc", "build/obj/main.o", "build/bin/app", "src/main.cpp", "src", "include/hello.h", "include" }) {
             std::filesystem::last_write_time(_temp.path() / file, std::filesystem::file_time_type::clock::now() - std::chrono::hours{ 1 });
         }
     }
@@ -51,6 +54,19 @@ protected:
                           .inputs = { "build/obj/main.o" },
                           .searchedDirectories = {},
                           .dependencyFile = std::nullopt };
+    }
+
+    [[nodiscard]] BuildStep compileStep() const
+    {
+        return BuildStep{ .kind = StepKind::Compile,
+                          .target = "app",
+                          .subject = "src/main.cpp",
+                          .directory = _temp.path(),
+                          .output = "build/obj/main.o",
+                          .arguments = { (_temp.path() / "cc").string(), "-c", "src/main.cpp", "-o", "build/obj/main.o" },
+                          .inputs = { "src/main.cpp" },
+                          .searchedDirectories = { "include" },
+                          .dependencyFile = "build/obj/main.o.d" };
     }
 
     [[nodiscard]] std::filesystem::path recordOfTheLink() const
@@ -189,4 +205,21 @@ TEST_F(StepHistoryTest, KeepsNoRecordOutsideTheBuildDirectory)
 
     EXPECT_FALSE(std::filesystem::exists(_temp.path() / "build" / "records"));
     EXPECT_FALSE(_history.upToDate(linkStep("elsewhere/app")));
+}
+
+/**
+ * A header that appeared while a compilation ran, where it would be found
+ * first, changes a directory it watches, so the compilation runs again.
+ */
+TEST_F(StepHistoryTest, RunsACompilationWhereAHeaderAppearedAsItRan)
+{
+    succeed(compileStep());
+    ASSERT_TRUE(_history.upToDate(compileStep()));
+
+    _history.starting(compileStep());
+    const auto started = std::filesystem::last_write_time(_temp.path() / "build/records/obj/main.o");
+    std::filesystem::last_write_time(_temp.path() / "src", started + std::chrono::seconds{ 1 });
+    _history.succeeded(compileStep());
+
+    EXPECT_FALSE(_history.upToDate(compileStep()));
 }

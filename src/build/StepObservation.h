@@ -28,6 +28,14 @@ namespace scrap::Build {
                                                                 const std::vector<std::filesystem::path>& files);
 
 /**
+ * @brief The directories whose entries change when a file appears at one of
+ *        @p paths: the directory of each path and each one above it, up to
+ *        the outermost of @p places above it, sorted.
+ */
+[[nodiscard]] std::vector<std::filesystem::path> shadowingDirectories(const std::set<std::filesystem::path>& places,
+                                                                      const std::vector<std::filesystem::path>& paths);
+
+/**
  * @brief What @p step reads, as it stands now, in the form a record keeps.
  *
  * The record holds the command line, then a stamp for the program, for each
@@ -49,5 +57,18 @@ namespace scrap::Build {
  *         a compilation has no dependency file, or one that cannot be read.
  */
 [[nodiscard]] std::optional<StepRecord> observeStep(const BuildStep& step);
+
+/**
+ * @brief The directories where a header could appear in place of one
+ *        @p step read, as shadowingDirectories() names them for the paths
+ *        observeStep() looks at, relative to the step's directory.
+ *
+ * A file that appears while the step runs is not among the absent paths of
+ * its record, but changes one of these directories.
+ *
+ * @return The directories, none for a step that is not a compilation, or
+ *         nothing when its dependency file cannot be read.
+ */
+[[nodiscard]] std::optional<std::vector<std::filesystem::path>> watchedDirectories(const BuildStep& step);
 
 }  // namespace scrap::Build

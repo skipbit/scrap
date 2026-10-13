@@ -12,6 +12,7 @@
 #include <string_view>
 #include <system_error>
 #include <utility>
+#include <vector>
 
 namespace scrap::Build {
 
@@ -28,6 +29,18 @@ bool changedSince(const StepRecord& record, std::int64_t started)
 {
     return std::ranges::any_of(record.inputs, [started](const InputStamp& input) {
         return input.modified > started;
+    });
+}
+
+/**
+ * Whether one of @p directories, named relative to @p base, was modified
+ * after @p started. A directory that is not there holds nothing.
+ */
+bool changedSince(const std::vector<std::filesystem::path>& directories, const std::filesystem::path& base, std::int64_t started)
+{
+    return std::ranges::any_of(directories, [&base, started](const std::filesystem::path& watched) {
+        const auto stamp = stampOf(watched, base);
+        return stamp.has_value() && (stamp->modified > started);
     });
 }
 
@@ -90,7 +103,8 @@ void RecordedStepHistory::succeeded(const BuildStep& step)
     }
     const auto started = stampOf(*file, {});
     const auto observed = observeStep(step);
-    if ((! started.has_value()) || (! observed.has_value()) || changedSince(*observed, started->modified)) {
+    const auto watched = watchedDirectories(step);
+    if ((! started.has_value()) || (! observed.has_value()) || (! watched.has_value()) || changedSince(*observed, started->modified) || changedSince(*watched, step.directory, started->modified)) {
         return;
     }
     // A record that cannot be written leaves the step to run next time.

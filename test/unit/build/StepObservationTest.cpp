@@ -267,3 +267,80 @@ INSTANTIATE_TEST_SUITE_P(
     [](const ::testing::TestParamInfo<ShadowingCase>& info) {
         return std::string{ info.param.name };
     });
+
+namespace {
+
+/**
+ * Places, paths a file could appear at, and the directories whose entries
+ * change when one does.
+ */
+struct DirectoriesCase {
+    const char* name;
+    std::set<std::filesystem::path> places;
+    Paths paths;
+    Paths expected;
+};
+
+class ShadowingDirectoriesTest : public ::testing::TestWithParam<DirectoriesCase> { };
+
+}  // anonymous namespace
+
+/**
+ * The directories are those of each path and above it, up to the outermost
+ * place above it, sorted.
+ */
+TEST_P(ShadowingDirectoriesTest, ListsTheDirectoriesUpToTheOutermostPlace)
+{
+    const DirectoriesCase& directories = GetParam();
+
+    EXPECT_EQ(shadowingDirectories(directories.places, directories.paths), directories.expected);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    Cases,
+    ShadowingDirectoriesTest,
+    ::testing::Values(
+        DirectoriesCase{ .name = "NoPaths", .places = { "include", "src" }, .paths = {}, .expected = {} },
+        DirectoriesCase{ .name = "DirectlyBelowAPlace", .places = { "include", "src" }, .paths = { "src/a.h" }, .expected = { "src" } },
+        DirectoriesCase{ .name = "BelowADirectoryOfAPlace",
+                         .places = { "include", "src" },
+                         .paths = { "src/lib/a.h" },
+                         .expected = { "src", "src/lib" } },
+        DirectoriesCase{ .name = "UpToTheOutermostPlace",
+                         .places = { "include", "include/lib" },
+                         .paths = { "include/lib/a.h" },
+                         .expected = { "include", "include/lib" } },
+        DirectoriesCase{ .name = "TheRoot",
+                         .places = { ".", "include" },
+                         .paths = { "a.h", "include/include/a.h" },
+                         .expected = { ".", "include", "include/include" } },
+        DirectoriesCase{ .name = "Absolute",
+                         .places = { "/opt/include", "src" },
+                         .paths = { "/opt/include/lib/a.h" },
+                         .expected = { "/opt/include", "/opt/include/lib" } }),
+    [](const ::testing::TestParamInfo<DirectoriesCase>& info) {
+        return std::string{ info.param.name };
+    });
+
+/**
+ * A compilation watches the directories where a header named as one it read
+ * could appear; a link watches none.
+ */
+TEST_F(StepObservationTest, WatchesWhereAHeaderCouldAppear)
+{
+    EXPECT_EQ(watchedDirectories(compileStep()), (Paths{ "include", "src" }));
+
+    BuildStep link = compileStep();
+    link.kind = StepKind::Link;
+    EXPECT_EQ(watchedDirectories(link), Paths{});
+}
+
+/**
+ * Without its dependency file, where a compilation watches cannot be told.
+ */
+TEST_F(StepObservationTest, CannotTellWhereToWatchWithoutADependencyFile)
+{
+    std::filesystem::remove(_temp.path() / "build/obj/main.o.d");
+
+    EXPECT_FALSE(watchedDirectories(compileStep()).has_value());
+}

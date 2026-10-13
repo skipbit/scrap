@@ -5,6 +5,7 @@
 #include "compile/DependencyFile.h"
 #include "file/WholeFile.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <ctime>
 #include <filesystem>
@@ -122,6 +123,29 @@ std::vector<std::filesystem::path> absentPaths(const std::vector<std::filesystem
     return absent;
 }
 
+/**
+ * Add to @p directories the directory of @p path and each one above it, up to
+ * the outermost of @p places above it.
+ */
+void addDirectoriesAbove(std::set<std::filesystem::path>& directories,
+                         const std::filesystem::path& path,
+                         const std::set<std::filesystem::path>& places)
+{
+    std::vector<std::filesystem::path> above;
+    std::size_t kept = 0;
+    for (std::filesystem::path directory = path.parent_path();; directory = directory.parent_path()) {
+        above.push_back(directory.empty() ? std::filesystem::path{ "." } : directory);
+        if (places.contains(above.back())) {
+            kept = above.size();
+        }
+        if (directory.empty() || (directory == directory.parent_path())) {
+            break;
+        }
+    }
+    above.resize(kept);
+    directories.insert(above.begin(), above.end());
+}
+
 }  // anonymous namespace
 
 std::optional<InputStamp> stampOf(const std::filesystem::path& path, const std::filesystem::path& directory)
@@ -156,6 +180,16 @@ std::vector<std::filesystem::path> shadowingPaths(const std::set<std::filesystem
     return { paths.begin(), paths.end() };
 }
 
+std::vector<std::filesystem::path> shadowingDirectories(const std::set<std::filesystem::path>& places,
+                                                        const std::vector<std::filesystem::path>& paths)
+{
+    std::set<std::filesystem::path> directories;
+    for (const std::filesystem::path& path : paths) {
+        addDirectoriesAbove(directories, path, places);
+    }
+    return { directories.begin(), directories.end() };
+}
+
 std::optional<StepRecord> observeStep(const BuildStep& step)
 {
     if (step.arguments.empty()) {
@@ -178,6 +212,19 @@ std::optional<StepRecord> observeStep(const BuildStep& step)
     }
     record.absent = absentPaths(shadowingPaths(placesSearched(step, *files), *files), step.directory);
     return record;
+}
+
+std::optional<std::vector<std::filesystem::path>> watchedDirectories(const BuildStep& step)
+{
+    if (step.kind != StepKind::Compile) {
+        return std::vector<std::filesystem::path>{};
+    }
+    const auto files = listedFiles(step);
+    if (! files.has_value()) {
+        return std::nullopt;
+    }
+    const std::set<std::filesystem::path> places = placesSearched(step, *files);
+    return shadowingDirectories(places, shadowingPaths(places, *files));
 }
 
 }  // namespace scrap::Build
