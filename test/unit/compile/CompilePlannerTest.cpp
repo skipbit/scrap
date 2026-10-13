@@ -401,6 +401,7 @@ TEST(CompilePlannerTest, LinksTheLibraryIntoEachExecutable)
     EXPECT_EQ(commands[0].arguments,
               (std::vector<std::string>{
                   "/usr/bin/c++", "build/debug/obj/app/src/main.cpp.o", "build/debug/lib/libcore.a", "-o", "build/debug/bin/app" }));
+    EXPECT_EQ(commands[0].inputs, (std::vector<std::filesystem::path>{ "build/debug/obj/app/src/main.cpp.o", "build/debug/lib/libcore.a" }));
     EXPECT_EQ(commands[1].target, "tool");
     EXPECT_EQ(commands[1].arguments[2], "build/debug/lib/libcore.a");
 }
@@ -423,6 +424,7 @@ TEST(CompilePlannerTest, ArchivesTheLibraryFromItsObjectFiles)
     EXPECT_EQ(commands[0].arguments,
               (std::vector<std::string>{
                   "/usr/bin/ar", "rcs", "build/debug/lib/libcore.a", "build/debug/obj/core/src/a.cpp.o", "build/debug/obj/core/src/b.cpp.o" }));
+    EXPECT_EQ(commands[0].inputs, (std::vector<std::filesystem::path>{ "build/debug/obj/core/src/a.cpp.o", "build/debug/obj/core/src/b.cpp.o" }));
 }
 
 /**
@@ -478,6 +480,7 @@ TEST(CompilePlannerTest, CompilesAnExecutableWithItsSettingsAndThePublicOnesOfIt
                                          "src/main.cpp",
                                          "-o",
                                          "build/debug/obj/app/src/main.cpp.o" }));
+    EXPECT_EQ(commands[0].searchedDirectories, (std::vector<std::filesystem::path>{ "include", "app-inc", "pub-inc" }));
 }
 
 /**
@@ -491,6 +494,7 @@ TEST(CompilePlannerTest, CompilesALibraryWithItsOwnSettingsAndItsPublicOnes)
     EXPECT_EQ(commands[1].target, "core");
     const std::vector<std::string> added(commands[1].arguments.begin() + 9, commands[1].arguments.end() - 4);
     EXPECT_EQ(added, (std::vector<std::string>{ "-I", "own-inc", "-I", "pub-inc", "-DOWN", "-DPUB=1", "-own", "-pub" }));
+    EXPECT_EQ(commands[1].searchedDirectories, (std::vector<std::filesystem::path>{ "include", "own-inc", "pub-inc" }));
 }
 
 /**

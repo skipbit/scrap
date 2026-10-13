@@ -2,6 +2,7 @@
 
 #include "build/BuildReporter.h"
 #include "build/BuildStep.h"
+#include "build/StepHistory.h"
 #include "build/StepRunner.h"
 #include "compile/ArchiveCommand.h"
 #include "compile/CompileCommand.h"
@@ -30,13 +31,37 @@ std::vector<BuildStep> buildSteps(const std::vector<Compile::CompileCommand>& co
     std::vector<BuildStep> steps;
     steps.reserve(compiles.size() + archives.size() + links.size());
     for (const Compile::CompileCommand& command : compiles) {
-        steps.push_back(BuildStep{ .kind = StepKind::Compile, .target = command.target, .subject = command.file, .directory = command.directory, .output = command.output, .arguments = command.arguments });
+        steps.push_back(BuildStep{ .kind = StepKind::Compile,
+                                   .target = command.target,
+                                   .subject = command.file,
+                                   .directory = command.directory,
+                                   .output = command.output,
+                                   .arguments = command.arguments,
+                                   .inputs = { command.file },
+                                   .searchedDirectories = command.searchedDirectories,
+                                   .dependencyFile = command.dependencyFile });
     }
     for (const Compile::ArchiveCommand& command : archives) {
-        steps.push_back(BuildStep{ .kind = StepKind::Archive, .target = command.target, .subject = command.output, .directory = command.directory, .output = command.output, .arguments = command.arguments });
+        steps.push_back(BuildStep{ .kind = StepKind::Archive,
+                                   .target = command.target,
+                                   .subject = command.output,
+                                   .directory = command.directory,
+                                   .output = command.output,
+                                   .arguments = command.arguments,
+                                   .inputs = command.inputs,
+                                   .searchedDirectories = {},
+                                   .dependencyFile = std::nullopt });
     }
     for (const Compile::LinkCommand& command : links) {
-        steps.push_back(BuildStep{ .kind = StepKind::Link, .target = command.target, .subject = command.output, .directory = command.directory, .output = command.output, .arguments = command.arguments });
+        steps.push_back(BuildStep{ .kind = StepKind::Link,
+                                   .target = command.target,
+                                   .subject = command.output,
+                                   .directory = command.directory,
+                                   .output = command.output,
+                                   .arguments = command.arguments,
+                                   .inputs = command.inputs,
+                                   .searchedDirectories = {},
+                                   .dependencyFile = std::nullopt });
     }
     return steps;
 }
@@ -57,9 +82,10 @@ constexpr std::size_t kindIndex(const StepKind kind)
  */
 class StepQueue {
 public:
-    StepQueue(const std::vector<BuildStep>& steps, StepRunner& runner, BuildReporter& reporter)
+    StepQueue(const std::vector<BuildStep>& steps, StepRunner& runner, StepHistory& history, BuildReporter& reporter)
         : _steps(&steps)
         , _runner(&runner)
+        , _history(&history)
         , _reporter(&reporter)
     {
     }
@@ -75,13 +101,11 @@ public:
         while (const std::optional<std::size_t> index = take(lock)) {
             const BuildStep& step = (*_steps)[*index];
             try {
-                _reporter->started(step);
                 lock.unlock();
-                StepResult result = _runner->run(step);
+                const bool upToDate = _history->upToDate(step);
                 lock.lock();
-                _reporter->finished(step, result.output);
-                if (result.failure.has_value()) {
-                    _failures.push_back(FailedStep{ .step = step, .failure = *result.failure });
+                if ((! upToDate) && (! stopped())) {
+                    run(step, lock);
                 }
             } catch (...) {
                 if (! lock.owns_lock()) {
@@ -111,6 +135,27 @@ public:
     }
 
 private:
+    /**
+     * Run @p step, which needs to, reporting it as it starts and once it has
+     * ended. The lock is held on entry and on return, and released while the
+     * step runs.
+     */
+    void run(const BuildStep& step, std::unique_lock<std::mutex>& lock)
+    {
+        _reporter->started(step);
+        lock.unlock();
+        _history->starting(step);
+        StepResult result = _runner->run(step);
+        if (! result.failure.has_value()) {
+            _history->succeeded(step);
+        }
+        lock.lock();
+        _reporter->finished(step, result.output);
+        if (result.failure.has_value()) {
+            _failures.push_back(FailedStep{ .step = step, .failure = *result.failure });
+        }
+    }
+
     /**
      * Whether a step of a kind that runs before @p kind is still running.
      */
@@ -145,6 +190,7 @@ private:
 
     const std::vector<BuildStep>* _steps;
     StepRunner* _runner;
+    StepHistory* _history;
     BuildReporter* _reporter;
     std::mutex _mutex;
     std::condition_variable _changed;
@@ -158,10 +204,11 @@ private:
 
 std::expected<void, std::vector<FailedStep>> runSteps(const std::vector<BuildStep>& steps,
                                                       StepRunner& runner,
+                                                      StepHistory& history,
                                                       BuildReporter& reporter,
                                                       const unsigned parallelism)
 {
-    StepQueue queue{ steps, runner, reporter };
+    StepQueue queue{ steps, runner, history, reporter };
     const std::size_t threads = std::min<std::size_t>(std::max(parallelism, 1U), steps.size());
 
     // This thread is one of the threads that run steps. A thread the system

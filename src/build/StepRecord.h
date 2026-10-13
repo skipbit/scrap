@@ -29,6 +29,9 @@ struct InputStamp {
 struct StepRecord {
     std::vector<std::string> arguments;  ///< The command line, starting with the program.
     std::vector<InputStamp> inputs;      ///< Every file the step read.
+    /// Paths that held nothing when the step ran, where a file that appears
+    /// would be read in place of one of the inputs.
+    std::vector<std::filesystem::path> absent;
 
     friend bool operator==(const StepRecord&, const StepRecord&) = default;
 };
@@ -37,8 +40,8 @@ struct StepRecord {
  * @brief Render @p record as text, a line per item.
  *
  * The first line names the format and its version, and the last counts the
- * arguments and the inputs, so a record cut short is not taken for one that
- * read fewer files. A backslash or a line break within an argument or a path
+ * arguments, the inputs and the absent paths, so a record cut short is not
+ * taken for one that read fewer files. A backslash or a line break within an argument or a path
  * is written as an escape, so every item stays on a line of its own.
  *
  * @return The text, ending in a newline.

@@ -11,10 +11,11 @@ namespace scrap::Compile {
  *        static library.
  */
 struct ArchiveCommand {
-    std::string target;                  ///< The target it archives.
-    std::filesystem::path directory;     ///< Where the command runs: the project root, absolute.
-    std::filesystem::path output;        ///< The library, relative to the directory.
-    std::vector<std::string> arguments;  ///< The command line, starting with the archiver.
+    std::string target;                         ///< The target it archives.
+    std::filesystem::path directory;            ///< Where the command runs: the project root, absolute.
+    std::filesystem::path output;               ///< The library, relative to the directory.
+    std::vector<std::string> arguments;         ///< The command line, starting with the archiver.
+    std::vector<std::filesystem::path> inputs;  ///< The object files it collects, relative to the directory.
 };
 
 }  // namespace scrap::Compile

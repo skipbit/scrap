@@ -11,10 +11,11 @@ namespace scrap::Compile {
  *        executable.
  */
 struct LinkCommand {
-    std::string target;                  ///< The target it links.
-    std::filesystem::path directory;     ///< Where the command runs: the project root, absolute.
-    std::filesystem::path output;        ///< The executable, relative to the directory.
-    std::vector<std::string> arguments;  ///< The command line, starting with the compiler.
+    std::string target;                         ///< The target it links.
+    std::filesystem::path directory;            ///< Where the command runs: the project root, absolute.
+    std::filesystem::path output;               ///< The executable, relative to the directory.
+    std::vector<std::string> arguments;         ///< The command line, starting with the compiler.
+    std::vector<std::filesystem::path> inputs;  ///< The object files and libraries it links, relative to the directory.
 };
 
 }  // namespace scrap::Compile

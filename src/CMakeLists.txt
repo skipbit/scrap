@@ -28,6 +28,13 @@ find_package(Threads REQUIRED)
 # Each module is built once as a library, and the binary and the tests link
 # against it.
 
+# Reading and writing whole files
+add_library(scrap_file STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/file/WholeFile.cpp
+)
+target_include_directories(scrap_file PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+scrap_apply_compile_settings(scrap_file WARNINGS_AS_ERRORS)
+
 # Project configuration (scrap.toml)
 add_library(scrap_project STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/project/DefaultTemplate.cpp
@@ -43,7 +50,7 @@ add_library(scrap_project STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/project/driver/DiskProjectFileSystem.cpp
 )
 target_include_directories(scrap_project PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(scrap_project PRIVATE tomlplusplus::tomlplusplus)
+target_link_libraries(scrap_project PRIVATE scrap_file tomlplusplus::tomlplusplus)
 scrap_apply_compile_settings(scrap_project WARNINGS_AS_ERRORS)
 
 # Running other programs
@@ -73,7 +80,7 @@ add_library(scrap_compile STATIC
 )
 target_include_directories(scrap_compile PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 # The compile headers name project and toolchain types.
-target_link_libraries(scrap_compile PUBLIC scrap_project scrap_toolchain)
+target_link_libraries(scrap_compile PUBLIC scrap_project scrap_toolchain PRIVATE scrap_file)
 scrap_apply_compile_settings(scrap_compile WARNINGS_AS_ERRORS)
 
 # Running the steps of a build
@@ -82,13 +89,15 @@ add_library(scrap_build STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/build/BuildReporter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/build/BuildSteps.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/build/Parallelism.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/build/StepHistory.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/build/StepObservation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/build/StepRecord.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/build/StepRunner.cpp
 )
 target_include_directories(scrap_build PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 # The build headers name compile types; running a program and the threads
 # that run steps together stay inside.
-target_link_libraries(scrap_build PUBLIC scrap_compile PRIVATE scrap_process Threads::Threads)
+target_link_libraries(scrap_build PUBLIC scrap_compile PRIVATE scrap_file scrap_process Threads::Threads)
 scrap_apply_compile_settings(scrap_build WARNINGS_AS_ERRORS)
 
 # Command architecture, with the version banner it prints

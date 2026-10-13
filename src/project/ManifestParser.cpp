@@ -1,5 +1,6 @@
 #include "project/ManifestParser.h"
 
+#include "file/WholeFile.h"
 #include "project/LanguageStandard.h"
 #include "project/Manifest.h"
 #include "project/ManifestError.h"
@@ -12,13 +13,10 @@
 #include <cstdint>
 #include <expected>  // IWYU pragma: keep
 #include <filesystem>
-#include <fstream>
-#include <ios>
 #include <optional>
 #include <span>
 #include <string>
 #include <string_view>
-#include <system_error>
 #include <utility>
 #include <vector>
 
@@ -576,42 +574,6 @@ std::expected<void, ManifestError> parseTargetArray(const std::filesystem::path&
     return {};
 }
 
-/**
- * Read the whole of @p file, distinguishing a failure to read from an empty
- * file.
- *
- * Streaming through a stringstream cannot tell those apart: inserting from a
- * streambuf reports on the destination, never on the source, so a directory
- * opened as a manifest and a zero-byte manifest both arrive as empty text.
- * Reading a known length and comparing what arrived keeps them apart.
- */
-std::expected<std::string, ManifestError> readWholeFile(const std::filesystem::path& file)
-{
-    std::error_code ec;
-    if (! std::filesystem::is_regular_file(file, ec)) {
-        return std::unexpected(unreadable(file, "cannot open the manifest"));
-    }
-    const std::uintmax_t size = std::filesystem::file_size(file, ec);
-    if (ec) {
-        return std::unexpected(unreadable(file, "cannot read the manifest"));
-    }
-
-    std::ifstream input(file, std::ios::binary);
-    if (! input.is_open()) {
-        return std::unexpected(unreadable(file, "cannot open the manifest"));
-    }
-    if (size == 0) {
-        return std::string{};
-    }
-
-    std::string text(static_cast<std::size_t>(size), '\0');
-    input.read(text.data(), static_cast<std::streamsize>(size));
-    if (static_cast<std::uintmax_t>(input.gcount()) != size) {
-        return std::unexpected(unreadable(file, "cannot read the manifest"));
-    }
-    return text;
-}
-
 }  // anonymous namespace
 
 /**
@@ -655,9 +617,9 @@ std::expected<Manifest, ManifestError> parseManifest(std::string_view text, cons
  */
 std::expected<Manifest, ManifestError> loadManifest(const std::filesystem::path& file)
 {
-    const auto text = readWholeFile(file);
+    const auto text = File::readWholeFile(file);
     if (! text.has_value()) {
-        return std::unexpected(text.error());
+        return std::unexpected(unreadable(file, (text.error() == File::ReadFailure::CannotOpen) ? "cannot open the manifest" : "cannot read the manifest"));
     }
     return parseManifest(*text, file);
 }

@@ -5,6 +5,7 @@
 
 #include <gtest/gtest.h>
 
+#include <optional>
 #include <sstream>
 #include <string>
 
@@ -25,7 +26,10 @@ BuildStep compileStep()
                       .subject = "src/main.cpp",
                       .directory = "/home/me/hello",
                       .output = "build/debug/obj/hello/src/main.cpp.o",
-                      .arguments = {} };
+                      .arguments = {},
+                      .inputs = {},
+                      .searchedDirectories = {},
+                      .dependencyFile = std::nullopt };
 }
 
 BuildStep archiveStep()
@@ -35,7 +39,10 @@ BuildStep archiveStep()
                       .subject = "build/debug/lib/libcore.a",
                       .directory = "/home/me/hello",
                       .output = "build/debug/lib/libcore.a",
-                      .arguments = {} };
+                      .arguments = {},
+                      .inputs = {},
+                      .searchedDirectories = {},
+                      .dependencyFile = std::nullopt };
 }
 
 BuildStep linkStep()
@@ -45,7 +52,10 @@ BuildStep linkStep()
                       .subject = "build/debug/bin/hello",
                       .directory = "/home/me/hello",
                       .output = "build/debug/bin/hello",
-                      .arguments = {} };
+                      .arguments = {},
+                      .inputs = {},
+                      .searchedDirectories = {},
+                      .dependencyFile = std::nullopt };
 }
 
 }  // namespace

@@ -3,6 +3,7 @@
 #include <charconv>
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -14,9 +15,10 @@ namespace scrap::Build {
 
 namespace {
 
-constexpr std::string_view Header = "scrap-step-record 1";
+constexpr std::string_view Header = "scrap-step-record 2";
 constexpr std::string_view ArgumentTag = "argument ";
 constexpr std::string_view InputTag = "input ";
+constexpr std::string_view AbsentTag = "absent ";
 constexpr std::string_view EndTag = "end ";
 
 /**
@@ -114,11 +116,12 @@ std::optional<InputStamp> parseInput(std::string_view text)
 }
 
 /**
- * How many arguments and inputs the record says it holds.
+ * How many items of each kind the record says it holds.
  */
 struct ItemCounts {
     std::size_t arguments;
     std::size_t inputs;
+    std::size_t absent;
 };
 
 /**
@@ -127,15 +130,17 @@ struct ItemCounts {
 std::optional<ItemCounts> parseEnd(std::string_view text)
 {
     const auto argumentsField = takeField(text);
-    if (! argumentsField.has_value()) {
+    const auto inputsField = takeField(text);
+    if (! (argumentsField.has_value() && inputsField.has_value())) {
         return std::nullopt;
     }
     const auto arguments = numberIn<std::size_t>(*argumentsField);
-    const auto inputs = numberIn<std::size_t>(text);
-    if (! (arguments.has_value() && inputs.has_value())) {
+    const auto inputs = numberIn<std::size_t>(*inputsField);
+    const auto absent = numberIn<std::size_t>(text);
+    if (! (arguments.has_value() && inputs.has_value() && absent.has_value())) {
         return std::nullopt;
     }
-    return ItemCounts{ .arguments = *arguments, .inputs = *inputs };
+    return ItemCounts{ .arguments = *arguments, .inputs = *inputs, .absent = *absent };
 }
 
 }  // anonymous namespace
@@ -158,10 +163,17 @@ std::string renderStepRecord(const StepRecord& record)
         appendEscaped(out, input.path.string());
         out += '\n';
     }
+    for (const std::filesystem::path& path : record.absent) {
+        out += AbsentTag;
+        appendEscaped(out, path.string());
+        out += '\n';
+    }
     out += EndTag;
     out += std::to_string(record.arguments.size());
     out += ' ';
     out += std::to_string(record.inputs.size());
+    out += ' ';
+    out += std::to_string(record.absent.size());
     out += '\n';
     return out;
 }
@@ -201,11 +213,19 @@ std::optional<StepRecord> parseStepRecord(std::string_view text)
         }
         record.inputs.push_back(std::move(*input));
     }
+    for (; (next < lines.size()) && lines[next].starts_with(AbsentTag); ++next) {
+        auto path = unescape(lines[next].substr(AbsentTag.size()));
+        if (! path.has_value()) {
+            return std::nullopt;
+        }
+        record.absent.emplace_back(std::move(*path));
+    }
     if ((next + 1 != lines.size()) || ! lines[next].starts_with(EndTag)) {
         return std::nullopt;
     }
     const auto counts = parseEnd(lines[next].substr(EndTag.size()));
-    if ((! counts.has_value()) || (counts->arguments != record.arguments.size()) || (counts->inputs != record.inputs.size())) {
+    if ((! counts.has_value()) || (counts->arguments != record.arguments.size()) || (counts->inputs != record.inputs.size())
+        || (counts->absent != record.absent.size())) {
         return std::nullopt;
     }
     return record;

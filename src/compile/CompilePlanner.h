@@ -52,7 +52,8 @@ struct BuildSettings {
  *
  * Where the driver knows how, the compiler is then asked to list what the
  * compilation read in the object file's path with .d added. The source and
- * the object file come last.
+ * the object file come last. Each command also holds the directories it
+ * names for headers: include/, then those of the settings, in their order.
  *
  * @param settings What the commands of the build share.
  * @param targets Each target with its sources, as collectSources() returned them.
@@ -84,6 +85,7 @@ struct BuildSettings {
  *
  * A library is written to lib/lib<target>.a in the build directory, from the
  * object files planCompileCommands() gives its sources, in the same order.
+ * The command also holds those object files as its inputs.
  *
  * @param settings What the commands of the build share.
  * @param archiver The archiver to run, as findArchiver() found it.
@@ -102,7 +104,8 @@ struct BuildSettings {
  * followed by the library among @p targets, if any: an executable uses the
  * library of its project without naming it. The link flags of the
  * executable come next, then the public ones of that library, after every
- * archive so a -l among them resolves what the archive needs.
+ * archive so a -l among them resolves what the archive needs. The command
+ * also holds the object files and the library as its inputs.
  *
  * @param settings What the commands of the build share.
  * @param targets Each target with its sources, as collectSources() returned them.

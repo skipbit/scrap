@@ -1641,6 +1641,151 @@ TEST_F(CliE2ETest, BuildKeepsTheDatabaseWhenTheRealCompilerReportsAnError)
     EXPECT_FALSE(std::filesystem::exists(_root / "build" / "debug" / "bin" / "app"));
 }
 
+// --- build: building only what changed -----------------------------------------
+
+/**
+ * How many times @p text holds @p part.
+ */
+[[nodiscard]] static std::size_t occurrences(const std::string& text, std::string_view part)
+{
+    std::size_t count = 0;
+    for (std::size_t at = text.find(part); at != std::string::npos; at = text.find(part, at + part.size())) {
+        ++count;
+    }
+    return count;
+}
+
+TEST_F(CliE2ETest, BuildCompilesAndLinksNothingWhenNothingChanged)
+{
+    std::filesystem::create_directories(_root / "work");
+    auto created = runScrap({ "new", "hello" }, {}, _root / "work");
+    ASSERT_EQ(created.exitCode, 0) << created.stderrText;
+    const std::filesystem::path project = _root / "work" / "hello";
+    auto first = runScrap({ "build" }, { realCompiler() }, project, BuildTimeout);
+    ASSERT_EQ(first.exitCode, 0) << first.stderrText;
+    const auto built = std::filesystem::last_write_time(project / "build" / "debug" / "bin" / "hello");
+
+    auto again = runScrap({ "build" }, { realCompiler() }, project, BuildTimeout);
+
+    ASSERT_TRUE(again.exitedNormally) << again.stderrText;
+    EXPECT_EQ(again.exitCode, 0) << again.stderrText;
+    EXPECT_EQ(again.stderrText.find("Compiling"), std::string::npos) << again.stderrText;
+    EXPECT_EQ(again.stderrText.find("Linking"), std::string::npos) << again.stderrText;
+    EXPECT_NE(again.stderrText.find("Finished debug build\n"), std::string::npos) << again.stderrText;
+    EXPECT_EQ(std::filesystem::last_write_time(project / "build" / "debug" / "bin" / "hello"), built);
+
+    auto ran = runScrap({ "run" }, { realCompiler() }, project, BuildTimeout);
+
+    ASSERT_TRUE(ran.exitedNormally) << ran.stderrText;
+    EXPECT_EQ(ran.exitCode, 0) << ran.stderrText;
+    EXPECT_EQ(ran.stderrText.find("Compiling"), std::string::npos) << ran.stderrText;
+    EXPECT_EQ(ran.stderrText.find("Linking"), std::string::npos) << ran.stderrText;
+    EXPECT_EQ(ran.stdoutText, "Hello, world!\n");
+}
+
+TEST_F(CliE2ETest, BuildCompilesAgainOnlyTheSourcesAChangeReaches)
+{
+    writeFile("scrap.toml", "[package]\nname = \"app\"\nversion = \"0.1.0\"\n");
+    writeFile("include/greeting.h", "inline int greeting() { return 1; }\n");
+    writeFile("src/main.cpp", "#include \"greeting.h\"\nint other();\nint main() { return greeting() + other() == 3 ? 0 : 1; }\n");
+    writeFile("src/other.cpp", "int other() { return 2; }\n");
+    auto first = runScrap({ "build" }, { realCompiler() }, _root, BuildTimeout);
+    ASSERT_EQ(first.exitCode, 0) << first.stderrText;
+
+    writeFile("src/other.cpp", "int other() { return 2 + 0; }\n");
+    auto afterSource = runScrap({ "build" }, { realCompiler() }, _root, BuildTimeout);
+
+    ASSERT_EQ(afterSource.exitCode, 0) << afterSource.stderrText;
+    EXPECT_EQ(occurrences(afterSource.stderrText, "Compiling"), 1) << afterSource.stderrText;
+    EXPECT_NE(afterSource.stderrText.find("Compiling app (src/other.cpp)\n"), std::string::npos) << afterSource.stderrText;
+    EXPECT_NE(afterSource.stderrText.find("Linking app (build/debug/bin/app)\n"), std::string::npos) << afterSource.stderrText;
+
+    writeFile("include/greeting.h", "inline int greeting() { return 1 + 0; }\n");
+    auto afterHeader = runScrap({ "build" }, { realCompiler() }, _root, BuildTimeout);
+
+    ASSERT_EQ(afterHeader.exitCode, 0) << afterHeader.stderrText;
+    EXPECT_EQ(occurrences(afterHeader.stderrText, "Compiling"), 1) << afterHeader.stderrText;
+    EXPECT_NE(afterHeader.stderrText.find("Compiling app (src/main.cpp)\n"), std::string::npos) << afterHeader.stderrText;
+}
+
+TEST_F(CliE2ETest, BuildCompilesTheExecutableAgainWhenItsLibrarysPublicHeaderChanges)
+{
+    writeFile("scrap.toml", std::string{ LibraryAndExecutableManifest } + "\n[lib.public]\ninclude-dirs = [\"core-include\"]\n");
+    writeFile("core-include/core.h", "int answer();\ninline int offset() { return 0; }\n");
+    writeFile("src/core.cpp", "int answer() { return 42; }\n");
+    writeFile("src/main.cpp", "#include \"core.h\"\nint main() { return answer() + offset() == 42 ? 0 : 1; }\n");
+    auto first = runScrap({ "build" }, { realCompiler() }, _root, BuildTimeout);
+    ASSERT_EQ(first.exitCode, 0) << first.stderrText;
+
+    writeFile("core-include/core.h", "int answer();\ninline int offset() { return 0 + 0; }\n");
+    auto again = runScrap({ "build" }, { realCompiler() }, _root, BuildTimeout);
+
+    ASSERT_EQ(again.exitCode, 0) << again.stderrText;
+    EXPECT_EQ(occurrences(again.stderrText, "Compiling"), 1) << again.stderrText;
+    EXPECT_NE(again.stderrText.find("Compiling app (src/main.cpp)\n"), std::string::npos) << again.stderrText;
+    EXPECT_EQ(again.stderrText.find("Archiving"), std::string::npos) << again.stderrText;
+}
+
+TEST_F(CliE2ETest, BuildCompilesAgainAHeaderAppearingWhereItIsFoundFirst)
+{
+    writeFile("scrap.toml", "[package]\nname = \"app\"\nversion = \"0.1.0\"\n");
+    writeFile("include/value.h", "inline int value() { return 1; }\n");
+    writeFile("src/main.cpp", "#include \"value.h\"\nint main() { return value(); }\n");
+    auto first = runScrap({ "build" }, { realCompiler() }, _root, BuildTimeout);
+    ASSERT_EQ(first.exitCode, 0) << first.stderrText;
+
+    writeFile("src/value.h", "inline int value() { return 0; }\n");
+    auto again = runScrap({ "build" }, { realCompiler() }, _root, BuildTimeout);
+
+    ASSERT_EQ(again.exitCode, 0) << again.stderrText;
+    EXPECT_NE(again.stderrText.find("Compiling app (src/main.cpp)\n"), std::string::npos) << again.stderrText;
+    auto ran = runProgram({ (_root / "build" / "debug" / "bin" / "app").string() }, {}, _root);
+    EXPECT_EQ(ran.exitCode, 0);
+}
+
+TEST_F(CliE2ETest, BuildCompilesAgainWhenTheCompileFlagsChange)
+{
+    std::filesystem::create_directories(_root / "work");
+    auto created = runScrap({ "new", "hello" }, {}, _root / "work");
+    ASSERT_EQ(created.exitCode, 0) << created.stderrText;
+    const std::filesystem::path project = _root / "work" / "hello";
+    auto first = runScrap({ "build" }, { realCompiler() }, project, BuildTimeout);
+    ASSERT_EQ(first.exitCode, 0) << first.stderrText;
+
+    writeFile("work/hello/scrap.toml",
+              readFile("work/hello/scrap.toml") + "\n[[bin]]\nname = \"hello\"\nsrc = \"src/main.cpp\"\ncompile-flags = [\"-DCHANGED_FLAG\"]\n");
+    auto again = runScrap({ "build" }, { realCompiler() }, project, BuildTimeout);
+
+    ASSERT_EQ(again.exitCode, 0) << again.stderrText;
+    EXPECT_NE(again.stderrText.find("Compiling hello (src/main.cpp)\n"), std::string::npos) << again.stderrText;
+    EXPECT_NE(readFile("work/hello/build/debug/compile_commands.json").find("\"-DCHANGED_FLAG\""), std::string::npos);
+}
+
+TEST_F(CliE2ETest, BuildCompilesEverythingAgainWithoutItsRecords)
+{
+    std::filesystem::create_directories(_root / "work");
+    auto created = runScrap({ "new", "hello" }, {}, _root / "work");
+    ASSERT_EQ(created.exitCode, 0) << created.stderrText;
+    const std::filesystem::path project = _root / "work" / "hello";
+    auto first = runScrap({ "build" }, { realCompiler() }, project, BuildTimeout);
+    ASSERT_EQ(first.exitCode, 0) << first.stderrText;
+
+    std::filesystem::remove_all(project / "build" / "debug" / "records");
+    auto removed = runScrap({ "build" }, { realCompiler() }, project, BuildTimeout);
+
+    ASSERT_EQ(removed.exitCode, 0) << removed.stderrText;
+    EXPECT_NE(removed.stderrText.find("Compiling hello (src/main.cpp)\n"), std::string::npos) << removed.stderrText;
+    EXPECT_NE(removed.stderrText.find("Linking hello (build/debug/bin/hello)\n"), std::string::npos) << removed.stderrText;
+
+    writeFile("work/hello/build/debug/records/obj/hello/src/main.cpp.o", "broken\n");
+    writeFile("work/hello/build/debug/records/bin/hello", "broken\n");
+    auto broken = runScrap({ "build" }, { realCompiler() }, project, BuildTimeout);
+
+    ASSERT_EQ(broken.exitCode, 0) << broken.stderrText;
+    EXPECT_NE(broken.stderrText.find("Compiling hello (src/main.cpp)\n"), std::string::npos) << broken.stderrText;
+    EXPECT_NE(broken.stderrText.find("Linking hello (build/debug/bin/hello)\n"), std::string::npos) << broken.stderrText;
+}
+
 // --- run: building and starting the executable ---------------------------------
 
 TEST_F(CliE2ETest, RunBuildsAndRunsANewProject)

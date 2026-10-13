@@ -162,6 +162,19 @@ std::vector<std::string> settingsCompileArguments(const std::vector<const Projec
 }
 
 /**
+ * The directories a compilation with @p applied names for headers, in the
+ * order its command names them.
+ */
+std::vector<std::filesystem::path> searchedDirectories(const std::vector<const Project::TargetSettings*>& applied)
+{
+    std::vector<std::filesystem::path> directories{ std::filesystem::path{ HeaderDirectory } };
+    for (const Project::TargetSettings* settings : applied) {
+        directories.insert(directories.end(), settings->includeDirectories.begin(), settings->includeDirectories.end());
+    }
+    return directories;
+}
+
+/**
  * What @p applied adds to a link, in the order of @p applied.
  */
 std::vector<std::string> settingsLinkArguments(const std::vector<const Project::TargetSettings*>& applied)
@@ -195,7 +208,9 @@ std::vector<CompileCommand> planCompileCommands(const BuildSettings& settings, c
 
     std::vector<CompileCommand> commands;
     for (const Project::TargetSources& entry : targets) {
-        const std::vector<std::string> added = settingsCompileArguments(appliedSettings(entry.target, targets));
+        const std::vector<const Project::TargetSettings*> applied = appliedSettings(entry.target, targets);
+        const std::vector<std::string> added = settingsCompileArguments(applied);
+        const std::vector<std::filesystem::path> searched = searchedDirectories(applied);
         for (const std::filesystem::path& source : entry.sources) {
             const std::filesystem::path output = objectFile(settings, entry.target.name, source);
             const std::filesystem::path file = asArgument(source);
@@ -209,7 +224,7 @@ std::vector<CompileCommand> planCompileCommands(const BuildSettings& settings, c
                 dependencyFile = dependencies;
             }
             arguments.insert(arguments.end(), { "-c", file.string(), "-o", output.string() });
-            commands.push_back(CompileCommand{ .target = entry.target.name, .directory = settings.projectRoot, .file = file, .output = output, .arguments = std::move(arguments), .dependencyFile = std::move(dependencyFile) });
+            commands.push_back(CompileCommand{ .target = entry.target.name, .directory = settings.projectRoot, .file = file, .output = output, .arguments = std::move(arguments), .dependencyFile = std::move(dependencyFile), .searchedDirectories = searched });
         }
     }
     return commands;
@@ -241,7 +256,11 @@ std::vector<ArchiveCommand> planArchiveCommands(const BuildSettings& settings,
         std::vector<std::string> arguments{ archiver.string(), "rcs", output.string() };
         const std::vector<std::string> objects = objectFiles(settings, entry);
         arguments.insert(arguments.end(), objects.begin(), objects.end());
-        commands.push_back(ArchiveCommand{ .target = entry.target.name, .directory = settings.projectRoot, .output = output, .arguments = std::move(arguments) });
+        commands.push_back(ArchiveCommand{ .target = entry.target.name,
+                                           .directory = settings.projectRoot,
+                                           .output = output,
+                                           .arguments = std::move(arguments),
+                                           .inputs = { objects.begin(), objects.end() } });
     }
     return commands;
 }
@@ -259,15 +278,21 @@ std::vector<LinkCommand> planLinkCommands(const BuildSettings& settings, const s
         if (const auto color = settings.driver.colorOption(); color.has_value()) {
             arguments.push_back(*color);
         }
-        const std::vector<std::string> objects = objectFiles(settings, entry);
-        arguments.insert(arguments.end(), objects.begin(), objects.end());
+        std::vector<std::filesystem::path> inputs;
+        for (const std::string& object : objectFiles(settings, entry)) {
+            inputs.emplace_back(object);
+        }
         for (const Project::TargetSources* library : librariesUsedBy(entry.target, targets)) {
-            arguments.push_back(libraryFile(settings.buildDirectory, library->target.name).string());
+            inputs.push_back(libraryFile(settings.buildDirectory, library->target.name));
+        }
+        for (const std::filesystem::path& input : inputs) {
+            arguments.push_back(input.string());
         }
         const std::vector<std::string> added = settingsLinkArguments(appliedSettings(entry.target, targets));
         arguments.insert(arguments.end(), added.begin(), added.end());
         arguments.insert(arguments.end(), { "-o", output.string() });
-        commands.push_back(LinkCommand{ .target = entry.target.name, .directory = settings.projectRoot, .output = output, .arguments = std::move(arguments) });
+        commands.push_back(LinkCommand{
+            .target = entry.target.name, .directory = settings.projectRoot, .output = output, .arguments = std::move(arguments), .inputs = std::move(inputs) });
     }
     return commands;
 }
