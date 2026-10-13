@@ -104,7 +104,7 @@ public:
                 lock.unlock();
                 const bool upToDate = _history->upToDate(step);
                 lock.lock();
-                if (! upToDate) {
+                if ((! upToDate) && (! stopped())) {
                     run(step, lock);
                 }
             } catch (...) {

@@ -164,14 +164,18 @@ private:
 
 /**
  * Finds up to date the steps it is told of by subject, and writes down what
- * it hears of the others.
+ * it hears of the others. While judging a step, does what it is told to.
  */
 class ScriptedHistory final : public StepHistory {
 public:
     std::set<std::filesystem::path> upToDateSubjects;
+    std::map<std::filesystem::path, std::function<void()>> whileJudging;
 
     bool upToDate(const BuildStep& step) override
     {
+        if (const auto found = whileJudging.find(step.subject); found != whileJudging.end()) {
+            found->second();
+        }
         return upToDateSubjects.contains(step.subject);
     }
 
@@ -541,4 +545,30 @@ TEST(BuildStepsTest, RemembersOnlyTheStepsThatSucceeded)
 
     EXPECT_FALSE(result.has_value());
     EXPECT_EQ(history.events(), (std::vector<std::string>{ "starting src/a.cpp", "succeeded src/a.cpp", "starting src/b.cpp" }));
+}
+
+/**
+ * A step judged while another fails does not start once that one has
+ * failed.
+ */
+TEST(BuildStepsTest, StartsNoStepJudgedWhileAnotherFailed)
+{
+    Timeline timeline;
+    ScriptedRunner runner{ timeline };
+    runner.scripts["src/a.cpp"] = [&] {
+        timeline.waitFor("judging src/b.cpp");
+        return failedWith("a: error");
+    };
+    RecordingReporter reporter{ timeline };
+    ScriptedHistory history;
+    history.whileJudging["src/b.cpp"] = [&] {
+        timeline.record("judging src/b.cpp");
+        timeline.waitFor("finished src/a.cpp [a: error]");
+    };
+
+    const auto result = runSteps({ stepFor("src/a.cpp"), stepFor("src/b.cpp") }, runner, history, reporter, 2);
+
+    ASSERT_FALSE(result.has_value());
+    EXPECT_EQ(timeline.eventsStartingWith("run "), (std::vector<std::string>{ "run src/a.cpp" }));
+    EXPECT_EQ(timeline.eventsStartingWith("started "), (std::vector<std::string>{ "started src/a.cpp" }));
 }
