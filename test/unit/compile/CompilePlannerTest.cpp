@@ -518,8 +518,8 @@ TEST(CompilePlannerTest, LinksAnExecutableWithItsLinkFlagsAndThePublicOnesOfItsL
 
 /**
  * An include directory that looks like an option or a file of options is
- * passed as a directory, and a define is joined to -D so it cannot stand on
- * its own.
+ * passed as a directory, and named so among the directories searched, and a
+ * define is joined to -D so it cannot stand on its own.
  */
 TEST(CompilePlannerTest, PassesSettingsThatLookLikeOptionsAsWhatTheyAre)
 {
@@ -531,4 +531,5 @@ TEST(CompilePlannerTest, PassesSettingsThatLookLikeOptionsAsWhatTheyAre)
     ASSERT_EQ(commands.size(), 1);
     const std::vector<std::string> added(commands[0].arguments.begin() + 9, commands[0].arguments.end() - 4);
     EXPECT_EQ(added, (std::vector<std::string>{ "-I", "./-inc", "-I", "./@inc", "-D@opts" }));
+    EXPECT_EQ(commands[0].searchedDirectories, (std::vector<std::filesystem::path>{ "include", "./-inc", "./@inc" }));
 }
