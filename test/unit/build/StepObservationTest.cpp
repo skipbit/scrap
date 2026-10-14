@@ -2,6 +2,7 @@
 
 #include "build/BuildStep.h"
 #include "build/StepRecord.h"
+#include "compile/IncludeDirectives.h"
 #include "support/TempDirectory.h"
 
 #include <gtest/gtest.h>
@@ -92,7 +93,7 @@ TEST_F(StepObservationTest, ObservesWhatACompilationRead)
 }
 
 /**
- * Where a header of the same name would be found in place of one read, and
+ * Where the compiler looks for a header before the place it was found, and
  * nothing is there, the path is listed; the system's places are not.
  */
 TEST_F(StepObservationTest, ListsWhereAHeaderCouldAppear)
@@ -100,27 +101,102 @@ TEST_F(StepObservationTest, ListsWhereAHeaderCouldAppear)
     const auto record = observeStep(compileStep());
 
     ASSERT_TRUE(record.has_value());
-    EXPECT_EQ(record->absent, (Paths{ "include/main.cpp", "src/hello.h" }));
+    EXPECT_EQ(record->absent, Paths{ "src/hello.h" });
 }
 
 /**
- * A path that holds a file is not listed as absent.
+ * A path that holds a file ends the search, so it and the paths after it
+ * are not listed.
  */
-TEST_F(StepObservationTest, DoesNotListAPathThatHoldsAFile)
+TEST_F(StepObservationTest, StopsAtAPathThatHoldsAFile)
 {
     _temp.writeFile("src/hello.h", "int other;\n");
 
     const auto record = observeStep(compileStep());
 
     ASSERT_TRUE(record.has_value());
-    EXPECT_EQ(record->absent, Paths{ "include/main.cpp" });
+    EXPECT_EQ(record->absent, Paths{});
 }
 
 /**
- * A source at the project root searches the root for headers. Every name a
- * header has below some place is looked for below the others, so
- * include/hello.h, named so below the root, is looked for below include/
- * too: more paths than the compiler would search, never fewer.
+ * The places after the one a header was found in are not listed.
+ */
+TEST_F(StepObservationTest, ListsNothingAfterWhereAHeaderWasFound)
+{
+    BuildStep step = compileStep();
+    step.searchedDirectories = { "include", "third" };
+
+    const auto record = observeStep(step);
+
+    ASSERT_TRUE(record.has_value());
+    EXPECT_EQ(record->absent, Paths{ "src/hello.h" });
+}
+
+/**
+ * A directory where a header could be is passed over, as the compiler passes
+ * it over, and the search goes on.
+ */
+TEST_F(StepObservationTest, PassesOverADirectory)
+{
+    std::filesystem::create_directories(_temp.path() / "src/hello.h");
+    BuildStep step = compileStep();
+    step.searchedDirectories = { "third", "include" };
+
+    const auto record = observeStep(step);
+
+    ASSERT_TRUE(record.has_value());
+    EXPECT_EQ(record->absent, Paths{ "third/hello.h" });
+}
+
+/**
+ * A header named in quotes by another header is looked for in the directory
+ * of the one that names it first.
+ */
+TEST_F(StepObservationTest, LooksBesideTheHeaderThatNamesIt)
+{
+    _temp.writeFile("src/main.cpp", "#include \"lib/a.h\"\n");
+    _temp.writeFile("include/lib/a.h", "#include \"b.h\"\n");
+    _temp.writeFile("include/b.h", "int b;\n");
+    writeDependencyFile("build/obj/main.o: src/main.cpp include/lib/a.h include/b.h\n");
+
+    const auto record = observeStep(compileStep());
+
+    ASSERT_TRUE(record.has_value());
+    EXPECT_EQ(record->absent, (Paths{ "include/lib/b.h", "src/lib/a.h" }));
+}
+
+/**
+ * A header of the system named in brackets is looked for in the directories
+ * named for headers, where one of the project could appear in its place.
+ */
+TEST_F(StepObservationTest, ListsWhereAHeaderCouldAppearInPlaceOfOneOfTheSystem)
+{
+    _temp.writeFile("src/main.cpp", "#include <vector>\n#include \"hello.h\"\n");
+
+    const auto record = observeStep(compileStep());
+
+    ASSERT_TRUE(record.has_value());
+    EXPECT_EQ(record->absent, (Paths{ "include/vector", "src/hello.h" }));
+}
+
+/**
+ * A header named with include_next may be found after the place the naming
+ * file was found in, which is not known, so the search goes on past a file.
+ */
+TEST_F(StepObservationTest, LooksEverywhereForAHeaderNamedNext)
+{
+    _temp.writeFile("src/main.cpp", "#include_next <hello.h>\n");
+    BuildStep step = compileStep();
+    step.searchedDirectories = { "include", "third" };
+
+    const auto record = observeStep(step);
+
+    ASSERT_TRUE(record.has_value());
+    EXPECT_EQ(record->absent, (Paths{ "src/hello.h", "third/hello.h" }));
+}
+
+/**
+ * A source at the project root looks for a quoted header at the root first.
  */
 TEST_F(StepObservationTest, SearchesTheRootForASourceThere)
 {
@@ -130,7 +206,22 @@ TEST_F(StepObservationTest, SearchesTheRootForASourceThere)
     const auto record = observeStep(compileStep("main.cpp"));
 
     ASSERT_TRUE(record.has_value());
-    EXPECT_EQ(record->absent, (Paths{ "hello.h", "include/include/hello.h", "include/main.cpp" }));
+    EXPECT_EQ(record->absent, Paths{ "hello.h" });
+}
+
+/**
+ * When a file names a header by a macro, where a header could appear is
+ * listed for every name a file read has below every place: more paths than
+ * the compiler would search, never fewer.
+ */
+TEST_F(StepObservationTest, ListsEveryPlaceWhenAMacroNamesAHeader)
+{
+    _temp.writeFile("src/main.cpp", "#define HELLO \"hello.h\"\n#include HELLO\n");
+
+    const auto record = observeStep(compileStep());
+
+    ASSERT_TRUE(record.has_value());
+    EXPECT_EQ(record->absent, (Paths{ "include/main.cpp", "src/hello.h" }));
 }
 
 /**
@@ -205,6 +296,87 @@ TEST_F(StepObservationTest, ObservesWhatALinkReads)
     EXPECT_EQ(pathsOf(*record), (Paths{ compiler(), "build/obj/main.o" }));
     EXPECT_TRUE(record->absent.empty());
 }
+
+namespace {
+
+/**
+ * A header named, the directory of the file naming it, the directories
+ * named for headers, and where the compiler looks for it.
+ */
+struct SearchCase {
+    const char* name;
+    scrap::Compile::IncludedName included;
+    std::filesystem::path directory;
+    Paths searched;
+    Paths expected;
+};
+
+class SearchPathsTest : public ::testing::TestWithParam<SearchCase> { };
+
+scrap::Compile::IncludedName named(const char* name, const scrap::Compile::IncludeKind kind)
+{
+    return scrap::Compile::IncludedName{ .name = name, .kind = kind };
+}
+
+}  // anonymous namespace
+
+/**
+ * The paths are those the compiler looks at, in the order it looks.
+ */
+TEST_P(SearchPathsTest, ListsWhereTheCompilerLooks)
+{
+    const SearchCase& search = GetParam();
+
+    EXPECT_EQ(searchPaths(search.included, search.directory, search.searched), search.expected);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    Cases,
+    SearchPathsTest,
+    ::testing::Values(
+        SearchCase{ .name = "Quoted",
+                    .included = named("a.h", scrap::Compile::IncludeKind::Quoted),
+                    .directory = "src",
+                    .searched = { "include", "third" },
+                    .expected = { "src/a.h", "include/a.h", "third/a.h" } },
+        SearchCase{ .name = "Angled",
+                    .included = named("a.h", scrap::Compile::IncludeKind::Angled),
+                    .directory = "src",
+                    .searched = { "include", "third" },
+                    .expected = { "include/a.h", "third/a.h" } },
+        SearchCase{ .name = "Next",
+                    .included = named("a.h", scrap::Compile::IncludeKind::Next),
+                    .directory = "include",
+                    .searched = { "include", "third" },
+                    .expected = { "include/a.h", "third/a.h" } },
+        SearchCase{ .name = "KeepsTheDirectoriesInTheName",
+                    .included = named("lib/a.h", scrap::Compile::IncludeKind::Quoted),
+                    .directory = "src",
+                    .searched = { "include" },
+                    .expected = { "src/lib/a.h", "include/lib/a.h" } },
+        SearchCase{ .name = "TheRoot",
+                    .included = named("a.h", scrap::Compile::IncludeKind::Quoted),
+                    .directory = "",
+                    .searched = { "include" },
+                    .expected = { "a.h", "include/a.h" } },
+        SearchCase{ .name = "Normalises",
+                    .included = named("../b/./a.h", scrap::Compile::IncludeKind::Quoted),
+                    .directory = "src/x",
+                    .searched = { "./-inc" },
+                    .expected = { "src/b/a.h", "b/a.h" } },
+        SearchCase{ .name = "EachOnce",
+                    .included = named("a.h", scrap::Compile::IncludeKind::Quoted),
+                    .directory = "include",
+                    .searched = { "include", "include/." },
+                    .expected = { "include/a.h" } },
+        SearchCase{ .name = "Absolute",
+                    .included = named("/opt/a.h", scrap::Compile::IncludeKind::Quoted),
+                    .directory = "src",
+                    .searched = { "include" },
+                    .expected = { "/opt/a.h" } }),
+    [](const ::testing::TestParamInfo<SearchCase>& info) {
+        return std::string{ info.param.name };
+    });
 
 namespace {
 
