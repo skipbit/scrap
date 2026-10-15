@@ -33,8 +33,8 @@ struct BuildStep {
     std::filesystem::path output;               ///< The file it writes, relative to the directory.
     std::vector<std::string> arguments;         ///< The command line, starting with the program.
     std::vector<std::filesystem::path> inputs;  ///< The files it reads, relative to the directory: the source, the objects or the libraries.
-    /// The directories it names for headers, as written: a header added to
-    /// one may change what a source includes.
+    /// The directories it names for headers, in the order and the form named:
+    /// a header added to one may change what the source includes.
     std::vector<std::filesystem::path> searchedDirectories;
     /// The file the compiler lists every other file the step read in,
     /// relative to the directory, or nothing when it is not asked for one.
