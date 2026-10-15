@@ -3,6 +3,7 @@
 #include "build/BuildStep.h"
 #include "build/StepRecord.h"
 
+#include <cstdint>
 #include <filesystem>
 #include <optional>
 #include <set>
@@ -15,6 +16,16 @@ namespace scrap::Build {
  *        links, or nothing when it cannot be examined.
  */
 [[nodiscard]] std::optional<InputStamp> stampOf(const std::filesystem::path& path, const std::filesystem::path& directory);
+
+/**
+ * @brief When @p path, named relative to @p directory, last changed, in what
+ *        it holds or in its status, following links, or nothing when it
+ *        cannot be examined.
+ *
+ * A change of status cannot be dated back, so a directory moved into place
+ * with its old time is seen to have changed.
+ */
+[[nodiscard]] std::optional<std::int64_t> changedAt(const std::filesystem::path& path, const std::filesystem::path& directory);
 
 /**
  * @brief The paths where a file could appear in place of one of @p files,

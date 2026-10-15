@@ -27,6 +27,14 @@ namespace {
 constexpr std::int64_t NanosecondsPerSecond = 1'000'000'000;
 
 /**
+ * @p time in nanoseconds.
+ */
+std::int64_t nanosecondsOf(const timespec& time)
+{
+    return (static_cast<std::int64_t>(time.tv_sec) * NanosecondsPerSecond) + time.tv_nsec;
+}
+
+/**
  * Add the stamp of each of @p paths to @p stamps, or report that one of them
  * cannot be examined.
  */
@@ -210,9 +218,21 @@ std::optional<InputStamp> stampOf(const std::filesystem::path& path, const std::
 #else
     const timespec& modified = status.st_mtim;
 #endif
-    return InputStamp{ .path = path,
-                       .modified = (static_cast<std::int64_t>(modified.tv_sec) * NanosecondsPerSecond) + modified.tv_nsec,
-                       .size = static_cast<std::uintmax_t>(status.st_size) };
+    return InputStamp{ .path = path, .modified = nanosecondsOf(modified), .size = static_cast<std::uintmax_t>(status.st_size) };
+}
+
+std::optional<std::int64_t> changedAt(const std::filesystem::path& path, const std::filesystem::path& directory)
+{
+    const std::filesystem::path file = directory / path;
+    struct stat status { };
+    if (::stat(file.c_str(), &status) != 0) {
+        return std::nullopt;
+    }
+#if defined(__APPLE__)
+    return std::max(nanosecondsOf(status.st_mtimespec), nanosecondsOf(status.st_ctimespec));
+#else
+    return std::max(nanosecondsOf(status.st_mtim), nanosecondsOf(status.st_ctim));
+#endif
 }
 
 std::vector<std::filesystem::path> shadowingPaths(const std::set<std::filesystem::path>& places,

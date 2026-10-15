@@ -53,8 +53,9 @@ protected:
  * The record is emptied before the step runs and written only once it has
  * succeeded, so a step that failed or was stopped runs again. The time the
  * empty record was written is when the step started: a file the record would
- * hold, or a directory a header could appear in, that was modified after it
- * may have changed after the step read it, so the record stays empty. A
+ * hold that was modified after it, or a directory a header could appear in
+ * that changed after it, in what it holds or in its status, may have changed
+ * after the step read it, so the record stays empty. A
  * record that cannot be emptied is removed, and one that cannot be written
  * leaves the step to run again next time.
  */
