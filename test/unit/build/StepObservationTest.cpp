@@ -2,7 +2,6 @@
 
 #include "build/BuildStep.h"
 #include "build/StepRecord.h"
-#include "compile/IncludeDirectives.h"
 #include "support/TempDirectory.h"
 
 #include <gtest/gtest.h>
@@ -225,6 +224,21 @@ TEST_F(StepObservationTest, ListsEveryPlaceWhenAMacroNamesAHeader)
 }
 
 /**
+ * When a macro names a header, a path that holds a file does not end the
+ * list: every path where nothing is stays listed.
+ */
+TEST_F(StepObservationTest, ListsPastAFileWhenAMacroNamesAHeader)
+{
+    _temp.writeFile("src/main.cpp", "#define HELLO \"hello.h\"\n#include HELLO\n");
+    _temp.writeFile("include/main.cpp", "int other;\n");
+
+    const auto record = observeStep(compileStep());
+
+    ASSERT_TRUE(record.has_value());
+    EXPECT_EQ(record->absent, Paths{ "src/hello.h" });
+}
+
+/**
  * A changed header changes the record.
  */
 TEST_F(StepObservationTest, SeesAChangedHeader)
@@ -300,87 +314,6 @@ TEST_F(StepObservationTest, ObservesWhatALinkReads)
 namespace {
 
 /**
- * A header named, the directory of the file naming it, the directories
- * named for headers, and where the compiler looks for it.
- */
-struct SearchCase {
-    const char* name;
-    scrap::Compile::IncludedName included;
-    std::filesystem::path directory;
-    Paths searched;
-    Paths expected;
-};
-
-class SearchPathsTest : public ::testing::TestWithParam<SearchCase> { };
-
-scrap::Compile::IncludedName named(const char* name, const scrap::Compile::IncludeKind kind)
-{
-    return scrap::Compile::IncludedName{ .name = name, .kind = kind };
-}
-
-}  // anonymous namespace
-
-/**
- * The paths are those the compiler looks at, in the order it looks.
- */
-TEST_P(SearchPathsTest, ListsWhereTheCompilerLooks)
-{
-    const SearchCase& search = GetParam();
-
-    EXPECT_EQ(searchPaths(search.included, search.directory, search.searched), search.expected);
-}
-
-INSTANTIATE_TEST_SUITE_P(
-    Cases,
-    SearchPathsTest,
-    ::testing::Values(
-        SearchCase{ .name = "Quoted",
-                    .included = named("a.h", scrap::Compile::IncludeKind::Quoted),
-                    .directory = "src",
-                    .searched = { "include", "third" },
-                    .expected = { "src/a.h", "include/a.h", "third/a.h" } },
-        SearchCase{ .name = "Angled",
-                    .included = named("a.h", scrap::Compile::IncludeKind::Angled),
-                    .directory = "src",
-                    .searched = { "include", "third" },
-                    .expected = { "include/a.h", "third/a.h" } },
-        SearchCase{ .name = "Next",
-                    .included = named("a.h", scrap::Compile::IncludeKind::Next),
-                    .directory = "include",
-                    .searched = { "include", "third" },
-                    .expected = { "include/a.h", "third/a.h" } },
-        SearchCase{ .name = "KeepsTheDirectoriesInTheName",
-                    .included = named("lib/a.h", scrap::Compile::IncludeKind::Quoted),
-                    .directory = "src",
-                    .searched = { "include" },
-                    .expected = { "src/lib/a.h", "include/lib/a.h" } },
-        SearchCase{ .name = "TheRoot",
-                    .included = named("a.h", scrap::Compile::IncludeKind::Quoted),
-                    .directory = "",
-                    .searched = { "include" },
-                    .expected = { "a.h", "include/a.h" } },
-        SearchCase{ .name = "Normalises",
-                    .included = named("../b/./a.h", scrap::Compile::IncludeKind::Quoted),
-                    .directory = "src/x",
-                    .searched = { "./-inc" },
-                    .expected = { "src/b/a.h", "b/a.h" } },
-        SearchCase{ .name = "EachOnce",
-                    .included = named("a.h", scrap::Compile::IncludeKind::Quoted),
-                    .directory = "include",
-                    .searched = { "include", "include/." },
-                    .expected = { "include/a.h" } },
-        SearchCase{ .name = "Absolute",
-                    .included = named("/opt/a.h", scrap::Compile::IncludeKind::Quoted),
-                    .directory = "src",
-                    .searched = { "include" },
-                    .expected = { "/opt/a.h" } }),
-    [](const ::testing::TestParamInfo<SearchCase>& info) {
-        return std::string{ info.param.name };
-    });
-
-namespace {
-
-/**
  * Places, the files read, and the paths a file could appear at in place of
  * one of them.
  */
@@ -443,54 +376,36 @@ INSTANTIATE_TEST_SUITE_P(
 namespace {
 
 /**
- * Places, paths a file could appear at, and the directories whose entries
- * change when one does.
+ * A path and the directories above it.
  */
-struct DirectoriesCase {
+struct AboveCase {
     const char* name;
-    std::set<std::filesystem::path> places;
-    Paths paths;
+    std::filesystem::path path;
     Paths expected;
 };
 
-class ShadowingDirectoriesTest : public ::testing::TestWithParam<DirectoriesCase> { };
+class DirectoriesAboveTest : public ::testing::TestWithParam<AboveCase> { };
 
 }  // anonymous namespace
 
 /**
- * The directories are those of each path and above it, up to the outermost
- * place above it, sorted.
+ * The directories are those of the path and each one above it, nearest first.
  */
-TEST_P(ShadowingDirectoriesTest, ListsTheDirectoriesUpToTheOutermostPlace)
+TEST_P(DirectoriesAboveTest, ListsTheDirectoryAndEachOneAbove)
 {
-    const DirectoriesCase& directories = GetParam();
+    const AboveCase& above = GetParam();
 
-    EXPECT_EQ(shadowingDirectories(directories.places, directories.paths), directories.expected);
+    EXPECT_EQ(directoriesAbove(above.path), above.expected);
 }
 
 INSTANTIATE_TEST_SUITE_P(
     Cases,
-    ShadowingDirectoriesTest,
-    ::testing::Values(
-        DirectoriesCase{ .name = "NoPaths", .places = { "include", "src" }, .paths = {}, .expected = {} },
-        DirectoriesCase{ .name = "DirectlyBelowAPlace", .places = { "include", "src" }, .paths = { "src/a.h" }, .expected = { "src" } },
-        DirectoriesCase{ .name = "BelowADirectoryOfAPlace",
-                         .places = { "include", "src" },
-                         .paths = { "src/lib/a.h" },
-                         .expected = { "src", "src/lib" } },
-        DirectoriesCase{ .name = "UpToTheOutermostPlace",
-                         .places = { "include", "include/lib" },
-                         .paths = { "include/lib/a.h" },
-                         .expected = { "include", "include/lib" } },
-        DirectoriesCase{ .name = "TheRoot",
-                         .places = { ".", "include" },
-                         .paths = { "a.h", "include/include/a.h" },
-                         .expected = { ".", "include", "include/include" } },
-        DirectoriesCase{ .name = "Absolute",
-                         .places = { "/opt/include", "src" },
-                         .paths = { "/opt/include/lib/a.h" },
-                         .expected = { "/opt/include", "/opt/include/lib" } }),
-    [](const ::testing::TestParamInfo<DirectoriesCase>& info) {
+    DirectoriesAboveTest,
+    ::testing::Values(AboveCase{ .name = "Nested", .path = "src/lib/a.h", .expected = { "src/lib", "src", "." } },
+                      AboveCase{ .name = "AtTheRoot", .path = "a.h", .expected = { "." } },
+                      AboveCase{ .name = "LeadingParents", .path = "../x/a.h", .expected = { "../x", "..", "." } },
+                      AboveCase{ .name = "Absolute", .path = "/opt/x/a.h", .expected = { "/opt/x", "/opt", "/" } }),
+    [](const ::testing::TestParamInfo<AboveCase>& info) {
         return std::string{ info.param.name };
     });
 
@@ -515,4 +430,41 @@ TEST_F(StepObservationTest, CannotTellWhereToWatchWithoutADependencyFile)
     std::filesystem::remove(_temp.path() / "build/obj/main.o.d");
 
     EXPECT_FALSE(watchedDirectories(compileStep()).has_value());
+}
+
+/**
+ * A name that leads out of every place the compiler starts from is watched
+ * where it lands.
+ */
+TEST_F(StepObservationTest, WatchesAboveANameThatLeavesEveryPlace)
+{
+    _temp.writeFile("src/a/x.cpp", "#include \"../common.h\"\n");
+    _temp.writeFile("include/common.h", "int common;\n");
+    writeDependencyFile("build/obj/main.o: src/a/x.cpp include/common.h\n");
+
+    EXPECT_EQ(watchedDirectories(compileStep("src/a/x.cpp")), (Paths{ ".", "src" }));
+}
+
+/**
+ * Where the directory of a path is not there, the nearest one above it is
+ * watched instead.
+ */
+TEST_F(StepObservationTest, WatchesTheNearestDirectoryThatIsThere)
+{
+    _temp.writeFile("src/main.cpp", "#include \"lib/a.h\"\n");
+    _temp.writeFile("include/lib/a.h", "int a;\n");
+    writeDependencyFile("build/obj/main.o: src/main.cpp include/lib/a.h\n");
+
+    EXPECT_EQ(watchedDirectories(compileStep()), (Paths{ "include/lib", "src" }));
+}
+
+/**
+ * When a macro names a header, the directories of every path a header could
+ * appear at are watched.
+ */
+TEST_F(StepObservationTest, WatchesEveryPlaceWhenAMacroNamesAHeader)
+{
+    _temp.writeFile("src/main.cpp", "#define HELLO \"hello.h\"\n#include HELLO\n");
+
+    EXPECT_EQ(watchedDirectories(compileStep()), (Paths{ "include", "src" }));
 }

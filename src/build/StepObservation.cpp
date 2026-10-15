@@ -3,11 +3,11 @@
 #include "build/BuildStep.h"
 #include "build/StepRecord.h"
 #include "compile/DependencyFile.h"
+#include "compile/HeaderSearch.h"
 #include "compile/IncludeDirectives.h"
 #include "file/WholeFile.h"
 
 #include <algorithm>
-#include <cstddef>
 #include <cstdint>
 #include <ctime>
 #include <filesystem>
@@ -110,63 +110,6 @@ void addShadowing(std::set<std::filesystem::path>& paths,
 }
 
 /**
- * Those of @p paths, named relative to @p directory, where nothing is.
- */
-std::vector<std::filesystem::path> absentPaths(const std::vector<std::filesystem::path>& paths,
-                                               const std::filesystem::path& directory)
-{
-    std::vector<std::filesystem::path> absent;
-    for (const std::filesystem::path& path : paths) {
-        std::error_code ec;
-        if ((! std::filesystem::exists(directory / path, ec)) && (! ec)) {
-            absent.push_back(path);
-        }
-    }
-    return absent;
-}
-
-/**
- * Add to @p directories the directory of @p path and each one above it, up to
- * the outermost of @p places above it.
- */
-void addDirectoriesAbove(std::set<std::filesystem::path>& directories,
-                         const std::filesystem::path& path,
-                         const std::set<std::filesystem::path>& places)
-{
-    std::vector<std::filesystem::path> above;
-    std::size_t kept = 0;
-    for (std::filesystem::path directory = path.parent_path();; directory = directory.parent_path()) {
-        above.push_back(directory.empty() ? std::filesystem::path{ "." } : directory);
-        if (places.contains(above.back())) {
-            kept = above.size();
-        }
-        if (directory.empty() || (directory == directory.parent_path())) {
-            break;
-        }
-    }
-    above.resize(kept);
-    directories.insert(above.begin(), above.end());
-}
-
-/**
- * Where the compiler would look for one header, in the order it looks.
- */
-struct Search {
-    std::vector<std::filesystem::path> paths;  ///< The paths looked at, relative to the step.
-    bool stopsAtAFile = true;                  ///< Whether a file at one of them ends the search.
-};
-
-/**
- * The searches for the headers the files a compilation read name, and the
- * places they start from.
- */
-struct Searches {
-    std::vector<Search> searches;            ///< One per header named.
-    std::set<std::filesystem::path> places;  ///< The directories the searches start from.
-    bool computed = false;                   ///< Whether a name could not be read, so the searches are not all known.
-};
-
-/**
  * Whether @p file, read by @p step, belongs to the project: it is named
  * relative to the step, or lies below a directory the step names for
  * headers. The others are the system's.
@@ -180,11 +123,14 @@ bool namesItsHeaders(const BuildStep& step, const std::filesystem::path& file)
 
 /**
  * The searches the compiler makes for the headers the files of @p step among
- * @p files name, or nothing when one of them cannot be read.
+ * @p files name, or, when a file names a header by a macro, one search of
+ * every path a header could appear at that none of ends it. Nothing is
+ * returned when a file cannot be read.
  */
-std::optional<Searches> searchesOf(const BuildStep& step, const std::vector<std::filesystem::path>& files)
+std::optional<std::vector<Compile::HeaderSearch>> searchesOf(const BuildStep& step, const std::vector<std::filesystem::path>& files)
 {
-    Searches found{ .searches = {}, .places = placesSearched(step, files), .computed = false };
+    std::vector<Compile::HeaderSearch> searches;
+    bool computed = false;
     for (const std::filesystem::path& file : files) {
         if (! namesItsHeaders(step, file)) {
             continue;
@@ -194,15 +140,31 @@ std::optional<Searches> searchesOf(const BuildStep& step, const std::vector<std:
             return std::nullopt;
         }
         const Compile::IncludeDirectives directives = Compile::parseIncludeDirectives(*text);
-        found.computed = found.computed || directives.computed;
-        const std::filesystem::path directory = file.parent_path();
-        found.places.insert(directory.empty() ? std::filesystem::path{ "." } : directory.lexically_normal());
+        computed = computed || directives.computed;
         for (const Compile::IncludedName& included : directives.names) {
-            found.searches.push_back(Search{ .paths = searchPaths(included, directory, step.searchedDirectories),
-                                             .stopsAtAFile = included.kind != Compile::IncludeKind::Next });
+            searches.push_back(Compile::headerSearch(included, file.parent_path(), step.searchedDirectories));
         }
     }
-    return found;
+    if (computed) {
+        return std::vector<Compile::HeaderSearch>{
+            Compile::HeaderSearch{ .paths = shadowingPaths(placesSearched(step, files), files), .stopsAtAFile = false }
+        };
+    }
+    return searches;
+}
+
+/**
+ * The first of the directories above @p path that is a directory, named
+ * relative to @p directory like @p path.
+ */
+std::filesystem::path nearestDirectoryThatIsThere(const std::filesystem::path& path, const std::filesystem::path& directory)
+{
+    const std::vector<std::filesystem::path> above = directoriesAbove(path);
+    const auto there = std::ranges::find_if(above, [&directory](const std::filesystem::path& candidate) {
+        std::error_code ec;
+        return std::filesystem::is_directory(directory / candidate, ec);
+    });
+    return (there == above.end()) ? above.back() : *there;
 }
 
 /**
@@ -210,7 +172,7 @@ std::optional<Searches> searchesOf(const BuildStep& step, const std::vector<std:
  * where nothing is, up to the first that holds a file when that ends it. A
  * directory is passed over, as the compiler passes it over.
  */
-void addAbsent(std::set<std::filesystem::path>& absent, const Search& search, const std::filesystem::path& directory)
+void addAbsent(std::set<std::filesystem::path>& absent, const Compile::HeaderSearch& search, const std::filesystem::path& directory)
 {
     for (const std::filesystem::path& path : search.paths) {
         std::error_code ec;
@@ -257,34 +219,16 @@ std::vector<std::filesystem::path> shadowingPaths(const std::set<std::filesystem
     return { paths.begin(), paths.end() };
 }
 
-std::vector<std::filesystem::path> searchPaths(const Compile::IncludedName& included,
-                                               const std::filesystem::path& directory,
-                                               const std::vector<std::filesystem::path>& searched)
+std::vector<std::filesystem::path> directoriesAbove(const std::filesystem::path& path)
 {
-    std::vector<std::filesystem::path> paths;
-    const auto add = [&paths, &included](const std::filesystem::path& place) {
-        std::filesystem::path path = (place / included.name).lexically_normal();
-        if (std::ranges::find(paths, path) == paths.end()) {
-            paths.push_back(std::move(path));
+    std::vector<std::filesystem::path> directories;
+    for (std::filesystem::path directory = path.parent_path();; directory = directory.parent_path()) {
+        directories.push_back(directory.empty() ? std::filesystem::path{ "." } : directory);
+        if (directory.empty() || (directory == directory.parent_path())) {
+            break;
         }
-    };
-    if (included.kind != Compile::IncludeKind::Angled) {
-        add(directory);
     }
-    for (const std::filesystem::path& place : searched) {
-        add(place);
-    }
-    return paths;
-}
-
-std::vector<std::filesystem::path> shadowingDirectories(const std::set<std::filesystem::path>& places,
-                                                        const std::vector<std::filesystem::path>& paths)
-{
-    std::set<std::filesystem::path> directories;
-    for (const std::filesystem::path& path : paths) {
-        addDirectoriesAbove(directories, path, places);
-    }
-    return { directories.begin(), directories.end() };
+    return directories;
 }
 
 std::optional<StepRecord> observeStep(const BuildStep& step)
@@ -311,12 +255,8 @@ std::optional<StepRecord> observeStep(const BuildStep& step)
     if (! searches.has_value()) {
         return std::nullopt;
     }
-    if (searches->computed) {
-        record.absent = absentPaths(shadowingPaths(placesSearched(step, *files), *files), step.directory);
-        return record;
-    }
     std::set<std::filesystem::path> absent;
-    for (const Search& search : searches->searches) {
+    for (const Compile::HeaderSearch& search : *searches) {
         addAbsent(absent, search, step.directory);
     }
     record.absent.assign(absent.begin(), absent.end());
@@ -336,15 +276,13 @@ std::optional<std::vector<std::filesystem::path>> watchedDirectories(const Build
     if (! searches.has_value()) {
         return std::nullopt;
     }
-    if (searches->computed) {
-        const std::set<std::filesystem::path> places = placesSearched(step, *files);
-        return shadowingDirectories(places, shadowingPaths(places, *files));
+    std::set<std::filesystem::path> watched;
+    for (const Compile::HeaderSearch& search : *searches) {
+        for (const std::filesystem::path& path : search.paths) {
+            watched.insert(nearestDirectoryThatIsThere(path, step.directory));
+        }
     }
-    std::vector<std::filesystem::path> paths;
-    for (const Search& search : searches->searches) {
-        paths.insert(paths.end(), search.paths.begin(), search.paths.end());
-    }
-    return shadowingDirectories(searches->places, paths);
+    return std::vector<std::filesystem::path>{ watched.begin(), watched.end() };
 }
 
 }  // namespace scrap::Build

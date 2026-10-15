@@ -2,7 +2,6 @@
 
 #include "build/BuildStep.h"
 #include "build/StepRecord.h"
-#include "compile/IncludeDirectives.h"
 
 #include <filesystem>
 #include <optional>
@@ -30,26 +29,12 @@ namespace scrap::Build {
                                                                 const std::vector<std::filesystem::path>& files);
 
 /**
- * @brief The paths where the compiler looks for @p included, named by a file
- *        in @p directory, in the order it looks, each once.
+ * @brief The directory of @p path and each one above it, nearest first, up
+ *        to "." for a relative path or the root for an absolute one.
  *
- * A quoted name is looked for in @p directory, then below each of
- * @p searched; a bracketed one only below @p searched. A name the file
- * names with include_next is looked for everywhere a quoted one is, since
- * where the file itself was found is not known. Paths are lexically
- * normalised.
+ * The path is lexically normal. The disk is not looked at.
  */
-[[nodiscard]] std::vector<std::filesystem::path> searchPaths(const Compile::IncludedName& included,
-                                                             const std::filesystem::path& directory,
-                                                             const std::vector<std::filesystem::path>& searched);
-
-/**
- * @brief The directories whose entries change when a file appears at one of
- *        @p paths: the directory of each path and each one above it, up to
- *        the outermost of @p places above it, sorted.
- */
-[[nodiscard]] std::vector<std::filesystem::path> shadowingDirectories(const std::set<std::filesystem::path>& places,
-                                                                      const std::vector<std::filesystem::path>& paths);
+[[nodiscard]] std::vector<std::filesystem::path> directoriesAbove(const std::filesystem::path& path);
 
 /**
  * @brief What @p step reads, as it stands now, in the form a record keeps.
@@ -61,11 +46,12 @@ namespace scrap::Build {
  *
  * It also holds where a header could appear in place of one the compilation
  * read. Each header the listed files of the project name is looked for as
- * searchPaths() orders it, and the paths that hold nothing, up to the first
- * that holds a file, are listed, sorted. The files of the system are not
- * read. When a file names a header by a macro, the paths are instead those
- * shadowingPaths() lists for the files read, with all the places the
- * compiler looks for this step, that hold nothing.
+ * Compile::headerSearch() orders it, and the paths that hold nothing, up to
+ * the first that holds a file when that ends the search, are listed,
+ * sorted. The files of the system are not read. When a file names a header
+ * by a macro, the paths are instead those shadowingPaths() lists for the
+ * files read, with all the places the compiler looks for this step, that
+ * hold nothing.
  *
  * @return The record, or nothing when whether the step needs to run cannot be
  *         told: an input, the program or a listed file cannot be examined, or
@@ -74,12 +60,14 @@ namespace scrap::Build {
 [[nodiscard]] std::optional<StepRecord> observeStep(const BuildStep& step);
 
 /**
- * @brief The directories where a header could appear in place of one
- *        @p step read, as shadowingDirectories() names them for every path
- *        observeStep() could look at, relative to the step's directory.
+ * @brief The directories to watch for a header that appears in place of one
+ *        @p step read, relative to the step's directory, sorted.
  *
- * A file that appears while the step runs is not among the absent paths of
- * its record, but changes one of these directories.
+ * For every path observeStep() could look at, this is the nearest of
+ * directoriesAbove() that is a directory now. If it was there when the step
+ * started, a file appearing in it changes its time; if it was made while the
+ * step ran, its own time is after the start. A file that appears while the
+ * step runs is not among the absent paths of its record.
  *
  * @return The directories, none for a step that is not a compilation, or
  *         nothing when its dependency file cannot be read.
