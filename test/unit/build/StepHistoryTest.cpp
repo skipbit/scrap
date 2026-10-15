@@ -74,6 +74,18 @@ protected:
         return _temp.path() / "build" / "records" / "bin" / "app";
     }
 
+    /**
+     * Write files until the time the file system gives one is after the time
+     * @p file was modified, so what changes next changes after it.
+     */
+    void waitPast(const std::filesystem::path& file) const
+    {
+        const auto modified = std::filesystem::last_write_time(file);
+        do {
+            _temp.writeFile("build/clock", "");
+        } while (std::filesystem::last_write_time(_temp.path() / "build/clock") <= modified);
+    }
+
     TempDirectory _temp;
     RecordedStepHistory _history{ "build" };
 };
@@ -205,6 +217,24 @@ TEST_F(StepHistoryTest, KeepsNoRecordOutsideTheBuildDirectory)
 
     EXPECT_FALSE(std::filesystem::exists(_temp.path() / "build" / "records"));
     EXPECT_FALSE(_history.upToDate(linkStep("elsewhere/app")));
+}
+
+/**
+ * A directory a compilation watches whose time was set back while it ran, as
+ * one moved into place keeps its time, has still changed, so the
+ * compilation runs again.
+ */
+TEST_F(StepHistoryTest, RunsACompilationWhereADirectoryChangedWithAnOldTimeAsItRan)
+{
+    succeed(compileStep());
+    ASSERT_TRUE(_history.upToDate(compileStep()));
+
+    _history.starting(compileStep());
+    waitPast(_temp.path() / "build/records/obj/main.o");
+    std::filesystem::last_write_time(_temp.path() / "src", std::filesystem::file_time_type::clock::now() - std::chrono::hours{ 1 });
+    _history.succeeded(compileStep());
+
+    EXPECT_FALSE(_history.upToDate(compileStep()));
 }
 
 /**

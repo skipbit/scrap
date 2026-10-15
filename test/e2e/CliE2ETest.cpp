@@ -1743,6 +1743,40 @@ TEST_F(CliE2ETest, BuildCompilesAgainAHeaderAppearingWhereItIsFoundFirst)
     EXPECT_EQ(ran.exitCode, 0);
 }
 
+TEST_F(CliE2ETest, BuildCompilesAgainAHeaderAppearingBesideTheHeaderThatNamesIt)
+{
+    writeFile("scrap.toml", "[package]\nname = \"app\"\nversion = \"0.1.0\"\n");
+    writeFile("include/lib/a.h", "#include \"b.h\"\ninline int a() { return b(); }\n");
+    writeFile("include/b.h", "inline int b() { return 1; }\n");
+    writeFile("src/main.cpp", "#include \"lib/a.h\"\nint main() { return a(); }\n");
+    auto first = runScrap({ "build" }, { realCompiler() }, _root, BuildTimeout);
+    ASSERT_EQ(first.exitCode, 0) << first.stderrText;
+
+    writeFile("include/lib/b.h", "inline int b() { return 0; }\n");
+    auto again = runScrap({ "build" }, { realCompiler() }, _root, BuildTimeout);
+
+    ASSERT_EQ(again.exitCode, 0) << again.stderrText;
+    EXPECT_NE(again.stderrText.find("Compiling app (src/main.cpp)\n"), std::string::npos) << again.stderrText;
+    auto ran = runProgram({ (_root / "build" / "debug" / "bin" / "app").string() }, {}, _root);
+    EXPECT_EQ(ran.exitCode, 0);
+}
+
+TEST_F(CliE2ETest, BuildCompilesNothingForAHeaderAppearingWhereNothingLooksForIt)
+{
+    writeFile("scrap.toml", "[package]\nname = \"app\"\nversion = \"0.1.0\"\n");
+    writeFile("include/lib/a.h", "#include \"b.h\"\ninline int a() { return b(); }\n");
+    writeFile("include/b.h", "inline int b() { return 0; }\n");
+    writeFile("src/main.cpp", "#include \"lib/a.h\"\nint main() { return a(); }\n");
+    auto first = runScrap({ "build" }, { realCompiler() }, _root, BuildTimeout);
+    ASSERT_EQ(first.exitCode, 0) << first.stderrText;
+
+    writeFile("src/b.h", "inline int b() { return 1; }\n");
+    auto again = runScrap({ "build" }, { realCompiler() }, _root, BuildTimeout);
+
+    ASSERT_EQ(again.exitCode, 0) << again.stderrText;
+    EXPECT_EQ(occurrences(again.stderrText, "Compiling"), 0) << again.stderrText;
+}
+
 TEST_F(CliE2ETest, BuildCompilesAgainWhenTheCompileFlagsChange)
 {
     std::filesystem::create_directories(_root / "work");

@@ -29,7 +29,7 @@ struct InputStamp {
 struct StepRecord {
     std::vector<std::string> arguments;  ///< The command line, starting with the program.
     std::vector<InputStamp> inputs;      ///< Every file the step read.
-    /// Paths that held nothing when the step ran, where a file that appears
+    /// Paths that held no file when the step ran, where a file that appears
     /// would be read in place of one of the inputs.
     std::vector<std::filesystem::path> absent;
 

@@ -3,12 +3,15 @@
 #include "build/BuildStep.h"
 #include "build/StepRecord.h"
 #include "compile/DependencyFile.h"
+#include "compile/HeaderSearch.h"
+#include "compile/IncludeDirectives.h"
 #include "file/WholeFile.h"
 
-#include <cstddef>
+#include <algorithm>
 #include <cstdint>
 #include <ctime>
 #include <filesystem>
+#include <iterator>
 #include <optional>
 #include <set>
 #include <sys/stat.h>
@@ -22,6 +25,14 @@ namespace {
 
 /// Nanoseconds in a second.
 constexpr std::int64_t NanosecondsPerSecond = 1'000'000'000;
+
+/**
+ * @p time in nanoseconds.
+ */
+std::int64_t nanosecondsOf(const timespec& time)
+{
+    return (static_cast<std::int64_t>(time.tv_sec) * NanosecondsPerSecond) + time.tv_nsec;
+}
 
 /**
  * Add the stamp of each of @p paths to @p stamps, or report that one of them
@@ -108,42 +119,89 @@ void addShadowing(std::set<std::filesystem::path>& paths,
 }
 
 /**
- * Those of @p paths, named relative to @p directory, where nothing is.
+ * Whether @p file, read by @p step, belongs to the project: it is named
+ * relative to the step, or lies below a directory the step names for
+ * headers. The others are the system's.
  */
-std::vector<std::filesystem::path> absentPaths(const std::vector<std::filesystem::path>& paths,
-                                               const std::filesystem::path& directory)
+bool namesItsHeaders(const BuildStep& step, const std::filesystem::path& file)
 {
-    std::vector<std::filesystem::path> absent;
-    for (const std::filesystem::path& path : paths) {
-        std::error_code ec;
-        if ((! std::filesystem::exists(directory / path, ec)) && (! ec)) {
-            absent.push_back(path);
-        }
-    }
-    return absent;
+    return file.is_relative() || std::ranges::any_of(step.searchedDirectories, [&file](const std::filesystem::path& directory) {
+        return below(file.lexically_normal(), directory.lexically_normal()).has_value();
+    });
 }
 
 /**
- * Add to @p directories the directory of @p path and each one above it, up to
- * the outermost of @p places above it.
+ * The searches the compiler makes for the headers the files of @p step among
+ * @p files name and, when a file names a header by a macro, one more search,
+ * which no file ends, of every path a header could appear at. Nothing is
+ * returned when a file cannot be read.
  */
-void addDirectoriesAbove(std::set<std::filesystem::path>& directories,
-                         const std::filesystem::path& path,
-                         const std::set<std::filesystem::path>& places)
+std::optional<std::vector<Compile::HeaderSearch>> searchesOf(const BuildStep& step, const std::vector<std::filesystem::path>& files)
 {
-    std::vector<std::filesystem::path> above;
-    std::size_t kept = 0;
-    for (std::filesystem::path directory = path.parent_path();; directory = directory.parent_path()) {
-        above.push_back(directory.empty() ? std::filesystem::path{ "." } : directory);
-        if (places.contains(above.back())) {
-            kept = above.size();
+    std::vector<Compile::HeaderSearch> searches;
+    bool computed = false;
+    for (const std::filesystem::path& file : files) {
+        if (! namesItsHeaders(step, file)) {
+            continue;
         }
-        if (directory.empty() || (directory == directory.parent_path())) {
-            break;
+        const auto text = File::readWholeFile(step.directory / file);
+        if (! text.has_value()) {
+            return std::nullopt;
+        }
+        const Compile::IncludeDirectives directives = Compile::parseIncludeDirectives(*text);
+        computed = computed || directives.computed;
+        for (const Compile::IncludedName& included : directives.names) {
+            searches.push_back(Compile::headerSearch(included, file.parent_path(), step.searchedDirectories));
         }
     }
-    above.resize(kept);
-    directories.insert(above.begin(), above.end());
+    if (computed) {
+        searches.push_back(Compile::HeaderSearch{ .paths = shadowingPaths(placesSearched(step, files), files), .stopsAtAFile = false });
+    }
+    return searches;
+}
+
+/**
+ * Add to @p watched the directories above @p path, named relative to
+ * @p directory like it, from the nearest that is a directory up to the
+ * outermost of @p places above it.
+ */
+void addWatched(std::set<std::filesystem::path>& watched,
+                const std::filesystem::path& path,
+                const std::set<std::filesystem::path>& places,
+                const std::filesystem::path& directory)
+{
+    const std::vector<std::filesystem::path> above = directoriesAbove(path);
+    const auto there = std::ranges::find_if(above, [&directory](const std::filesystem::path& candidate) {
+        std::error_code ec;
+        return std::filesystem::is_directory(directory / candidate, ec);
+    });
+    const auto first = (there == above.end()) ? std::prev(above.end()) : there;
+    auto last = first;
+    for (auto candidate = first; candidate != above.end(); ++candidate) {
+        if (places.contains(*candidate)) {
+            last = candidate;
+        }
+    }
+    watched.insert(first, std::next(last));
+}
+
+/**
+ * Add to @p absent the paths of @p search, named relative to @p directory,
+ * where no file is, up to the first that holds one when that ends it. A
+ * directory is passed over, as the compiler passes it over, and listed, as a
+ * file may take its place.
+ */
+void addAbsent(std::set<std::filesystem::path>& absent, const Compile::HeaderSearch& search, const std::filesystem::path& directory)
+{
+    for (const std::filesystem::path& path : search.paths) {
+        std::error_code ec;
+        const std::filesystem::file_type type = std::filesystem::status(directory / path, ec).type();
+        if ((type == std::filesystem::file_type::not_found) || (type == std::filesystem::file_type::directory)) {
+            absent.insert(path);
+        } else if ((! ec) && search.stopsAtAFile) {
+            return;
+        }
+    }
 }
 
 }  // anonymous namespace
@@ -160,9 +218,21 @@ std::optional<InputStamp> stampOf(const std::filesystem::path& path, const std::
 #else
     const timespec& modified = status.st_mtim;
 #endif
-    return InputStamp{ .path = path,
-                       .modified = (static_cast<std::int64_t>(modified.tv_sec) * NanosecondsPerSecond) + modified.tv_nsec,
-                       .size = static_cast<std::uintmax_t>(status.st_size) };
+    return InputStamp{ .path = path, .modified = nanosecondsOf(modified), .size = static_cast<std::uintmax_t>(status.st_size) };
+}
+
+std::optional<std::int64_t> changedAt(const std::filesystem::path& path, const std::filesystem::path& directory)
+{
+    const std::filesystem::path file = directory / path;
+    struct stat status { };
+    if (::stat(file.c_str(), &status) != 0) {
+        return std::nullopt;
+    }
+#if defined(__APPLE__)
+    return std::max(nanosecondsOf(status.st_mtimespec), nanosecondsOf(status.st_ctimespec));
+#else
+    return std::max(nanosecondsOf(status.st_mtim), nanosecondsOf(status.st_ctim));
+#endif
 }
 
 std::vector<std::filesystem::path> shadowingPaths(const std::set<std::filesystem::path>& places,
@@ -180,14 +250,16 @@ std::vector<std::filesystem::path> shadowingPaths(const std::set<std::filesystem
     return { paths.begin(), paths.end() };
 }
 
-std::vector<std::filesystem::path> shadowingDirectories(const std::set<std::filesystem::path>& places,
-                                                        const std::vector<std::filesystem::path>& paths)
+std::vector<std::filesystem::path> directoriesAbove(const std::filesystem::path& path)
 {
-    std::set<std::filesystem::path> directories;
-    for (const std::filesystem::path& path : paths) {
-        addDirectoriesAbove(directories, path, places);
+    std::vector<std::filesystem::path> directories;
+    for (std::filesystem::path directory = path.parent_path();; directory = directory.parent_path()) {
+        directories.push_back(directory.empty() ? std::filesystem::path{ "." } : directory);
+        if (directory.empty() || (directory == directory.parent_path())) {
+            break;
+        }
     }
-    return { directories.begin(), directories.end() };
+    return directories;
 }
 
 std::optional<StepRecord> observeStep(const BuildStep& step)
@@ -210,7 +282,15 @@ std::optional<StepRecord> observeStep(const BuildStep& step)
     if ((! files.has_value()) || (! addStamps(record.inputs, *files, step.directory))) {
         return std::nullopt;
     }
-    record.absent = absentPaths(shadowingPaths(placesSearched(step, *files), *files), step.directory);
+    const auto searches = searchesOf(step, *files);
+    if (! searches.has_value()) {
+        return std::nullopt;
+    }
+    std::set<std::filesystem::path> absent;
+    for (const Compile::HeaderSearch& search : *searches) {
+        addAbsent(absent, search, step.directory);
+    }
+    record.absent.assign(absent.begin(), absent.end());
     return record;
 }
 
@@ -223,8 +303,18 @@ std::optional<std::vector<std::filesystem::path>> watchedDirectories(const Build
     if (! files.has_value()) {
         return std::nullopt;
     }
+    const auto searches = searchesOf(step, *files);
+    if (! searches.has_value()) {
+        return std::nullopt;
+    }
     const std::set<std::filesystem::path> places = placesSearched(step, *files);
-    return shadowingDirectories(places, shadowingPaths(places, *files));
+    std::set<std::filesystem::path> watched;
+    for (const Compile::HeaderSearch& search : *searches) {
+        for (const std::filesystem::path& path : search.paths) {
+            addWatched(watched, path, places, step.directory);
+        }
+    }
+    return std::vector<std::filesystem::path>{ watched.begin(), watched.end() };
 }
 
 }  // namespace scrap::Build

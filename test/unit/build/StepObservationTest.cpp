@@ -92,7 +92,7 @@ TEST_F(StepObservationTest, ObservesWhatACompilationRead)
 }
 
 /**
- * Where a header of the same name would be found in place of one read, and
+ * Where the compiler looks for a header before the place it was found, and
  * nothing is there, the path is listed; the system's places are not.
  */
 TEST_F(StepObservationTest, ListsWhereAHeaderCouldAppear)
@@ -100,27 +100,120 @@ TEST_F(StepObservationTest, ListsWhereAHeaderCouldAppear)
     const auto record = observeStep(compileStep());
 
     ASSERT_TRUE(record.has_value());
-    EXPECT_EQ(record->absent, (Paths{ "include/main.cpp", "src/hello.h" }));
+    EXPECT_EQ(record->absent, Paths{ "src/hello.h" });
 }
 
 /**
- * A path that holds a file is not listed as absent.
+ * A path that holds a file ends the search, so it and the paths after it
+ * are not listed.
  */
-TEST_F(StepObservationTest, DoesNotListAPathThatHoldsAFile)
+TEST_F(StepObservationTest, StopsAtAPathThatHoldsAFile)
 {
     _temp.writeFile("src/hello.h", "int other;\n");
 
     const auto record = observeStep(compileStep());
 
     ASSERT_TRUE(record.has_value());
-    EXPECT_EQ(record->absent, Paths{ "include/main.cpp" });
+    EXPECT_EQ(record->absent, Paths{});
 }
 
 /**
- * A source at the project root searches the root for headers. Every name a
- * header has below some place is looked for below the others, so
- * include/hello.h, named so below the root, is looked for below include/
- * too: more paths than the compiler would search, never fewer.
+ * The places after the one a header was found in are not listed.
+ */
+TEST_F(StepObservationTest, ListsNothingAfterWhereAHeaderWasFound)
+{
+    BuildStep step = compileStep();
+    step.searchedDirectories = { "include", "third" };
+
+    const auto record = observeStep(step);
+
+    ASSERT_TRUE(record.has_value());
+    EXPECT_EQ(record->absent, Paths{ "src/hello.h" });
+}
+
+/**
+ * A directory where a header could be is passed over, as the compiler passes
+ * it over, and the search goes on. It holds no file, so it is listed.
+ */
+TEST_F(StepObservationTest, PassesOverADirectory)
+{
+    std::filesystem::create_directories(_temp.path() / "src/hello.h");
+    BuildStep step = compileStep();
+    step.searchedDirectories = { "third", "include" };
+
+    const auto record = observeStep(step);
+
+    ASSERT_TRUE(record.has_value());
+    EXPECT_EQ(record->absent, (Paths{ "src/hello.h", "third/hello.h" }));
+}
+
+/**
+ * A file put in place of a directory the search passed over changes the
+ * record.
+ */
+TEST_F(StepObservationTest, SeesAFileInPlaceOfADirectory)
+{
+    std::filesystem::create_directories(_temp.path() / "src/hello.h");
+    const auto before = observeStep(compileStep());
+    std::filesystem::remove(_temp.path() / "src/hello.h");
+    _temp.writeFile("src/hello.h", "int other;\n");
+
+    const auto after = observeStep(compileStep());
+
+    ASSERT_TRUE(before.has_value());
+    ASSERT_TRUE(after.has_value());
+    EXPECT_NE(*before, *after);
+}
+
+/**
+ * A header named in quotes by another header is looked for in the directory
+ * of the one that names it first.
+ */
+TEST_F(StepObservationTest, LooksBesideTheHeaderThatNamesIt)
+{
+    _temp.writeFile("src/main.cpp", "#include \"lib/a.h\"\n");
+    _temp.writeFile("include/lib/a.h", "#include \"b.h\"\n");
+    _temp.writeFile("include/b.h", "int b;\n");
+    writeDependencyFile("build/obj/main.o: src/main.cpp include/lib/a.h include/b.h\n");
+
+    const auto record = observeStep(compileStep());
+
+    ASSERT_TRUE(record.has_value());
+    EXPECT_EQ(record->absent, (Paths{ "include/lib/b.h", "src/lib/a.h" }));
+}
+
+/**
+ * A header of the system named in brackets is looked for in the directories
+ * named for headers, where one of the project could appear in its place.
+ */
+TEST_F(StepObservationTest, ListsWhereAHeaderCouldAppearInPlaceOfOneOfTheSystem)
+{
+    _temp.writeFile("src/main.cpp", "#include <vector>\n#include \"hello.h\"\n");
+
+    const auto record = observeStep(compileStep());
+
+    ASSERT_TRUE(record.has_value());
+    EXPECT_EQ(record->absent, (Paths{ "include/vector", "src/hello.h" }));
+}
+
+/**
+ * A header named with include_next may be found after the place the naming
+ * file was found in, which is not known, so the search goes on past a file.
+ */
+TEST_F(StepObservationTest, LooksEverywhereForAHeaderNamedNext)
+{
+    _temp.writeFile("src/main.cpp", "#include_next <hello.h>\n");
+    BuildStep step = compileStep();
+    step.searchedDirectories = { "include", "third" };
+
+    const auto record = observeStep(step);
+
+    ASSERT_TRUE(record.has_value());
+    EXPECT_EQ(record->absent, (Paths{ "src/hello.h", "third/hello.h" }));
+}
+
+/**
+ * A source at the project root looks for a quoted header at the root first.
  */
 TEST_F(StepObservationTest, SearchesTheRootForASourceThere)
 {
@@ -130,7 +223,51 @@ TEST_F(StepObservationTest, SearchesTheRootForASourceThere)
     const auto record = observeStep(compileStep("main.cpp"));
 
     ASSERT_TRUE(record.has_value());
-    EXPECT_EQ(record->absent, (Paths{ "hello.h", "include/include/hello.h", "include/main.cpp" }));
+    EXPECT_EQ(record->absent, Paths{ "hello.h" });
+}
+
+/**
+ * When a file names a header by a macro, where a header could appear is
+ * listed for every name a file read has below every place: more paths than
+ * the compiler would search, never fewer.
+ */
+TEST_F(StepObservationTest, ListsEveryPlaceWhenAMacroNamesAHeader)
+{
+    _temp.writeFile("src/main.cpp", "#define HELLO \"hello.h\"\n#include HELLO\n");
+
+    const auto record = observeStep(compileStep());
+
+    ASSERT_TRUE(record.has_value());
+    EXPECT_EQ(record->absent, (Paths{ "include/main.cpp", "src/hello.h" }));
+}
+
+/**
+ * When a macro names a header, a path that holds a file does not end the
+ * list: every path where nothing is stays listed.
+ */
+TEST_F(StepObservationTest, ListsPastAFileWhenAMacroNamesAHeader)
+{
+    _temp.writeFile("src/main.cpp", "#define HELLO \"hello.h\"\n#include HELLO\n");
+    _temp.writeFile("include/main.cpp", "int other;\n");
+
+    const auto record = observeStep(compileStep());
+
+    ASSERT_TRUE(record.has_value());
+    EXPECT_EQ(record->absent, Paths{ "src/hello.h" });
+}
+
+/**
+ * When a macro names a header, the other names are still looked for as the
+ * compiler looks for them, as well as every name below every place.
+ */
+TEST_F(StepObservationTest, LooksForTheOtherNamesWhenAMacroNamesAHeader)
+{
+    _temp.writeFile("src/main.cpp", "#if __has_include(\"config.h\")\n#endif\n#define HELLO \"hello.h\"\n#include HELLO\n");
+
+    const auto record = observeStep(compileStep());
+
+    ASSERT_TRUE(record.has_value());
+    EXPECT_EQ(record->absent, (Paths{ "include/config.h", "include/main.cpp", "src/config.h", "src/hello.h" }));
 }
 
 /**
@@ -271,54 +408,36 @@ INSTANTIATE_TEST_SUITE_P(
 namespace {
 
 /**
- * Places, paths a file could appear at, and the directories whose entries
- * change when one does.
+ * A path and the directories above it.
  */
-struct DirectoriesCase {
+struct AboveCase {
     const char* name;
-    std::set<std::filesystem::path> places;
-    Paths paths;
+    std::filesystem::path path;
     Paths expected;
 };
 
-class ShadowingDirectoriesTest : public ::testing::TestWithParam<DirectoriesCase> { };
+class DirectoriesAboveTest : public ::testing::TestWithParam<AboveCase> { };
 
 }  // anonymous namespace
 
 /**
- * The directories are those of each path and above it, up to the outermost
- * place above it, sorted.
+ * The directories are those of the path and each one above it, nearest first.
  */
-TEST_P(ShadowingDirectoriesTest, ListsTheDirectoriesUpToTheOutermostPlace)
+TEST_P(DirectoriesAboveTest, ListsTheDirectoryAndEachOneAbove)
 {
-    const DirectoriesCase& directories = GetParam();
+    const AboveCase& above = GetParam();
 
-    EXPECT_EQ(shadowingDirectories(directories.places, directories.paths), directories.expected);
+    EXPECT_EQ(directoriesAbove(above.path), above.expected);
 }
 
 INSTANTIATE_TEST_SUITE_P(
     Cases,
-    ShadowingDirectoriesTest,
-    ::testing::Values(
-        DirectoriesCase{ .name = "NoPaths", .places = { "include", "src" }, .paths = {}, .expected = {} },
-        DirectoriesCase{ .name = "DirectlyBelowAPlace", .places = { "include", "src" }, .paths = { "src/a.h" }, .expected = { "src" } },
-        DirectoriesCase{ .name = "BelowADirectoryOfAPlace",
-                         .places = { "include", "src" },
-                         .paths = { "src/lib/a.h" },
-                         .expected = { "src", "src/lib" } },
-        DirectoriesCase{ .name = "UpToTheOutermostPlace",
-                         .places = { "include", "include/lib" },
-                         .paths = { "include/lib/a.h" },
-                         .expected = { "include", "include/lib" } },
-        DirectoriesCase{ .name = "TheRoot",
-                         .places = { ".", "include" },
-                         .paths = { "a.h", "include/include/a.h" },
-                         .expected = { ".", "include", "include/include" } },
-        DirectoriesCase{ .name = "Absolute",
-                         .places = { "/opt/include", "src" },
-                         .paths = { "/opt/include/lib/a.h" },
-                         .expected = { "/opt/include", "/opt/include/lib" } }),
-    [](const ::testing::TestParamInfo<DirectoriesCase>& info) {
+    DirectoriesAboveTest,
+    ::testing::Values(AboveCase{ .name = "Nested", .path = "src/lib/a.h", .expected = { "src/lib", "src", "." } },
+                      AboveCase{ .name = "AtTheRoot", .path = "a.h", .expected = { "." } },
+                      AboveCase{ .name = "LeadingParents", .path = "../x/a.h", .expected = { "../x", "..", "." } },
+                      AboveCase{ .name = "Absolute", .path = "/opt/x/a.h", .expected = { "/opt/x", "/opt", "/" } }),
+    [](const ::testing::TestParamInfo<AboveCase>& info) {
         return std::string{ info.param.name };
     });
 
@@ -343,4 +462,56 @@ TEST_F(StepObservationTest, CannotTellWhereToWatchWithoutADependencyFile)
     std::filesystem::remove(_temp.path() / "build/obj/main.o.d");
 
     EXPECT_FALSE(watchedDirectories(compileStep()).has_value());
+}
+
+/**
+ * A name that leads out of every place the compiler starts from is watched
+ * where it lands.
+ */
+TEST_F(StepObservationTest, WatchesAboveANameThatLeavesEveryPlace)
+{
+    _temp.writeFile("src/a/x.cpp", "#include \"../common.h\"\n");
+    _temp.writeFile("include/common.h", "int common;\n");
+    writeDependencyFile("build/obj/main.o: src/a/x.cpp include/common.h\n");
+
+    EXPECT_EQ(watchedDirectories(compileStep("src/a/x.cpp")), (Paths{ ".", "src" }));
+}
+
+/**
+ * Where the directory of a path is not there, the nearest one above it is
+ * watched instead.
+ */
+TEST_F(StepObservationTest, WatchesTheNearestDirectoryThatIsThere)
+{
+    _temp.writeFile("src/main.cpp", "#include \"lib/a.h\"\n");
+    _temp.writeFile("include/lib/a.h", "int a;\n");
+    writeDependencyFile("build/obj/main.o: src/main.cpp include/lib/a.h\n");
+
+    EXPECT_EQ(watchedDirectories(compileStep()), (Paths{ "include", "include/lib", "src" }));
+}
+
+/**
+ * Each directory from the one watched for a path up to the place the search
+ * starts from is watched, as a directory put in place with an old time
+ * changes the one it is put in.
+ */
+TEST_F(StepObservationTest, WatchesUpToThePlaceASearchStartsFrom)
+{
+    _temp.writeFile("src/main.cpp", "#include \"lib/a.h\"\n");
+    _temp.writeFile("src/lib/other.h", "int other;\n");
+    _temp.writeFile("include/lib/a.h", "int a;\n");
+    writeDependencyFile("build/obj/main.o: src/main.cpp include/lib/a.h\n");
+
+    EXPECT_EQ(watchedDirectories(compileStep()), (Paths{ "include", "include/lib", "src", "src/lib" }));
+}
+
+/**
+ * When a macro names a header, the directories of every path a header could
+ * appear at are watched.
+ */
+TEST_F(StepObservationTest, WatchesEveryPlaceWhenAMacroNamesAHeader)
+{
+    _temp.writeFile("src/main.cpp", "#define HELLO \"hello.h\"\n#include HELLO\n");
+
+    EXPECT_EQ(watchedDirectories(compileStep()), (Paths{ "include", "src" }));
 }

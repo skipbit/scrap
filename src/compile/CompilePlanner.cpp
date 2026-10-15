@@ -103,7 +103,6 @@ std::vector<std::string> sharedCompileArguments(const BuildSettings& settings)
     if (const auto color = settings.driver.colorOption(); color.has_value()) {
         arguments.push_back(*color);
     }
-    arguments.insert(arguments.end(), { "-I", std::string{ HeaderDirectory } });
     return arguments;
 }
 
@@ -139,16 +138,31 @@ std::vector<const Project::TargetSettings*> appliedSettings(const Project::Targe
 }
 
 /**
- * What @p applied adds to a compilation: include directories, then defines,
- * then compile flags, each kind in the order of @p applied.
+ * The directories a compilation with @p applied names for headers, in the
+ * order and the form its command names them: the default one, then those of
+ * @p applied in its order.
  */
-std::vector<std::string> settingsCompileArguments(const std::vector<const Project::TargetSettings*>& applied)
+std::vector<std::filesystem::path> includeDirectories(const std::vector<const Project::TargetSettings*>& applied)
 {
-    std::vector<std::string> arguments;
+    std::vector<std::filesystem::path> directories{ std::filesystem::path{ HeaderDirectory } };
     for (const Project::TargetSettings* settings : applied) {
         for (const std::filesystem::path& directory : settings->includeDirectories) {
-            arguments.insert(arguments.end(), { "-I", asArgument(directory).string() });
+            directories.push_back(asArgument(directory));
         }
+    }
+    return directories;
+}
+
+/**
+ * What a compilation adds after the shared arguments: @p includes, then the
+ * defines, then the compile flags of @p applied, each kind in its order.
+ */
+std::vector<std::string> settingsCompileArguments(const std::vector<std::filesystem::path>& includes,
+                                                  const std::vector<const Project::TargetSettings*>& applied)
+{
+    std::vector<std::string> arguments;
+    for (const std::filesystem::path& directory : includes) {
+        arguments.insert(arguments.end(), { "-I", directory.string() });
     }
     for (const Project::TargetSettings* settings : applied) {
         for (const std::string& define : settings->defines) {
@@ -159,19 +173,6 @@ std::vector<std::string> settingsCompileArguments(const std::vector<const Projec
         arguments.insert(arguments.end(), settings->compileFlags.begin(), settings->compileFlags.end());
     }
     return arguments;
-}
-
-/**
- * The directories a compilation with @p applied names for headers, in the
- * order its command names them.
- */
-std::vector<std::filesystem::path> searchedDirectories(const std::vector<const Project::TargetSettings*>& applied)
-{
-    std::vector<std::filesystem::path> directories{ std::filesystem::path{ HeaderDirectory } };
-    for (const Project::TargetSettings* settings : applied) {
-        directories.insert(directories.end(), settings->includeDirectories.begin(), settings->includeDirectories.end());
-    }
-    return directories;
 }
 
 /**
@@ -209,8 +210,8 @@ std::vector<CompileCommand> planCompileCommands(const BuildSettings& settings, c
     std::vector<CompileCommand> commands;
     for (const Project::TargetSources& entry : targets) {
         const std::vector<const Project::TargetSettings*> applied = appliedSettings(entry.target, targets);
-        const std::vector<std::string> added = settingsCompileArguments(applied);
-        const std::vector<std::filesystem::path> searched = searchedDirectories(applied);
+        const std::vector<std::filesystem::path> searched = includeDirectories(applied);
+        const std::vector<std::string> added = settingsCompileArguments(searched, applied);
         for (const std::filesystem::path& source : entry.sources) {
             const std::filesystem::path output = objectFile(settings, entry.target.name, source);
             const std::filesystem::path file = asArgument(source);
