@@ -46,12 +46,12 @@ namespace scrap::Build {
  *
  * It also holds where a header could appear in place of one the compilation
  * read. Each header the listed files of the project name is looked for as
- * Compile::headerSearch() orders it, and the paths that hold nothing, up to
- * the first that holds a file when that ends the search, are listed,
- * sorted. The files of the system are not read. When a file names a header
- * by a macro, the paths shadowingPaths() lists for the files read, with all
- * the places the compiler looks for this step, that hold nothing are listed
- * as well.
+ * Compile::headerSearch() orders it, and the paths that hold no file, up to
+ * the first that holds one when that ends the search, are listed, sorted.
+ * The files of the system are not read. When a file names a header by a
+ * macro, the paths shadowingPaths() lists for the files read, with all the
+ * places the compiler looks for this step, that hold no file are listed as
+ * well.
  *
  * @return The record, or nothing when whether the step needs to run cannot be
  *         told: an input, the program or a listed file cannot be examined, or

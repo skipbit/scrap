@@ -133,7 +133,7 @@ TEST_F(StepObservationTest, ListsNothingAfterWhereAHeaderWasFound)
 
 /**
  * A directory where a header could be is passed over, as the compiler passes
- * it over, and the search goes on.
+ * it over, and the search goes on. It holds no file, so it is listed.
  */
 TEST_F(StepObservationTest, PassesOverADirectory)
 {
@@ -144,7 +144,25 @@ TEST_F(StepObservationTest, PassesOverADirectory)
     const auto record = observeStep(step);
 
     ASSERT_TRUE(record.has_value());
-    EXPECT_EQ(record->absent, Paths{ "third/hello.h" });
+    EXPECT_EQ(record->absent, (Paths{ "src/hello.h", "third/hello.h" }));
+}
+
+/**
+ * A file put in place of a directory the search passed over changes the
+ * record.
+ */
+TEST_F(StepObservationTest, SeesAFileInPlaceOfADirectory)
+{
+    std::filesystem::create_directories(_temp.path() / "src/hello.h");
+    const auto before = observeStep(compileStep());
+    std::filesystem::remove(_temp.path() / "src/hello.h");
+    _temp.writeFile("src/hello.h", "int other;\n");
+
+    const auto after = observeStep(compileStep());
+
+    ASSERT_TRUE(before.has_value());
+    ASSERT_TRUE(after.has_value());
+    EXPECT_NE(*before, *after);
 }
 
 /**

@@ -167,17 +167,18 @@ std::filesystem::path nearestDirectoryThatIsThere(const std::filesystem::path& p
 
 /**
  * Add to @p absent the paths of @p search, named relative to @p directory,
- * where nothing is, up to the first that holds a file when that ends it. A
- * directory is passed over, as the compiler passes it over.
+ * where no file is, up to the first that holds one when that ends it. A
+ * directory is passed over, as the compiler passes it over, and listed, as a
+ * file may take its place.
  */
 void addAbsent(std::set<std::filesystem::path>& absent, const Compile::HeaderSearch& search, const std::filesystem::path& directory)
 {
     for (const std::filesystem::path& path : search.paths) {
         std::error_code ec;
-        const std::filesystem::file_status status = std::filesystem::status(directory / path, ec);
-        if (status.type() == std::filesystem::file_type::not_found) {
+        const std::filesystem::file_type type = std::filesystem::status(directory / path, ec).type();
+        if ((type == std::filesystem::file_type::not_found) || (type == std::filesystem::file_type::directory)) {
             absent.insert(path);
-        } else if ((! ec) && (status.type() != std::filesystem::file_type::directory) && search.stopsAtAFile) {
+        } else if ((! ec) && search.stopsAtAFile) {
             return;
         }
     }
