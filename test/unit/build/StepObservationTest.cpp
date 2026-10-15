@@ -239,6 +239,20 @@ TEST_F(StepObservationTest, ListsPastAFileWhenAMacroNamesAHeader)
 }
 
 /**
+ * When a macro names a header, the other names are still looked for as the
+ * compiler looks for them, as well as every name below every place.
+ */
+TEST_F(StepObservationTest, LooksForTheOtherNamesWhenAMacroNamesAHeader)
+{
+    _temp.writeFile("src/main.cpp", "#if __has_include(\"config.h\")\n#endif\n#define HELLO \"hello.h\"\n#include HELLO\n");
+
+    const auto record = observeStep(compileStep());
+
+    ASSERT_TRUE(record.has_value());
+    EXPECT_EQ(record->absent, (Paths{ "include/config.h", "include/main.cpp", "src/config.h", "src/hello.h" }));
+}
+
+/**
  * A changed header changes the record.
  */
 TEST_F(StepObservationTest, SeesAChangedHeader)

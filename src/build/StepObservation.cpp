@@ -123,8 +123,8 @@ bool namesItsHeaders(const BuildStep& step, const std::filesystem::path& file)
 
 /**
  * The searches the compiler makes for the headers the files of @p step among
- * @p files name, or, when a file names a header by a macro, one search of
- * every path a header could appear at that none of ends it. Nothing is
+ * @p files name and, when a file names a header by a macro, one more search,
+ * which no file ends, of every path a header could appear at. Nothing is
  * returned when a file cannot be read.
  */
 std::optional<std::vector<Compile::HeaderSearch>> searchesOf(const BuildStep& step, const std::vector<std::filesystem::path>& files)
@@ -146,9 +146,7 @@ std::optional<std::vector<Compile::HeaderSearch>> searchesOf(const BuildStep& st
         }
     }
     if (computed) {
-        return std::vector<Compile::HeaderSearch>{
-            Compile::HeaderSearch{ .paths = shadowingPaths(placesSearched(step, files), files), .stopsAtAFile = false }
-        };
+        searches.push_back(Compile::HeaderSearch{ .paths = shadowingPaths(placesSearched(step, files), files), .stopsAtAFile = false });
     }
     return searches;
 }
