@@ -74,6 +74,18 @@ std::size_t skipBlanks(const std::string_view text, std::size_t index)
 }
 
 /**
+ * Whether only blanks lie between the start of the line and @p index in
+ * @p text, or a block comment ends just before them.
+ */
+bool startsALine(const std::string_view text, std::size_t index)
+{
+    while ((index > 0) && ((text[index - 1] == ' ') || (text[index - 1] == '\t') || (text[index - 1] == '\v') || (text[index - 1] == '\f') || (text[index - 1] == '\r'))) {
+        --index;
+    }
+    return (index == 0) || (text[index - 1] == '\n') || text.substr(0, index).ends_with("*/");
+}
+
+/**
  * The identifier starting at @p index in @p text.
  */
 std::string_view identifierAt(const std::string_view text, const std::size_t index)
@@ -168,9 +180,9 @@ IncludeDirectives parseIncludeDirectives(const std::string_view text)
 
     IncludeDirectives directives;
     for (std::size_t index = 0; index < source.size(); ++index) {
-        if (source[index] == '#') {
+        if ((source[index] == '#') && startsALine(source, index)) {
             readDirective(directives, source, skipBlanks(source, index + 1));
-        } else if (source.substr(index).starts_with("%:")) {
+        } else if (source.substr(index).starts_with("%:") && startsALine(source, index)) {
             readDirective(directives, source, skipBlanks(source, index + 2));
         } else if (source.substr(index).starts_with("__has_include") && ((index == 0) || (! isIdentifierCharacter(source[index - 1])))) {
             readOperator(directives, source, index);

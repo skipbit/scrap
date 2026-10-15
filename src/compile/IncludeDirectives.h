@@ -39,15 +39,16 @@ struct IncludeDirectives {
 /**
  * @brief Read the headers @p text names, as GCC and Clang would look for them.
  *
- * A '#' or "%:" followed by include, import or include_next, and
- * __has_include or __has_include_next followed by a parenthesis, names the
- * header between the quotes or the brackets after it. Blanks and block
- * comments may come between, and lines a backslash continues are joined,
- * blanks after the backslash included.
+ * A '#' or "%:" that starts a line, after blanks or a block comment only,
+ * followed by include, import or include_next, and __has_include or
+ * __has_include_next followed by a parenthesis, names the header between
+ * the quotes or the brackets after it. Blanks and block comments may come
+ * between, and lines a backslash continues are joined, blanks after the
+ * backslash included.
  *
- * Neither comments nor conditions are looked at, so a name in a comment, a
- * string or a branch not taken is read as well: the list may hold more than
- * the compiler includes, never less.
+ * Neither block comments nor conditions are looked at, so a name in a
+ * block comment or a branch not taken is read as well: the list may hold
+ * more than the compiler includes, never less.
  */
 [[nodiscard]] IncludeDirectives parseIncludeDirectives(std::string_view text);
 
