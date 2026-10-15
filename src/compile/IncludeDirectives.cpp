@@ -5,15 +5,33 @@
 #include <optional>
 #include <string>
 #include <string_view>
-#include <utility>
 
 namespace scrap::Compile {
 
 namespace {
 
 /**
+ * The index just past the line break that ends the line at @p index in
+ * @p text when only blanks and a carriage return lie between, or nothing.
+ */
+std::optional<std::size_t> endOfBlankLine(const std::string_view text, std::size_t index)
+{
+    while ((index < text.size()) && ((text[index] == ' ') || (text[index] == '\t'))) {
+        ++index;
+    }
+    if (text.substr(index).starts_with("\r\n")) {
+        return index + 2;
+    }
+    if (text.substr(index).starts_with('\n')) {
+        return index + 1;
+    }
+    return std::nullopt;
+}
+
+/**
  * @p text with each backslash at the end of a line removed together with
- * the line break, as the compiler joins the lines before reading directives.
+ * the blanks after it and the line break, as the compiler joins the lines
+ * before reading directives.
  */
 std::string joinContinuedLines(const std::string_view text)
 {
@@ -21,12 +39,8 @@ std::string joinContinuedLines(const std::string_view text)
     joined.reserve(text.size());
     for (std::size_t index = 0; index < text.size(); ++index) {
         if (text[index] == '\\') {
-            if (text.substr(index + 1).starts_with('\n')) {
-                ++index;
-                continue;
-            }
-            if (text.substr(index + 1).starts_with("\r\n")) {
-                index += 2;
+            if (const auto end = endOfBlankLine(text, index + 1); end.has_value()) {
+                index = *end - 1;
                 continue;
             }
         }
@@ -72,10 +86,18 @@ std::string_view identifierAt(const std::string_view text, const std::size_t ind
 }
 
 /**
+ * A header name read from between quotes or brackets.
+ */
+struct HeaderName {
+    std::string_view name;  ///< The name as written.
+    bool quoted;            ///< Whether it is between quotes.
+};
+
+/**
  * The header name between the quotes or the brackets starting at @p index in
  * @p text, or nothing when none starts there or it runs past the line.
  */
-std::optional<std::pair<std::string_view, bool>> headerNameAt(const std::string_view text, const std::size_t index)
+std::optional<HeaderName> headerNameAt(const std::string_view text, const std::size_t index)
 {
     if (index >= text.size()) {
         return std::nullopt;
@@ -88,7 +110,7 @@ std::optional<std::pair<std::string_view, bool>> headerNameAt(const std::string_
     if ((end == std::string_view::npos) || (text[end] == '\n')) {
         return std::nullopt;
     }
-    return std::pair{ text.substr(index + 1, end - index - 1), open == '"' };
+    return HeaderName{ .name = text.substr(index + 1, end - index - 1), .quoted = (open == '"') };
 }
 
 /**
@@ -102,11 +124,11 @@ void addName(IncludeDirectives& directives, const std::string_view text, const s
         directives.computed = true;
         return;
     }
-    IncludeKind kind = header->second ? IncludeKind::Quoted : IncludeKind::Angled;
+    IncludeKind kind = header->quoted ? IncludeKind::Quoted : IncludeKind::Angled;
     if (next) {
         kind = IncludeKind::Next;
     }
-    directives.names.push_back(IncludedName{ .name = std::filesystem::path{ header->first }, .kind = kind });
+    directives.names.push_back(IncludedName{ .name = std::filesystem::path{ header->name }, .kind = kind });
 }
 
 /**

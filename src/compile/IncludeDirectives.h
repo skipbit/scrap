@@ -42,7 +42,8 @@ struct IncludeDirectives {
  * A '#' or "%:" followed by include, import or include_next, and
  * __has_include or __has_include_next followed by a parenthesis, names the
  * header between the quotes or the brackets after it. Blanks and block
- * comments may come between, and lines a backslash continues are joined.
+ * comments may come between, and lines a backslash continues are joined,
+ * blanks after the backslash included.
  *
  * Neither comments nor conditions are looked at, so a name in a comment, a
  * string or a branch not taken is read as well: the list may hold more than
