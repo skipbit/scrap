@@ -487,7 +487,22 @@ TEST_F(StepObservationTest, WatchesTheNearestDirectoryThatIsThere)
     _temp.writeFile("include/lib/a.h", "int a;\n");
     writeDependencyFile("build/obj/main.o: src/main.cpp include/lib/a.h\n");
 
-    EXPECT_EQ(watchedDirectories(compileStep()), (Paths{ "include/lib", "src" }));
+    EXPECT_EQ(watchedDirectories(compileStep()), (Paths{ "include", "include/lib", "src" }));
+}
+
+/**
+ * Each directory from the one watched for a path up to the place the search
+ * starts from is watched, as a directory put in place with an old time
+ * changes the one it is put in.
+ */
+TEST_F(StepObservationTest, WatchesUpToThePlaceASearchStartsFrom)
+{
+    _temp.writeFile("src/main.cpp", "#include \"lib/a.h\"\n");
+    _temp.writeFile("src/lib/other.h", "int other;\n");
+    _temp.writeFile("include/lib/a.h", "int a;\n");
+    writeDependencyFile("build/obj/main.o: src/main.cpp include/lib/a.h\n");
+
+    EXPECT_EQ(watchedDirectories(compileStep()), (Paths{ "include", "include/lib", "src", "src/lib" }));
 }
 
 /**

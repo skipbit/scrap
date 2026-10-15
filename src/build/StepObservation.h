@@ -63,11 +63,13 @@ namespace scrap::Build {
  * @brief The directories to watch for a header that appears in place of one
  *        @p step read, relative to the step's directory, sorted.
  *
- * For every path observeStep() could look at, this is the nearest of
- * directoriesAbove() that is a directory now. If it was there when the step
- * started, a file appearing in it changes its time; if it was made while the
- * step ran, its own time is after the start. A file that appears while the
- * step runs is not among the absent paths of its record.
+ * For every path observeStep() could look at, these are the directories of
+ * directoriesAbove() from the nearest that is a directory now up to the
+ * outermost place the compiler looks in for this step. If the nearest was
+ * there when the step started, a file appearing in it changes its time; if
+ * it was made or put in place while the step ran, the one it was put in
+ * changes. A file that appears while the step runs is not among the absent
+ * paths of its record.
  *
  * @return The directories, none for a step that is not a compilation, or
  *         nothing when its dependency file cannot be read.

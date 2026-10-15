@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <ctime>
 #include <filesystem>
+#include <iterator>
 #include <optional>
 #include <set>
 #include <sys/stat.h>
@@ -152,17 +153,28 @@ std::optional<std::vector<Compile::HeaderSearch>> searchesOf(const BuildStep& st
 }
 
 /**
- * The first of the directories above @p path that is a directory, named
- * relative to @p directory like @p path.
+ * Add to @p watched the directories above @p path, named relative to
+ * @p directory like it, from the nearest that is a directory up to the
+ * outermost of @p places above it.
  */
-std::filesystem::path nearestDirectoryThatIsThere(const std::filesystem::path& path, const std::filesystem::path& directory)
+void addWatched(std::set<std::filesystem::path>& watched,
+                const std::filesystem::path& path,
+                const std::set<std::filesystem::path>& places,
+                const std::filesystem::path& directory)
 {
     const std::vector<std::filesystem::path> above = directoriesAbove(path);
     const auto there = std::ranges::find_if(above, [&directory](const std::filesystem::path& candidate) {
         std::error_code ec;
         return std::filesystem::is_directory(directory / candidate, ec);
     });
-    return (there == above.end()) ? above.back() : *there;
+    const auto first = (there == above.end()) ? std::prev(above.end()) : there;
+    auto last = first;
+    for (auto candidate = first; candidate != above.end(); ++candidate) {
+        if (places.contains(*candidate)) {
+            last = candidate;
+        }
+    }
+    watched.insert(first, std::next(last));
 }
 
 /**
@@ -275,10 +287,11 @@ std::optional<std::vector<std::filesystem::path>> watchedDirectories(const Build
     if (! searches.has_value()) {
         return std::nullopt;
     }
+    const std::set<std::filesystem::path> places = placesSearched(step, *files);
     std::set<std::filesystem::path> watched;
     for (const Compile::HeaderSearch& search : *searches) {
         for (const std::filesystem::path& path : search.paths) {
-            watched.insert(nearestDirectoryThatIsThere(path, step.directory));
+            addWatched(watched, path, places, step.directory);
         }
     }
     return std::vector<std::filesystem::path>{ watched.begin(), watched.end() };
