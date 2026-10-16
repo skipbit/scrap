@@ -178,7 +178,7 @@ TEST(DefaultHelpRendererTest, RenderCommand_WithSubcommands)
 
     spec.subcommands = { sub1, sub2 };
 
-    auto result = renderer.renderCommand(spec);
+    auto result = renderer.renderCommand(spec.name, spec);
 
     EXPECT_NE(result.find("USAGE: scrap toolchain"), std::string::npos);
     EXPECT_NE(result.find("<COMMAND>"), std::string::npos);
@@ -211,7 +211,7 @@ TEST(DefaultHelpRendererTest, RenderCommand_WithOptions)
     opt2.description = "Number of parallel jobs";
     spec.options.named.push_back(opt2);
 
-    auto result = renderer.renderCommand(spec);
+    auto result = renderer.renderCommand(spec.name, spec);
 
     EXPECT_NE(result.find("USAGE: scrap build [OPTIONS]"), std::string::npos);
     EXPECT_NE(result.find("OPTIONS:"), std::string::npos);
@@ -232,7 +232,7 @@ TEST(DefaultHelpRendererTest, RenderCommand_WithPositionalsInUsage)
     spec.options.positional.push_back(PositionalDef{ .name = "name", .description = "Project name", .required = true });
     spec.options.positional.push_back(PositionalDef{ .name = "path", .description = "Output path", .required = false });
 
-    auto result = renderer.renderCommand(spec);
+    auto result = renderer.renderCommand(spec.name, spec);
 
     EXPECT_NE(result.find("USAGE: scrap new <name> [path]"), std::string::npos);
 }
@@ -247,7 +247,7 @@ TEST(DefaultHelpRendererTest, RenderCommand_NoOptionsOmitsSection)
     spec.name = "clean";
     spec.description = "Clean build artifacts";
 
-    auto result = renderer.renderCommand(spec);
+    auto result = renderer.renderCommand(spec.name, spec);
 
     EXPECT_NE(result.find("USAGE: scrap clean"), std::string::npos);
     EXPECT_EQ(result.find("[OPTIONS]"), std::string::npos);
@@ -265,7 +265,7 @@ TEST(DefaultHelpRendererTest, RenderCommand_ShowsArgumentsAfterTheSeparator)
     spec.options.positional.push_back(PositionalDef{ .name = "path", .description = "", .required = false });
     spec.options.trailing = TrailingDef{ .name = "args", .description = "" };
 
-    auto result = renderer.renderCommand(spec);
+    auto result = renderer.renderCommand(spec.name, spec);
 
     EXPECT_NE(result.find("USAGE: scrap run [path] [-- <args>...]\n"), std::string::npos) << result;
 }
@@ -292,7 +292,7 @@ TEST(DefaultHelpRendererTest, RenderCommand_WithSubcommandsAndOptions)
     opt.description = "Verbose output";
     spec.options.named.push_back(opt);
 
-    auto result = renderer.renderCommand(spec);
+    auto result = renderer.renderCommand(spec.name, spec);
 
     EXPECT_NE(result.find("SUBCOMMANDS:"), std::string::npos);
     EXPECT_NE(result.find("OPTIONS:"), std::string::npos);
@@ -309,8 +309,23 @@ TEST(DefaultHelpRendererTest, RenderCommand_EmptyDescription)
     CommandSpec spec;
     spec.name = "clean";
 
-    auto result = renderer.renderCommand(spec);
+    auto result = renderer.renderCommand(spec.name, spec);
 
     EXPECT_NE(result.find("USAGE: scrap clean"), std::string::npos);
     EXPECT_EQ(result.find("\n\n"), std::string::npos);
+}
+
+/**
+ * A nested command is written in the USAGE line by its whole path.
+ */
+TEST(DefaultHelpRendererTest, RenderCommand_WritesThePathInUsage)
+{
+    DefaultHelpRenderer renderer;
+    CommandSpec spec;
+    spec.name = "list";
+    spec.description = "Display installed toolchains";
+
+    auto result = renderer.renderCommand("toolchain list", spec);
+
+    EXPECT_EQ(result, "USAGE: scrap toolchain list\n\nDisplay installed toolchains\n");
 }

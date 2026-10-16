@@ -58,11 +58,11 @@ public:
     }
 
     /**
-     * Return a fixed command help string including the command name.
+     * Return a fixed command help string including the command path and name.
      */
-    std::string renderCommand(const CommandSpec& spec) const override
+    std::string renderCommand(std::string_view path, const CommandSpec& spec) const override
     {
-        return "mock help for: " + spec.name + "\n";
+        return "mock help for: " + std::string{ path } + " (" + spec.name + ")\n";
     }
 };
 
@@ -310,7 +310,7 @@ TEST(ApplicationTest, Run_SubcommandPath)
 TEST(ApplicationTest, Run_GlobalHelp)
 {
     auto parser = std::make_unique<MockParserAdapter>();
-    parser->setResult(std::unexpected(ParseInterruption{ ParseDirective{ ParseDirectiveKind::HelpRequested, std::nullopt } }));
+    parser->setResult(std::unexpected(ParseInterruption{ ParseDirective{ ParseDirectiveKind::HelpRequested, {} } }));
 
     auto resolver = std::make_unique<MockResolver>();
     resolver->setEntries({ makeEntry("build") });
@@ -334,7 +334,7 @@ TEST(ApplicationTest, Run_GlobalHelp)
 TEST(ApplicationTest, Run_CommandHelp)
 {
     auto parser = std::make_unique<MockParserAdapter>();
-    parser->setResult(std::unexpected(ParseInterruption{ ParseDirective{ ParseDirectiveKind::HelpRequested, std::string{ "build" } } }));
+    parser->setResult(std::unexpected(ParseInterruption{ ParseDirective{ ParseDirectiveKind::HelpRequested, { "build" } } }));
 
     auto resolver = std::make_unique<MockResolver>();
     resolver->setEntries({ makeEntry("build") });
@@ -349,7 +349,7 @@ TEST(ApplicationTest, Run_CommandHelp)
     auto exitCode = app.run(argv, env);
 
     EXPECT_EQ(exitCode, 0);
-    EXPECT_NE(capture.str().find("mock help for: build"), std::string::npos);
+    EXPECT_EQ(capture.str(), "mock help for: build (build)\n");
 }
 
 /**
@@ -359,14 +359,14 @@ TEST(ApplicationTest, Run_HelpUnknownCommand)
 {
     auto parser = std::make_unique<MockParserAdapter>();
     parser->setResult(
-        std::unexpected(ParseInterruption{ ParseDirective{ ParseDirectiveKind::HelpRequested, std::string{ "nonexistent" } } }));
+        std::unexpected(ParseInterruption{ ParseDirective{ ParseDirectiveKind::HelpRequested, { "nonexistent" } } }));
 
     Application app(std::make_unique<MockParserAdapter>(), std::make_unique<MockHelpRenderer>(), std::make_unique<MockVersionRenderer>());
 
     // Use the pre-configured parser
     auto actualParser = std::make_unique<MockParserAdapter>();
     actualParser->setResult(
-        std::unexpected(ParseInterruption{ ParseDirective{ ParseDirectiveKind::HelpRequested, std::string{ "nonexistent" } } }));
+        std::unexpected(ParseInterruption{ ParseDirective{ ParseDirectiveKind::HelpRequested, { "nonexistent" } } }));
 
     Application app2(std::move(actualParser), std::make_unique<MockHelpRenderer>(), std::make_unique<MockVersionRenderer>());
 
@@ -380,13 +380,96 @@ TEST(ApplicationTest, Run_HelpUnknownCommand)
     EXPECT_EQ(capture.str(), "error: unknown command 'nonexistent'\nhint: run 'scrap --help' to list the commands\n");
 }
 
+namespace {
+
+/**
+ * Run an application with a parser that asks for the help of @p target, with
+ * "toolchain list" and "toolchain install" registered, and return what it
+ * wrote to standard output and standard error with its exit code.
+ */
+struct HelpOutcome {
+    int exitCode = 0;
+    std::string out;
+    std::string err;
+};
+
+HelpOutcome runHelpFor(std::vector<std::string> target)
+{
+    auto parser = std::make_unique<MockParserAdapter>();
+    parser->setResult(std::unexpected(ParseInterruption{ ParseDirective{ ParseDirectiveKind::HelpRequested, std::move(target) } }));
+    auto resolver = std::make_unique<MockResolver>();
+    resolver->setEntries({ makeEntryWithSubs("toolchain", { makeEntry("list"), makeEntry("install") }) });
+    Application app(std::move(parser), std::make_unique<MockHelpRenderer>(), std::make_unique<MockVersionRenderer>());
+    app.addResolver(std::move(resolver));
+
+    RuntimeEnvironment env;
+    const char* argv[] = { "scrap", "--help" };
+    StdoutCapture out;
+    StderrCapture err;
+    const int exitCode = app.run(argv, env);
+    return HelpOutcome{ .exitCode = exitCode, .out = out.str(), .err = err.str() };
+}
+
+}  // namespace
+
+/**
+ * A nested command is looked up by its path and named by it.
+ */
+TEST(ApplicationTest, Run_NestedCommandHelp)
+{
+    const HelpOutcome outcome = runHelpFor({ "toolchain", "list" });
+
+    EXPECT_EQ(outcome.exitCode, 0);
+    EXPECT_EQ(outcome.out, "mock help for: toolchain list (list)\n");
+    EXPECT_EQ(outcome.err, "");
+}
+
+/**
+ * A path that leaves a command with subcommands points at its list.
+ */
+TEST(ApplicationTest, Run_HelpUnknownNestedCommand)
+{
+    const HelpOutcome outcome = runHelpFor({ "toolchain", "nosuch" });
+
+    EXPECT_EQ(outcome.exitCode, 2);
+    EXPECT_EQ(outcome.out, "");
+    EXPECT_EQ(outcome.err,
+              "error: unknown command 'toolchain nosuch'\n"
+              "hint: run 'scrap toolchain --help' to list its commands\n");
+}
+
+/**
+ * A path that goes on past a command without subcommands points at its usage.
+ */
+TEST(ApplicationTest, Run_HelpPastACommandWithoutSubcommands)
+{
+    const HelpOutcome outcome = runHelpFor({ "toolchain", "list", "nosuch" });
+
+    EXPECT_EQ(outcome.exitCode, 2);
+    EXPECT_EQ(outcome.out, "");
+    EXPECT_EQ(outcome.err,
+              "error: unknown command 'toolchain list nosuch'\n"
+              "hint: run 'scrap toolchain list --help' for its usage\n");
+}
+
+/**
+ * A path whose first word names no command points at the global help.
+ */
+TEST(ApplicationTest, Run_HelpUnknownPathFromTheTop)
+{
+    const HelpOutcome outcome = runHelpFor({ "nosuch", "list" });
+
+    EXPECT_EQ(outcome.exitCode, 2);
+    EXPECT_EQ(outcome.err, "error: unknown command 'nosuch list'\nhint: run 'scrap --help' to list the commands\n");
+}
+
 /**
  * Version request outputs version string and returns 0.
  */
 TEST(ApplicationTest, Run_VersionRequested)
 {
     auto parser = std::make_unique<MockParserAdapter>();
-    parser->setResult(std::unexpected(ParseInterruption{ ParseDirective{ ParseDirectiveKind::VersionRequested, std::nullopt } }));
+    parser->setResult(std::unexpected(ParseInterruption{ ParseDirective{ ParseDirectiveKind::VersionRequested, {} } }));
 
     Application app(std::move(parser), std::make_unique<MockHelpRenderer>(), std::make_unique<MockVersionRenderer>());
 

@@ -77,11 +77,7 @@ public:
      */
     int execute(const InvocationContext& ctx) override
     {
-        std::optional<std::string_view> target;
-        if (! ctx.options.positional.empty()) {
-            target = ctx.options.positional[0];
-        }
-        return showHelp(*_renderer, *ctx.catalog, target);
+        return showHelp(*_renderer, *ctx.catalog, ctx.options.positional);
     }
 
 private:

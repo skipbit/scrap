@@ -31,10 +31,11 @@ public:
      * SUBCOMMANDS section (if any), and OPTIONS section (if any).
      * Empty sections are omitted entirely.
      *
+     * @param path Words naming the command, separated by spaces.
      * @param spec CommandSpec with subcommands and options populated.
      * @return Formatted command help string.
      */
-    [[nodiscard]] std::string renderCommand(const CommandSpec& spec) const override;
+    [[nodiscard]] std::string renderCommand(std::string_view path, const CommandSpec& spec) const override;
 };
 
 }  // namespace scrap::Command

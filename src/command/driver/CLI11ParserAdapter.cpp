@@ -13,7 +13,6 @@
 #include <exception>
 #include <expected>  // IWYU pragma: keep
 #include <memory>
-#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -204,16 +203,13 @@ void addSubcommands(CLI::App& root,
 }
 
 /**
- * Walk the parsed subcommand chain and build a dot-separated path.
+ * The parsed subcommand chain below @p app, outermost first.
  *
  * Starts from @p app and follows the first parsed child at each level.
- *
- * @return Dot-separated command path (e.g. "toolchain.install"), or
- *         empty string if no subcommand was parsed.
  */
-std::string buildCommandPath(const CLI::App& app)
+std::vector<const CLI::App*> parsedChain(const CLI::App& app)
 {
-    std::string path;
+    std::vector<const CLI::App*> chain;
     const CLI::App* current = &app;
 
     while (true) {
@@ -229,13 +225,28 @@ std::string buildCommandPath(const CLI::App& app)
             break;
         }
 
-        if (! path.empty()) {
-            path += '.';
-        }
-        path += parsed->get_name();
+        chain.push_back(parsed);
         current = parsed;
     }
 
+    return chain;
+}
+
+/**
+ * Walk the parsed subcommand chain and build a dot-separated path.
+ *
+ * @return Dot-separated command path (e.g. "toolchain.install"), or
+ *         empty string if no subcommand was parsed.
+ */
+std::string buildCommandPath(const CLI::App& app)
+{
+    std::string path;
+    for (const CLI::App* sub : parsedChain(app)) {
+        if (! path.empty()) {
+            path += '.';
+        }
+        path += sub->get_name();
+    }
     return path;
 }
 
@@ -279,18 +290,19 @@ ParsedOptions harvestOptions(const OptionStorage& storage)
  * Determine the help target from the parsed subcommand chain.
  *
  * When CLI11 throws CallForHelp, we need to know which subcommand
- * the user asked help for (e.g. "scrap build --help" -> target "build").
+ * the user asked help for (e.g. "scrap toolchain list --help" -> target
+ * "toolchain", "list").
  *
- * @return The command path if a subcommand was at least partially
- *         parsed, or nullopt for global help.
+ * @return The names of the parsed subcommands, outermost first, or none for
+ *         global help.
  */
-std::optional<std::string> determineHelpTarget(const CLI::App& app)
+std::vector<std::string> determineHelpTarget(const CLI::App& app)
 {
-    auto path = buildCommandPath(app);
-    if (path.empty()) {
-        return std::nullopt;
+    std::vector<std::string> target;
+    for (const CLI::App* sub : parsedChain(app)) {
+        target.push_back(sub->get_name());
     }
-    return path;
+    return target;
 }
 
 /**
@@ -371,9 +383,9 @@ ParseResult CLI11ParserAdapter::parse(std::span<const char* const> argv) const
     } catch (const CLI::CallForHelp&) {
         return std::unexpected(ParseInterruption{ ParseDirective{ ParseDirectiveKind::HelpRequested, determineHelpTarget(app) } });
     } catch (const CLI::CallForVersion&) {
-        return std::unexpected(ParseInterruption{ ParseDirective{ ParseDirectiveKind::VersionRequested, std::nullopt } });
+        return std::unexpected(ParseInterruption{ ParseDirective{ ParseDirectiveKind::VersionRequested, {} } });
     } catch (const CLI::CallForAllHelp&) {
-        return std::unexpected(ParseInterruption{ ParseDirective{ ParseDirectiveKind::HelpRequested, std::nullopt } });
+        return std::unexpected(ParseInterruption{ ParseDirective{ ParseDirectiveKind::HelpRequested, {} } });
     } catch (const CLI::ParseError& e) {
         return std::unexpected(ParseInterruption{ ParseFailure{ e.what() } });
     } catch (const std::exception& e) {

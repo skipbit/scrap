@@ -641,6 +641,30 @@ TEST_F(CliE2ETest, HelpForAnUnknownCommandWritesTheNameAsText)
     EXPECT_EQ(result.stderrText.find('\x07'), std::string::npos);
 }
 
+TEST_F(CliE2ETest, HelpForANestedCommandShowsItsUsage)
+{
+    auto result = runScrap({ "toolchain", "list", "--help" }, {}, _root);
+    auto shortFlag = runScrap({ "template", "update", "-h" }, {}, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 0);
+    EXPECT_TRUE(result.stderrText.empty()) << result.stderrText;
+    EXPECT_EQ(result.stdoutText, "USAGE: scrap toolchain list\n\nDisplay installed toolchains\n");
+    ASSERT_TRUE(shortFlag.exitedNormally);
+    EXPECT_EQ(shortFlag.exitCode, 0);
+    EXPECT_EQ(shortFlag.stdoutText, "USAGE: scrap template update\n\nUpdate template sources\n");
+}
+
+TEST_F(CliE2ETest, HelpForACommandWithSubcommandsListsThem)
+{
+    auto result = runScrap({ "toolchain", "--help" }, {}, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 0);
+    EXPECT_NE(result.stdoutText.find("USAGE: scrap toolchain <COMMAND>\n"), std::string::npos) << result.stdoutText;
+    EXPECT_NE(result.stdoutText.find("    list "), std::string::npos) << result.stdoutText;
+}
+
 // --- TS-06: unknown command -------------------------------------------------------
 
 TEST_F(CliE2ETest, UnknownCommand)

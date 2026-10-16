@@ -89,24 +89,24 @@ TEST(ParseResultTest, SuccessCase)
 
 TEST(ParseResultTest, HelpDirective)
 {
-    ParseResult result = std::unexpected(ParseInterruption{ ParseDirective{ ParseDirectiveKind::HelpRequested, "build" } });
+    ParseResult result = std::unexpected(ParseInterruption{ ParseDirective{ ParseDirectiveKind::HelpRequested, { "build" } } });
     EXPECT_FALSE(result.has_value());
 
     auto& interruption = result.error();
     EXPECT_TRUE(std::holds_alternative<ParseDirective>(interruption));
     auto& directive = std::get<ParseDirective>(interruption);
     EXPECT_EQ(directive.kind, ParseDirectiveKind::HelpRequested);
-    EXPECT_EQ(directive.target.value(), "build");
+    EXPECT_EQ(directive.target, std::vector<std::string>{ "build" });
 }
 
 TEST(ParseResultTest, VersionDirective)
 {
-    ParseResult result = std::unexpected(ParseInterruption{ ParseDirective{ ParseDirectiveKind::VersionRequested, std::nullopt } });
+    ParseResult result = std::unexpected(ParseInterruption{ ParseDirective{ ParseDirectiveKind::VersionRequested, {} } });
     EXPECT_FALSE(result.has_value());
 
     auto& directive = std::get<ParseDirective>(result.error());
     EXPECT_EQ(directive.kind, ParseDirectiveKind::VersionRequested);
-    EXPECT_FALSE(directive.target.has_value());
+    EXPECT_TRUE(directive.target.empty());
 }
 
 TEST(ParseResultTest, FailureCase)

@@ -405,8 +405,7 @@ TEST(CLI11ParserAdapterTest, Parse_NestedSubcommandHelp)
     ASSERT_FALSE(result.has_value());
     auto& directive = std::get<ParseDirective>(result.error());
     EXPECT_EQ(directive.kind, ParseDirectiveKind::HelpRequested);
-    ASSERT_TRUE(directive.target.has_value());
-    EXPECT_EQ(*directive.target, "toolchain.install");
+    EXPECT_EQ(directive.target, (std::vector<std::string>{ "toolchain", "install" }));
 }
 
 // =============================================================================
@@ -428,7 +427,7 @@ TEST(CLI11ParserAdapterTest, Parse_GlobalHelp)
 
     auto& directive = std::get<ParseDirective>(interruption);
     EXPECT_EQ(directive.kind, ParseDirectiveKind::HelpRequested);
-    EXPECT_FALSE(directive.target.has_value());
+    EXPECT_TRUE(directive.target.empty());
 }
 
 TEST(CLI11ParserAdapterTest, Parse_CommandHelp)
@@ -443,8 +442,7 @@ TEST(CLI11ParserAdapterTest, Parse_CommandHelp)
     ASSERT_FALSE(result.has_value());
     auto& directive = std::get<ParseDirective>(result.error());
     EXPECT_EQ(directive.kind, ParseDirectiveKind::HelpRequested);
-    ASSERT_TRUE(directive.target.has_value());
-    EXPECT_EQ(*directive.target, "build");
+    EXPECT_EQ(directive.target, std::vector<std::string>{ "build" });
 }
 
 TEST(CLI11ParserAdapterTest, Parse_VersionFlag)
@@ -459,7 +457,7 @@ TEST(CLI11ParserAdapterTest, Parse_VersionFlag)
     ASSERT_FALSE(result.has_value());
     auto& directive = std::get<ParseDirective>(result.error());
     EXPECT_EQ(directive.kind, ParseDirectiveKind::VersionRequested);
-    EXPECT_FALSE(directive.target.has_value());
+    EXPECT_TRUE(directive.target.empty());
 }
 
 TEST(CLI11ParserAdapterTest, Parse_VersionShortFlag)
@@ -626,5 +624,5 @@ TEST(CLI11ParserAdapterTest, Parse_HelpBeforeTheSeparatorIsStillHelp)
 
     ASSERT_FALSE(result.has_value());
     ASSERT_TRUE(std::holds_alternative<ParseDirective>(result.error()));
-    EXPECT_EQ(std::get<ParseDirective>(result.error()).target, "run");
+    EXPECT_EQ(std::get<ParseDirective>(result.error()).target, std::vector<std::string>{ "run" });
 }
