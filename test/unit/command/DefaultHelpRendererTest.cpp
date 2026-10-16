@@ -238,6 +238,23 @@ TEST(DefaultHelpRendererTest, RenderCommand_WithPositionalsInUsage)
 }
 
 /**
+ * A repeating positional is marked in the USAGE line.
+ */
+TEST(DefaultHelpRendererTest, RenderCommand_MarksARepeatingPositional)
+{
+    DefaultHelpRenderer renderer;
+    CommandSpec optional;
+    optional.name = "help";
+    optional.options.positional.push_back(PositionalDef{ .name = "command", .description = "", .required = false, .repeats = true });
+    CommandSpec required;
+    required.name = "add";
+    required.options.positional.push_back(PositionalDef{ .name = "file", .description = "", .required = true, .repeats = true });
+
+    EXPECT_EQ(renderer.renderCommand(optional.name, optional), "USAGE: scrap help [command]...\n");
+    EXPECT_EQ(renderer.renderCommand(required.name, required), "USAGE: scrap add <file>...\n");
+}
+
+/**
  * Command with no options should not show [OPTIONS] or OPTIONS section.
  */
 TEST(DefaultHelpRendererTest, RenderCommand_NoOptionsOmitsSection)

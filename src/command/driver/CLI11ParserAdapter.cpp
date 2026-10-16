@@ -35,6 +35,8 @@ namespace scrap::Command {
  */
 struct PositionalSlot {
     std::string value;
+    std::vector<std::string> values;  ///< Written instead of value when the positional repeats.
+    bool repeats = false;
     const CLI::Option* option = nullptr;
 };
 
@@ -151,7 +153,8 @@ void addPositional(CLI::App& app, const PositionalDef& def, OptionStorage& stora
 {
     storage.positionals.emplace_back();
     auto& slot = storage.positionals.back();
-    auto* opt = app.add_option(def.name, slot.value, def.description);
+    slot.repeats = def.repeats;
+    auto* opt = def.repeats ? app.add_option(def.name, slot.values, def.description) : app.add_option(def.name, slot.value, def.description);
     if (def.required) {
         opt->required();
     }
@@ -279,7 +282,12 @@ ParsedOptions harvestOptions(const OptionStorage& storage)
     }
 
     for (const PositionalSlot& slot : storage.positionals) {
-        if (slot.option->count() > 0) {
+        if (slot.option->count() == 0) {
+            continue;
+        }
+        if (slot.repeats) {
+            opts.positional.insert(opts.positional.end(), slot.values.begin(), slot.values.end());
+        } else {
             opts.positional.push_back(slot.value);
         }
     }

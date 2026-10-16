@@ -79,6 +79,9 @@ void appendUsageLine(std::ostringstream& out, std::string_view path, const Comma
         } else {
             out << " [" << positional.name << "]";
         }
+        if (positional.repeats) {
+            out << "...";
+        }
     }
     if (spec.options.trailing.has_value()) {
         out << " [-- <" << spec.options.trailing->name << ">...]";

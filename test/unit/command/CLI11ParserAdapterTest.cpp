@@ -324,6 +324,36 @@ TEST(CLI11ParserAdapterTest, Parse_OmittedOptionalPositionalIsAbsent)
     EXPECT_TRUE(result->options.positional.empty());
 }
 
+TEST(CLI11ParserAdapterTest, Parse_RepeatingPositionalTakesEveryWordLeft)
+{
+    CLI11ParserAdapter adapter;
+
+    CommandSpec spec = makeSpec("pick");
+    spec.options.positional.push_back(PositionalDef{
+        .name = "first",
+        .description = "First word",
+        .required = true,
+    });
+    spec.options.positional.push_back(PositionalDef{
+        .name = "rest",
+        .description = "Other words",
+        .required = false,
+        .repeats = true,
+    });
+
+    adapter.configure(std::vector{ spec });
+
+    ArgvBuilder argv{ "scrap", "pick", "alpha", "beta", "", "gamma" };
+    auto result = adapter.parse(argv.span());
+    ArgvBuilder omitted{ "scrap", "pick", "alpha" };
+    auto without = adapter.parse(omitted.span());
+
+    ASSERT_TRUE(result.has_value());
+    EXPECT_EQ(result->options.positional, (std::vector<std::string>{ "alpha", "beta", "", "gamma" }));
+    ASSERT_TRUE(without.has_value());
+    EXPECT_EQ(without->options.positional, std::vector<std::string>{ "alpha" });
+}
+
 TEST(CLI11ParserAdapterTest, Parse_OmittedTrailingPositionalKeepsTheGivenOnes)
 {
     CLI11ParserAdapter adapter;

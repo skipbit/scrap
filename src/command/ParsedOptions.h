@@ -15,7 +15,7 @@ struct ParsedOptions {
      * The positionals given on the command line, in declaration order.
      * Positionals fill from the front, so each value keeps its declared
      * index and an omitted optional positional shortens the sequence from
-     * the end.
+     * the end. A repeating positional adds each word it takes.
      */
     std::vector<std::string> positional;
 

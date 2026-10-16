@@ -31,6 +31,7 @@ struct PositionalDef {
     std::string name;
     std::string description;
     bool required = true;
+    bool repeats = false;  ///< Takes every word left; only the last positional repeats.
 };
 
 /**

@@ -271,7 +271,7 @@ std::vector<CommandEntry> BuiltinCommandResolver::resolve([[maybe_unused]] const
         entry.spec.description = "Display help information";
         entry.spec.category = "Built-in Commands";
         entry.spec.options.positional.push_back(
-            PositionalDef{ .name = "command", .description = "Command to get help for", .required = false });
+            PositionalDef{ .name = "command", .description = "Command to get help for", .required = false, .repeats = true });
         entry.source = CommandSource::Builtin;
         auto* renderer = _helpRenderer;
         entry.createHandler = [renderer](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
