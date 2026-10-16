@@ -696,6 +696,50 @@ TEST_F(CliE2ETest, HelpPastACommandWithoutSubcommandsFails)
     EXPECT_EQ(result.stderrText, "error: unknown command 'clean nosuch'\nhint: run 'scrap clean --help' for its usage\n");
 }
 
+TEST_F(CliE2ETest, HelpFlagAfterAnUnknownNestedCommandFails)
+{
+    auto before = runScrap({ "toolchain", "nosuch", "--help" }, {}, _root);
+    auto after = runScrap({ "toolchain", "--help", "nosuch" }, {}, _root);
+
+    for (const auto& result : { before, after }) {
+        ASSERT_TRUE(result.exitedNormally);
+        EXPECT_EQ(result.exitCode, 2);
+        EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+        EXPECT_EQ(result.stderrText, "error: unknown command 'toolchain nosuch'\nhint: run 'scrap toolchain --help' to list its commands\n");
+    }
+}
+
+TEST_F(CliE2ETest, HelpFlagPastACommandWithoutSubcommandsFails)
+{
+    auto result = runScrap({ "toolchain", "list", "nosuch", "--help" }, {}, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 2);
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    EXPECT_EQ(result.stderrText, "error: unknown command 'toolchain list nosuch'\nhint: run 'scrap toolchain list --help' for its usage\n");
+}
+
+TEST_F(CliE2ETest, HelpFlagAfterAnUnknownCommandFails)
+{
+    auto result = runScrap({ "nosuch", "--help" }, {}, _root);
+    auto words = runScrap({ "help", "nosuch" }, {}, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 2);
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    EXPECT_EQ(result.stderrText, words.stderrText);
+}
+
+TEST_F(CliE2ETest, HelpFlagAfterAPositionalShowsTheCommand)
+{
+    auto result = runScrap({ "clean", "somepath", "--help" }, {}, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 0);
+    EXPECT_TRUE(result.stderrText.empty()) << result.stderrText;
+    EXPECT_NE(result.stdoutText.find("USAGE: scrap clean [path]\n"), std::string::npos) << result.stdoutText;
+}
+
 TEST_F(CliE2ETest, HelpForACommandWithSubcommandsListsThem)
 {
     auto result = runScrap({ "toolchain", "--help" }, {}, _root);

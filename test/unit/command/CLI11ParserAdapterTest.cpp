@@ -438,6 +438,25 @@ TEST(CLI11ParserAdapterTest, Parse_NestedSubcommandHelp)
     EXPECT_EQ(directive.target, (std::vector<std::string>{ "toolchain", "install" }));
 }
 
+TEST(CLI11ParserAdapterTest, Parse_HelpKeepsTheWordsLeftOver)
+{
+    CLI11ParserAdapter adapter;
+
+    std::vector<CommandSpec> specs = { makeSpecWithSubs("toolchain", { makeSpec("list", "List") }) };
+    adapter.configure(specs);
+
+    const auto targetOf = [&adapter](ArgvBuilder argv) {
+        auto result = adapter.parse(argv.span());
+        EXPECT_FALSE(result.has_value());
+        return result.has_value() ? std::vector<std::string>{} : std::get<ParseDirective>(result.error()).target;
+    };
+
+    EXPECT_EQ(targetOf({ "scrap", "toolchain", "nosuch", "--help" }), (std::vector<std::string>{ "toolchain", "nosuch" }));
+    EXPECT_EQ(targetOf({ "scrap", "toolchain", "--help", "a", "b" }), (std::vector<std::string>{ "toolchain", "a", "b" }));
+    EXPECT_EQ(targetOf({ "scrap", "nosuch", "--help" }), std::vector<std::string>{ "nosuch" });
+    EXPECT_EQ(targetOf({ "scrap", "toolchain", "--bogus", "--help" }), std::vector<std::string>{ "toolchain" });
+}
+
 // =============================================================================
 // Help / Version directives
 // =============================================================================
