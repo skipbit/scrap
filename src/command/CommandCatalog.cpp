@@ -59,28 +59,8 @@ const CommandEntry* CommandCatalog::find(const std::string& commandPath) const
         segments.push_back(std::move(segment));
     }
 
-    if (segments.empty()) {
-        return nullptr;
-    }
-
-    // Walk the tree level by level.
-    const std::vector<CommandEntry>* currentLevel = &_entries;
-    const CommandEntry* found = nullptr;
-
-    for (const auto& seg : segments) {
-        const auto it = std::ranges::find_if(*currentLevel, [&](const CommandEntry& entry) {
-            return entry.spec.name == seg;
-        });
-
-        if (it == currentLevel->end()) {
-            return nullptr;
-        }
-
-        found = &(*it);
-        currentLevel = &found->subcommands;
-    }
-
-    return found;
+    const PathMatch found = match(segments);
+    return (found.depth == segments.size()) ? found.deepest : nullptr;
 }
 
 CommandCatalog::PathMatch CommandCatalog::match(std::span<const std::string> words) const
