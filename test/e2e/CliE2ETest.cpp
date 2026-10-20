@@ -641,6 +641,127 @@ TEST_F(CliE2ETest, HelpForAnUnknownCommandWritesTheNameAsText)
     EXPECT_EQ(result.stderrText.find('\x07'), std::string::npos);
 }
 
+TEST_F(CliE2ETest, HelpForANestedCommandShowsItsUsage)
+{
+    auto result = runScrap({ "toolchain", "list", "--help" }, {}, _root);
+    auto shortFlag = runScrap({ "template", "update", "-h" }, {}, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 0);
+    EXPECT_TRUE(result.stderrText.empty()) << result.stderrText;
+    EXPECT_EQ(result.stdoutText, "USAGE: scrap toolchain list\n\nDisplay installed toolchains\n");
+    ASSERT_TRUE(shortFlag.exitedNormally);
+    EXPECT_EQ(shortFlag.exitCode, 0);
+    EXPECT_EQ(shortFlag.stdoutText, "USAGE: scrap template update\n\nUpdate template sources\n");
+}
+
+TEST_F(CliE2ETest, HelpForANestedCommandTakesItsWords)
+{
+    auto result = runScrap({ "help", "toolchain", "list" }, {}, _root);
+    auto flag = runScrap({ "toolchain", "list", "--help" }, {}, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 0);
+    EXPECT_TRUE(result.stderrText.empty()) << result.stderrText;
+    EXPECT_EQ(result.stdoutText, "USAGE: scrap toolchain list\n\nDisplay installed toolchains\n");
+    EXPECT_EQ(result.stdoutText, flag.stdoutText);
+}
+
+TEST_F(CliE2ETest, HelpShowsItTakesSeveralWords)
+{
+    auto result = runScrap({ "help", "help" }, {}, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 0);
+    EXPECT_NE(result.stdoutText.find("USAGE: scrap help [command]...\n"), std::string::npos) << result.stdoutText;
+}
+
+TEST_F(CliE2ETest, HelpForAnUnknownNestedCommandFails)
+{
+    auto result = runScrap({ "help", "toolchain", "nosuch" }, {}, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 2);
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    EXPECT_EQ(result.stderrText, "error: unknown command 'toolchain nosuch'\nhint: run 'scrap toolchain --help' to list its commands\n");
+}
+
+TEST_F(CliE2ETest, HelpPastACommandWithoutSubcommandsFails)
+{
+    auto result = runScrap({ "help", "clean", "nosuch" }, {}, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 2);
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    EXPECT_EQ(result.stderrText, "error: unknown command 'clean nosuch'\nhint: run 'scrap clean --help' for its usage\n");
+}
+
+TEST_F(CliE2ETest, HelpFlagAfterAnUnknownNestedCommandFails)
+{
+    auto before = runScrap({ "toolchain", "nosuch", "--help" }, {}, _root);
+    auto after = runScrap({ "toolchain", "--help", "nosuch" }, {}, _root);
+
+    for (const auto& result : { before, after }) {
+        ASSERT_TRUE(result.exitedNormally);
+        EXPECT_EQ(result.exitCode, 2);
+        EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+        EXPECT_EQ(result.stderrText, "error: unknown command 'toolchain nosuch'\nhint: run 'scrap toolchain --help' to list its commands\n");
+    }
+}
+
+TEST_F(CliE2ETest, HelpFlagAfterAnUnknownWordBeforeACommandFails)
+{
+    auto result = runScrap({ "toolchain", "nosuch", "list", "--help" }, {}, _root);
+    auto words = runScrap({ "help", "toolchain", "nosuch", "list" }, {}, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 2);
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    EXPECT_EQ(result.stderrText, "error: unknown command 'toolchain nosuch list'\nhint: run 'scrap toolchain --help' to list its commands\n");
+    EXPECT_EQ(result.stderrText, words.stderrText);
+}
+
+TEST_F(CliE2ETest, HelpFlagPastACommandWithoutSubcommandsFails)
+{
+    auto result = runScrap({ "toolchain", "list", "nosuch", "--help" }, {}, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 2);
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    EXPECT_EQ(result.stderrText, "error: unknown command 'toolchain list nosuch'\nhint: run 'scrap toolchain list --help' for its usage\n");
+}
+
+TEST_F(CliE2ETest, HelpFlagAfterAnUnknownCommandFails)
+{
+    auto result = runScrap({ "nosuch", "--help" }, {}, _root);
+    auto words = runScrap({ "help", "nosuch" }, {}, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 2);
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    EXPECT_EQ(result.stderrText, words.stderrText);
+}
+
+TEST_F(CliE2ETest, HelpFlagAfterAPositionalShowsTheCommand)
+{
+    auto result = runScrap({ "clean", "somepath", "--help" }, {}, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 0);
+    EXPECT_TRUE(result.stderrText.empty()) << result.stderrText;
+    EXPECT_NE(result.stdoutText.find("USAGE: scrap clean [path]\n"), std::string::npos) << result.stdoutText;
+}
+
+TEST_F(CliE2ETest, HelpForACommandWithSubcommandsListsThem)
+{
+    auto result = runScrap({ "toolchain", "--help" }, {}, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 0);
+    EXPECT_NE(result.stdoutText.find("USAGE: scrap toolchain <COMMAND>\n"), std::string::npos) << result.stdoutText;
+    EXPECT_NE(result.stdoutText.find("    list "), std::string::npos) << result.stdoutText;
+}
+
 // --- TS-06: unknown command -------------------------------------------------------
 
 TEST_F(CliE2ETest, UnknownCommand)

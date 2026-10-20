@@ -4,9 +4,9 @@
 
 #include <cstdint>
 #include <expected>
-#include <optional>
 #include <string>
 #include <variant>
+#include <vector>
 
 namespace scrap::Command {
 
@@ -22,7 +22,7 @@ enum class ParseDirectiveKind : std::uint8_t {
 
 struct ParseDirective {
     ParseDirectiveKind kind = ParseDirectiveKind::HelpRequested;
-    std::optional<std::string> target;
+    std::vector<std::string> target;  ///< Words naming the command to show; none for the global help.
 };
 
 struct ParseFailure {

@@ -77,11 +77,7 @@ public:
      */
     int execute(const InvocationContext& ctx) override
     {
-        std::optional<std::string_view> target;
-        if (! ctx.options.positional.empty()) {
-            target = ctx.options.positional[0];
-        }
-        return showHelp(*_renderer, *ctx.catalog, target);
+        return showHelp(*_renderer, *ctx.catalog, ctx.options.positional);
     }
 
 private:
@@ -275,7 +271,7 @@ std::vector<CommandEntry> BuiltinCommandResolver::resolve([[maybe_unused]] const
         entry.spec.description = "Display help information";
         entry.spec.category = "Built-in Commands";
         entry.spec.options.positional.push_back(
-            PositionalDef{ .name = "command", .description = "Command to get help for", .required = false });
+            PositionalDef{ .name = "command", .description = "Command to get help for", .required = false, .repeats = true });
         entry.source = CommandSource::Builtin;
         auto* renderer = _helpRenderer;
         entry.createHandler = [renderer](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {

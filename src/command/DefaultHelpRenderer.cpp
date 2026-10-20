@@ -11,6 +11,7 @@
 #include <span>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace scrap::Command {
@@ -63,9 +64,9 @@ void appendSectionHeader(std::ostringstream& out, const std::string& title)
 /**
  * Build a USAGE line including positional arguments.
  */
-void appendUsageLine(std::ostringstream& out, const CommandSpec& spec)
+void appendUsageLine(std::ostringstream& out, std::string_view path, const CommandSpec& spec)
 {
-    out << "USAGE: scrap " << spec.name;
+    out << "USAGE: scrap " << path;
     if (! spec.options.named.empty()) {
         out << " [OPTIONS]";
     }
@@ -77,6 +78,9 @@ void appendUsageLine(std::ostringstream& out, const CommandSpec& spec)
             out << " <" << positional.name << ">";
         } else {
             out << " [" << positional.name << "]";
+        }
+        if (positional.repeats) {
+            out << "...";
         }
     }
     if (spec.options.trailing.has_value()) {
@@ -156,11 +160,11 @@ std::string DefaultHelpRenderer::renderGlobal(std::span<const HelpEntry> entries
 /**
  * Render help for a single command with usage, subcommands, and options.
  */
-std::string DefaultHelpRenderer::renderCommand(const CommandSpec& spec) const
+std::string DefaultHelpRenderer::renderCommand(std::string_view path, const CommandSpec& spec) const
 {
     std::ostringstream out;
 
-    appendUsageLine(out, spec);
+    appendUsageLine(out, path, spec);
 
     if (! spec.description.empty()) {
         out << Newline << spec.description << '\n';

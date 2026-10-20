@@ -34,7 +34,7 @@ public:
     /**
      * Return a fixed command help string.
      */
-    std::string renderCommand([[maybe_unused]] const CommandSpec& spec) const override
+    std::string renderCommand([[maybe_unused]] std::string_view path, [[maybe_unused]] const CommandSpec& spec) const override
     {
         return "command help";
     }

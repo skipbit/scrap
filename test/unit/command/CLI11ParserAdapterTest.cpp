@@ -324,6 +324,36 @@ TEST(CLI11ParserAdapterTest, Parse_OmittedOptionalPositionalIsAbsent)
     EXPECT_TRUE(result->options.positional.empty());
 }
 
+TEST(CLI11ParserAdapterTest, Parse_RepeatingPositionalTakesEveryWordLeft)
+{
+    CLI11ParserAdapter adapter;
+
+    CommandSpec spec = makeSpec("pick");
+    spec.options.positional.push_back(PositionalDef{
+        .name = "first",
+        .description = "First word",
+        .required = true,
+    });
+    spec.options.positional.push_back(PositionalDef{
+        .name = "rest",
+        .description = "Other words",
+        .required = false,
+        .repeats = true,
+    });
+
+    adapter.configure(std::vector{ spec });
+
+    ArgvBuilder argv{ "scrap", "pick", "alpha", "beta", "", "gamma" };
+    auto result = adapter.parse(argv.span());
+    ArgvBuilder omitted{ "scrap", "pick", "alpha" };
+    auto without = adapter.parse(omitted.span());
+
+    ASSERT_TRUE(result.has_value());
+    EXPECT_EQ(result->options.positional, (std::vector<std::string>{ "alpha", "beta", "", "gamma" }));
+    ASSERT_TRUE(without.has_value());
+    EXPECT_EQ(without->options.positional, std::vector<std::string>{ "alpha" });
+}
+
 TEST(CLI11ParserAdapterTest, Parse_OmittedTrailingPositionalKeepsTheGivenOnes)
 {
     CLI11ParserAdapter adapter;
@@ -405,8 +435,27 @@ TEST(CLI11ParserAdapterTest, Parse_NestedSubcommandHelp)
     ASSERT_FALSE(result.has_value());
     auto& directive = std::get<ParseDirective>(result.error());
     EXPECT_EQ(directive.kind, ParseDirectiveKind::HelpRequested);
-    ASSERT_TRUE(directive.target.has_value());
-    EXPECT_EQ(*directive.target, "toolchain.install");
+    EXPECT_EQ(directive.target, (std::vector<std::string>{ "toolchain", "install" }));
+}
+
+TEST(CLI11ParserAdapterTest, Parse_HelpKeepsTheWordsLeftOver)
+{
+    CLI11ParserAdapter adapter;
+
+    std::vector<CommandSpec> specs = { makeSpecWithSubs("toolchain", { makeSpec("list", "List") }) };
+    adapter.configure(specs);
+
+    const auto targetOf = [&adapter](ArgvBuilder argv) {
+        auto result = adapter.parse(argv.span());
+        EXPECT_FALSE(result.has_value());
+        return result.has_value() ? std::vector<std::string>{} : std::get<ParseDirective>(result.error()).target;
+    };
+
+    EXPECT_EQ(targetOf({ "scrap", "toolchain", "nosuch", "--help" }), (std::vector<std::string>{ "toolchain", "nosuch" }));
+    EXPECT_EQ(targetOf({ "scrap", "toolchain", "--help", "a", "b" }), (std::vector<std::string>{ "toolchain", "a", "b" }));
+    EXPECT_EQ(targetOf({ "scrap", "nosuch", "--help" }), std::vector<std::string>{ "nosuch" });
+    EXPECT_EQ(targetOf({ "scrap", "toolchain", "nosuch", "list", "--help" }), (std::vector<std::string>{ "toolchain", "nosuch", "list" }));
+    EXPECT_EQ(targetOf({ "scrap", "toolchain", "--bogus", "--help" }), std::vector<std::string>{ "toolchain" });
 }
 
 // =============================================================================
@@ -428,7 +477,7 @@ TEST(CLI11ParserAdapterTest, Parse_GlobalHelp)
 
     auto& directive = std::get<ParseDirective>(interruption);
     EXPECT_EQ(directive.kind, ParseDirectiveKind::HelpRequested);
-    EXPECT_FALSE(directive.target.has_value());
+    EXPECT_TRUE(directive.target.empty());
 }
 
 TEST(CLI11ParserAdapterTest, Parse_CommandHelp)
@@ -443,8 +492,7 @@ TEST(CLI11ParserAdapterTest, Parse_CommandHelp)
     ASSERT_FALSE(result.has_value());
     auto& directive = std::get<ParseDirective>(result.error());
     EXPECT_EQ(directive.kind, ParseDirectiveKind::HelpRequested);
-    ASSERT_TRUE(directive.target.has_value());
-    EXPECT_EQ(*directive.target, "build");
+    EXPECT_EQ(directive.target, std::vector<std::string>{ "build" });
 }
 
 TEST(CLI11ParserAdapterTest, Parse_VersionFlag)
@@ -459,7 +507,7 @@ TEST(CLI11ParserAdapterTest, Parse_VersionFlag)
     ASSERT_FALSE(result.has_value());
     auto& directive = std::get<ParseDirective>(result.error());
     EXPECT_EQ(directive.kind, ParseDirectiveKind::VersionRequested);
-    EXPECT_FALSE(directive.target.has_value());
+    EXPECT_TRUE(directive.target.empty());
 }
 
 TEST(CLI11ParserAdapterTest, Parse_VersionShortFlag)
@@ -626,5 +674,5 @@ TEST(CLI11ParserAdapterTest, Parse_HelpBeforeTheSeparatorIsStillHelp)
 
     ASSERT_FALSE(result.has_value());
     ASSERT_TRUE(std::holds_alternative<ParseDirective>(result.error()));
-    EXPECT_EQ(std::get<ParseDirective>(result.error()).target, "run");
+    EXPECT_EQ(std::get<ParseDirective>(result.error()).target, std::vector<std::string>{ "run" });
 }

@@ -5,7 +5,9 @@
 #include "command/HelpRenderer.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <iostream>
+#include <span>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -57,28 +59,26 @@ const CommandEntry* CommandCatalog::find(const std::string& commandPath) const
         segments.push_back(std::move(segment));
     }
 
-    if (segments.empty()) {
-        return nullptr;
-    }
+    const PathMatch found = match(segments);
+    return (found.depth == segments.size()) ? found.deepest : nullptr;
+}
 
-    // Walk the tree level by level.
-    const std::vector<CommandEntry>* currentLevel = &_entries;
-    const CommandEntry* found = nullptr;
-
-    for (const auto& seg : segments) {
-        const auto it = std::ranges::find_if(*currentLevel, [&](const CommandEntry& entry) {
-            return entry.spec.name == seg;
+CommandCatalog::PathMatch CommandCatalog::match(std::span<const std::string> words) const
+{
+    PathMatch result;
+    const std::vector<CommandEntry>* level = &_entries;
+    for (const auto& word : words) {
+        const auto it = std::ranges::find_if(*level, [&](const CommandEntry& entry) {
+            return entry.spec.name == word;
         });
-
-        if (it == currentLevel->end()) {
-            return nullptr;
+        if (it == level->end()) {
+            break;
         }
-
-        found = &(*it);
-        currentLevel = &found->subcommands;
+        result.deepest = &*it;
+        ++result.depth;
+        level = &it->subcommands;
     }
-
-    return found;
+    return result;
 }
 
 std::vector<CommandSpec> CommandCatalog::specs() const
@@ -87,7 +87,7 @@ std::vector<CommandSpec> CommandCatalog::specs() const
     result.reserve(_entries.size());
 
     for (const auto& entry : _entries) {
-        result.push_back(buildSpec(entry));
+        result.push_back(specOf(entry));
     }
 
     return result;
@@ -99,16 +99,14 @@ std::vector<HelpEntry> CommandCatalog::helpEntries() const
     result.reserve(_entries.size());
 
     for (const auto& entry : _entries) {
-        result.push_back(HelpEntry{ buildSpec(entry), entry.source });
+        result.push_back(HelpEntry{ specOf(entry), entry.source });
     }
 
     return result;
 }
 
-// --- Private helpers ----------------------------------------------------------
-
 // NOLINTNEXTLINE(readability-function-size) - iterative BFS requires local struct + loop state
-CommandSpec CommandCatalog::buildSpec(const CommandEntry& entry)
+CommandSpec CommandCatalog::specOf(const CommandEntry& entry)
 {
     CommandSpec root = entry.spec;
     root.subcommands.clear();
