@@ -299,25 +299,26 @@ ParsedOptions harvestOptions(const OptionStorage& storage)
  *
  * When CLI11 throws CallForHelp, we need to know which subcommand
  * the user asked help for (e.g. "scrap toolchain list --help" -> target
- * "toolchain", "list"). The words the deepest command left unparsed follow,
+ * "toolchain", "list"). The words a command left unparsed follow its name,
  * as they name no command below it; an option left over is not one of them.
  *
- * @return The names of the parsed subcommands, outermost first, then the
- *         words left over, or none for global help.
+ * @return The names of the parsed subcommands, outermost first, each with
+ *         the words it left over, or none for global help.
  */
 std::vector<std::string> determineHelpTarget(const CLI::App& app)
 {
-    const std::vector<const CLI::App*> chain = parsedChain(app);
     std::vector<std::string> target;
-    target.reserve(chain.size());
-    for (const CLI::App* sub : chain) {
-        target.push_back(sub->get_name());
-    }
-    const CLI::App& deepest = chain.empty() ? app : *chain.back();
-    for (std::string& word : deepest.remaining()) {
-        if (! word.starts_with('-')) {
-            target.push_back(std::move(word));
+    const auto addLeftOver = [&target](const CLI::App& command) {
+        for (std::string& word : command.remaining()) {
+            if (! word.starts_with('-')) {
+                target.push_back(std::move(word));
+            }
         }
+    };
+    addLeftOver(app);
+    for (const CLI::App* sub : parsedChain(app)) {
+        target.push_back(sub->get_name());
+        addLeftOver(*sub);
     }
     return target;
 }

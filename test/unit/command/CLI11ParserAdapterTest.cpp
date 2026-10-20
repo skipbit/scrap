@@ -454,6 +454,7 @@ TEST(CLI11ParserAdapterTest, Parse_HelpKeepsTheWordsLeftOver)
     EXPECT_EQ(targetOf({ "scrap", "toolchain", "nosuch", "--help" }), (std::vector<std::string>{ "toolchain", "nosuch" }));
     EXPECT_EQ(targetOf({ "scrap", "toolchain", "--help", "a", "b" }), (std::vector<std::string>{ "toolchain", "a", "b" }));
     EXPECT_EQ(targetOf({ "scrap", "nosuch", "--help" }), std::vector<std::string>{ "nosuch" });
+    EXPECT_EQ(targetOf({ "scrap", "toolchain", "nosuch", "list", "--help" }), (std::vector<std::string>{ "toolchain", "nosuch", "list" }));
     EXPECT_EQ(targetOf({ "scrap", "toolchain", "--bogus", "--help" }), std::vector<std::string>{ "toolchain" });
 }
 

@@ -709,6 +709,18 @@ TEST_F(CliE2ETest, HelpFlagAfterAnUnknownNestedCommandFails)
     }
 }
 
+TEST_F(CliE2ETest, HelpFlagAfterAnUnknownWordBeforeACommandFails)
+{
+    auto result = runScrap({ "toolchain", "nosuch", "list", "--help" }, {}, _root);
+    auto words = runScrap({ "help", "toolchain", "nosuch", "list" }, {}, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 2);
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    EXPECT_EQ(result.stderrText, "error: unknown command 'toolchain nosuch list'\nhint: run 'scrap toolchain --help' to list its commands\n");
+    EXPECT_EQ(result.stderrText, words.stderrText);
+}
+
 TEST_F(CliE2ETest, HelpFlagPastACommandWithoutSubcommandsFails)
 {
     auto result = runScrap({ "toolchain", "list", "nosuch", "--help" }, {}, _root);
