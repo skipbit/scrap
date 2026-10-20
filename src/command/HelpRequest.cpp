@@ -1,16 +1,13 @@
 #include "command/HelpRequest.h"
 
 #include "command/CommandCatalog.h"
-#include "command/CommandSpec.h"
 #include "command/HelpRenderer.h"
 #include "command/PrintableText.h"
 
-#include <algorithm>
 #include <cstddef>
 #include <iostream>
 #include <span>
 #include <string>
-#include <vector>
 
 namespace scrap::Command {
 
@@ -35,19 +32,19 @@ std::string joined(std::span<const std::string> words)
 
 /**
  * Report that @p target names no command, pointing at the help of the
- * deepest command found along it, the first @p depth words, which is
- * @p found, or at the global help when no word names a command.
+ * deepest command @p found along it, or at the global help when no word
+ * names a command.
  */
-int reportUnknown(std::span<const std::string> target, std::size_t depth, const CommandSpec* found)
+int reportUnknown(std::span<const std::string> target, const CommandCatalog::PathMatch& found)
 {
     // The name is quoted so that an empty one still reads as a name.
     std::cerr << "error: unknown command '" << printableText(joined(target)) << "'\n";
-    if (found == nullptr) {
+    if (found.deepest == nullptr) {
         std::cerr << "hint: run 'scrap --help' to list the commands\n";
-    } else if (found->subcommands.empty()) {
-        std::cerr << "hint: run 'scrap " << printableText(joined(target.first(depth))) << " --help' for its usage\n";
+    } else if (found.deepest->subcommands.empty()) {
+        std::cerr << "hint: run 'scrap " << printableText(joined(target.first(found.depth))) << " --help' for its usage\n";
     } else {
-        std::cerr << "hint: run 'scrap " << printableText(joined(target.first(depth))) << " --help' to list its commands\n";
+        std::cerr << "hint: run 'scrap " << printableText(joined(target.first(found.depth))) << " --help' to list its commands\n";
     }
     return UsageErrorExitCode;
 }
@@ -56,22 +53,15 @@ int reportUnknown(std::span<const std::string> target, std::size_t depth, const 
 
 int showHelp(const HelpRenderer& renderer, const CommandCatalog& catalog, std::span<const std::string> target)
 {
-    const std::vector<CommandSpec> specs = catalog.specs();
-    const CommandSpec* found = nullptr;
-    for (std::size_t depth = 0; depth < target.size(); ++depth) {
-        const std::vector<CommandSpec>& candidates = (found == nullptr) ? specs : found->subcommands;
-        const auto match = std::ranges::find(candidates, target[depth], &CommandSpec::name);
-        if (match == candidates.end()) {
-            return reportUnknown(target, depth, found);
-        }
-        found = &*match;
-    }
-    // Only a target without words leaves nothing found.
-    if (found == nullptr) {
+    if (target.empty()) {
         std::cout << renderer.renderGlobal(catalog.helpEntries());
-    } else {
-        std::cout << renderer.renderCommand(joined(target), *found);
+        return 0;
     }
+    const auto found = catalog.match(target);
+    if (found.depth != target.size()) {
+        return reportUnknown(target, found);
+    }
+    std::cout << renderer.renderCommand(joined(target), CommandCatalog::specOf(*found.deepest));
     return 0;
 }
 

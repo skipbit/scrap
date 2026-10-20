@@ -3,6 +3,8 @@
 #include "command/CommandEntry.h"
 #include "command/HelpRenderer.h"
 
+#include <cstddef>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -53,6 +55,25 @@ public:
      */
     [[nodiscard]] const CommandEntry* find(const std::string& commandPath) const;
 
+    /// What a path of words names: the deepest command they reach and how many words named one.
+    struct PathMatch {
+        const CommandEntry* deepest = nullptr;
+        std::size_t depth = 0;
+    };
+
+    /**
+     * @brief Walk the tree by a path of command names.
+     *
+     * Each word is matched exactly against the commands of the
+     * current level; the walk stops at the first word that names no
+     * command.
+     *
+     * @param words Command names from the top level down.
+     * @return The deepest command reached and the number of words
+     *         that named one; @c deepest is @c nullptr when no word did.
+     */
+    [[nodiscard]] PathMatch match(std::span<const std::string> words) const;
+
     /**
      * @brief Derive a CommandSpec tree from the stored entries.
      *
@@ -73,16 +94,16 @@ public:
      */
     [[nodiscard]] std::vector<HelpEntry> helpEntries() const;
 
-private:
-    std::vector<CommandEntry> _entries;
-
     /**
      * @brief Recursively build a CommandSpec from a CommandEntry.
      *
      * Copies spec fields and populates subcommands by walking the
      * entry's subcommand tree depth-first.
      */
-    static CommandSpec buildSpec(const CommandEntry& entry);
+    [[nodiscard]] static CommandSpec specOf(const CommandEntry& entry);
+
+private:
+    std::vector<CommandEntry> _entries;
 };
 
 }  // namespace scrap::Command

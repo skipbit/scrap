@@ -303,3 +303,85 @@ TEST(CommandCatalogTest, HelpEntries_EmptyCatalog)
     auto helpList = catalog.helpEntries();
     EXPECT_TRUE(helpList.empty());
 }
+
+// --- match ---
+
+namespace {
+
+CommandCatalog makeToolchainCatalog()
+{
+    std::vector<CommandEntry> subs;
+    subs.push_back(makeEntry("install", CommandSource::Builtin));
+
+    std::vector<CommandEntry> entries;
+    entries.push_back(makeEntry("build", CommandSource::Builtin));
+    entries.push_back(makeEntryWithSubs("toolchain", CommandSource::Builtin, std::move(subs)));
+
+    CommandCatalog catalog;
+    catalog.addEntries(std::move(entries));
+    return catalog;
+}
+
+}  // namespace
+
+TEST(CommandCatalogTest, Match_TopLevel)
+{
+    const auto catalog = makeToolchainCatalog();
+    const std::vector<std::string> words = { "build" };
+
+    const auto found = catalog.match(words);
+    ASSERT_NE(found.deepest, nullptr);
+    EXPECT_EQ(found.deepest->spec.name, "build");
+    EXPECT_EQ(found.depth, 1);
+}
+
+TEST(CommandCatalogTest, Match_Nested)
+{
+    const auto catalog = makeToolchainCatalog();
+    const std::vector<std::string> words = { "toolchain", "install" };
+
+    const auto found = catalog.match(words);
+    ASSERT_NE(found.deepest, nullptr);
+    EXPECT_EQ(found.deepest->spec.name, "install");
+    EXPECT_EQ(found.depth, 2);
+}
+
+TEST(CommandCatalogTest, Match_PartialPath)
+{
+    const auto catalog = makeToolchainCatalog();
+    const std::vector<std::string> words = { "toolchain", "nonexistent", "install" };
+
+    const auto found = catalog.match(words);
+    ASSERT_NE(found.deepest, nullptr);
+    EXPECT_EQ(found.deepest->spec.name, "toolchain");
+    EXPECT_EQ(found.depth, 1);
+}
+
+TEST(CommandCatalogTest, Match_NoFirstWord)
+{
+    const auto catalog = makeToolchainCatalog();
+    const std::vector<std::string> words = { "nonexistent", "install" };
+
+    const auto found = catalog.match(words);
+    EXPECT_EQ(found.deepest, nullptr);
+    EXPECT_EQ(found.depth, 0);
+}
+
+TEST(CommandCatalogTest, Match_EmptyWords)
+{
+    const auto catalog = makeToolchainCatalog();
+
+    const auto found = catalog.match({});
+    EXPECT_EQ(found.deepest, nullptr);
+    EXPECT_EQ(found.depth, 0);
+}
+
+TEST(CommandCatalogTest, Match_NestedNameIsNotTopLevel)
+{
+    const auto catalog = makeToolchainCatalog();
+    const std::vector<std::string> words = { "install" };
+
+    const auto found = catalog.match(words);
+    EXPECT_EQ(found.deepest, nullptr);
+    EXPECT_EQ(found.depth, 0);
+}
