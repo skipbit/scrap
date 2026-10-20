@@ -253,7 +253,8 @@ TEST(BuildStepsTest, RunsStepsAtTheSameTime)
 
 /**
  * Each step is reported as it starts, and what it wrote once it has ended,
- * so a step that ends first is heard of first.
+ * so a step that ends first is heard of first. The second step is judged
+ * once the first has started, as the order steps start in is not promised.
  */
 TEST(BuildStepsTest, ReportsWhatStepsWroteInTheOrderTheyEnded)
 {
@@ -269,6 +270,9 @@ TEST(BuildStepsTest, ReportsWhatStepsWroteInTheOrderTheyEnded)
     };
     RecordingReporter reporter{ timeline };
     ScriptedHistory history;
+    history.whileJudging["src/b.cpp"] = [&] {
+        timeline.waitFor("started src/a.cpp");
+    };
 
     const auto result = runSteps({ stepFor("src/a.cpp"), stepFor("src/b.cpp") }, runner, history, reporter, 2);
 
@@ -279,7 +283,9 @@ TEST(BuildStepsTest, ReportsWhatStepsWroteInTheOrderTheyEnded)
 
 /**
  * Once a step fails no further step starts, and the step already running is
- * waited for: it fails too, and both come back in the order they ended.
+ * waited for: it fails too, and both come back in the order they ended. The
+ * second step is judged once the first runs, as the order steps start in is
+ * not promised.
  */
 TEST(BuildStepsTest, WaitsForTheRunningStepsAfterAFailure)
 {
@@ -295,6 +301,9 @@ TEST(BuildStepsTest, WaitsForTheRunningStepsAfterAFailure)
     };
     RecordingReporter reporter{ timeline };
     ScriptedHistory history;
+    history.whileJudging["src/b.cpp"] = [&] {
+        timeline.waitFor("run src/a.cpp");
+    };
 
     const auto result = runSteps({ stepFor("src/a.cpp"), stepFor("src/b.cpp"), stepFor("src/c.cpp"), stepFor("bin/app", StepKind::Link) },
                                  runner,
