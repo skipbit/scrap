@@ -32,9 +32,11 @@ namespace scrap::Build {
 /**
  * @brief Run @p steps, as many at once as @p parallelism allows.
  *
- * Steps start in the order given. A step does not start while a step of a
- * kind that runs before its own is still running: an archive waits for the
- * compilations, and a link for the compilations and the archives.
+ * Steps are taken in the order given, and each is judged by @p history
+ * before it starts, so a step judged sooner may start before one taken
+ * earlier. A step does not start while a step of a kind that runs before
+ * its own is still running: an archive waits for the compilations, and a
+ * link for the compilations and the archives.
  *
  * Once a step fails, no further step starts: the steps after it would
  * compile or link on top of an error already reported. The steps already
