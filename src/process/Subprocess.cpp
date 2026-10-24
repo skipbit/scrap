@@ -462,7 +462,8 @@ pid_t waitUntilDeadline(pid_t child, Clock::time_point deadline, ProcessGroup gr
 /**
  * Wait for @p child to end and record in @p completion how it did.
  *
- * With a @p deadline, a child still running when it passes is killed.
+ * With a @p deadline, a child still running when it passes is killed. A
+ * child stopped for its time is reported as such alone, however it ended.
  */
 std::expected<void, std::error_code> waitFor(pid_t child, std::optional<Clock::time_point> deadline, ProcessGroup group, Completion& completion)
 {
@@ -471,6 +472,9 @@ std::expected<void, std::error_code> waitFor(pid_t child, std::optional<Clock::t
                                               : waitUntilEnded(child, status);
     if (waited != child) {
         return std::unexpected(lastError());
+    }
+    if (completion.timedOut) {
+        return {};
     }
 
     // NOLINTBEGIN(misc-include-cleaner) - the wait status macros are provided by <sys/wait.h>

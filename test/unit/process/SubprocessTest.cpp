@@ -265,8 +265,8 @@ TEST(SubprocessTest, LeavesAProgramThatEndsInTimeAlone)
 
 /**
  * A program still running when its time runs out is killed and reported as
- * such. The program waits on a FIFO nothing writes to, so only the timeout
- * can end it.
+ * having run out of time, with neither an exit code nor a signal. The
+ * program waits on a FIFO nothing writes to, so only the timeout can end it.
  */
 TEST(SubprocessTest, StopsAProgramWhoseTimeRunsOut)
 {
@@ -277,8 +277,8 @@ TEST(SubprocessTest, StopsAProgramWhoseTimeRunsOut)
 
     ASSERT_TRUE(completion.has_value());
     EXPECT_TRUE(completion->timedOut);
-    EXPECT_EQ(completion->signal, SIGKILL);
     EXPECT_FALSE(completion->exitCode.has_value());
+    EXPECT_FALSE(completion->signal.has_value());
 }
 
 /**
@@ -308,7 +308,8 @@ TEST(SubprocessTest, StopsWhatAProgramStartedWithIt)
 
 /**
  * A program that exits while what it started still holds its output open is
- * stopped with what it started once the time runs out.
+ * stopped with what it started once the time runs out, and is reported as
+ * having run out of time rather than by its own exit.
  */
 TEST(SubprocessTest, StopsWhatAProgramLeftHoldingItsOutput)
 {
@@ -322,6 +323,8 @@ TEST(SubprocessTest, StopsWhatAProgramLeftHoldingItsOutput)
 
     ASSERT_TRUE(completion.has_value());
     EXPECT_TRUE(completion->timedOut);
+    EXPECT_FALSE(completion->exitCode.has_value());
+    EXPECT_FALSE(completion->signal.has_value());
     // The bound only keeps a failure from hanging the test.
     pollfd ready{ .fd = ends[0], .events = POLLIN, .revents = 0 };
     ASSERT_EQ(::poll(&ready, 1, 10000), 1);
