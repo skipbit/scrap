@@ -5,6 +5,7 @@
 #include "command/CommandPath.h"
 #include "command/CommandResolver.h"
 #include "command/CommandSource.h"
+#include "command/ExitCode.h"
 #include "command/HelpRenderer.h"
 #include "command/HelpRequest.h"
 #include "command/InvocationContext.h"
@@ -152,7 +153,7 @@ int Application::handleDirective(const CommandCatalog& catalog, const ParseDirec
 int Application::handleFailure(const ParseFailure& failure)
 {
     reportParseError(failure.message);
-    return 1;
+    return UsageErrorExitCode;
 }
 
 /**

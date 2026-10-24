@@ -569,7 +569,7 @@ TEST(ApplicationTest, Run_VersionRequested)
 }
 
 /**
- * Parse failure outputs error message and returns 1.
+ * Parse failure outputs error message and returns 2, a usage error.
  */
 TEST(ApplicationTest, Run_ParseFailure)
 {
@@ -584,7 +584,7 @@ TEST(ApplicationTest, Run_ParseFailure)
     StderrCapture capture;
     auto exitCode = app.run(argv, env);
 
-    EXPECT_EQ(exitCode, 1);
+    EXPECT_EQ(exitCode, 2);
     EXPECT_NE(capture.str().find("Unknown command: nonexistent"), std::string::npos);
     EXPECT_NE(capture.str().find("scrap --help"), std::string::npos);
 }
@@ -608,7 +608,7 @@ TEST(ApplicationTest, Run_ParseFailureWritesTheMessageAsText)
     StderrCapture capture;
     auto exitCode = app.run(argv, env);
 
-    EXPECT_EQ(exitCode, 1);
+    EXPECT_EQ(exitCode, 2);
     EXPECT_NE(capture.str().find("The following argument was not expected: \xe6\x97\xa5x\\x1B]0;pwn\\x07"), std::string::npos);
     EXPECT_EQ(capture.str().find('\x1b'), std::string::npos);
     EXPECT_EQ(capture.str().find('\x07'), std::string::npos);

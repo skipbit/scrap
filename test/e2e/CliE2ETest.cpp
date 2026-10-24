@@ -840,7 +840,7 @@ TEST_F(CliE2ETest, UnknownCommand)
     auto result = runScrap({ "nonexistent" }, {}, _root);
 
     ASSERT_TRUE(result.exitedNormally);
-    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_EQ(result.exitCode, 2);
     EXPECT_NE(result.stderrText.find("Run 'scrap --help' for usage information"), std::string::npos);
 }
 
@@ -854,12 +854,36 @@ TEST_F(CliE2ETest, AnUnexpectedArgumentIsWrittenAsText)
     auto result = runScrap({ "new", "hello", "\xe6\x97\xa5x\x1b]0;pwn\x07" }, {}, _root);
 
     ASSERT_TRUE(result.exitedNormally);
-    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_EQ(result.exitCode, 2);
     EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
     EXPECT_NE(result.stderrText.find("\xe6\x97\xa5x\\x1B]0;pwn\\x07"), std::string::npos) << result.stderrText;
     EXPECT_EQ(result.stderrText.find('\x1b'), std::string::npos);
     EXPECT_EQ(result.stderrText.find('\x07'), std::string::npos);
     EXPECT_FALSE(std::filesystem::exists(_root / "hello"));
+}
+
+/**
+ * A usage error ends with status 2, whether the parser or help finds it.
+ */
+TEST_F(CliE2ETest, EveryUsageErrorEndsWithStatus2)
+{
+    const std::vector<std::vector<std::string>> commandLines{
+        {},
+        { "nosuch" },
+        { "toolchain", "nosuch" },
+        { "build", "--bogus" },
+        { "new" },
+        { "version", "--", "a" },
+        { "help", "nosuch" },
+        { "nosuch", "--help" },
+    };
+    for (const auto& args : commandLines) {
+        auto result = runScrap(args, {}, _root);
+
+        ASSERT_TRUE(result.exitedNormally) << result.stderrText;
+        EXPECT_EQ(result.exitCode, 2) << result.stderrText;
+        EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    }
 }
 
 // --- TS-07: real CLI11 nested subcommand parsing --------------------------------
@@ -2325,7 +2349,7 @@ TEST_F(CliE2ETest, BuildRejectsArgumentsAfterTheSeparator)
     auto result = runScrap({ "build", "--", "alpha" }, {}, _root);
 
     ASSERT_TRUE(result.exitedNormally);
-    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_EQ(result.exitCode, 2);
     EXPECT_NE(result.stderrText.find("The following argument was not expected: alpha\n"), std::string::npos) << result.stderrText;
     EXPECT_FALSE(std::filesystem::exists(_root / "build"));
 }
