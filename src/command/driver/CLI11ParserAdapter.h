@@ -46,6 +46,10 @@ public:
      * - Success yields a CommandInvocation with the names of the parsed
      *   commands, outermost first, and the parsed option values.
      * - --help / --version are caught as ParseDirective.
+     * - A command read from a word that does not name it in full, as
+     *   CLI11 reads "a.b" and "--a.f", becomes ParseFailure naming that
+     *   word, even where the parse stops on another error. With --help,
+     *   "a.b" becomes help for a command named "a.b" instead.
      * - All other CLI11 exceptions become ParseFailure, and any other
      *   exception a ParserFault.
      *

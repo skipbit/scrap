@@ -7,12 +7,14 @@
 
 #include <CLI/CLI.hpp>
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <deque>
 #include <exception>
 #include <expected>  // IWYU pragma: keep
 #include <memory>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -239,6 +241,52 @@ std::vector<std::string> namesOf(std::span<const CLI::App* const> chain)
 }
 
 /**
+ * A word that CLI11 read as a command without naming it in full.
+ */
+struct DottedWord {
+    std::size_t named = 0;  ///< The commands before it in the chain, each named by a word.
+    std::string word;
+};
+
+/**
+ * The word in @p words that CLI11 read as a command in @p chain without
+ * naming it in full, or none.
+ *
+ * CLI11 reads "a.b" as the command "b" in "a", and "--a.f" as the option
+ * "f" of "a". scrap takes neither form, so each command in the chain must
+ * be named by a word of its own, in order.
+ *
+ * Words are matched by text alone. This holds while a command with
+ * subcommands takes no option values or positionals, as no word given
+ * to it as a value can then match the name of a command below it.
+ */
+std::optional<DottedWord> findDottedWord(std::span<const char* const> words, std::span<const CLI::App* const> chain)
+{
+    // The program name comes first and names no command.
+    std::size_t next = 1;
+    for (std::size_t index = 0; index < chain.size(); ++index) {
+        const CLI::App* command = chain[index];
+        const std::string& name = command->get_name();
+        const auto rest = words.subspan(next);
+        const auto named = std::ranges::find(rest, std::string_view{ name });
+        if (named != rest.end()) {
+            next += static_cast<std::size_t>(named - rest.begin()) + 1;
+            continue;
+        }
+        const std::string prefix = name + '.';
+        const auto dotted = std::ranges::find_if(rest, [&prefix](std::string_view word) {
+            while (word.starts_with('-')) {
+                word.remove_prefix(1);
+            }
+            return word.starts_with(prefix);
+        });
+        // Only the dot reads a command from a word that does not name it.
+        return DottedWord{ index, (dotted != rest.end()) ? std::string{ *dotted } : name };
+    }
+    return std::nullopt;
+}
+
+/**
  * Harvest parsed values from OptionStorage into ParsedOptions.
  *
  * Only positionals given on the command line are harvested. CLI11 fills
@@ -287,10 +335,11 @@ ParsedOptions harvestOptions(const OptionStorage& storage)
  * "toolchain", "list"). The words a command left unparsed follow its name,
  * as they name no command below it; an option left over is not one of them.
  *
+ * @param chain The parsed subcommand chain below @p app.
  * @return The names of the parsed subcommands, outermost first, each with
  *         the words it left over, or none for global help.
  */
-std::vector<std::string> determineHelpTarget(const CLI::App& app)
+std::vector<std::string> determineHelpTarget(const CLI::App& app, std::span<const CLI::App* const> chain)
 {
     std::vector<std::string> target;
     const auto addLeftOver = [&target](const CLI::App& command) {
@@ -301,7 +350,7 @@ std::vector<std::string> determineHelpTarget(const CLI::App& app)
         }
     };
     addLeftOver(app);
-    for (const CLI::App* sub : parsedChain(app)) {
+    for (const CLI::App* sub : chain) {
         target.push_back(sub->get_name());
         addLeftOver(*sub);
     }
@@ -335,6 +384,28 @@ std::string describeUnexpected(const std::vector<std::string>& arguments)
         message += argument;
     }
     return message;
+}
+
+/**
+ * The usage error that refuses @p dotted.
+ */
+ParseFailure refusalOf(const DottedWord& dotted)
+{
+    return ParseFailure{ describeUnexpected({ dotted.word }) };
+}
+
+/**
+ * What help asked for along with @p dotted becomes: help for the word as a
+ * command, as for any word that names none, or a usage error for an option.
+ */
+ParseInterruption interruptHelpFor(std::span<const CLI::App* const> chain, const DottedWord& dotted)
+{
+    if (dotted.word.starts_with('-')) {
+        return refusalOf(dotted);
+    }
+    auto target = namesOf(chain.first(dotted.named));
+    target.push_back(dotted.word);
+    return ParseDirective{ ParseDirectiveKind::HelpRequested, std::move(target) };
 }
 
 }  // anonymous namespace
@@ -392,12 +463,20 @@ ParseResult CLI11ParserAdapter::parse(std::span<const char* const> argv) const
         app.parse(static_cast<int>(beforeSeparator.size()), beforeSeparator.data());
 
     } catch (const CLI::CallForHelp&) {
-        return std::unexpected(ParseInterruption{ ParseDirective{ ParseDirectiveKind::HelpRequested, determineHelpTarget(app) } });
+        const auto chain = parsedChain(app);
+        if (const auto dotted = findDottedWord(beforeSeparator, chain)) {
+            return std::unexpected(interruptHelpFor(chain, *dotted));
+        }
+        return std::unexpected(ParseInterruption{ ParseDirective{ ParseDirectiveKind::HelpRequested, determineHelpTarget(app, chain) } });
     } catch (const CLI::CallForVersion&) {
         return std::unexpected(ParseInterruption{ ParseDirective{ ParseDirectiveKind::VersionRequested, {} } });
     } catch (const CLI::CallForAllHelp&) {
         return std::unexpected(ParseInterruption{ ParseDirective{ ParseDirectiveKind::HelpRequested, {} } });
     } catch (const CLI::ParseError& e) {
+        // A command read through a dot is the error, whatever stopped the parse after it.
+        if (const auto dotted = findDottedWord(beforeSeparator, parsedChain(app))) {
+            return std::unexpected(ParseInterruption{ refusalOf(*dotted) });
+        }
         return std::unexpected(ParseInterruption{ ParseFailure{ e.what() } });
     } catch (const std::exception& e) {
         // Catch remaining exceptions (e.g. bad_variant_access from
@@ -407,6 +486,9 @@ ParseResult CLI11ParserAdapter::parse(std::span<const char* const> argv) const
 
     // --- Harvest results ---------------------------------------------------------
     const auto chain = parsedChain(app);
+    if (const auto dotted = findDottedWord(beforeSeparator, chain)) {
+        return std::unexpected(ParseInterruption{ refusalOf(*dotted) });
+    }
     auto commandPath = namesOf(chain);
 
     ParsedOptions options;

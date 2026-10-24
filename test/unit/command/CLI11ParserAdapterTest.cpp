@@ -626,6 +626,119 @@ TEST(CLI11ParserAdapterTest, Parse_UnknownCommand)
     ASSERT_TRUE(std::holds_alternative<ParseFailure>(result.error()));
 }
 
+namespace {
+
+/**
+ * Helper: the message of the ParseFailure @p argv ends with, or an empty
+ * string after a failed expectation.
+ */
+std::string failureOf(const CLI11ParserAdapter& adapter, const ArgvBuilder& argv)
+{
+    auto result = adapter.parse(argv.span());
+    EXPECT_FALSE(result.has_value());
+    if (result.has_value() || (! std::holds_alternative<ParseFailure>(result.error()))) {
+        ADD_FAILURE() << "not a ParseFailure";
+        return {};
+    }
+    return std::get<ParseFailure>(result.error()).message;
+}
+
+}  // namespace
+
+/**
+ * A word joined by a dot names no nested command.
+ */
+TEST(CLI11ParserAdapterTest, Parse_DottedWordIsNotANestedCommand)
+{
+    CLI11ParserAdapter adapter;
+    adapter.configure(std::vector{ makeSpecWithSubs("toolchain", { makeSpec("list", "List") }) });
+
+    EXPECT_EQ(failureOf(adapter, { "scrap", "toolchain.list" }), "The following argument was not expected: toolchain.list");
+    EXPECT_EQ(failureOf(adapter, { "scrap", "toolchain.nosuch" }), "A subcommand is required");
+    EXPECT_EQ(failureOf(adapter, { "scrap", "toolchain.list", "extra" }), "The following argument was not expected: toolchain.list");
+    EXPECT_EQ(failureOf(adapter, { "scrap", "toolchain.list", "--bogus" }), "The following argument was not expected: toolchain.list");
+    EXPECT_EQ(failureOf(adapter, { "scrap", "toolchain", "list", "extra" }), "The following argument was not expected: extra");
+}
+
+/**
+ * An option joined to a command by a dot is not an option of that command.
+ */
+TEST(CLI11ParserAdapterTest, Parse_DottedOptionIsNotAnOptionOfTheCommand)
+{
+    CLI11ParserAdapter adapter;
+
+    CommandSpec list = makeSpec("list");
+    list.options.named.push_back(OptionDef{
+        .longName = "all",
+        .shortName = 'a',
+        .type = OptionValueType::Bool,
+        .required = false,
+        .description = "",
+        .defaultValue = std::nullopt,
+        .choices = {},
+    });
+    adapter.configure(std::vector{ makeSpecWithSubs("toolchain", { list }) });
+
+    EXPECT_EQ(failureOf(adapter, { "scrap", "--toolchain.list.all" }), "The following argument was not expected: --toolchain.list.all");
+    EXPECT_EQ(failureOf(adapter, { "scrap", "toolchain", "--list.all" }), "The following argument was not expected: --list.all");
+    EXPECT_EQ(failureOf(adapter, { "scrap", "toolchain", "--list.a" }), "The following argument was not expected: --list.a");
+}
+
+/**
+ * A dot below the top or a second dot names no nested command either.
+ */
+TEST(CLI11ParserAdapterTest, Parse_DottedWordBelowTheTopIsNotANestedCommand)
+{
+    CLI11ParserAdapter adapter;
+    adapter.configure(std::vector{ makeSpecWithSubs("a", { makeSpecWithSubs("b", { makeSpec("c") }) }) });
+
+    ArgvBuilder plain{ "scrap", "a", "b", "c" };
+    auto result = adapter.parse(plain.span());
+    ASSERT_TRUE(result.has_value());
+    EXPECT_EQ(result->commandPath, (std::vector<std::string>{ "a", "b", "c" }));
+
+    EXPECT_EQ(failureOf(adapter, { "scrap", "a", "b.c" }), "The following argument was not expected: b.c");
+    EXPECT_EQ(failureOf(adapter, { "scrap", "a.b", "c" }), "The following argument was not expected: a.b");
+    EXPECT_EQ(failureOf(adapter, { "scrap", "a.b.c" }), "The following argument was not expected: a.b.c");
+}
+
+/**
+ * A command whose name holds a dot is still named by that word.
+ */
+TEST(CLI11ParserAdapterTest, Parse_CommandNamedWithADot)
+{
+    CLI11ParserAdapter adapter;
+    adapter.configure(std::vector{ makeSpecWithSubs("toolchain", { makeSpec("list") }), makeSpec("toolchain.list") });
+
+    ArgvBuilder argv{ "scrap", "toolchain.list" };
+    auto result = adapter.parse(argv.span());
+
+    ASSERT_TRUE(result.has_value());
+    EXPECT_EQ(result->commandPath, std::vector<std::string>{ "toolchain.list" });
+}
+
+/**
+ * Help asked for a dotted word is help for a command of that name, which
+ * no command has; with a dotted option it is a usage error.
+ */
+TEST(CLI11ParserAdapterTest, Parse_HelpForADottedWordIsHelpForThatWord)
+{
+    CLI11ParserAdapter adapter;
+    adapter.configure(std::vector{ makeSpecWithSubs("toolchain", { makeSpec("list") }), makeSpecWithSubs("a", { makeSpecWithSubs("b", { makeSpec("c") }) }) });
+
+    const auto targetOf = [&adapter](const ArgvBuilder& argv) {
+        auto result = adapter.parse(argv.span());
+        EXPECT_FALSE(result.has_value());
+        return result.has_value() ? std::vector<std::string>{} : std::get<ParseDirective>(result.error()).target;
+    };
+
+    EXPECT_EQ(targetOf({ "scrap", "toolchain.list", "--help" }), std::vector<std::string>{ "toolchain.list" });
+    EXPECT_EQ(targetOf({ "scrap", "a", "b.c", "--help" }), (std::vector<std::string>{ "a", "b.c" }));
+    EXPECT_EQ(targetOf({ "scrap", "a.b.c", "--help" }), std::vector<std::string>{ "a.b.c" });
+    EXPECT_EQ(failureOf(adapter, { "scrap", "--toolchain.help" }), "The following argument was not expected: --toolchain.help");
+    EXPECT_EQ(failureOf(adapter, { "scrap", "toolchain", "--list.help" }), "The following argument was not expected: --list.help");
+}
+
 TEST(CLI11ParserAdapterTest, Parse_ChoiceValidation)
 {
     CLI11ParserAdapter adapter;

@@ -530,24 +530,64 @@ esac)");
 
 /**
  * An external command whose name holds a dot is taken as the command it
- * names, as one without a dot is.
+ * names, as one without a dot is, also where a nested command has the parts
+ * as names.
  */
 TEST_F(CliE2ETest, ExternalNameWithADotIsTakenAsOneName)
 {
     makeDummy("scrap-greet", "echo \"greet called\"");
-    makeDummy("scrap-greet.sh", "echo \"greet called\"");
-
     auto plain = runScrap({ "greet" }, {}, _root);
-    auto dotted = runScrap({ "greet.sh" }, {}, _root);
 
-    ASSERT_TRUE(dotted.exitedNormally);
-    EXPECT_EQ(dotted.exitCode, plain.exitCode);
-    EXPECT_EQ(dotted.stdoutText, plain.stdoutText);
-    std::string expected = plain.stderrText;
-    const auto position = expected.find("greet");
-    ASSERT_NE(position, std::string::npos) << plain.stderrText;
-    expected.replace(position, std::string_view{ "greet" }.size(), "greet.sh");
-    EXPECT_EQ(dotted.stderrText, expected);
+    for (const std::string name : { "greet.sh", "toolchain.list" }) {
+        makeDummy("scrap-" + name, "echo \"" + name + " called\"");
+
+        auto dotted = runScrap({ name }, {}, _root);
+
+        ASSERT_TRUE(dotted.exitedNormally) << name;
+        EXPECT_EQ(dotted.exitCode, plain.exitCode) << name;
+        EXPECT_EQ(dotted.stdoutText, plain.stdoutText) << name;
+        std::string expected = plain.stderrText;
+        const auto position = expected.find("greet");
+        ASSERT_NE(position, std::string::npos) << plain.stderrText;
+        expected.replace(position, std::string_view{ "greet" }.size(), name);
+        EXPECT_EQ(dotted.stderrText, expected) << name;
+    }
+}
+
+/**
+ * A word joined by a dot names no nested command and no option of one; it
+ * is refused as the word it is, whatever else is wrong after it.
+ */
+TEST_F(CliE2ETest, DottedWordNamesNoNestedCommand)
+{
+    const std::vector<std::pair<std::vector<std::string>, std::string>> commandLines{
+        { { "toolchain.list" }, "toolchain.list" },
+        { { "--build.release" }, "--build.release" },
+        { { "toolchain.list", "extra" }, "toolchain.list" },
+    };
+    for (const auto& [args, word] : commandLines) {
+        auto result = runScrap(args, {}, _root);
+
+        ASSERT_TRUE(result.exitedNormally) << word;
+        EXPECT_EQ(result.exitCode, 2) << word;
+        EXPECT_TRUE(result.stdoutText.empty()) << word << ": " << result.stdoutText;
+        EXPECT_EQ(result.stderrText, "The following argument was not expected: " + word + "\nRun 'scrap --help' for usage information.\n");
+    }
+}
+
+/**
+ * Help asked for a dotted word answers as help does for that word.
+ */
+TEST_F(CliE2ETest, HelpForADottedWordAnswersAsHelpDoes)
+{
+    auto asked = runScrap({ "toolchain.list", "--help" }, {}, _root);
+    auto help = runScrap({ "help", "toolchain.list" }, {}, _root);
+
+    ASSERT_TRUE(asked.exitedNormally);
+    EXPECT_EQ(asked.exitCode, 2);
+    EXPECT_EQ(asked.exitCode, help.exitCode);
+    EXPECT_EQ(asked.stdoutText, help.stdoutText);
+    EXPECT_EQ(asked.stderrText, help.stderrText);
 }
 
 /**
@@ -877,6 +917,10 @@ TEST_F(CliE2ETest, UsageErrorsInTheCommandLineEndWithStatus2)
         { "version", "--", "a" },
         { "help", "nosuch" },
         { "nosuch", "--help" },
+        { "toolchain.list" },
+        { "--build.release" },
+        { "toolchain.list", "--help" },
+        { "--toolchain.help" },
     };
     for (const auto& args : commandLines) {
         std::string typed = "scrap";
