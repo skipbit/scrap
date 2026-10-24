@@ -47,8 +47,8 @@ struct RunOptions {
  * ran out is reported as such, even when it exited on its own.
  */
 struct Completion {
-    std::optional<int> exitCode;  ///< Set when the program exited in time.
-    std::optional<int> signal;    ///< Set when a signal stopped the program in time.
+    std::optional<int> exitCode;  ///< Set when the program exited and its time did not run out.
+    std::optional<int> signal;    ///< Set when a signal stopped the program and its time did not run out.
     bool timedOut = false;        ///< Set when the time ran out before the program ended and closed its output.
     std::string output;           ///< What the program wrote to the streams read back.
 };
