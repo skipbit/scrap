@@ -39,6 +39,9 @@ function(scrap_add_unit_test module)
     endif()
 endfunction()
 
+# A test that waits on a program its time limit should stop waits on events
+# alone, so a limit that no longer stops it would leave the test waiting; the
+# limit ends such a wait.
 scrap_add_unit_test(command SOURCES
     unit/command/CommonTypesTest.cpp
     unit/command/CommandCatalogTest.cpp
@@ -54,6 +57,7 @@ scrap_add_unit_test(command SOURCES
     unit/command/ProjectDiagnosticTest.cpp
     unit/command/RuntimeEnvironmentFactoryTest.cpp
     unit/command/ApplicationTest.cpp
+    PROPERTIES TIMEOUT 60
 )
 
 scrap_add_unit_test(process SOURCES

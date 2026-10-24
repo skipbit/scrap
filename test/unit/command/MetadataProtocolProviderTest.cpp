@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <sys/stat.h>
 
 using namespace scrap::Command;
 
@@ -57,6 +58,15 @@ protected:
                             << body << "\n";
         std::filesystem::permissions(path, std::filesystem::perms::owner_exec, std::filesystem::perm_options::add);
         return path;
+    }
+
+    /**
+     * Create a FIFO named never beside the scripts that nothing writes to,
+     * so a script that reads it waits until it is killed.
+     */
+    void makeFifoNobodyWrites()
+    {
+        ASSERT_EQ(::mkfifo((_tempDir / "never").c_str(), 0600), 0);
     }
 
     std::filesystem::path _tempDir;
@@ -116,25 +126,21 @@ TEST_F(MetadataProtocolProviderTest, BothFailUnexpected)
 }
 
 /**
- * Verify that a hung child is killed and fetch() fails within the injected
- * timeout, rather than blocking for the child's full runtime.
+ * Verify that a hung child is killed once the injected timeout passes and
+ * fetch() fails. The child waits on a FIFO nothing writes to, so only the
+ * timeout can end it, and fetch() returning shows it was killed and reaped.
  */
 TEST_F(MetadataProtocolProviderTest, Timeout)
 {
-    auto script = createExecutable("scrap-x", "sleep 10");
+    makeFifoNobodyWrites();
+    auto script = createExecutable("scrap-x", R"(read line < "$(dirname "$0")/never")");
 
     constexpr std::chrono::milliseconds shortTimeout{ 200 };
     MetadataProtocolProvider provider(shortTimeout);
 
-    auto start = std::chrono::steady_clock::now();
     auto result = provider.fetch(script);
-    auto elapsed = std::chrono::steady_clock::now() - start;
 
     EXPECT_FALSE(result.has_value());
-    // Two probe attempts (--scrap-metadata, --help) each bounded by
-    // shortTimeout; generous upper bound keeps this robust under CI load
-    // while still proving we did not wait anywhere near the 10s sleep.
-    EXPECT_LT(elapsed, std::chrono::seconds(5));
 }
 
 /**
@@ -148,23 +154,20 @@ TEST_F(MetadataProtocolProviderTest, CapThenHang)
 {
     // MaxCaptureBytes is 64 * 1024; 70000 bytes safely exceeds it for both
     // probe attempts.
+    makeFifoNobodyWrites();
     auto script = createExecutable("scrap-x", R"(case "$1" in
-  --scrap-metadata|--help) yes x | head -c 70000; sleep 30 ;;
+  --scrap-metadata|--help) yes x | head -c 70000; read line < "$(dirname "$0")/never" ;;
 esac
 exit 1)");
 
     constexpr std::chrono::milliseconds shortTimeout{ 200 };
     MetadataProtocolProvider provider(shortTimeout);
 
-    auto start = std::chrono::steady_clock::now();
+    // The child waits on a FIFO nothing writes to, so fetch() returns only
+    // when the child is killed and reaped.
     auto result = provider.fetch(script);
-    auto elapsed = std::chrono::steady_clock::now() - start;
 
     EXPECT_FALSE(result.has_value());
-    // Two probe attempts each bounded by shortTimeout; generous upper bound
-    // keeps this robust under CI load while still proving the capture-cap
-    // path no longer blocks for the child's 30s sleep.
-    EXPECT_LT(elapsed, std::chrono::seconds(5));
 }
 
 /**
@@ -177,21 +180,17 @@ exit 1)");
  */
 TEST_F(MetadataProtocolProviderTest, ClosesStdoutThenHang)
 {
-    auto script = createExecutable("scrap-x", "exec 1>&-; sleep 30");
+    makeFifoNobodyWrites();
+    auto script = createExecutable("scrap-x", R"(exec 1>&-; read line < "$(dirname "$0")/never")");
 
     constexpr std::chrono::milliseconds shortTimeout{ 200 };
     MetadataProtocolProvider provider(shortTimeout);
 
-    auto start = std::chrono::steady_clock::now();
+    // EOF is observed at once, but the child keeps waiting on a FIFO nothing
+    // writes to, so fetch() returns only when the child is killed and reaped.
     auto result = provider.fetch(script);
-    auto elapsed = std::chrono::steady_clock::now() - start;
 
     EXPECT_FALSE(result.has_value());
-    // EOF is observed immediately (stdout is closed), but the child keeps
-    // running; fetch() must still return within a small multiple of
-    // shortTimeout, proving the EOF path no longer blocks for the child's
-    // 30s sleep.
-    EXPECT_LT(elapsed, std::chrono::seconds(5));
 }
 
 /**
