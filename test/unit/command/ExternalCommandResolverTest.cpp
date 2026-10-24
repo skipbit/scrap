@@ -177,3 +177,21 @@ TEST_F(ExternalCommandResolverTest, EntriesHaveExternalSource)
     ASSERT_EQ(entries.size(), 1);
     EXPECT_EQ(entries[0].source, CommandSource::External);
 }
+
+/**
+ * Verify that each entry keeps the path it was found at.
+ */
+TEST_F(ExternalCommandResolverTest, EntriesKeepWhereTheyWereFound)
+{
+    createExecutable("scrap-lint");
+
+    auto provider = std::make_unique<MockMetadataProvider>();
+    ExternalCommandResolver resolver(std::move(provider));
+
+    RuntimeEnvironment env;
+    env.searchPaths = { _tempDir };
+    auto entries = resolver.resolve(env);
+
+    ASSERT_EQ(entries.size(), 1);
+    EXPECT_EQ(entries[0].location, _tempDir / "scrap-lint");
+}

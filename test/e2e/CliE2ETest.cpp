@@ -550,6 +550,55 @@ TEST_F(CliE2ETest, ExternalNameWithADotIsTakenAsOneName)
     EXPECT_EQ(dotted.stderrText, expected);
 }
 
+/**
+ * An external command whose name the parser cannot hold is left out with a
+ * warning, so the other commands and the help still work.
+ */
+TEST_F(CliE2ETest, ExternalNameTheParserCannotHoldIsLeftOut)
+{
+    makeDummy("scrap-a:b", "echo \"a:b called\"");
+    const auto warning = "warning: command 'a:b' cannot be used as a command name; ignoring " + (_root / "bin" / "scrap-a:b").string() + "\n";
+
+    auto version = runScrap({ "version" }, {}, _root);
+    auto help = runScrap({ "--help" }, {}, _root);
+
+    ASSERT_TRUE(version.exitedNormally);
+    EXPECT_EQ(version.exitCode, 0);
+    EXPECT_TRUE(isVersionBanner(trim(version.stdoutText))) << "stdout: " << version.stdoutText;
+    EXPECT_EQ(version.stderrText, warning);
+    ASSERT_TRUE(help.exitedNormally);
+    EXPECT_EQ(help.exitCode, 0);
+    EXPECT_EQ(help.stdoutText.find("a:b"), std::string::npos) << help.stdoutText;
+    EXPECT_EQ(help.stderrText, warning);
+}
+
+/**
+ * Each name the parser cannot hold is left out the same way, and the warning
+ * shows a control character as text.
+ */
+TEST_F(CliE2ETest, EveryExternalNameTheParserCannotHoldIsLeftOut)
+{
+    const std::vector<std::pair<std::string, std::string>> names{
+        { "a=b", "a=b" },
+        { "a b", "a b" },
+        { "a{b", "a{b" },
+        { "!x", "!x" },
+        { "-x", "-x" },
+        { "", "" },
+        { std::string{ "a" } + '\x01' + "b", "a\\x01b" },
+    };
+    for (const auto& [name, shown] : names) {
+        makeDummy("scrap-" + name, "exit 0");
+
+        auto result = runScrap({ "version" }, {}, _root);
+
+        ASSERT_TRUE(result.exitedNormally) << shown;
+        EXPECT_EQ(result.exitCode, 0) << shown;
+        EXPECT_NE(result.stderrText.find("warning: command '" + shown + "' cannot be used as a command name; ignoring "), std::string::npos) << result.stderrText;
+        std::filesystem::remove(_root / "bin" / ("scrap-" + name));
+    }
+}
+
 // --- TS-03: project scope with no scrap.toml (honest scope: graceful only) ----
 
 TEST_F(CliE2ETest, ProjectScopeNoConfig)

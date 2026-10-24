@@ -1,8 +1,10 @@
 #include "command/Application.h"
 
 #include "command/CommandCatalog.h"
+#include "command/CommandEntry.h"
 #include "command/CommandPath.h"
 #include "command/CommandResolver.h"
+#include "command/CommandSource.h"
 #include "command/HelpRenderer.h"
 #include "command/HelpRequest.h"
 #include "command/InvocationContext.h"
@@ -21,6 +23,28 @@
 #include <vector>
 
 namespace scrap::Command {
+
+namespace {
+
+/**
+ * Leave out the external commands whose names the parser refuses, warning
+ * about each: one such file on the search path would stop every command.
+ */
+std::vector<CommandEntry> usableEntries(std::vector<CommandEntry> entries, const ParserAdapter& parser)
+{
+    std::vector<CommandEntry> usable;
+    usable.reserve(entries.size());
+    for (auto& entry : entries) {
+        if ((entry.source == CommandSource::External) && (! parser.acceptsName(entry.spec.name))) {
+            std::cerr << "warning: command '" << printableText(entry.spec.name) << "' cannot be used as a command name; ignoring " << printablePath(entry.location) << "\n";
+            continue;
+        }
+        usable.push_back(std::move(entry));
+    }
+    return usable;
+}
+
+}  // anonymous namespace
 
 /**
  * Construct with parser and renderer dependencies.
@@ -54,7 +78,7 @@ int Application::run(std::span<const char* const> argv, const RuntimeEnvironment
     // Phase 1: Resolve - collect CommandEntry trees from all resolvers.
     CommandCatalog catalog;
     for (auto& resolver : _resolvers) {
-        catalog.addEntries(resolver->resolve(env));
+        catalog.addEntries(usableEntries(resolver->resolve(env), *_parser));
     }
 
     // Phase 2: Configure - derive CommandSpec tree and feed to parser.

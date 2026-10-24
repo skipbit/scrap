@@ -6,7 +6,11 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <sstream>
+#include <string>
+#include <string_view>
+#include <vector>
 
 using namespace scrap::Command;
 
@@ -18,10 +22,22 @@ namespace {
 class MockParserAdapter : public ParserAdapter {
 public:
     /**
-     * Store the configured specs (unused but required by interface).
+     * Record the names of the configured commands.
      */
-    void configure([[maybe_unused]] std::span<const CommandSpec> specs) override
+    void configure(std::span<const CommandSpec> specs) override
     {
+        _configured.clear();
+        for (const auto& spec : specs) {
+            _configured.push_back(spec.name);
+        }
+    }
+
+    /**
+     * Return the names of the commands last configured.
+     */
+    [[nodiscard]] const std::vector<std::string>& configured() const
+    {
+        return _configured;
     }
 
     /**
@@ -41,15 +57,25 @@ public:
     }
 
     /**
-     * Accept every name.
+     * Refuse @p name from now on.
      */
-    [[nodiscard]] bool acceptsName([[maybe_unused]] std::string_view name) const override
+    void refuseName(std::string name)
     {
-        return true;
+        _refused.push_back(std::move(name));
+    }
+
+    /**
+     * Accept every name not refused.
+     */
+    [[nodiscard]] bool acceptsName(std::string_view name) const override
+    {
+        return std::ranges::find(_refused, name) == _refused.end();
     }
 
 private:
     ParseResult _result = std::unexpected(ParseInterruption{ ParseFailure{ "not configured" } });
+    std::vector<std::string> _configured;
+    std::vector<std::string> _refused;
 };
 
 /**
@@ -331,6 +357,36 @@ TEST(ApplicationTest, Run_NameWithADot)
     auto exitCode = app.run(argv, env);
 
     EXPECT_EQ(exitCode, 7);
+}
+
+/**
+ * An external command whose name the parser refuses is left out with a
+ * warning naming where it was found, and the other commands still run.
+ */
+TEST(ApplicationTest, Run_LeavesOutAnExternalCommandTheParserRefuses)
+{
+    auto parser = std::make_unique<MockParserAdapter>();
+    parser->setResult(CommandInvocation{ { "build" }, {} });
+    parser->refuseName("a:b");
+    const auto* configured = parser.get();
+
+    auto external = makeEntry("a:b");
+    external.source = CommandSource::External;
+    external.location = "/opt/bin/scrap-a:b";
+    auto resolver = std::make_unique<MockResolver>();
+    resolver->setEntries({ makeEntry("build", 3), std::move(external) });
+
+    Application app(std::move(parser), std::make_unique<MockHelpRenderer>(), std::make_unique<MockVersionRenderer>());
+    app.addResolver(std::move(resolver));
+
+    RuntimeEnvironment env;
+    const char* argv[] = { "scrap", "build" };
+    const StderrCapture captured;
+    auto exitCode = app.run(argv, env);
+
+    EXPECT_EQ(exitCode, 3);
+    EXPECT_EQ(configured->configured(), std::vector<std::string>{ "build" });
+    EXPECT_EQ(captured.str(), "warning: command 'a:b' cannot be used as a command name; ignoring /opt/bin/scrap-a:b\n");
 }
 
 /**
