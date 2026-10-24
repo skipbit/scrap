@@ -148,7 +148,7 @@ int Application::handleDirective(const CommandCatalog& catalog, const ParseDirec
 }
 
 /**
- * Handle a ParseFailure (error message + help suggestion).
+ * Handle a ParseFailure, a usage error: it ends with status 2.
  */
 int Application::handleFailure(const ParseFailure& failure)
 {
@@ -157,7 +157,7 @@ int Application::handleFailure(const ParseFailure& failure)
 }
 
 /**
- * Handle a ParserFault (error message + help suggestion).
+ * Handle a ParserFault, a fault rather than a usage error: it ends with status 1.
  */
 int Application::handleFault(const ParserFault& fault)
 {
