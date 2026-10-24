@@ -43,8 +43,8 @@ public:
      * Constructs a temporary CLI::App, maps the stored CommandSpec
      * tree onto CLI11 subcommands and options, then parses @p argv.
      *
-     * - Success yields a CommandInvocation with a dot-separated
-     *   command path and the parsed option values.
+     * - Success yields a CommandInvocation with the names of the parsed
+     *   commands, outermost first, and the parsed option values.
      * - --help / --version are caught as ParseDirective.
      * - All other CLI11 exceptions become ParseFailure.
      *
