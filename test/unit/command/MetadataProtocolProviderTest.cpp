@@ -121,11 +121,12 @@ TEST_F(MetadataProtocolProviderTest, BothFailUnexpected)
  * Verify that a hung child is killed once the injected timeout passes and
  * fetch() fails. The child waits on a FIFO nothing writes to, so only the
  * timeout can end it, and fetch() returning shows it was killed and reaped.
+ * A child whose wait ended early would succeed, so only the kill fails it.
  */
 TEST_F(MetadataProtocolProviderTest, Timeout)
 {
     scrap::TestSupport::makeFifoNobodyWrites(_tempDir);
-    auto script = createExecutable("scrap-x", R"(read line < "$(dirname "$0")/never")");
+    auto script = createExecutable("scrap-x", R"(echo "Hello desc"; read line < "$(dirname "$0")/never"; exit 0)");
 
     constexpr std::chrono::milliseconds shortTimeout{ 200 };
     MetadataProtocolProvider provider(shortTimeout);
@@ -148,7 +149,7 @@ TEST_F(MetadataProtocolProviderTest, CapThenHang)
     // probe attempts.
     scrap::TestSupport::makeFifoNobodyWrites(_tempDir);
     auto script = createExecutable("scrap-x", R"(case "$1" in
-  --scrap-metadata|--help) yes x | head -c 70000; read line < "$(dirname "$0")/never" ;;
+  --scrap-metadata|--help) yes x | head -c 70000; read line < "$(dirname "$0")/never"; exit 0 ;;
 esac
 exit 1)");
 
@@ -156,7 +157,8 @@ exit 1)");
     MetadataProtocolProvider provider(shortTimeout);
 
     // The child waits on a FIFO nothing writes to, so fetch() returns only
-    // when the child is killed and reaped.
+    // when the child is killed and reaped; had the wait ended early, the
+    // child would succeed.
     auto result = provider.fetch(script);
 
     EXPECT_FALSE(result.has_value());
@@ -173,13 +175,14 @@ exit 1)");
 TEST_F(MetadataProtocolProviderTest, ClosesStdoutThenHang)
 {
     scrap::TestSupport::makeFifoNobodyWrites(_tempDir);
-    auto script = createExecutable("scrap-x", R"(exec 1>&-; read line < "$(dirname "$0")/never")");
+    auto script = createExecutable("scrap-x", R"(echo "Hello desc"; exec 1>&-; read line < "$(dirname "$0")/never"; exit 0)");
 
     constexpr std::chrono::milliseconds shortTimeout{ 200 };
     MetadataProtocolProvider provider(shortTimeout);
 
     // EOF is observed at once, but the child keeps waiting on a FIFO nothing
-    // writes to, so fetch() returns only when the child is killed and reaped.
+    // writes to, so fetch() returns only when the child is killed and reaped;
+    // had the wait ended early, the child would succeed.
     auto result = provider.fetch(script);
 
     EXPECT_FALSE(result.has_value());
