@@ -108,6 +108,34 @@ TEST(CLI11ParserAdapterTest, Parse_SubcommandPath)
 }
 
 /**
+ * The options of a nested command are read from the nested command.
+ */
+TEST(CLI11ParserAdapterTest, Parse_NestedCommandOption)
+{
+    CLI11ParserAdapter adapter;
+
+    CommandSpec install = makeSpec("install", "Install");
+    install.options.named.push_back(OptionDef{
+        .longName = "force",
+        .shortName = std::nullopt,
+        .type = OptionValueType::Bool,
+        .required = false,
+        .description = "",
+        .defaultValue = std::nullopt,
+        .choices = {},
+    });
+    adapter.configure(std::vector{ makeSpecWithSubs("toolchain", { install }) });
+
+    ArgvBuilder argv{ "scrap", "toolchain", "install", "--force" };
+    auto result = adapter.parse(argv.span());
+
+    ASSERT_TRUE(result.has_value());
+    auto it = result->options.named.find("force");
+    ASSERT_NE(it, result->options.named.end());
+    EXPECT_TRUE(std::get<bool>(it->second));
+}
+
+/**
  * A command whose name holds a dot keeps its options apart from a nested
  * command its name spells out.
  */
