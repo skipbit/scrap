@@ -90,7 +90,7 @@ TEST(CLI11ParserAdapterTest, Parse_SimpleCommand)
     auto result = adapter.parse(argv.span());
 
     ASSERT_TRUE(result.has_value());
-    EXPECT_EQ(result->commandPath, "build");
+    EXPECT_EQ(result->commandPath, (std::vector<std::string>{ "build" }));
 }
 
 TEST(CLI11ParserAdapterTest, Parse_SubcommandPath)
@@ -104,7 +104,65 @@ TEST(CLI11ParserAdapterTest, Parse_SubcommandPath)
     auto result = adapter.parse(argv.span());
 
     ASSERT_TRUE(result.has_value());
-    EXPECT_EQ(result->commandPath, "toolchain.install");
+    EXPECT_EQ(result->commandPath, (std::vector<std::string>{ "toolchain", "install" }));
+}
+
+/**
+ * The options of a nested command are read from the nested command.
+ */
+TEST(CLI11ParserAdapterTest, Parse_NestedCommandOption)
+{
+    CLI11ParserAdapter adapter;
+
+    CommandSpec install = makeSpec("install", "Install");
+    install.options.named.push_back(OptionDef{
+        .longName = "force",
+        .shortName = std::nullopt,
+        .type = OptionValueType::Bool,
+        .required = false,
+        .description = "",
+        .defaultValue = std::nullopt,
+        .choices = {},
+    });
+    adapter.configure(std::vector{ makeSpecWithSubs("toolchain", { install }) });
+
+    ArgvBuilder argv{ "scrap", "toolchain", "install", "--force" };
+    auto result = adapter.parse(argv.span());
+
+    ASSERT_TRUE(result.has_value());
+    auto it = result->options.named.find("force");
+    ASSERT_NE(it, result->options.named.end());
+    EXPECT_TRUE(std::get<bool>(it->second));
+}
+
+/**
+ * A command whose name holds a dot keeps its options apart from a nested
+ * command its name spells out.
+ */
+TEST(CLI11ParserAdapterTest, Parse_NameWithADotKeepsItsOptions)
+{
+    CLI11ParserAdapter adapter;
+
+    CommandSpec dotted = makeSpec("toolchain.list");
+    dotted.options.named.push_back(OptionDef{
+        .longName = "verbose",
+        .shortName = std::nullopt,
+        .type = OptionValueType::Bool,
+        .required = false,
+        .description = "",
+        .defaultValue = std::nullopt,
+        .choices = {},
+    });
+    adapter.configure(std::vector{ dotted, makeSpecWithSubs("toolchain", { makeSpec("list", "List") }) });
+
+    ArgvBuilder argv{ "scrap", "toolchain.list", "--verbose" };
+    auto result = adapter.parse(argv.span());
+
+    ASSERT_TRUE(result.has_value());
+    EXPECT_EQ(result->commandPath, (std::vector<std::string>{ "toolchain.list" }));
+    auto it = result->options.named.find("verbose");
+    ASSERT_NE(it, result->options.named.end());
+    EXPECT_TRUE(std::get<bool>(it->second));
 }
 
 // =============================================================================
@@ -132,7 +190,7 @@ TEST(CLI11ParserAdapterTest, Parse_BoolFlag)
     auto result = adapter.parse(argv.span());
 
     ASSERT_TRUE(result.has_value());
-    EXPECT_EQ(result->commandPath, "build");
+    EXPECT_EQ(result->commandPath, (std::vector<std::string>{ "build" }));
     auto it = result->options.named.find("verbose");
     ASSERT_NE(it, result->options.named.end());
     EXPECT_TRUE(std::get<bool>(it->second));

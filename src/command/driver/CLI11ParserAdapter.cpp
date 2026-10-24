@@ -167,24 +167,21 @@ void addPositional(CLI::App& app, const PositionalDef& def, OptionStorage& stora
 // NOLINTNEXTLINE(readability-function-size) - iterative BFS requires local struct + loop state
 void addSubcommands(CLI::App& root,
                     const std::vector<CommandSpec>& rootSpecs,
-                    std::unordered_map<std::string, std::unique_ptr<OptionStorage>>& storageMap)
+                    std::unordered_map<const CLI::App*, std::unique_ptr<OptionStorage>>& storageMap)
 {
     struct Pending {
         CLI::App* parent;
         const std::vector<CommandSpec>* specs;
-        std::string prefix;
     };
 
     std::vector<Pending> current;
-    current.push_back({ &root, &rootSpecs, "" });
+    current.push_back({ &root, &rootSpecs });
 
     while (! current.empty()) {
         std::vector<Pending> next;
-        for (auto& [parent, specs, prefix] : current) {
+        for (auto& [parent, specs] : current) {
             for (const auto& spec : *specs) {
                 auto* sub = parent->add_subcommand(spec.name, spec.description);
-
-                const std::string path = prefix.empty() ? spec.name : (prefix + "." + spec.name);
 
                 auto storage = std::make_unique<OptionStorage>();
                 for (const auto& opt : spec.options.named) {
@@ -194,10 +191,10 @@ void addSubcommands(CLI::App& root,
                     addPositional(*sub, pos, *storage);
                 }
                 storage->takesTrailing = spec.options.trailing.has_value();
-                storageMap[path] = std::move(storage);
+                storageMap[sub] = std::move(storage);
 
                 if (! spec.subcommands.empty()) {
-                    next.push_back({ sub, &spec.subcommands, path });
+                    next.push_back({ sub, &spec.subcommands });
                 }
             }
         }
@@ -209,6 +206,7 @@ void addSubcommands(CLI::App& root,
  * The parsed subcommand chain below @p app, outermost first.
  *
  * Starts from @p app and follows the first parsed child at each level.
+ * get_subcommands() without arguments lists only the parsed ones.
  */
 std::vector<const CLI::App*> parsedChain(const CLI::App& app)
 {
@@ -216,41 +214,28 @@ std::vector<const CLI::App*> parsedChain(const CLI::App& app)
     const CLI::App* current = &app;
 
     while (true) {
-        const CLI::App* parsed = nullptr;
-        for (const auto* sub : current->get_subcommands()) {
-            if (sub->parsed()) {
-                parsed = sub;
-                break;
-            }
-        }
-
-        if (parsed == nullptr) {
+        const auto subcommands = current->get_subcommands();
+        if (subcommands.empty()) {
             break;
         }
 
-        chain.push_back(parsed);
-        current = parsed;
+        chain.push_back(subcommands.front());
+        current = subcommands.front();
     }
 
     return chain;
 }
 
 /**
- * Walk the parsed subcommand chain and build a dot-separated path.
- *
- * @return Dot-separated command path (e.g. "toolchain.install"), or
- *         empty string if no subcommand was parsed.
+ * The names of the commands in @p chain, in the same order.
  */
-std::string buildCommandPath(const CLI::App& app)
+std::vector<std::string> namesOf(std::span<const CLI::App* const> chain)
 {
-    std::string path;
-    for (const CLI::App* sub : parsedChain(app)) {
-        if (! path.empty()) {
-            path += '.';
-        }
-        path += sub->get_name();
+    std::vector<std::string> names;
+    for (const CLI::App* command : chain) {
+        names.push_back(command->get_name());
     }
-    return path;
+    return names;
 }
 
 /**
@@ -384,8 +369,8 @@ ParseResult CLI11ParserAdapter::parse(std::span<const char* const> argv) const
     app.set_version_flag("--version,-V", "");
     app.require_subcommand(1);
 
-    // Per-call storage map: dot-path -> OptionStorage.
-    std::unordered_map<std::string, std::unique_ptr<OptionStorage>> storageMap;
+    // Per-call storage map: CLI11 command -> OptionStorage.
+    std::unordered_map<const CLI::App*, std::unique_ptr<OptionStorage>> storageMap;
 
     auto [beforeSeparator, trailing] = splitAtSeparator(argv);
 
@@ -413,10 +398,11 @@ ParseResult CLI11ParserAdapter::parse(std::span<const char* const> argv) const
     }
 
     // --- Harvest results ---------------------------------------------------------
-    auto commandPath = buildCommandPath(app);
+    const auto chain = parsedChain(app);
+    auto commandPath = namesOf(chain);
 
     ParsedOptions options;
-    auto storageIt = storageMap.find(commandPath);
+    auto storageIt = chain.empty() ? storageMap.end() : storageMap.find(chain.back());
     const bool takesTrailing = (storageIt != storageMap.end()) && storageIt->second->takesTrailing;
     if ((! trailing.empty()) && (! takesTrailing)) {
         return std::unexpected(ParseInterruption{ ParseFailure{ describeUnexpected(trailing) } });

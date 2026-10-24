@@ -11,7 +11,7 @@
 namespace scrap::Command {
 
 struct CommandInvocation {
-    std::string commandPath;
+    std::vector<std::string> commandPath;  ///< Names of the command and the commands above it, outermost first.
     ParsedOptions options;
 };
 

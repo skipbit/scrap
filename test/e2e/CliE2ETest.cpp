@@ -528,6 +528,28 @@ esac)");
     EXPECT_NE(result.stdoutText.find("greet"), std::string::npos);
 }
 
+/**
+ * An external command whose name holds a dot is taken as the command it
+ * names, as one without a dot is.
+ */
+TEST_F(CliE2ETest, ExternalNameWithADotIsTakenAsOneName)
+{
+    makeDummy("scrap-greet", "echo \"greet called\"");
+    makeDummy("scrap-greet.sh", "echo \"greet called\"");
+
+    auto plain = runScrap({ "greet" }, {}, _root);
+    auto dotted = runScrap({ "greet.sh" }, {}, _root);
+
+    ASSERT_TRUE(dotted.exitedNormally);
+    EXPECT_EQ(dotted.exitCode, plain.exitCode);
+    EXPECT_EQ(dotted.stdoutText, plain.stdoutText);
+    std::string expected = plain.stderrText;
+    const auto position = expected.find("greet");
+    ASSERT_NE(position, std::string::npos) << plain.stderrText;
+    expected.replace(position, std::string_view{ "greet" }.size(), "greet.sh");
+    EXPECT_EQ(dotted.stderrText, expected);
+}
+
 // --- TS-03: project scope with no scrap.toml (honest scope: graceful only) ----
 
 TEST_F(CliE2ETest, ProjectScopeNoConfig)

@@ -13,7 +13,7 @@ namespace scrap::Command {
 /**
  * @brief Aggregates CommandEntry trees from all Resolvers.
  *
- * Provides priority-ordered lookup by dot-separated command path,
+ * Provides priority-ordered lookup by command path,
  * and derives read-only CommandSpec / HelpEntry views from the
  * stored CommandEntry tree.
  *
@@ -42,18 +42,6 @@ public:
      * @param entries CommandEntry trees to merge.
      */
     void addEntries(std::vector<CommandEntry> entries);
-
-    /**
-     * @brief Look up a CommandEntry by dot-separated command path.
-     *
-     * The path is split on @c '.' and each segment is matched
-     * against the corresponding tree level.  Malformed paths
-     * (leading/trailing dots, consecutive dots) are rejected.
-     *
-     * @param commandPath Dot-separated path, e.g. "toolchain.install".
-     * @return Pointer to the found entry, or @c nullptr if not found.
-     */
-    [[nodiscard]] const CommandEntry* find(const std::string& commandPath) const;
 
     /// What a path of words names: the deepest command they reach and how many words named one.
     struct PathMatch {

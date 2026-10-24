@@ -5,10 +5,8 @@
 #include "command/HelpRenderer.h"
 
 #include <algorithm>
-#include <cstddef>
 #include <iostream>
 #include <span>
-#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -38,29 +36,6 @@ void CommandCatalog::addEntries(std::vector<CommandEntry> entries)
 
         _entries.push_back(std::move(incoming));
     }
-}
-
-const CommandEntry* CommandCatalog::find(const std::string& commandPath) const
-{
-    if (commandPath.empty()) {
-        return nullptr;
-    }
-
-    // Reject malformed paths: leading/trailing dots, consecutive dots.
-    if ((commandPath.front() == '.') || (commandPath.back() == '.') || commandPath.contains("..")) {
-        return nullptr;
-    }
-
-    // Split path on '.'.
-    std::vector<std::string> segments;
-    std::istringstream stream(commandPath);
-    std::string segment;
-    while (std::getline(stream, segment, '.')) {
-        segments.push_back(std::move(segment));
-    }
-
-    const PathMatch found = match(segments);
-    return (found.depth == segments.size()) ? found.deepest : nullptr;
 }
 
 CommandCatalog::PathMatch CommandCatalog::match(std::span<const std::string> words) const
