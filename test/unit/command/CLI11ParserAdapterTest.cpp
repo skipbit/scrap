@@ -107,6 +107,36 @@ TEST(CLI11ParserAdapterTest, Parse_SubcommandPath)
     EXPECT_EQ(result->commandPath, (std::vector<std::string>{ "toolchain", "install" }));
 }
 
+/**
+ * A command whose name holds a dot keeps its options apart from a nested
+ * command its name spells out.
+ */
+TEST(CLI11ParserAdapterTest, Parse_NameWithADotKeepsItsOptions)
+{
+    CLI11ParserAdapter adapter;
+
+    CommandSpec dotted = makeSpec("toolchain.list");
+    dotted.options.named.push_back(OptionDef{
+        .longName = "verbose",
+        .shortName = std::nullopt,
+        .type = OptionValueType::Bool,
+        .required = false,
+        .description = "",
+        .defaultValue = std::nullopt,
+        .choices = {},
+    });
+    adapter.configure(std::vector{ dotted, makeSpecWithSubs("toolchain", { makeSpec("list", "List") }) });
+
+    ArgvBuilder argv{ "scrap", "toolchain.list", "--verbose" };
+    auto result = adapter.parse(argv.span());
+
+    ASSERT_TRUE(result.has_value());
+    EXPECT_EQ(result->commandPath, (std::vector<std::string>{ "toolchain.list" }));
+    auto it = result->options.named.find("verbose");
+    ASSERT_NE(it, result->options.named.end());
+    EXPECT_TRUE(std::get<bool>(it->second));
+}
+
 // =============================================================================
 // Named options
 // =============================================================================

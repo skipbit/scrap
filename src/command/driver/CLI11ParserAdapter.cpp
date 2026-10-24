@@ -12,6 +12,7 @@
 #include <deque>
 #include <exception>
 #include <expected>  // IWYU pragma: keep
+#include <map>
 #include <memory>
 #include <span>
 #include <string>
@@ -167,16 +168,16 @@ void addPositional(CLI::App& app, const PositionalDef& def, OptionStorage& stora
 // NOLINTNEXTLINE(readability-function-size) - iterative BFS requires local struct + loop state
 void addSubcommands(CLI::App& root,
                     const std::vector<CommandSpec>& rootSpecs,
-                    std::unordered_map<std::string, std::unique_ptr<OptionStorage>>& storageMap)
+                    std::map<std::vector<std::string>, std::unique_ptr<OptionStorage>>& storageMap)
 {
     struct Pending {
         CLI::App* parent;
         const std::vector<CommandSpec>* specs;
-        std::string prefix;
+        std::vector<std::string> prefix;
     };
 
     std::vector<Pending> current;
-    current.push_back({ &root, &rootSpecs, "" });
+    current.push_back({ &root, &rootSpecs, {} });
 
     while (! current.empty()) {
         std::vector<Pending> next;
@@ -184,7 +185,8 @@ void addSubcommands(CLI::App& root,
             for (const auto& spec : *specs) {
                 auto* sub = parent->add_subcommand(spec.name, spec.description);
 
-                const std::string path = prefix.empty() ? spec.name : (prefix + "." + spec.name);
+                std::vector<std::string> path = prefix;
+                path.push_back(spec.name);
 
                 auto storage = std::make_unique<OptionStorage>();
                 for (const auto& opt : spec.options.named) {
@@ -246,21 +248,6 @@ std::vector<std::string> buildCommandPath(const CLI::App& app)
         path.push_back(sub->get_name());
     }
     return path;
-}
-
-/**
- * The key the options of the command at @p path are stored under.
- */
-std::string storageKey(const std::vector<std::string>& path)
-{
-    std::string key;
-    for (const auto& name : path) {
-        if (! key.empty()) {
-            key += '.';
-        }
-        key += name;
-    }
-    return key;
 }
 
 /**
@@ -394,8 +381,8 @@ ParseResult CLI11ParserAdapter::parse(std::span<const char* const> argv) const
     app.set_version_flag("--version,-V", "");
     app.require_subcommand(1);
 
-    // Per-call storage map: dot-path -> OptionStorage.
-    std::unordered_map<std::string, std::unique_ptr<OptionStorage>> storageMap;
+    // Per-call storage map: command path -> OptionStorage.
+    std::map<std::vector<std::string>, std::unique_ptr<OptionStorage>> storageMap;
 
     auto [beforeSeparator, trailing] = splitAtSeparator(argv);
 
@@ -426,7 +413,7 @@ ParseResult CLI11ParserAdapter::parse(std::span<const char* const> argv) const
     auto commandPath = buildCommandPath(app);
 
     ParsedOptions options;
-    auto storageIt = storageMap.find(storageKey(commandPath));
+    auto storageIt = storageMap.find(commandPath);
     const bool takesTrailing = (storageIt != storageMap.end()) && storageIt->second->takesTrailing;
     if ((! trailing.empty()) && (! takesTrailing)) {
         return std::unexpected(ParseInterruption{ ParseFailure{ describeUnexpected(trailing) } });
