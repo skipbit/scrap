@@ -53,6 +53,12 @@ public:
      */
     [[nodiscard]] ParseResult parse(std::span<const char* const> argv) const override;
 
+    /**
+     * @brief Tell whether @p name is not empty and CLI11 takes it as a
+     * subcommand name.
+     */
+    [[nodiscard]] bool acceptsName(std::string_view name) const override;
+
 private:
     class Impl;
     std::unique_ptr<Impl> _impl;

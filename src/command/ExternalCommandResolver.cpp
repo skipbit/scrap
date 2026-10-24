@@ -76,6 +76,7 @@ CommandEntry buildEntry(const std::filesystem::path& executablePath, ExternalMet
     entry.spec.category = "External Commands";
     entry.spec.options = std::move(options);
     entry.source = CommandSource::External;
+    entry.location = executablePath;
     entry.createHandler = [](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
         return nullptr;
     };

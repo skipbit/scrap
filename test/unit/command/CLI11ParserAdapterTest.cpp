@@ -734,3 +734,59 @@ TEST(CLI11ParserAdapterTest, Parse_HelpBeforeTheSeparatorIsStillHelp)
     ASSERT_TRUE(std::holds_alternative<ParseDirective>(result.error()));
     EXPECT_EQ(std::get<ParseDirective>(result.error()).target, std::vector<std::string>{ "run" });
 }
+
+namespace {
+
+/**
+ * Helper: names the parser cannot hold, each failing a different rule.
+ */
+std::vector<std::string> refusedNames()
+{
+    return { "a:b", "a=b", "a b", "a{b", std::string{ "a" } + '\x01' + "b", "!x", "-x", std::string{ '\x01' } + "b", "\tb" };
+}
+
+/**
+ * Helper: names the parser holds, including ones close to the refused ones.
+ */
+std::vector<std::string> acceptedNames()
+{
+    return { "build", "foo.sh", "a}b", "a\tb", std::string{ "a" } + '\x7f' + "b", std::string{ "a" } + '\x9b' + "b", "a\"b" };
+}
+
+}  // namespace
+
+TEST(CLI11ParserAdapterTest, AcceptsName_NamesItCanHold)
+{
+    const CLI11ParserAdapter adapter;
+    for (const auto& name : acceptedNames()) {
+        EXPECT_TRUE(adapter.acceptsName(name)) << name;
+    }
+}
+
+TEST(CLI11ParserAdapterTest, AcceptsName_RefusesNamesItCannotHold)
+{
+    const CLI11ParserAdapter adapter;
+    for (const auto& name : refusedNames()) {
+        EXPECT_FALSE(adapter.acceptsName(name)) << name;
+    }
+}
+
+TEST(CLI11ParserAdapterTest, AcceptsName_RefusesAnEmptyName)
+{
+    const CLI11ParserAdapter adapter;
+    EXPECT_FALSE(adapter.acceptsName(""));
+}
+
+TEST(CLI11ParserAdapterTest, AcceptsName_AgreesWithWhatParseCanHold)
+{
+    auto names = acceptedNames();
+    const auto refused = refusedNames();
+    names.insert(names.end(), refused.begin(), refused.end());
+    for (const auto& name : names) {
+        CLI11ParserAdapter adapter;
+        adapter.configure(std::vector{ makeSpec(name), makeSpec("version") });
+
+        ArgvBuilder argv{ "scrap", "version" };
+        EXPECT_EQ(adapter.parse(argv.span()).has_value(), adapter.acceptsName(name)) << name;
+    }
+}
