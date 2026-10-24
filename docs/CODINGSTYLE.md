@@ -138,7 +138,7 @@ class Template {
 
 ### Headers Contain Declarations Only
 
-**CRITICAL RULE**: Header files (`.h`) must contain **declarations only**. All implementations, including `= default`, `= delete`, and any function body, must be placed in implementation files (`.cpp`).
+**CRITICAL RULE**: Header files (`.h`) must contain **declarations only**. All implementations, including any function body, must be placed in implementation files (`.cpp`), except those listed under Exceptions.
 
 #### Correct Usage
 
@@ -217,9 +217,6 @@ bool Template::isValid() const noexcept           // Implementation in .cpp
 
 class Template {
 public:
-    Template() = default;                          // ❌ WRONG: Implementation in header
-    ~Template() = default;                         // ❌ WRONG: Implementation in header
-
     std::string name() const { return _name; }     // ❌ WRONG: Implementation in header
 
     void setName(const std::string& name) {        // ❌ WRONG: Implementation in header
@@ -255,6 +252,12 @@ void processTemplate(T&& value)                   // ✅ OK: Template requiremen
 {
     // implementation
 }
+```
+
+4. **Defaulted and deleted functions in the class definition** (`= delete` must be on the first declaration, and `= default` there keeps a type trivial where its members allow):
+```cpp
+Template() = default;                             // ✅ OK: Defaulted in the class
+Template(const Template& other) = delete;         // ✅ OK: Deleted in the class
 ```
 
 #### Benefits of This Approach
