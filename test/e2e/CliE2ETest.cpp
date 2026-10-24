@@ -863,9 +863,10 @@ TEST_F(CliE2ETest, AnUnexpectedArgumentIsWrittenAsText)
 }
 
 /**
- * A usage error ends with status 2, whether the parser or help finds it.
+ * A usage error in the command line ends with status 2, whether the parser
+ * or help finds it.
  */
-TEST_F(CliE2ETest, EveryUsageErrorEndsWithStatus2)
+TEST_F(CliE2ETest, UsageErrorsInTheCommandLineEndWithStatus2)
 {
     const std::vector<std::vector<std::string>> commandLines{
         {},
@@ -878,11 +879,16 @@ TEST_F(CliE2ETest, EveryUsageErrorEndsWithStatus2)
         { "nosuch", "--help" },
     };
     for (const auto& args : commandLines) {
+        std::string typed = "scrap";
+        for (const auto& arg : args) {
+            typed += " " + arg;
+        }
+
         auto result = runScrap(args, {}, _root);
 
-        ASSERT_TRUE(result.exitedNormally) << result.stderrText;
-        EXPECT_EQ(result.exitCode, 2) << result.stderrText;
-        EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+        ASSERT_TRUE(result.exitedNormally) << typed << ": " << result.stderrText;
+        EXPECT_EQ(result.exitCode, 2) << typed << ": " << result.stderrText;
+        EXPECT_TRUE(result.stdoutText.empty()) << typed << ": " << result.stdoutText;
     }
 }
 
