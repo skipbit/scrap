@@ -60,8 +60,10 @@ scrap_add_unit_test(command SOURCES
     PROPERTIES TIMEOUT 60
 )
 
+# The process tests wait on events in the same way.
 scrap_add_unit_test(process SOURCES
     unit/process/SubprocessTest.cpp
+    PROPERTIES TIMEOUT 60
 )
 
 scrap_add_unit_test(toolchain SOURCES

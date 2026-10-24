@@ -282,6 +282,25 @@ TEST(SubprocessTest, StopsAProgramWhoseTimeRunsOut)
 }
 
 /**
+ * A program in the caller's process group is killed alone once its time runs
+ * out, which leaves the caller, and so this test, running.
+ */
+TEST(SubprocessTest, StopsAProgramInTheCallersGroupWhoseTimeRunsOut)
+{
+    const TempDirectory temp;
+    makeFifoNobodyWrites(temp.path());
+    RunOptions options = reading(OutputCapture::StandardOutput, temp.path());
+    options.timeout = std::chrono::milliseconds{ 100 };
+
+    const auto completion = runProgram(shell("read line < never"), options);
+
+    ASSERT_TRUE(completion.has_value());
+    EXPECT_TRUE(completion->timedOut);
+    EXPECT_FALSE(completion->exitCode.has_value());
+    EXPECT_FALSE(completion->signal.has_value());
+}
+
+/**
  * A program in a group of its own is stopped with the programs it started.
  * The one it starts holds the write end of a pipe; the read end reaches its
  * end once every holder is gone.
