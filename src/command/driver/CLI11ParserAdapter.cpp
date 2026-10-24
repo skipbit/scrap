@@ -255,6 +255,10 @@ struct DottedWord {
  * CLI11 reads "a.b" as the command "b" in "a", and "--a.f" as the option
  * "f" of "a". scrap takes neither form, so each command in the chain must
  * be named by a word of its own, in order.
+ *
+ * Words are matched by text alone. This holds while a command with
+ * subcommands takes no option values or positionals, as no word given
+ * to it as a value can then match the name of a command below it.
  */
 std::optional<DottedWord> findDottedWord(std::span<const char* const> words, std::span<const CLI::App* const> chain)
 {
