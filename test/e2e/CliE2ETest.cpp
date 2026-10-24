@@ -544,7 +544,9 @@ TEST_F(CliE2ETest, ExternalNameWithADotIsTakenAsOneName)
     EXPECT_EQ(dotted.exitCode, plain.exitCode);
     EXPECT_EQ(dotted.stdoutText, plain.stdoutText);
     std::string expected = plain.stderrText;
-    expected.replace(expected.find("greet"), std::string_view{ "greet" }.size(), "greet.sh");
+    const auto position = expected.find("greet");
+    ASSERT_NE(position, std::string::npos) << plain.stderrText;
+    expected.replace(position, std::string_view{ "greet" }.size(), "greet.sh");
     EXPECT_EQ(dotted.stderrText, expected);
 }
 
