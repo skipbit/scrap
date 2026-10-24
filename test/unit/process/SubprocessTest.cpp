@@ -1,5 +1,6 @@
 #include "process/Subprocess.h"
 
+#include "support/Fifo.h"
 #include "support/TempDirectory.h"
 
 #include <gtest/gtest.h>
@@ -12,12 +13,12 @@
 #include <filesystem>
 #include <poll.h>
 #include <string>
-#include <sys/stat.h>
 #include <system_error>
 #include <unistd.h>
 #include <vector>
 
 using namespace scrap::Process;
+using scrap::TestSupport::makeFifoNobodyWrites;
 using scrap::TestSupport::TempDirectory;
 
 namespace {
@@ -124,15 +125,6 @@ private:
     int _saved;
     std::array<int, 2> _ends{ -1, -1 };
 };
-
-/**
- * Create in @p directory a FIFO nothing ever writes to, so a program that
- * reads it waits until it is stopped.
- */
-void makeFifoNobodyWrites(const std::filesystem::path& directory)
-{
-    ASSERT_EQ(::mkfifo((directory / "never").c_str(), 0600), 0);
-}
 
 }  // namespace
 

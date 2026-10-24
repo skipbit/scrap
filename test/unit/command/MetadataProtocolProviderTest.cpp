@@ -1,12 +1,13 @@
 #include "command/MetadataProtocolProvider.h"
 
+#include "support/Fifo.h"
+
 #include <gtest/gtest.h>
 
 #include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <string>
-#include <sys/stat.h>
 
 using namespace scrap::Command;
 
@@ -58,15 +59,6 @@ protected:
                             << body << "\n";
         std::filesystem::permissions(path, std::filesystem::perms::owner_exec, std::filesystem::perm_options::add);
         return path;
-    }
-
-    /**
-     * Create a FIFO named never beside the scripts that nothing writes to,
-     * so a script that reads it waits until it is killed.
-     */
-    void makeFifoNobodyWrites()
-    {
-        ASSERT_EQ(::mkfifo((_tempDir / "never").c_str(), 0600), 0);
     }
 
     std::filesystem::path _tempDir;
@@ -132,7 +124,7 @@ TEST_F(MetadataProtocolProviderTest, BothFailUnexpected)
  */
 TEST_F(MetadataProtocolProviderTest, Timeout)
 {
-    makeFifoNobodyWrites();
+    scrap::TestSupport::makeFifoNobodyWrites(_tempDir);
     auto script = createExecutable("scrap-x", R"(read line < "$(dirname "$0")/never")");
 
     constexpr std::chrono::milliseconds shortTimeout{ 200 };
@@ -154,7 +146,7 @@ TEST_F(MetadataProtocolProviderTest, CapThenHang)
 {
     // MaxCaptureBytes is 64 * 1024; 70000 bytes safely exceeds it for both
     // probe attempts.
-    makeFifoNobodyWrites();
+    scrap::TestSupport::makeFifoNobodyWrites(_tempDir);
     auto script = createExecutable("scrap-x", R"(case "$1" in
   --scrap-metadata|--help) yes x | head -c 70000; read line < "$(dirname "$0")/never" ;;
 esac
@@ -180,7 +172,7 @@ exit 1)");
  */
 TEST_F(MetadataProtocolProviderTest, ClosesStdoutThenHang)
 {
-    makeFifoNobodyWrites();
+    scrap::TestSupport::makeFifoNobodyWrites(_tempDir);
     auto script = createExecutable("scrap-x", R"(exec 1>&-; read line < "$(dirname "$0")/never")");
 
     constexpr std::chrono::milliseconds shortTimeout{ 200 };

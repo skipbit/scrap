@@ -6,6 +6,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/test)
 
 # Helpers shared by the tests of more than one module
 add_library(scrap_test_support STATIC
+    support/Fifo.cpp
     support/TempDirectory.cpp
 )
 target_include_directories(scrap_test_support PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
