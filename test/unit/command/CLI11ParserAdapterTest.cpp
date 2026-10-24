@@ -90,7 +90,7 @@ TEST(CLI11ParserAdapterTest, Parse_SimpleCommand)
     auto result = adapter.parse(argv.span());
 
     ASSERT_TRUE(result.has_value());
-    EXPECT_EQ(result->commandPath, "build");
+    EXPECT_EQ(result->commandPath, (std::vector<std::string>{ "build" }));
 }
 
 TEST(CLI11ParserAdapterTest, Parse_SubcommandPath)
@@ -104,7 +104,7 @@ TEST(CLI11ParserAdapterTest, Parse_SubcommandPath)
     auto result = adapter.parse(argv.span());
 
     ASSERT_TRUE(result.has_value());
-    EXPECT_EQ(result->commandPath, "toolchain.install");
+    EXPECT_EQ(result->commandPath, (std::vector<std::string>{ "toolchain", "install" }));
 }
 
 // =============================================================================
@@ -132,7 +132,7 @@ TEST(CLI11ParserAdapterTest, Parse_BoolFlag)
     auto result = adapter.parse(argv.span());
 
     ASSERT_TRUE(result.has_value());
-    EXPECT_EQ(result->commandPath, "build");
+    EXPECT_EQ(result->commandPath, (std::vector<std::string>{ "build" }));
     auto it = result->options.named.find("verbose");
     ASSERT_NE(it, result->options.named.end());
     EXPECT_TRUE(std::get<bool>(it->second));

@@ -1,6 +1,7 @@
 #include "command/Application.h"
 
 #include "command/CommandCatalog.h"
+#include "command/CommandPath.h"
 #include "command/CommandResolver.h"
 #include "command/HelpRenderer.h"
 #include "command/HelpRequest.h"
@@ -66,14 +67,14 @@ int Application::run(std::span<const char* const> argv, const RuntimeEnvironment
     // Phase 4: Execute - dispatch based on ParseResult.
     if (result.has_value()) {
         auto& invocation = *result;
-        const auto* entry = catalog.find(invocation.commandPath);
-        if (entry == nullptr) {
-            std::cerr << "Internal error: command not found after parsing: " << invocation.commandPath << "\n";
+        const auto found = catalog.match(invocation.commandPath);
+        if ((found.deepest == nullptr) || (found.depth != invocation.commandPath.size())) {
+            std::cerr << "Internal error: command not found after parsing: " << typedPath(invocation.commandPath) << "\n";
             return 1;
         }
-        auto handler = entry->createHandler(invocation.options);
+        auto handler = found.deepest->createHandler(invocation.options);
         if (handler == nullptr) {
-            std::cerr << "Command '" << invocation.commandPath << "' is not available yet.\n";
+            std::cerr << "Command '" << typedPath(invocation.commandPath) << "' is not available yet.\n";
             std::cerr << "Run 'scrap --help' for usage information.\n";
             return 1;
         }

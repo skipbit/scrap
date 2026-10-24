@@ -82,9 +82,9 @@ TEST(CommandEntryTest, CanHoldSubcommands)
 
 TEST(ParseResultTest, SuccessCase)
 {
-    ParseResult result = CommandInvocation{ "build", {} };
+    ParseResult result = CommandInvocation{ { "build" }, {} };
     EXPECT_TRUE(result.has_value());
-    EXPECT_EQ(result->commandPath, "build");
+    EXPECT_EQ(result->commandPath, (std::vector<std::string>{ "build" }));
 }
 
 TEST(ParseResultTest, HelpDirective)

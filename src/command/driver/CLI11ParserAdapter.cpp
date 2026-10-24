@@ -236,21 +236,31 @@ std::vector<const CLI::App*> parsedChain(const CLI::App& app)
 }
 
 /**
- * Walk the parsed subcommand chain and build a dot-separated path.
- *
- * @return Dot-separated command path (e.g. "toolchain.install"), or
- *         empty string if no subcommand was parsed.
+ * The names of the parsed subcommand chain, outermost first; none when no
+ * subcommand was parsed.
  */
-std::string buildCommandPath(const CLI::App& app)
+std::vector<std::string> buildCommandPath(const CLI::App& app)
 {
-    std::string path;
+    std::vector<std::string> path;
     for (const CLI::App* sub : parsedChain(app)) {
-        if (! path.empty()) {
-            path += '.';
-        }
-        path += sub->get_name();
+        path.push_back(sub->get_name());
     }
     return path;
+}
+
+/**
+ * The key the options of the command at @p path are stored under.
+ */
+std::string storageKey(const std::vector<std::string>& path)
+{
+    std::string key;
+    for (const auto& name : path) {
+        if (! key.empty()) {
+            key += '.';
+        }
+        key += name;
+    }
+    return key;
 }
 
 /**
@@ -416,7 +426,7 @@ ParseResult CLI11ParserAdapter::parse(std::span<const char* const> argv) const
     auto commandPath = buildCommandPath(app);
 
     ParsedOptions options;
-    auto storageIt = storageMap.find(commandPath);
+    auto storageIt = storageMap.find(storageKey(commandPath));
     const bool takesTrailing = (storageIt != storageMap.end()) && storageIt->second->takesTrailing;
     if ((! trailing.empty()) && (! takesTrailing)) {
         return std::unexpected(ParseInterruption{ ParseFailure{ describeUnexpected(trailing) } });

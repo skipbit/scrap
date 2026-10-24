@@ -29,6 +29,12 @@ CommandEntry makeEntryWithSubs(const std::string& name, CommandSource source, st
     return entry;
 }
 
+const CommandEntry* topLevel(const CommandCatalog& catalog, const std::string& name)
+{
+    const std::vector<std::string> words = { name };
+    return catalog.match(words).deepest;
+}
+
 }  // namespace
 
 // --- addEntries ---
@@ -40,7 +46,7 @@ TEST(CommandCatalogTest, AddEntries_SingleEntry)
     entries.push_back(makeEntry("build", CommandSource::Builtin));
     catalog.addEntries(std::move(entries));
 
-    EXPECT_NE(catalog.find("build"), nullptr);
+    EXPECT_NE(topLevel(catalog, "build"), nullptr);
 }
 
 TEST(CommandCatalogTest, AddEntries_MultipleEntries)
@@ -52,9 +58,9 @@ TEST(CommandCatalogTest, AddEntries_MultipleEntries)
     entries.push_back(makeEntry("clean", CommandSource::Builtin));
     catalog.addEntries(std::move(entries));
 
-    EXPECT_NE(catalog.find("build"), nullptr);
-    EXPECT_NE(catalog.find("run"), nullptr);
-    EXPECT_NE(catalog.find("clean"), nullptr);
+    EXPECT_NE(topLevel(catalog, "build"), nullptr);
+    EXPECT_NE(topLevel(catalog, "run"), nullptr);
+    EXPECT_NE(topLevel(catalog, "clean"), nullptr);
 }
 
 TEST(CommandCatalogTest, AddEntries_NameCollision_FirstWins)
@@ -69,7 +75,7 @@ TEST(CommandCatalogTest, AddEntries_NameCollision_FirstWins)
     second.push_back(makeEntry("build", CommandSource::External, "", "external build"));
     catalog.addEntries(std::move(second));
 
-    const auto* found = catalog.find("build");
+    const auto* found = topLevel(catalog, "build");
     ASSERT_NE(found, nullptr);
     EXPECT_EQ(found->source, CommandSource::Builtin);
     EXPECT_EQ(found->spec.description, "builtin build");
@@ -87,134 +93,8 @@ TEST(CommandCatalogTest, AddEntries_MultipleCallsMerge)
     batch2.push_back(makeEntry("lint", CommandSource::External));
     catalog.addEntries(std::move(batch2));
 
-    EXPECT_NE(catalog.find("build"), nullptr);
-    EXPECT_NE(catalog.find("lint"), nullptr);
-}
-
-// --- find ---
-
-TEST(CommandCatalogTest, Find_TopLevelCommand)
-{
-    CommandCatalog catalog;
-    std::vector<CommandEntry> entries;
-    entries.push_back(makeEntry("build", CommandSource::Builtin));
-    catalog.addEntries(std::move(entries));
-
-    const auto* found = catalog.find("build");
-    ASSERT_NE(found, nullptr);
-    EXPECT_EQ(found->spec.name, "build");
-}
-
-TEST(CommandCatalogTest, Find_DotSeparatedPath)
-{
-    CommandCatalog catalog;
-
-    std::vector<CommandEntry> subs;
-    subs.push_back(makeEntry("install", CommandSource::Builtin));
-    subs.push_back(makeEntry("list", CommandSource::Builtin));
-
-    std::vector<CommandEntry> entries;
-    entries.push_back(makeEntryWithSubs("toolchain", CommandSource::Builtin, std::move(subs)));
-    catalog.addEntries(std::move(entries));
-
-    const auto* found = catalog.find("toolchain.install");
-    ASSERT_NE(found, nullptr);
-    EXPECT_EQ(found->spec.name, "install");
-
-    const auto* listFound = catalog.find("toolchain.list");
-    ASSERT_NE(listFound, nullptr);
-    EXPECT_EQ(listFound->spec.name, "list");
-}
-
-TEST(CommandCatalogTest, Find_ParentCommand)
-{
-    CommandCatalog catalog;
-
-    std::vector<CommandEntry> subs;
-    subs.push_back(makeEntry("install", CommandSource::Builtin));
-
-    std::vector<CommandEntry> entries;
-    entries.push_back(makeEntryWithSubs("toolchain", CommandSource::Builtin, std::move(subs)));
-    catalog.addEntries(std::move(entries));
-
-    const auto* found = catalog.find("toolchain");
-    ASSERT_NE(found, nullptr);
-    EXPECT_EQ(found->spec.name, "toolchain");
-    EXPECT_EQ(found->subcommands.size(), 1);
-}
-
-TEST(CommandCatalogTest, Find_NonexistentPath)
-{
-    CommandCatalog catalog;
-    std::vector<CommandEntry> entries;
-    entries.push_back(makeEntry("build", CommandSource::Builtin));
-    catalog.addEntries(std::move(entries));
-
-    EXPECT_EQ(catalog.find("nonexistent"), nullptr);
-}
-
-TEST(CommandCatalogTest, Find_PartialInvalidPath)
-{
-    CommandCatalog catalog;
-
-    std::vector<CommandEntry> subs;
-    subs.push_back(makeEntry("install", CommandSource::Builtin));
-
-    std::vector<CommandEntry> entries;
-    entries.push_back(makeEntryWithSubs("toolchain", CommandSource::Builtin, std::move(subs)));
-    catalog.addEntries(std::move(entries));
-
-    EXPECT_EQ(catalog.find("toolchain.nonexistent"), nullptr);
-}
-
-TEST(CommandCatalogTest, Find_EmptyPath)
-{
-    CommandCatalog catalog;
-    std::vector<CommandEntry> entries;
-    entries.push_back(makeEntry("build", CommandSource::Builtin));
-    catalog.addEntries(std::move(entries));
-
-    EXPECT_EQ(catalog.find(""), nullptr);
-}
-
-TEST(CommandCatalogTest, Find_EmptyCatalog)
-{
-    CommandCatalog catalog;
-    EXPECT_EQ(catalog.find("build"), nullptr);
-}
-
-TEST(CommandCatalogTest, Find_MalformedPath_LeadingDot)
-{
-    CommandCatalog catalog;
-    std::vector<CommandEntry> entries;
-    entries.push_back(makeEntry("toolchain", CommandSource::Builtin));
-    catalog.addEntries(std::move(entries));
-
-    EXPECT_EQ(catalog.find(".toolchain"), nullptr);
-}
-
-TEST(CommandCatalogTest, Find_MalformedPath_TrailingDot)
-{
-    CommandCatalog catalog;
-    std::vector<CommandEntry> entries;
-    entries.push_back(makeEntry("toolchain", CommandSource::Builtin));
-    catalog.addEntries(std::move(entries));
-
-    EXPECT_EQ(catalog.find("toolchain."), nullptr);
-}
-
-TEST(CommandCatalogTest, Find_MalformedPath_ConsecutiveDots)
-{
-    CommandCatalog catalog;
-
-    std::vector<CommandEntry> subs;
-    subs.push_back(makeEntry("install", CommandSource::Builtin));
-
-    std::vector<CommandEntry> entries;
-    entries.push_back(makeEntryWithSubs("toolchain", CommandSource::Builtin, std::move(subs)));
-    catalog.addEntries(std::move(entries));
-
-    EXPECT_EQ(catalog.find("toolchain..install"), nullptr);
+    EXPECT_NE(topLevel(catalog, "build"), nullptr);
+    EXPECT_NE(topLevel(catalog, "lint"), nullptr);
 }
 
 // --- specs ---
@@ -374,6 +254,20 @@ TEST(CommandCatalogTest, Match_EmptyWords)
     const auto found = catalog.match({});
     EXPECT_EQ(found.deepest, nullptr);
     EXPECT_EQ(found.depth, 0);
+}
+
+TEST(CommandCatalogTest, Match_NameWithADot)
+{
+    CommandCatalog catalog;
+    std::vector<CommandEntry> entries;
+    entries.push_back(makeEntry("foo.sh", CommandSource::External));
+    catalog.addEntries(std::move(entries));
+    const std::vector<std::string> words = { "foo.sh" };
+
+    const auto found = catalog.match(words);
+    ASSERT_NE(found.deepest, nullptr);
+    EXPECT_EQ(found.deepest->spec.name, "foo.sh");
+    EXPECT_EQ(found.depth, 1);
 }
 
 TEST(CommandCatalogTest, Match_NestedNameIsNotTopLevel)

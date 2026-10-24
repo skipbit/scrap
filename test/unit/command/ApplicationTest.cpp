@@ -247,7 +247,7 @@ private:
 TEST(ApplicationTest, Run_HappyPath_ExecutesHandler)
 {
     auto parser = std::make_unique<MockParserAdapter>();
-    parser->setResult(CommandInvocation{ "build", {} });
+    parser->setResult(CommandInvocation{ { "build" }, {} });
 
     auto resolver = std::make_unique<MockResolver>();
     resolver->setEntries({ makeEntry("build", 0) });
@@ -268,7 +268,7 @@ TEST(ApplicationTest, Run_HappyPath_ExecutesHandler)
 TEST(ApplicationTest, Run_HandlerExitCode_Propagated)
 {
     auto parser = std::make_unique<MockParserAdapter>();
-    parser->setResult(CommandInvocation{ "build", {} });
+    parser->setResult(CommandInvocation{ { "build" }, {} });
 
     auto resolver = std::make_unique<MockResolver>();
     resolver->setEntries({ makeEntry("build", 42) });
@@ -289,7 +289,7 @@ TEST(ApplicationTest, Run_HandlerExitCode_Propagated)
 TEST(ApplicationTest, Run_SubcommandPath)
 {
     auto parser = std::make_unique<MockParserAdapter>();
-    parser->setResult(CommandInvocation{ "toolchain.install", {} });
+    parser->setResult(CommandInvocation{ { "toolchain", "install" }, {} });
 
     auto resolver = std::make_unique<MockResolver>();
     resolver->setEntries({ makeEntryWithSubs("toolchain", { makeEntry("install", 0) }) });
@@ -302,6 +302,27 @@ TEST(ApplicationTest, Run_SubcommandPath)
     auto exitCode = app.run(argv, env);
 
     EXPECT_EQ(exitCode, 0);
+}
+
+/**
+ * A command whose name holds a dot is found by its whole name.
+ */
+TEST(ApplicationTest, Run_NameWithADot)
+{
+    auto parser = std::make_unique<MockParserAdapter>();
+    parser->setResult(CommandInvocation{ { "foo.sh" }, {} });
+
+    auto resolver = std::make_unique<MockResolver>();
+    resolver->setEntries({ makeEntry("foo.sh", 7) });
+
+    Application app(std::move(parser), std::make_unique<MockHelpRenderer>(), std::make_unique<MockVersionRenderer>());
+    app.addResolver(std::move(resolver));
+
+    RuntimeEnvironment env;
+    const char* argv[] = { "scrap", "foo.sh" };
+    auto exitCode = app.run(argv, env);
+
+    EXPECT_EQ(exitCode, 7);
 }
 
 /**
@@ -535,7 +556,7 @@ TEST(ApplicationTest, Run_ParseFailureWritesTheMessageAsText)
 TEST(ApplicationTest, Run_ResolverPriority)
 {
     auto parser = std::make_unique<MockParserAdapter>();
-    parser->setResult(CommandInvocation{ "build", {} });
+    parser->setResult(CommandInvocation{ { "build" }, {} });
 
     auto resolver1 = std::make_unique<MockResolver>();
     resolver1->setEntries({ makeEntry("build", 10) });
@@ -563,7 +584,7 @@ TEST(ApplicationTest, Run_ResolverPriority)
 TEST(ApplicationTest, Run_MultipleResolvers_MergedCatalog)
 {
     auto parser = std::make_unique<MockParserAdapter>();
-    parser->setResult(CommandInvocation{ "lint", {} });
+    parser->setResult(CommandInvocation{ { "lint" }, {} });
 
     auto builtinResolver = std::make_unique<MockResolver>();
     builtinResolver->setEntries({ makeEntry("build", 0) });

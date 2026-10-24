@@ -112,6 +112,7 @@ add_library(scrap_command STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/command/CleanCommandHandler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/CommandCatalog.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/CommandHandler.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/CommandPath.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/CommandResolver.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/DefaultHelpRenderer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/DefaultVersionRenderer.cpp
