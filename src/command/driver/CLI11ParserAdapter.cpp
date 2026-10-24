@@ -401,8 +401,8 @@ ParseResult CLI11ParserAdapter::parse(std::span<const char* const> argv) const
         return std::unexpected(ParseInterruption{ ParseFailure{ e.what() } });
     } catch (const std::exception& e) {
         // Catch remaining exceptions (e.g. bad_variant_access from
-        // misconfigured OptionDef default values) and convert to failure.
-        return std::unexpected(ParseInterruption{ ParseFailure{ e.what() } });
+        // misconfigured OptionDef default values) and convert to a fault.
+        return std::unexpected(ParseInterruption{ ParserFault{ e.what() } });
     }
 
     // --- Harvest results ---------------------------------------------------------

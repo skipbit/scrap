@@ -46,7 +46,8 @@ public:
      * - Success yields a CommandInvocation with the names of the parsed
      *   commands, outermost first, and the parsed option values.
      * - --help / --version are caught as ParseDirective.
-     * - All other CLI11 exceptions become ParseFailure.
+     * - All other CLI11 exceptions become ParseFailure, and any other
+     *   exception a ParserFault.
      *
      * @param argv Raw argument vector (argv[0] is the program name).
      * @return ParseResult indicating success, directive, or failure.

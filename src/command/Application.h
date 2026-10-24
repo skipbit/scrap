@@ -71,9 +71,14 @@ private:
     int handleDirective(const CommandCatalog& catalog, const ParseDirective& directive);
 
     /**
-     * @brief Handle a ParseFailure (error message + help suggestion).
+     * @brief Handle a ParseFailure, a usage error: it ends with status 2.
      */
     static int handleFailure(const ParseFailure& failure);
+
+    /**
+     * @brief Handle a ParserFault, a fault rather than a usage error: it ends with status 1.
+     */
+    static int handleFault(const ParserFault& fault);
 
     std::unique_ptr<ParserAdapter> _parser;
     std::unique_ptr<HelpRenderer> _helpRenderer;
