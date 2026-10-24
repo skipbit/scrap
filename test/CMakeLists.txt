@@ -1,5 +1,6 @@
 # --- Google Test integration ---
 find_package(GoogleTest REQUIRED)
+include(GoogleTest)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/test)
 
@@ -11,9 +12,37 @@ target_include_directories(scrap_test_support PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
 target_link_libraries(scrap_test_support PRIVATE GTest::gtest)
 scrap_apply_compile_settings(scrap_test_support WARNINGS_AS_ERRORS)
 
-add_executable(scrap_gtest
+# A module's unit tests run in an executable that links that module alone,
+# so a dependency the module does not declare fails to link there.
+#
+#   scrap_add_unit_test(<module> SOURCES <source>... [PROPERTIES <property> <value>...])
+#
+# The PROPERTIES are set on each test found in the executable.
+function(scrap_add_unit_test module)
+    cmake_parse_arguments(PARSE_ARGV 1 ARG "" "" "SOURCES;PROPERTIES")
+    if(ARG_UNPARSED_ARGUMENTS)
+        message(FATAL_ERROR "scrap_add_unit_test: unknown arguments: ${ARG_UNPARSED_ARGUMENTS}")
+    endif()
+
+    set(target scrap_gtest_${module})
+    add_executable(${target} ${ARG_SOURCES})
+    target_link_libraries(${target} PRIVATE
+        scrap_${module}
+        scrap_test_support
+        GTest::gtest_main
+    )
+    scrap_apply_compile_settings(${target} WARNINGS_AS_ERRORS)
+    if(ARG_PROPERTIES)
+        gtest_discover_tests(${target} PROPERTIES ${ARG_PROPERTIES})
+    else()
+        gtest_discover_tests(${target})
+    endif()
+endfunction()
+
+scrap_add_unit_test(command SOURCES
     unit/command/CommonTypesTest.cpp
     unit/command/CommandCatalogTest.cpp
+    unit/command/CLI11ParserAdapterTest.cpp
     unit/command/DefaultHelpRendererTest.cpp
     unit/command/DefaultVersionRendererTest.cpp
     unit/command/BuildProgressTest.cpp
@@ -25,53 +54,23 @@ add_executable(scrap_gtest
     unit/command/ProjectDiagnosticTest.cpp
     unit/command/RuntimeEnvironmentFactoryTest.cpp
     unit/command/ApplicationTest.cpp
+)
+
+scrap_add_unit_test(process SOURCES
     unit/process/SubprocessTest.cpp
+)
+
+scrap_add_unit_test(toolchain SOURCES
     unit/toolchain/CompilerIdentityTest.cpp
     unit/toolchain/SystemArchiverTest.cpp
     unit/toolchain/SystemCompilerTest.cpp
 )
 
-target_link_libraries(scrap_gtest PRIVATE
-    scrap_command
-    scrap_process
-    scrap_toolchain
-    scrap_test_support
-    GTest::gtest_main
-)
-scrap_apply_compile_settings(scrap_gtest WARNINGS_AS_ERRORS)
-
-include(GoogleTest)
-gtest_discover_tests(scrap_gtest)
-
-# --- CLI11ParserAdapter tests ---
-add_executable(scrap_gtest_cli11
-    unit/command/CLI11ParserAdapterTest.cpp
-)
-
-target_link_libraries(scrap_gtest_cli11 PRIVATE
-    scrap_command
-    GTest::gtest_main
-)
-scrap_apply_compile_settings(scrap_gtest_cli11 WARNINGS_AS_ERRORS)
-
-gtest_discover_tests(scrap_gtest_cli11)
-
-# --- Whole file tests ---
-add_executable(scrap_gtest_file
+scrap_add_unit_test(file SOURCES
     unit/file/WholeFileTest.cpp
 )
 
-target_link_libraries(scrap_gtest_file PRIVATE
-    scrap_file
-    scrap_test_support
-    GTest::gtest_main
-)
-scrap_apply_compile_settings(scrap_gtest_file WARNINGS_AS_ERRORS)
-
-gtest_discover_tests(scrap_gtest_file)
-
-# --- Project configuration tests ---
-add_executable(scrap_gtest_project
+scrap_add_unit_test(project SOURCES
     unit/project/DiskProjectFileSystemTest.cpp
     unit/project/ManifestParserTest.cpp
     unit/project/ManifestSearch.cpp
@@ -82,17 +81,7 @@ add_executable(scrap_gtest_project
     unit/project/TargetResolverTest.cpp
 )
 
-target_link_libraries(scrap_gtest_project PRIVATE
-    scrap_project
-    scrap_test_support
-    GTest::gtest_main
-)
-scrap_apply_compile_settings(scrap_gtest_project WARNINGS_AS_ERRORS)
-
-gtest_discover_tests(scrap_gtest_project)
-
-# --- Compile command tests ---
-add_executable(scrap_gtest_compile
+scrap_add_unit_test(compile SOURCES
     unit/compile/CompilationDatabaseTest.cpp
     unit/compile/CompilePlannerTest.cpp
     unit/compile/CompilerDriverTest.cpp
@@ -101,17 +90,9 @@ add_executable(scrap_gtest_compile
     unit/compile/IncludeDirectivesTest.cpp
 )
 
-target_link_libraries(scrap_gtest_compile PRIVATE
-    scrap_compile
-    scrap_test_support
-    GTest::gtest_main
-)
-scrap_apply_compile_settings(scrap_gtest_compile WARNINGS_AS_ERRORS)
-
-gtest_discover_tests(scrap_gtest_compile)
-
-# --- Build step tests ---
-add_executable(scrap_gtest_build
+# A test that runs steps at once waits on events alone, so a build that runs
+# them one at a time would leave it waiting; the limit ends such a wait.
+scrap_add_unit_test(build SOURCES
     unit/build/BuildOutputTest.cpp
     unit/build/BuildStepsTest.cpp
     unit/build/ParallelismTest.cpp
@@ -119,18 +100,8 @@ add_executable(scrap_gtest_build
     unit/build/StepHistoryTest.cpp
     unit/build/StepObservationTest.cpp
     unit/build/StepRecordTest.cpp
+    PROPERTIES TIMEOUT 60
 )
-
-target_link_libraries(scrap_gtest_build PRIVATE
-    scrap_build
-    scrap_test_support
-    GTest::gtest_main
-)
-scrap_apply_compile_settings(scrap_gtest_build WARNINGS_AS_ERRORS)
-
-# A test that runs steps at once waits on events alone, so a build that runs
-# them one at a time would leave it waiting; the limit ends such a wait.
-gtest_discover_tests(scrap_gtest_build PROPERTIES TIMEOUT 60)
 
 # --- CLI end-to-end tests (spawns the built scrap binary as a subprocess) ---
 add_executable(scrap_e2e

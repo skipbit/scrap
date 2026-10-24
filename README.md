@@ -321,10 +321,11 @@ cmake --workflow --preset debug
 ctest --preset debug --verbose
 
 # Run a specific test executable directly
-./build/debug/test/scrap_gtest
-./build/debug/test/scrap_gtest_cli11
+./build/debug/test/scrap_gtest_command
 ./build/debug/test/scrap_gtest_file
 ./build/debug/test/scrap_gtest_project
+./build/debug/test/scrap_gtest_process
+./build/debug/test/scrap_gtest_toolchain
 ./build/debug/test/scrap_gtest_compile
 ./build/debug/test/scrap_gtest_build
 ./build/debug/test/scrap_e2e
