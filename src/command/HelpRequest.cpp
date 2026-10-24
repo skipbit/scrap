@@ -2,6 +2,7 @@
 
 #include "command/CommandCatalog.h"
 #include "command/CommandPath.h"
+#include "command/ExitCode.h"
 #include "command/HelpRenderer.h"
 #include "command/PrintableText.h"
 
@@ -12,8 +13,6 @@
 namespace scrap::Command {
 
 namespace {
-
-constexpr int UsageErrorExitCode = 2;
 
 /**
  * Report that @p target names no command, pointing at the help of the

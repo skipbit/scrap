@@ -75,6 +75,11 @@ private:
      */
     static int handleFailure(const ParseFailure& failure);
 
+    /**
+     * @brief Handle a ParserFault (error message + help suggestion).
+     */
+    static int handleFault(const ParserFault& fault);
+
     std::unique_ptr<ParserAdapter> _parser;
     std::unique_ptr<HelpRenderer> _helpRenderer;
     std::unique_ptr<VersionRenderer> _versionRenderer;

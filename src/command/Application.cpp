@@ -17,6 +17,7 @@
 #include <iostream>
 #include <memory>
 #include <span>
+#include <string_view>
 #include <type_traits>
 #include <utility>
 #include <variant>
@@ -42,6 +43,18 @@ std::vector<CommandEntry> usableEntries(std::vector<CommandEntry> entries, const
         usable.push_back(std::move(entry));
     }
     return usable;
+}
+
+/**
+ * Write a message from the parser with the command that lists the usage.
+ *
+ * The parser writes what the user typed into its message, so the message
+ * reaches the terminal as text rather than as instructions.
+ */
+void reportParseError(std::string_view message)
+{
+    std::cerr << printableText(message) << "\n";
+    std::cerr << "Run 'scrap --help' for usage information.\n";
 }
 
 }  // anonymous namespace
@@ -110,8 +123,10 @@ int Application::run(std::span<const char* const> argv, const RuntimeEnvironment
         using T = std::decay_t<decltype(value)>;
         if constexpr (std::is_same_v<T, ParseDirective>) {
             return handleDirective(catalog, value);
-        } else {
+        } else if constexpr (std::is_same_v<T, ParseFailure>) {
             return handleFailure(value);
+        } else {
+            return handleFault(value);
         }
     }, result.error());
 }
@@ -133,14 +148,19 @@ int Application::handleDirective(const CommandCatalog& catalog, const ParseDirec
 
 /**
  * Handle a ParseFailure (error message + help suggestion).
- *
- * The parser writes what the user typed into its message, so the message
- * reaches the terminal as text rather than as instructions.
  */
 int Application::handleFailure(const ParseFailure& failure)
 {
-    std::cerr << printableText(failure.message) << "\n";
-    std::cerr << "Run 'scrap --help' for usage information.\n";
+    reportParseError(failure.message);
+    return 1;
+}
+
+/**
+ * Handle a ParserFault (error message + help suggestion).
+ */
+int Application::handleFault(const ParserFault& fault)
+{
+    reportParseError(fault.message);
     return 1;
 }
 

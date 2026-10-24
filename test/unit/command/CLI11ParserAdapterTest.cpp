@@ -476,6 +476,33 @@ TEST(CLI11ParserAdapterTest, Parse_NoSubcommand)
     ASSERT_TRUE(std::holds_alternative<ParseFailure>(result.error()));
 }
 
+/**
+ * A command given a default of the wrong type is a fault in the commands,
+ * not in the command line.
+ */
+TEST(CLI11ParserAdapterTest, Parse_MisconfiguredOptionIsAFault)
+{
+    CLI11ParserAdapter adapter;
+
+    CommandSpec build = makeSpec("build");
+    build.options.named.push_back(OptionDef{
+        .longName = "jobs",
+        .shortName = std::nullopt,
+        .type = OptionValueType::Int64,
+        .required = false,
+        .description = "",
+        .defaultValue = OptionValue{ std::string{ "four" } },
+        .choices = {},
+    });
+    adapter.configure(std::vector{ build });
+
+    ArgvBuilder argv{ "scrap", "build" };
+    auto result = adapter.parse(argv.span());
+
+    ASSERT_FALSE(result.has_value());
+    EXPECT_TRUE(std::holds_alternative<ParserFault>(result.error()));
+}
+
 // =============================================================================
 // Nested subcommand help
 // =============================================================================

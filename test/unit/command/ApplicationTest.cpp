@@ -615,6 +615,27 @@ TEST(ApplicationTest, Run_ParseFailureWritesTheMessageAsText)
 }
 
 /**
+ * A fault in the parser outputs its message and returns 1.
+ */
+TEST(ApplicationTest, Run_ParserFault)
+{
+    auto parser = std::make_unique<MockParserAdapter>();
+    parser->setResult(std::unexpected(ParseInterruption{ ParserFault{ "bad variant access" } }));
+
+    Application app(std::move(parser), std::make_unique<MockHelpRenderer>(), std::make_unique<MockVersionRenderer>());
+
+    RuntimeEnvironment env;
+    const char* argv[] = { "scrap", "build" };
+
+    StderrCapture capture;
+    auto exitCode = app.run(argv, env);
+
+    EXPECT_EQ(exitCode, 1);
+    EXPECT_NE(capture.str().find("bad variant access"), std::string::npos);
+    EXPECT_NE(capture.str().find("scrap --help"), std::string::npos);
+}
+
+/**
  * Multiple resolvers merge entries; first resolver wins on collision.
  */
 TEST(ApplicationTest, Run_ResolverPriority)

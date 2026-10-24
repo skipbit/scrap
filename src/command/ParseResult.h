@@ -25,11 +25,21 @@ struct ParseDirective {
     std::vector<std::string> target;  ///< Words naming the command to show; none for the global help.
 };
 
+/**
+ * A command line the commands cannot take.
+ */
 struct ParseFailure {
     std::string message;
 };
 
-using ParseInterruption = std::variant<ParseDirective, ParseFailure>;
+/**
+ * A fault in the parser or in the commands it was given, not in the command line.
+ */
+struct ParserFault {
+    std::string message;
+};
+
+using ParseInterruption = std::variant<ParseDirective, ParseFailure, ParserFault>;
 
 using ParseResult = std::expected<CommandInvocation, ParseInterruption>;
 
