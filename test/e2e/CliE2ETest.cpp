@@ -551,6 +551,44 @@ TEST_F(CliE2ETest, ExternalNameWithADotIsTakenAsOneName)
 }
 
 /**
+ * An external command named by a dotted word is still the command that word
+ * names, where a nested command with the parts as names also exists.
+ */
+TEST_F(CliE2ETest, ExternalNameWithADotIsTakenOverTheNestedCommand)
+{
+    makeDummy("scrap-greet", "echo \"greet called\"");
+    makeDummy("scrap-toolchain.list", "echo \"greet called\"");
+
+    auto plain = runScrap({ "greet" }, {}, _root);
+    auto dotted = runScrap({ "toolchain.list" }, {}, _root);
+
+    ASSERT_TRUE(dotted.exitedNormally);
+    EXPECT_EQ(dotted.exitCode, plain.exitCode);
+    EXPECT_EQ(dotted.stdoutText, plain.stdoutText);
+    std::string expected = plain.stderrText;
+    const auto position = expected.find("greet");
+    ASSERT_NE(position, std::string::npos) << plain.stderrText;
+    expected.replace(position, std::string_view{ "greet" }.size(), "toolchain.list");
+    EXPECT_EQ(dotted.stderrText, expected);
+}
+
+/**
+ * A word joined by a dot names no nested command and no option of one; it
+ * is refused as the word it is.
+ */
+TEST_F(CliE2ETest, DottedWordNamesNoNestedCommand)
+{
+    for (const std::string word : { "toolchain.list", "--build.release" }) {
+        auto result = runScrap({ word }, {}, _root);
+
+        ASSERT_TRUE(result.exitedNormally) << word;
+        EXPECT_EQ(result.exitCode, 2) << word;
+        EXPECT_TRUE(result.stdoutText.empty()) << word << ": " << result.stdoutText;
+        EXPECT_EQ(result.stderrText, "The following argument was not expected: " + word + "\nRun 'scrap --help' for usage information.\n");
+    }
+}
+
+/**
  * An external command whose name the parser cannot hold is left out with a
  * warning, so the other commands and the help still work.
  */
@@ -877,6 +915,8 @@ TEST_F(CliE2ETest, UsageErrorsInTheCommandLineEndWithStatus2)
         { "version", "--", "a" },
         { "help", "nosuch" },
         { "nosuch", "--help" },
+        { "toolchain.list" },
+        { "--build.release" },
     };
     for (const auto& args : commandLines) {
         std::string typed = "scrap";

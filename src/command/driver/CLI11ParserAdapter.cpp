@@ -7,12 +7,14 @@
 
 #include <CLI/CLI.hpp>
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <deque>
 #include <exception>
 #include <expected>  // IWYU pragma: keep
 #include <memory>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -239,6 +241,39 @@ std::vector<std::string> namesOf(std::span<const CLI::App* const> chain)
 }
 
 /**
+ * The word in @p words that CLI11 read as a command in @p chain without
+ * naming it in full, or none.
+ *
+ * CLI11 reads "a.b" as the command "b" in "a", and "--a.f" as the option
+ * "f" of "a". scrap takes neither form, so each command in the chain must
+ * be named by a word of its own, in order.
+ */
+std::optional<std::string> findDottedWord(std::span<const char* const> words, std::span<const CLI::App* const> chain)
+{
+    // The program name comes first and names no command.
+    std::size_t next = 1;
+    for (const CLI::App* command : chain) {
+        const std::string& name = command->get_name();
+        const auto rest = words.subspan(next);
+        const auto named = std::ranges::find(rest, std::string_view{ name });
+        if (named != rest.end()) {
+            next += static_cast<std::size_t>(named - rest.begin()) + 1;
+            continue;
+        }
+        const std::string prefix = name + '.';
+        const auto dotted = std::ranges::find_if(rest, [&prefix](std::string_view word) {
+            while (word.starts_with('-')) {
+                word.remove_prefix(1);
+            }
+            return word.starts_with(prefix);
+        });
+        // Only the dot reads a command from a word that does not name it.
+        return (dotted != rest.end()) ? std::string{ *dotted } : name;
+    }
+    return std::nullopt;
+}
+
+/**
  * Harvest parsed values from OptionStorage into ParsedOptions.
  *
  * Only positionals given on the command line are harvested. CLI11 fills
@@ -407,6 +442,9 @@ ParseResult CLI11ParserAdapter::parse(std::span<const char* const> argv) const
 
     // --- Harvest results ---------------------------------------------------------
     const auto chain = parsedChain(app);
+    if (const auto dotted = findDottedWord(beforeSeparator, chain)) {
+        return std::unexpected(ParseInterruption{ ParseFailure{ describeUnexpected({ *dotted }) } });
+    }
     auto commandPath = namesOf(chain);
 
     ParsedOptions options;
