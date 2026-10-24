@@ -530,46 +530,28 @@ esac)");
 
 /**
  * An external command whose name holds a dot is taken as the command it
- * names, as one without a dot is.
+ * names, as one without a dot is, also where a nested command has the parts
+ * as names.
  */
 TEST_F(CliE2ETest, ExternalNameWithADotIsTakenAsOneName)
 {
     makeDummy("scrap-greet", "echo \"greet called\"");
-    makeDummy("scrap-greet.sh", "echo \"greet called\"");
-
     auto plain = runScrap({ "greet" }, {}, _root);
-    auto dotted = runScrap({ "greet.sh" }, {}, _root);
 
-    ASSERT_TRUE(dotted.exitedNormally);
-    EXPECT_EQ(dotted.exitCode, plain.exitCode);
-    EXPECT_EQ(dotted.stdoutText, plain.stdoutText);
-    std::string expected = plain.stderrText;
-    const auto position = expected.find("greet");
-    ASSERT_NE(position, std::string::npos) << plain.stderrText;
-    expected.replace(position, std::string_view{ "greet" }.size(), "greet.sh");
-    EXPECT_EQ(dotted.stderrText, expected);
-}
+    for (const std::string name : { "greet.sh", "toolchain.list" }) {
+        makeDummy("scrap-" + name, "echo \"" + name + " called\"");
 
-/**
- * An external command named by a dotted word is still the command that word
- * names, where a nested command with the parts as names also exists.
- */
-TEST_F(CliE2ETest, ExternalNameWithADotIsTakenOverTheNestedCommand)
-{
-    makeDummy("scrap-greet", "echo \"greet called\"");
-    makeDummy("scrap-toolchain.list", "echo \"greet called\"");
+        auto dotted = runScrap({ name }, {}, _root);
 
-    auto plain = runScrap({ "greet" }, {}, _root);
-    auto dotted = runScrap({ "toolchain.list" }, {}, _root);
-
-    ASSERT_TRUE(dotted.exitedNormally);
-    EXPECT_EQ(dotted.exitCode, plain.exitCode);
-    EXPECT_EQ(dotted.stdoutText, plain.stdoutText);
-    std::string expected = plain.stderrText;
-    const auto position = expected.find("greet");
-    ASSERT_NE(position, std::string::npos) << plain.stderrText;
-    expected.replace(position, std::string_view{ "greet" }.size(), "toolchain.list");
-    EXPECT_EQ(dotted.stderrText, expected);
+        ASSERT_TRUE(dotted.exitedNormally) << name;
+        EXPECT_EQ(dotted.exitCode, plain.exitCode) << name;
+        EXPECT_EQ(dotted.stdoutText, plain.stdoutText) << name;
+        std::string expected = plain.stderrText;
+        const auto position = expected.find("greet");
+        ASSERT_NE(position, std::string::npos) << plain.stderrText;
+        expected.replace(position, std::string_view{ "greet" }.size(), name);
+        EXPECT_EQ(dotted.stderrText, expected) << name;
+    }
 }
 
 /**
