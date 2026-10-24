@@ -574,12 +574,17 @@ TEST_F(CliE2ETest, ExternalNameWithADotIsTakenOverTheNestedCommand)
 
 /**
  * A word joined by a dot names no nested command and no option of one; it
- * is refused as the word it is.
+ * is refused as the word it is, whatever else is wrong after it.
  */
 TEST_F(CliE2ETest, DottedWordNamesNoNestedCommand)
 {
-    for (const std::string word : { "toolchain.list", "--build.release" }) {
-        auto result = runScrap({ word }, {}, _root);
+    const std::vector<std::pair<std::vector<std::string>, std::string>> commandLines{
+        { { "toolchain.list" }, "toolchain.list" },
+        { { "--build.release" }, "--build.release" },
+        { { "toolchain.list", "extra" }, "toolchain.list" },
+    };
+    for (const auto& [args, word] : commandLines) {
+        auto result = runScrap(args, {}, _root);
 
         ASSERT_TRUE(result.exitedNormally) << word;
         EXPECT_EQ(result.exitCode, 2) << word;

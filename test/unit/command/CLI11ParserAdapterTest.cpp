@@ -655,6 +655,9 @@ TEST(CLI11ParserAdapterTest, Parse_DottedWordIsNotANestedCommand)
 
     EXPECT_EQ(failureOf(adapter, { "scrap", "toolchain.list" }), "The following argument was not expected: toolchain.list");
     EXPECT_EQ(failureOf(adapter, { "scrap", "toolchain.nosuch" }), "A subcommand is required");
+    EXPECT_EQ(failureOf(adapter, { "scrap", "toolchain.list", "extra" }), "The following argument was not expected: toolchain.list");
+    EXPECT_EQ(failureOf(adapter, { "scrap", "toolchain.list", "--bogus" }), "The following argument was not expected: toolchain.list");
+    EXPECT_EQ(failureOf(adapter, { "scrap", "toolchain", "list", "extra" }), "The following argument was not expected: extra");
 }
 
 /**

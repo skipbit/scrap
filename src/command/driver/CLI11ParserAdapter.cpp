@@ -382,13 +382,21 @@ std::string describeUnexpected(const std::vector<std::string>& arguments)
 }
 
 /**
+ * The usage error that refuses @p dotted.
+ */
+ParseFailure refusalOf(const DottedWord& dotted)
+{
+    return ParseFailure{ describeUnexpected({ dotted.word }) };
+}
+
+/**
  * What help asked for along with @p dotted becomes: help for the word as a
  * command, as for any word that names none, or a usage error for an option.
  */
 ParseInterruption interruptHelpFor(std::span<const CLI::App* const> chain, const DottedWord& dotted)
 {
     if (dotted.word.starts_with('-')) {
-        return ParseFailure{ describeUnexpected({ dotted.word }) };
+        return refusalOf(dotted);
     }
     auto target = namesOf(chain.first(dotted.named));
     target.push_back(dotted.word);
@@ -460,6 +468,10 @@ ParseResult CLI11ParserAdapter::parse(std::span<const char* const> argv) const
     } catch (const CLI::CallForAllHelp&) {
         return std::unexpected(ParseInterruption{ ParseDirective{ ParseDirectiveKind::HelpRequested, {} } });
     } catch (const CLI::ParseError& e) {
+        // A command read through a dot is the error, whatever stopped the parse after it.
+        if (const auto dotted = findDottedWord(beforeSeparator, parsedChain(app))) {
+            return std::unexpected(ParseInterruption{ refusalOf(*dotted) });
+        }
         return std::unexpected(ParseInterruption{ ParseFailure{ e.what() } });
     } catch (const std::exception& e) {
         // Catch remaining exceptions (e.g. bad_variant_access from
@@ -470,7 +482,7 @@ ParseResult CLI11ParserAdapter::parse(std::span<const char* const> argv) const
     // --- Harvest results ---------------------------------------------------------
     const auto chain = parsedChain(app);
     if (const auto dotted = findDottedWord(beforeSeparator, chain)) {
-        return std::unexpected(ParseInterruption{ ParseFailure{ describeUnexpected({ dotted->word }) } });
+        return std::unexpected(ParseInterruption{ refusalOf(*dotted) });
     }
     auto commandPath = namesOf(chain);
 
