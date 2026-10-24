@@ -241,6 +241,14 @@ std::vector<std::string> namesOf(std::span<const CLI::App* const> chain)
 }
 
 /**
+ * A word that CLI11 read as a command without naming it in full.
+ */
+struct DottedWord {
+    std::size_t named = 0;  ///< The commands before it in the chain, each named by a word.
+    std::string word;
+};
+
+/**
  * The word in @p words that CLI11 read as a command in @p chain without
  * naming it in full, or none.
  *
@@ -248,11 +256,12 @@ std::vector<std::string> namesOf(std::span<const CLI::App* const> chain)
  * "f" of "a". scrap takes neither form, so each command in the chain must
  * be named by a word of its own, in order.
  */
-std::optional<std::string> findDottedWord(std::span<const char* const> words, std::span<const CLI::App* const> chain)
+std::optional<DottedWord> findDottedWord(std::span<const char* const> words, std::span<const CLI::App* const> chain)
 {
     // The program name comes first and names no command.
     std::size_t next = 1;
-    for (const CLI::App* command : chain) {
+    for (std::size_t index = 0; index < chain.size(); ++index) {
+        const CLI::App* command = chain[index];
         const std::string& name = command->get_name();
         const auto rest = words.subspan(next);
         const auto named = std::ranges::find(rest, std::string_view{ name });
@@ -268,7 +277,7 @@ std::optional<std::string> findDottedWord(std::span<const char* const> words, st
             return word.starts_with(prefix);
         });
         // Only the dot reads a command from a word that does not name it.
-        return (dotted != rest.end()) ? std::string{ *dotted } : name;
+        return DottedWord{ index, (dotted != rest.end()) ? std::string{ *dotted } : name };
     }
     return std::nullopt;
 }
@@ -372,6 +381,20 @@ std::string describeUnexpected(const std::vector<std::string>& arguments)
     return message;
 }
 
+/**
+ * What help asked for along with @p dotted becomes: help for the word as a
+ * command, as for any word that names none, or a usage error for an option.
+ */
+ParseInterruption interruptHelpFor(std::span<const CLI::App* const> chain, const DottedWord& dotted)
+{
+    if (dotted.word.starts_with('-')) {
+        return ParseFailure{ describeUnexpected({ dotted.word }) };
+    }
+    auto target = namesOf(chain.first(dotted.named));
+    target.push_back(dotted.word);
+    return ParseDirective{ ParseDirectiveKind::HelpRequested, std::move(target) };
+}
+
 }  // anonymous namespace
 
 // =============================================================================
@@ -427,6 +450,10 @@ ParseResult CLI11ParserAdapter::parse(std::span<const char* const> argv) const
         app.parse(static_cast<int>(beforeSeparator.size()), beforeSeparator.data());
 
     } catch (const CLI::CallForHelp&) {
+        const auto chain = parsedChain(app);
+        if (const auto dotted = findDottedWord(beforeSeparator, chain)) {
+            return std::unexpected(interruptHelpFor(chain, *dotted));
+        }
         return std::unexpected(ParseInterruption{ ParseDirective{ ParseDirectiveKind::HelpRequested, determineHelpTarget(app) } });
     } catch (const CLI::CallForVersion&) {
         return std::unexpected(ParseInterruption{ ParseDirective{ ParseDirectiveKind::VersionRequested, {} } });
@@ -443,7 +470,7 @@ ParseResult CLI11ParserAdapter::parse(std::span<const char* const> argv) const
     // --- Harvest results ---------------------------------------------------------
     const auto chain = parsedChain(app);
     if (const auto dotted = findDottedWord(beforeSeparator, chain)) {
-        return std::unexpected(ParseInterruption{ ParseFailure{ describeUnexpected({ *dotted }) } });
+        return std::unexpected(ParseInterruption{ ParseFailure{ describeUnexpected({ dotted->word }) } });
     }
     auto commandPath = namesOf(chain);
 

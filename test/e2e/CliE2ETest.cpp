@@ -589,6 +589,21 @@ TEST_F(CliE2ETest, DottedWordNamesNoNestedCommand)
 }
 
 /**
+ * Help asked for a dotted word answers as help does for that word.
+ */
+TEST_F(CliE2ETest, HelpForADottedWordAnswersAsHelpDoes)
+{
+    auto asked = runScrap({ "toolchain.list", "--help" }, {}, _root);
+    auto help = runScrap({ "help", "toolchain.list" }, {}, _root);
+
+    ASSERT_TRUE(asked.exitedNormally);
+    EXPECT_EQ(asked.exitCode, 2);
+    EXPECT_EQ(asked.exitCode, help.exitCode);
+    EXPECT_EQ(asked.stdoutText, help.stdoutText);
+    EXPECT_EQ(asked.stderrText, help.stderrText);
+}
+
+/**
  * An external command whose name the parser cannot hold is left out with a
  * warning, so the other commands and the help still work.
  */
@@ -917,6 +932,8 @@ TEST_F(CliE2ETest, UsageErrorsInTheCommandLineEndWithStatus2)
         { "nosuch", "--help" },
         { "toolchain.list" },
         { "--build.release" },
+        { "toolchain.list", "--help" },
+        { "--toolchain.help" },
     };
     for (const auto& args : commandLines) {
         std::string typed = "scrap";

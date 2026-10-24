@@ -714,6 +714,28 @@ TEST(CLI11ParserAdapterTest, Parse_CommandNamedWithADot)
     EXPECT_EQ(result->commandPath, std::vector<std::string>{ "toolchain.list" });
 }
 
+/**
+ * Help asked for a dotted word is help for a command of that name, which
+ * no command has; with a dotted option it is a usage error.
+ */
+TEST(CLI11ParserAdapterTest, Parse_HelpForADottedWordIsHelpForThatWord)
+{
+    CLI11ParserAdapter adapter;
+    adapter.configure(std::vector{ makeSpecWithSubs("toolchain", { makeSpec("list") }), makeSpecWithSubs("a", { makeSpecWithSubs("b", { makeSpec("c") }) }) });
+
+    const auto targetOf = [&adapter](const ArgvBuilder& argv) {
+        auto result = adapter.parse(argv.span());
+        EXPECT_FALSE(result.has_value());
+        return result.has_value() ? std::vector<std::string>{} : std::get<ParseDirective>(result.error()).target;
+    };
+
+    EXPECT_EQ(targetOf({ "scrap", "toolchain.list", "--help" }), std::vector<std::string>{ "toolchain.list" });
+    EXPECT_EQ(targetOf({ "scrap", "a", "b.c", "--help" }), (std::vector<std::string>{ "a", "b.c" }));
+    EXPECT_EQ(targetOf({ "scrap", "a.b.c", "--help" }), std::vector<std::string>{ "a.b.c" });
+    EXPECT_EQ(failureOf(adapter, { "scrap", "--toolchain.help" }), "The following argument was not expected: --toolchain.help");
+    EXPECT_EQ(failureOf(adapter, { "scrap", "toolchain", "--list.help" }), "The following argument was not expected: --list.help");
+}
+
 TEST(CLI11ParserAdapterTest, Parse_ChoiceValidation)
 {
     CLI11ParserAdapter adapter;
