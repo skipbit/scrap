@@ -6,6 +6,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/test)
 
 # Helpers shared by the tests of more than one module
 add_library(scrap_test_support STATIC
+    support/Fifo.cpp
     support/TempDirectory.cpp
 )
 target_include_directories(scrap_test_support PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
@@ -39,6 +40,9 @@ function(scrap_add_unit_test module)
     endif()
 endfunction()
 
+# A test that waits on a program its time limit should stop waits on events
+# alone, so a limit that no longer stops it would leave the test waiting; the
+# limit ends such a wait.
 scrap_add_unit_test(command SOURCES
     unit/command/CommonTypesTest.cpp
     unit/command/CommandCatalogTest.cpp
@@ -54,10 +58,13 @@ scrap_add_unit_test(command SOURCES
     unit/command/ProjectDiagnosticTest.cpp
     unit/command/RuntimeEnvironmentFactoryTest.cpp
     unit/command/ApplicationTest.cpp
+    PROPERTIES TIMEOUT 60
 )
 
+# The process tests wait on events in the same way.
 scrap_add_unit_test(process SOURCES
     unit/process/SubprocessTest.cpp
+    PROPERTIES TIMEOUT 60
 )
 
 scrap_add_unit_test(toolchain SOURCES

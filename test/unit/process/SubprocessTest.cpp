@@ -1,5 +1,6 @@
 #include "process/Subprocess.h"
 
+#include "support/Fifo.h"
 #include "support/TempDirectory.h"
 
 #include <gtest/gtest.h>
@@ -12,12 +13,12 @@
 #include <filesystem>
 #include <poll.h>
 #include <string>
-#include <sys/stat.h>
 #include <system_error>
 #include <unistd.h>
 #include <vector>
 
 using namespace scrap::Process;
+using scrap::TestSupport::makeFifoNobodyWrites;
 using scrap::TestSupport::TempDirectory;
 
 namespace {
@@ -124,15 +125,6 @@ private:
     int _saved;
     std::array<int, 2> _ends{ -1, -1 };
 };
-
-/**
- * Create in @p directory a FIFO nothing ever writes to, so a program that
- * reads it waits until it is stopped.
- */
-void makeFifoNobodyWrites(const std::filesystem::path& directory)
-{
-    ASSERT_EQ(::mkfifo((directory / "never").c_str(), 0600), 0);
-}
 
 }  // namespace
 
@@ -265,8 +257,8 @@ TEST(SubprocessTest, LeavesAProgramThatEndsInTimeAlone)
 
 /**
  * A program still running when its time runs out is killed and reported as
- * such. The program waits on a FIFO nothing writes to, so only the timeout
- * can end it.
+ * having run out of time, with neither an exit code nor a signal. The
+ * program waits on a FIFO nothing writes to, so only the timeout can end it.
  */
 TEST(SubprocessTest, StopsAProgramWhoseTimeRunsOut)
 {
@@ -277,8 +269,46 @@ TEST(SubprocessTest, StopsAProgramWhoseTimeRunsOut)
 
     ASSERT_TRUE(completion.has_value());
     EXPECT_TRUE(completion->timedOut);
-    EXPECT_EQ(completion->signal, SIGKILL);
     EXPECT_FALSE(completion->exitCode.has_value());
+    EXPECT_FALSE(completion->signal.has_value());
+}
+
+/**
+ * A program in the caller's process group is killed alone once its time runs
+ * out, which leaves the caller, and so this test, running.
+ */
+TEST(SubprocessTest, StopsAProgramInTheCallersGroupWhoseTimeRunsOut)
+{
+    const TempDirectory temp;
+    makeFifoNobodyWrites(temp.path());
+    RunOptions options = reading(OutputCapture::StandardOutput, temp.path());
+    options.timeout = std::chrono::milliseconds{ 100 };
+
+    const auto completion = runProgram(shell("read line < never"), options);
+
+    ASSERT_TRUE(completion.has_value());
+    EXPECT_TRUE(completion->timedOut);
+    EXPECT_FALSE(completion->exitCode.has_value());
+    EXPECT_FALSE(completion->signal.has_value());
+}
+
+/**
+ * A program in the caller's process group that has closed its output is
+ * still waited for until its time runs out, and is then killed alone.
+ */
+TEST(SubprocessTest, StopsAProgramInTheCallersGroupThatClosedItsOutput)
+{
+    const TempDirectory temp;
+    makeFifoNobodyWrites(temp.path());
+    RunOptions options = reading(OutputCapture::StandardOutput, temp.path());
+    options.timeout = std::chrono::milliseconds{ 100 };
+
+    const auto completion = runProgram(shell("exec >&-; read line < never"), options);
+
+    ASSERT_TRUE(completion.has_value());
+    EXPECT_TRUE(completion->timedOut);
+    EXPECT_FALSE(completion->exitCode.has_value());
+    EXPECT_FALSE(completion->signal.has_value());
 }
 
 /**
@@ -308,7 +338,8 @@ TEST(SubprocessTest, StopsWhatAProgramStartedWithIt)
 
 /**
  * A program that exits while what it started still holds its output open is
- * stopped with what it started once the time runs out.
+ * stopped with what it started once the time runs out, and is reported as
+ * having run out of time rather than by its own exit.
  */
 TEST(SubprocessTest, StopsWhatAProgramLeftHoldingItsOutput)
 {
@@ -322,6 +353,8 @@ TEST(SubprocessTest, StopsWhatAProgramLeftHoldingItsOutput)
 
     ASSERT_TRUE(completion.has_value());
     EXPECT_TRUE(completion->timedOut);
+    EXPECT_FALSE(completion->exitCode.has_value());
+    EXPECT_FALSE(completion->signal.has_value());
     // The bound only keeps a failure from hanging the test.
     pollfd ready{ .fd = ends[0], .events = POLLIN, .revents = 0 };
     ASSERT_EQ(::poll(&ready, 1, 10000), 1);
