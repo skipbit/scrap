@@ -335,10 +335,11 @@ ParsedOptions harvestOptions(const OptionStorage& storage)
  * "toolchain", "list"). The words a command left unparsed follow its name,
  * as they name no command below it; an option left over is not one of them.
  *
+ * @param chain The parsed subcommand chain below @p app.
  * @return The names of the parsed subcommands, outermost first, each with
  *         the words it left over, or none for global help.
  */
-std::vector<std::string> determineHelpTarget(const CLI::App& app)
+std::vector<std::string> determineHelpTarget(const CLI::App& app, std::span<const CLI::App* const> chain)
 {
     std::vector<std::string> target;
     const auto addLeftOver = [&target](const CLI::App& command) {
@@ -349,7 +350,7 @@ std::vector<std::string> determineHelpTarget(const CLI::App& app)
         }
     };
     addLeftOver(app);
-    for (const CLI::App* sub : parsedChain(app)) {
+    for (const CLI::App* sub : chain) {
         target.push_back(sub->get_name());
         addLeftOver(*sub);
     }
@@ -466,7 +467,7 @@ ParseResult CLI11ParserAdapter::parse(std::span<const char* const> argv) const
         if (const auto dotted = findDottedWord(beforeSeparator, chain)) {
             return std::unexpected(interruptHelpFor(chain, *dotted));
         }
-        return std::unexpected(ParseInterruption{ ParseDirective{ ParseDirectiveKind::HelpRequested, determineHelpTarget(app) } });
+        return std::unexpected(ParseInterruption{ ParseDirective{ ParseDirectiveKind::HelpRequested, determineHelpTarget(app, chain) } });
     } catch (const CLI::CallForVersion&) {
         return std::unexpected(ParseInterruption{ ParseDirective{ ParseDirectiveKind::VersionRequested, {} } });
     } catch (const CLI::CallForAllHelp&) {
