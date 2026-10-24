@@ -54,7 +54,8 @@ public:
     [[nodiscard]] ParseResult parse(std::span<const char* const> argv) const override;
 
     /**
-     * @brief Tell whether CLI11 takes @p name as a subcommand name.
+     * @brief Tell whether @p name is not empty and CLI11 takes it as a
+     * subcommand name.
      */
     [[nodiscard]] bool acceptsName(std::string_view name) const override;
 
