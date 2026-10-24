@@ -206,6 +206,7 @@ void addSubcommands(CLI::App& root,
  * The parsed subcommand chain below @p app, outermost first.
  *
  * Starts from @p app and follows the first parsed child at each level.
+ * get_subcommands() without arguments lists only the parsed ones.
  */
 std::vector<const CLI::App*> parsedChain(const CLI::App& app)
 {
