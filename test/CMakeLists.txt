@@ -11,9 +11,11 @@ target_include_directories(scrap_test_support PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
 target_link_libraries(scrap_test_support PRIVATE GTest::gtest)
 scrap_apply_compile_settings(scrap_test_support WARNINGS_AS_ERRORS)
 
-add_executable(scrap_gtest
+# --- Command tests ---
+add_executable(scrap_gtest_command
     unit/command/CommonTypesTest.cpp
     unit/command/CommandCatalogTest.cpp
+    unit/command/CLI11ParserAdapterTest.cpp
     unit/command/DefaultHelpRendererTest.cpp
     unit/command/DefaultVersionRendererTest.cpp
     unit/command/BuildProgressTest.cpp
@@ -25,36 +27,47 @@ add_executable(scrap_gtest
     unit/command/ProjectDiagnosticTest.cpp
     unit/command/RuntimeEnvironmentFactoryTest.cpp
     unit/command/ApplicationTest.cpp
+)
+
+target_link_libraries(scrap_gtest_command PRIVATE
+    scrap_command
+    scrap_test_support
+    GTest::gtest_main
+)
+scrap_apply_compile_settings(scrap_gtest_command WARNINGS_AS_ERRORS)
+
+include(GoogleTest)
+gtest_discover_tests(scrap_gtest_command)
+
+# --- Process tests ---
+add_executable(scrap_gtest_process
     unit/process/SubprocessTest.cpp
+)
+
+target_link_libraries(scrap_gtest_process PRIVATE
+    scrap_process
+    scrap_test_support
+    GTest::gtest_main
+)
+scrap_apply_compile_settings(scrap_gtest_process WARNINGS_AS_ERRORS)
+
+gtest_discover_tests(scrap_gtest_process)
+
+# --- Toolchain tests ---
+add_executable(scrap_gtest_toolchain
     unit/toolchain/CompilerIdentityTest.cpp
     unit/toolchain/SystemArchiverTest.cpp
     unit/toolchain/SystemCompilerTest.cpp
 )
 
-target_link_libraries(scrap_gtest PRIVATE
-    scrap_command
-    scrap_process
+target_link_libraries(scrap_gtest_toolchain PRIVATE
     scrap_toolchain
     scrap_test_support
     GTest::gtest_main
 )
-scrap_apply_compile_settings(scrap_gtest WARNINGS_AS_ERRORS)
+scrap_apply_compile_settings(scrap_gtest_toolchain WARNINGS_AS_ERRORS)
 
-include(GoogleTest)
-gtest_discover_tests(scrap_gtest)
-
-# --- CLI11ParserAdapter tests ---
-add_executable(scrap_gtest_cli11
-    unit/command/CLI11ParserAdapterTest.cpp
-)
-
-target_link_libraries(scrap_gtest_cli11 PRIVATE
-    scrap_command
-    GTest::gtest_main
-)
-scrap_apply_compile_settings(scrap_gtest_cli11 WARNINGS_AS_ERRORS)
-
-gtest_discover_tests(scrap_gtest_cli11)
+gtest_discover_tests(scrap_gtest_toolchain)
 
 # --- Whole file tests ---
 add_executable(scrap_gtest_file
