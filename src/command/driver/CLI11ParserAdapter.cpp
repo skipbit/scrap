@@ -359,6 +359,13 @@ void CLI11ParserAdapter::configure(std::span<const CommandSpec> specs)
     _impl->specs.assign(specs.begin(), specs.end());
 }
 
+// --- acceptsName -------------------------------------------------------------
+
+bool CLI11ParserAdapter::acceptsName(std::string_view name) const
+{
+    return CLI::detail::valid_name_string(std::string{ name });
+}
+
 // --- parse -------------------------------------------------------------------
 
 ParseResult CLI11ParserAdapter::parse(std::span<const char* const> argv) const

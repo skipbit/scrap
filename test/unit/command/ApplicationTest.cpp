@@ -40,6 +40,14 @@ public:
         return _result;
     }
 
+    /**
+     * Accept every name.
+     */
+    [[nodiscard]] bool acceptsName([[maybe_unused]] std::string_view name) const override
+    {
+        return true;
+    }
+
 private:
     ParseResult _result = std::unexpected(ParseInterruption{ ParseFailure{ "not configured" } });
 };
