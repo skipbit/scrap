@@ -159,6 +159,45 @@ TEST(DefaultHelpRendererTest, RenderGlobal_ExternalOnlyNoBuiltinSection)
 }
 
 /**
+ * An external command is named by its filename and describes itself, so
+ * what a terminal would act on in either is shown as text, and the columns
+ * line up on the name as it is shown.
+ */
+TEST(DefaultHelpRendererTest, RenderGlobal_ShowsAnExternalNameAndDescriptionAsText)
+{
+    DefaultHelpRenderer renderer;
+    std::vector<HelpEntry> entries;
+    entries.push_back(makeHelpEntry("build", CommandSource::Builtin, "", "Build"));
+    entries.push_back(makeHelpEntry("ab\x9b", CommandSource::External, "", "greets \x1b]0;pwn\x07"));
+
+    auto result = renderer.renderGlobal(entries);
+
+    EXPECT_EQ(result,
+              "USAGE: scrap [OPTIONS] <COMMAND>\n"
+              "\nCommands:\n"
+              "    build     Build\n"
+              "\nExternal Commands:\n"
+              "    ab\\x9B    greets \\x1B]0;pwn\\x07\n"
+              "\nSee 'scrap help <command>' for more information.\n");
+}
+
+/**
+ * A command's own help shows the words that name it and its description as
+ * text.
+ */
+TEST(DefaultHelpRendererTest, RenderCommand_ShowsThePathAndDescriptionAsText)
+{
+    DefaultHelpRenderer renderer;
+    CommandSpec spec;
+    spec.name = "ab\x9b";
+    spec.description = "greets \x1b]0;pwn\x07";
+
+    auto result = renderer.renderCommand("ab\x9b", spec);
+
+    EXPECT_EQ(result, "USAGE: scrap ab\\x9B\n\ngreets \\x1B]0;pwn\\x07\n");
+}
+
+/**
  * renderCommand should list subcommands.
  */
 TEST(DefaultHelpRendererTest, RenderCommand_WithSubcommands)

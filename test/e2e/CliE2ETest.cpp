@@ -996,6 +996,30 @@ esac)");
     EXPECT_NE(result.stdoutText.find("metadata-greets-you"), std::string::npos);
 }
 
+/**
+ * An external command answers --scrap-metadata with a description of its
+ * own, so the help shows what a terminal would act on in it as text, both in
+ * the listing and in the command's own help.
+ */
+TEST_F(CliE2ETest, ExternalDescriptionIsShownAsText)
+{
+    // An OSC sequence that rewrites the terminal's title.
+    makeDummy("scrap-greet", R"(case "$1" in
+  --scrap-metadata) printf 'greets you \033]0;pwn\007\n' ;;
+esac)");
+
+    auto listing = runScrap({ "--help" }, {}, _root);
+    auto own = runScrap({ "help", "greet" }, {}, _root);
+
+    ASSERT_TRUE(listing.exitedNormally);
+    EXPECT_EQ(listing.exitCode, 0);
+    EXPECT_NE(listing.stdoutText.find("greets you \\x1B]0;pwn\\x07\n"), std::string::npos) << listing.stdoutText;
+    EXPECT_EQ(listing.stdoutText.find('\x1b'), std::string::npos);
+    ASSERT_TRUE(own.exitedNormally);
+    EXPECT_EQ(own.exitCode, 0);
+    EXPECT_EQ(own.stdoutText, "USAGE: scrap greet\n\ngreets you \\x1B]0;pwn\\x07\n");
+}
+
 // --- TS-09: all version forms agree ----------------------------------------------
 
 TEST_F(CliE2ETest, VersionForms)

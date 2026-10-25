@@ -4,6 +4,7 @@
 #include "command/CommandSpec.h"
 #include "command/HelpRenderer.h"
 #include "command/OptionSchema.h"
+#include "command/PrintableText.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -23,13 +24,14 @@ namespace {
 constexpr char Newline = '\n';
 
 /**
- * Compute the maximum command name length for column alignment.
+ * Compute the maximum command name length for column alignment, counted on
+ * the name as it is shown.
  */
 std::size_t maxNameLength(std::span<const HelpEntry> entries)
 {
     std::size_t maxLen = 0;
     for (const auto& entry : entries) {
-        maxLen = std::max(maxLen, entry.spec.name.size());
+        maxLen = std::max(maxLen, printableText(entry.spec.name).size());
     }
     return maxLen;
 }
@@ -38,17 +40,19 @@ std::size_t maxNameLength(std::span<const HelpEntry> entries)
  * Format a single command line with aligned columns.
  *
  * Output: "    <name>    <description>\n"
- * The name is padded to @p columnWidth for alignment.
+ * The name is padded to @p columnWidth for alignment. An external command
+ * is named by its filename and describes itself, so both are shown as text.
  */
 void appendCommandLine(std::ostringstream& out, const std::string& name, const std::string& description, std::size_t columnWidth)
 {
-    out << "    " << name;
+    const std::string shownName = printableText(name);
+    out << "    " << shownName;
     if (! description.empty()) {
-        auto padding = (columnWidth - name.size() + 4);
+        auto padding = (columnWidth - shownName.size() + 4);
         for (std::size_t i = 0; i < padding; ++i) {
             out << ' ';
         }
-        out << description;
+        out << printableText(description);
     }
     out << '\n';
 }
@@ -66,7 +70,7 @@ void appendSectionHeader(std::ostringstream& out, const std::string& title)
  */
 void appendUsageLine(std::ostringstream& out, std::string_view path, const CommandSpec& spec)
 {
-    out << "USAGE: scrap " << path;
+    out << "USAGE: scrap " << printableText(path);
     if (! spec.options.named.empty()) {
         out << " [OPTIONS]";
     }
@@ -167,7 +171,7 @@ std::string DefaultHelpRenderer::renderCommand(std::string_view path, const Comm
     appendUsageLine(out, path, spec);
 
     if (! spec.description.empty()) {
-        out << Newline << spec.description << '\n';
+        out << Newline << printableText(spec.description) << '\n';
     }
 
     // Subcommands section.
@@ -175,7 +179,7 @@ std::string DefaultHelpRenderer::renderCommand(std::string_view path, const Comm
         out << "\nSUBCOMMANDS:\n";
         std::size_t maxLen = 0;
         for (const auto& sub : spec.subcommands) {
-            maxLen = std::max(maxLen, sub.name.size());
+            maxLen = std::max(maxLen, printableText(sub.name).size());
         }
         for (const auto& sub : spec.subcommands) {
             appendCommandLine(out, sub.name, sub.description, maxLen);
