@@ -4,7 +4,6 @@
 
 #include <algorithm>
 #include <array>
-#include <cstddef>
 #include <cstdint>
 #include <expected>  // IWYU pragma: keep
 #include <filesystem>
@@ -116,37 +115,39 @@ std::expected<std::vector<std::filesystem::path>, SourceCollectionError> scanSou
 }
 
 /**
- * The entry points of every executable other than the one at the given index,
- * normalized so a path written with a "." component matches the file it names.
+ * The entry points of every executable, normalized so a path written with a
+ * "." component matches the file it names.
  */
-std::vector<std::filesystem::path> otherEntryPoints(const std::vector<Target>& targets, const std::size_t index)
+std::vector<std::filesystem::path> entryPointsOf(const std::vector<Target>& targets)
 {
     std::vector<std::filesystem::path> entryPoints;
-    for (std::size_t other = 0; other < targets.size(); ++other) {
-        if ((other != index) && (targets[other].kind == TargetKind::Executable)) {
-            entryPoints.push_back(targets[other].source.lexically_normal());
+    for (const Target& target : targets) {
+        if (target.kind == TargetKind::Executable) {
+            entryPoints.push_back(target.source.lexically_normal());
         }
     }
     return entryPoints;
 }
 
 /**
- * The scanned sources except @p excluded, with the file the target names
- * added when it is not among them.
+ * The scanned sources except the entry points other than @p named, with
+ * @p named inserted in order when it is not among them.
  */
 std::vector<std::filesystem::path> sourcesExcept(const std::vector<std::filesystem::path>& scanned,
-                                                 const std::vector<std::filesystem::path>& excluded,
+                                                 const std::vector<std::filesystem::path>& entryPoints,
                                                  const std::filesystem::path& named)
 {
     std::vector<std::filesystem::path> sources;
     for (const std::filesystem::path& source : scanned) {
-        if (std::ranges::find(excluded, source) == excluded.end()) {
+        if ((source == named) || (! std::ranges::contains(entryPoints, source))) {
             sources.push_back(source);
         }
     }
-    if ((! named.empty()) && (std::ranges::find(sources, named) == sources.end())) {
-        sources.push_back(named);
-        std::ranges::sort(sources);
+    if (! named.empty()) {
+        const auto at = std::lower_bound(sources.begin(), sources.end(), named);
+        if ((at == sources.end()) || (*at != named)) {
+            sources.insert(at, named);
+        }
     }
     return sources;
 }
@@ -183,10 +184,10 @@ std::expected<std::vector<TargetSources>, SourceCollectionError> collectSources(
     }
 
     const bool hasLibrary = std::ranges::contains(targets, TargetKind::Library, &Target::kind);
+    const std::vector<std::filesystem::path> entryPoints = entryPointsOf(targets);
     std::vector<TargetSources> collected;
     collected.reserve(targets.size());
-    for (std::size_t index = 0; index < targets.size(); ++index) {
-        const Target& target = targets[index];
+    for (const Target& target : targets) {
         const std::filesystem::path named = target.source.lexically_normal();
         if (const auto found = sameFileAmong(projectRoot, *scanned, named)) {
             return std::unexpected(SourceNamedTwice{ .declared = named, .found = *found });
@@ -195,7 +196,7 @@ std::expected<std::vector<TargetSources>, SourceCollectionError> collectSources(
         if (hasLibrary && (target.kind == TargetKind::Executable)) {
             sources.push_back(named);
         } else {
-            sources = sourcesExcept(*scanned, otherEntryPoints(targets, index), named);
+            sources = sourcesExcept(*scanned, entryPoints, named);
         }
         collected.push_back(TargetSources{ .target = target, .sources = std::move(sources) });
     }

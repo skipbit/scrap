@@ -236,6 +236,23 @@ TEST(SourceCollectorTest, KeepsAnEntryPointOutsideTheSourceDirectory)
 }
 
 /**
+ * A declared entry point the scan did not find takes its place in the sorted
+ * list. The file is missing, which the compiler reports.
+ */
+TEST(SourceCollectorTest, PlacesAnEntryPointTheScanDidNotFindInOrder)
+{
+    const TempDirectory temp;
+    temp.writeFile("src/a.cpp", SourceText);
+    temp.writeFile("src/c.cpp", SourceText);
+
+    const auto collected = collectSources(temp.path(), { executableNamed("app", "src/b.cpp") });
+
+    ASSERT_TRUE(collected.has_value());
+    ASSERT_EQ(collected->size(), 1);
+    EXPECT_EQ((*collected)[0].sources, (std::vector<std::filesystem::path>{ "src/a.cpp", "src/b.cpp", "src/c.cpp" }));
+}
+
+/**
  * A project without src/ still builds the entry point it declared; reporting a
  * source that is not there is the build's to do.
  */
