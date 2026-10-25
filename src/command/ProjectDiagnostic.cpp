@@ -293,6 +293,15 @@ std::string render(const Project::SourceExtensionSpelling& error)
     return text;
 }
 
+std::string render(const Project::SourceDirectoryLink& error)
+{
+    std::string text = "error: '";
+    text += printablePath(error.link);
+    text += "' is a symbolic link to a directory, which scrap does not follow\n"
+            "hint: replace the link with the directory it names and run the command again\n";
+    return text;
+}
+
 /**
  * Render whichever alternative @p error holds.
  */

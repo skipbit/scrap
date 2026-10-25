@@ -50,9 +50,17 @@ struct SourceExtensionSpelling {
 };
 
 /**
+ * @brief A symbolic link below src/ names a directory, which the scan does not
+ *        follow, so the sources below it would be left out.
+ */
+struct SourceDirectoryLink {
+    std::filesystem::path link;  ///< Relative to the project root.
+};
+
+/**
  * @brief Why the sources of a project could not be decided.
  */
-using SourceCollectionError = std::variant<SourceScanFailure, SourceNamedTwice, SourceExtensionSpelling>;
+using SourceCollectionError = std::variant<SourceScanFailure, SourceNamedTwice, SourceExtensionSpelling, SourceDirectoryLink>;
 
 /**
  * @brief Decide which sources each target is built from.
@@ -74,8 +82,8 @@ using SourceCollectionError = std::variant<SourceScanFailure, SourceNamedTwice, 
  * A project without src/ is not a failure, since a target can declare an
  * entry point anywhere. A directory that exists and cannot be read, or whose
  * state cannot be determined, is reported with the path that failed. A
- * symbolic link to a directory is listed and not followed, so sources below
- * it are left out; a link to a file is read as the file it names.
+ * symbolic link to a directory is not followed and is reported; a link to a
+ * file is read as the file it names.
  *
  * A project with a library gives the sources below src/ to the library, except
  * the entry points of the executables, and adds the file the library names,
@@ -86,8 +94,8 @@ using SourceCollectionError = std::variant<SourceScanFailure, SourceNamedTwice, 
  * @param targets Targets to build, as resolveTargets() returned them.
  * @return Each target with its sources, in the order the targets were given,
  *         or the directory that could not be read, the declared file that
- *         names a source under another path, or the file whose extension is
- *         spelled in another case.
+ *         names a source under another path, the file whose extension is
+ *         spelled in another case, or the link to a directory.
  */
 [[nodiscard]] std::expected<std::vector<TargetSources>, SourceCollectionError> collectSources(const std::filesystem::path& projectRoot,
                                                                                               const std::vector<Target>& targets);

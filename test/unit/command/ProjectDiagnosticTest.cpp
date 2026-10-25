@@ -51,6 +51,7 @@ using scrap::Project::NotADirectory;
 using scrap::Project::PathInaccessible;
 using scrap::Project::ProjectError;
 using scrap::Project::ProjectNotFound;
+using scrap::Project::SourceDirectoryLink;
 using scrap::Project::SourceExtensionSpelling;
 using scrap::Project::SourceNamedTwice;
 using scrap::Project::SourcePosition;
@@ -189,6 +190,18 @@ TEST(ProjectDiagnosticTest, RendersADeclaredFileThatNamesASourceTwice)
     EXPECT_EQ(renderSourceCollectionError(error),
               "error: scrap.toml names 'src/Main.cpp', which is the same file as 'src/main.cpp'\n"
               "hint: correct scrap.toml and run the command again\n");
+}
+
+/**
+ * A link to a directory below src/ is named, with what to put in its place.
+ */
+TEST(ProjectDiagnosticTest, RendersALinkToADirectoryBelowSrc)
+{
+    const SourceDirectoryLink error{ .link = "src/shared" };
+
+    EXPECT_EQ(renderSourceCollectionError(error),
+              "error: 'src/shared' is a symbolic link to a directory, which scrap does not follow\n"
+              "hint: replace the link with the directory it names and run the command again\n");
 }
 
 /**

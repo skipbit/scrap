@@ -300,6 +300,48 @@ TEST(SourceCollectorTest, ReportsASourceDirectoryItCannotExamine)
 }
 
 /**
+ * A symbolic link to a directory below src/ is reported rather than left
+ * unread. A link to a file is read as the file it names.
+ */
+TEST(SourceCollectorTest, ReportsALinkToADirectoryBelowSrc)
+{
+    const TempDirectory temp;
+    temp.writeFile("src/main.cpp", SourceText);
+    temp.writeFile("shared/util.cpp", SourceText);
+    std::error_code ec;
+    std::filesystem::create_directory_symlink("../shared", temp.path() / "src" / "shared", ec);
+    if (ec) {
+        GTEST_SKIP() << "the file system cannot hold a symbolic link: " << ec.message();
+    }
+
+    const auto collected = collectSources(temp.path(), { executableNamed("app", "src/main.cpp") });
+
+    ASSERT_FALSE(collected.has_value());
+    EXPECT_EQ(std::get<SourceDirectoryLink>(collected.error()).link, "src/shared");
+}
+
+/**
+ * A symbolic link to a file below src/ is compiled as the file it names.
+ */
+TEST(SourceCollectorTest, ReadsALinkToAFileAsTheFileItNames)
+{
+    const TempDirectory temp;
+    temp.writeFile("src/main.cpp", SourceText);
+    temp.writeFile("shared/util.cpp", SourceText);
+    std::error_code ec;
+    std::filesystem::create_symlink("../shared/util.cpp", temp.path() / "src" / "util.cpp", ec);
+    if (ec) {
+        GTEST_SKIP() << "the file system cannot hold a symbolic link: " << ec.message();
+    }
+
+    const auto collected = collectSources(temp.path(), { executableNamed("app", "src/main.cpp") });
+
+    ASSERT_TRUE(collected.has_value());
+    ASSERT_EQ(collected->size(), 1);
+    EXPECT_EQ((*collected)[0].sources, (std::vector<std::filesystem::path>{ "src/main.cpp", "src/util.cpp" }));
+}
+
+/**
  * Beside a library, the sources below src/ belong to the library, except the
  * entry points of the executables, and each executable keeps its entry point
  * alone.

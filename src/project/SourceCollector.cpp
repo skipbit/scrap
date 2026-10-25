@@ -58,6 +58,12 @@ SourceKind sourceKind(const std::filesystem::directory_entry& entry)
     return SourceKind::NotASource;
 }
 
+bool isDirectoryLink(const std::filesystem::directory_entry& entry)
+{
+    std::error_code ec;
+    return (entry.is_symlink(ec) && entry.is_directory(ec));
+}
+
 /**
  * Every source below src/, as normalized paths relative to the project root.
  *
@@ -88,6 +94,9 @@ std::expected<std::vector<std::filesystem::path>, SourceCollectionError> scanSou
     // loop would never run and the walk would stop as though it had finished.
     for (const std::filesystem::recursive_directory_iterator end; it != end;) {
         const std::filesystem::path current = it->path();
+        if (isDirectoryLink(*it)) {
+            return std::unexpected(SourceDirectoryLink{ .link = current.lexically_relative(projectRoot).lexically_normal() });
+        }
         switch (sourceKind(*it)) {
         case SourceKind::Source:
             sources.push_back(current.lexically_relative(projectRoot).lexically_normal());
