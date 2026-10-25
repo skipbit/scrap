@@ -81,14 +81,16 @@ char32_t codePointOf(const std::string_view sequence)
 /**
  * Whether the well-formed character @p codePoint is escaped byte by byte: a
  * C1 control character, which a terminal in an eight-bit locale acts on, or
- * a character that changes the direction text is shown in, U+202A to U+202E
- * or U+2066 to U+2069.
+ * a character that changes the direction text is shown in, the twelve the
+ * Unicode Standard gives the Bidi_Control property.
  */
 bool isEscapedCharacter(const char32_t codePoint)
 {
     const bool isC1 = ((codePoint >= 0x80U) && (codePoint <= 0x9FU));
-    const bool changesDirection = (((codePoint >= 0x202AU) && (codePoint <= 0x202EU)) || ((codePoint >= 0x2066U) && (codePoint <= 0x2069U)));
-    return isC1 || changesDirection;
+    const bool isMark = ((codePoint == 0x061CU) || (codePoint == 0x200EU) || (codePoint == 0x200FU));
+    const bool isEmbeddingOrOverride = ((codePoint >= 0x202AU) && (codePoint <= 0x202EU));
+    const bool isIsolate = ((codePoint >= 0x2066U) && (codePoint <= 0x2069U));
+    return isC1 || isMark || isEmbeddingOrOverride || isIsolate;
 }
 
 /**

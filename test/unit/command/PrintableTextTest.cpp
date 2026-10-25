@@ -53,9 +53,14 @@ TEST(PrintableTextTest, EscapesWhatChangesTheDirectionOfText)
     // U+2066 to U+2069, the isolates and their pop.
     EXPECT_EQ(printableText(std::string{ '\xe2', '\x81', '\xa6' }), "\\xE2\\x81\\xA6");
     EXPECT_EQ(printableText(std::string{ '\xe2', '\x81', '\xa9' }), "\\xE2\\x81\\xA9");
-    // U+202F and U+2070, just after each range, stay.
-    EXPECT_EQ(printableText("\xe2\x80\xaf"), "\xe2\x80\xaf");
-    EXPECT_EQ(printableText("\xe2\x81\xb0"), "\xe2\x81\xb0");
+    // U+061C, U+200E and U+200F, the marks.
+    EXPECT_EQ(printableText(std::string{ '\xd8', '\x9c' }), "\\xD8\\x9C");
+    EXPECT_EQ(printableText(std::string{ '\xe2', '\x80', '\x8e' }), "\\xE2\\x80\\x8E");
+    EXPECT_EQ(printableText(std::string{ '\xe2', '\x80', '\x8f' }), "\\xE2\\x80\\x8F");
+    // U+061B, U+2010, U+202F and U+2070, next to them, stay.
+    for (const std::string_view text : { "\xd8\x9b", "\xe2\x80\x90", "\xe2\x80\xaf", "\xe2\x81\xb0" }) {
+        EXPECT_EQ(printableText(text), text);
+    }
 }
 
 /**
