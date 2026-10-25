@@ -23,22 +23,42 @@ void appendEscaped(const unsigned char byte, std::string& text)
 /**
  * The length of the well-formed UTF-8 sequence starting at @p index, or 0 when
  * the bytes there do not form one.
+ *
+ * The ranges are those of the table of well-formed byte sequences in the
+ * Unicode Standard, which rules out an encoding longer than it needs to be,
+ * a surrogate and a value above U+10FFFF.
  */
 std::size_t utf8SequenceLength(std::string_view text, const std::size_t index)
 {
     const auto lead = static_cast<unsigned char>(text[index]);
     std::size_t length = 0;
-    if ((lead & 0xE0U) == 0xC0U) {
+    unsigned char secondLowest = 0x80U;
+    unsigned char secondHighest = 0xBFU;
+    if ((lead >= 0xC2U) && (lead <= 0xDFU)) {
         length = 2;
-    } else if ((lead & 0xF0U) == 0xE0U) {
+    } else if ((lead >= 0xE0U) && (lead <= 0xEFU)) {
         length = 3;
-    } else if ((lead & 0xF8U) == 0xF0U) {
+        if (lead == 0xE0U) {
+            secondLowest = 0xA0U;
+        } else if (lead == 0xEDU) {
+            secondHighest = 0x9FU;
+        }
+    } else if ((lead >= 0xF0U) && (lead <= 0xF4U)) {
         length = 4;
+        if (lead == 0xF0U) {
+            secondLowest = 0x90U;
+        } else if (lead == 0xF4U) {
+            secondHighest = 0x8FU;
+        }
     }
     if ((length == 0) || ((index + length) > text.size())) {
         return 0;
     }
-    for (std::size_t offset = 1; offset < length; ++offset) {
+    const auto second = static_cast<unsigned char>(text[index + 1]);
+    if ((second < secondLowest) || (second > secondHighest)) {
+        return 0;
+    }
+    for (std::size_t offset = 2; offset < length; ++offset) {
         if ((static_cast<unsigned char>(text[index + offset]) & 0xC0U) != 0x80U) {
             return 0;
         }

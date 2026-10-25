@@ -49,6 +49,31 @@ TEST(PrintableTextTest, EscapesBytesThatFormNoUtf8Sequence)
 }
 
 /**
+ * A sequence whose bits look right is still not well formed when it encodes
+ * a character in more bytes than it needs, a surrogate, or a value above
+ * U+10FFFF, so each of its bytes is escaped.
+ */
+TEST(PrintableTextTest, EscapesSequencesUnicodeDoesNotAllow)
+{
+    EXPECT_EQ(printableText("\xc0\x9b"), "\\xC0\\x9B");
+    EXPECT_EQ(printableText("\xe0\x82\x9b"), "\\xE0\\x82\\x9B");
+    EXPECT_EQ(printableText("\xed\xa0\x80"), "\\xED\\xA0\\x80");
+    EXPECT_EQ(printableText("\xf4\x90\x80\x80"), "\\xF4\\x90\\x80\\x80");
+    EXPECT_EQ(printableText("\xf5\x80\x80\x80"), "\\xF5\\x80\\x80\\x80");
+}
+
+/**
+ * The characters next to what Unicode does not allow stay as they are.
+ */
+TEST(PrintableTextTest, KeepsTheCharactersAtTheEdgesOfWhatUnicodeAllows)
+{
+    // U+00A0, U+0800, U+D7FF, U+E000, U+10000 and U+10FFFF.
+    for (const std::string_view text : { "\xc2\xa0", "\xe0\xa0\x80", "\xed\x9f\xbf", "\xee\x80\x80", "\xf0\x90\x80\x80", "\xf4\x8f\xbf\xbf" }) {
+        EXPECT_EQ(printableText(text), text);
+    }
+}
+
+/**
  * A name comes from a manifest, where only printable ASCII belongs, so every
  * other byte is escaped. A name is kept whole, since a message naming a
  * target has to name it as the manifest does.
