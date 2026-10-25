@@ -51,6 +51,7 @@ using scrap::Project::NotADirectory;
 using scrap::Project::PathInaccessible;
 using scrap::Project::ProjectError;
 using scrap::Project::ProjectNotFound;
+using scrap::Project::SourceExtensionSpelling;
 using scrap::Project::SourceNamedTwice;
 using scrap::Project::SourcePosition;
 using scrap::Project::SourceScanFailure;
@@ -188,6 +189,19 @@ TEST(ProjectDiagnosticTest, RendersADeclaredFileThatNamesASourceTwice)
     EXPECT_EQ(renderSourceCollectionError(error),
               "error: scrap.toml names 'src/Main.cpp', which is the same file as 'src/main.cpp'\n"
               "hint: correct scrap.toml and run the command again\n");
+}
+
+/**
+ * A source extension spelled in another case names the file and the spellings
+ * that are compiled.
+ */
+TEST(ProjectDiagnosticTest, RendersASourceExtensionSpelledInAnotherCase)
+{
+    const SourceExtensionSpelling error{ .source = "src/Helper.Cpp" };
+
+    EXPECT_EQ(renderSourceCollectionError(error),
+              "error: 'src/Helper.Cpp' has an extension scrap does not compile\n"
+              "hint: rename it to end in .cpp, .cc or .cxx and run the command again\n");
 }
 
 /**

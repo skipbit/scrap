@@ -39,9 +39,20 @@ struct SourceNamedTwice {
 };
 
 /**
+ * @brief A file below src/ ends in a source extension spelled in another case.
+ *
+ * A compiler picks the language from the extension, and some spellings, such
+ * as .Cpp, are not C++ to it: the file would be passed on unused and leave no
+ * object behind.
+ */
+struct SourceExtensionSpelling {
+    std::filesystem::path source;  ///< Relative to the project root.
+};
+
+/**
  * @brief Why the sources of a project could not be decided.
  */
-using SourceCollectionError = std::variant<SourceScanFailure, SourceNamedTwice>;
+using SourceCollectionError = std::variant<SourceScanFailure, SourceNamedTwice, SourceExtensionSpelling>;
 
 /**
  * @brief Decide which sources each target is built from.
@@ -56,7 +67,8 @@ using SourceCollectionError = std::variant<SourceScanFailure, SourceNamedTwice>;
  * as a source below src/ under another path is reported with both paths.
  *
  * A source is recognised by its extension, spelled in lower case: .cpp, .cc
- * or .cxx. The list comes back sorted, so a build reads the same sources
+ * or .cxx. A file whose extension is one of these in another case is
+ * reported. The list comes back sorted, so a build reads the same sources
  * whatever order the file system reports its entries in.
  *
  * A project without src/ is not a failure, since a target can declare an
@@ -73,8 +85,9 @@ using SourceCollectionError = std::variant<SourceScanFailure, SourceNamedTwice>;
  * @param projectRoot Directory the manifest was read from.
  * @param targets Targets to build, as resolveTargets() returned them.
  * @return Each target with its sources, in the order the targets were given,
- *         or the directory that could not be read, or the declared file
- *         that names a source under another path.
+ *         or the directory that could not be read, the declared file that
+ *         names a source under another path, or the file whose extension is
+ *         spelled in another case.
  */
 [[nodiscard]] std::expected<std::vector<TargetSources>, SourceCollectionError> collectSources(const std::filesystem::path& projectRoot,
                                                                                               const std::vector<Target>& targets);

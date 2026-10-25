@@ -284,6 +284,15 @@ std::string render(const Project::SourceNamedTwice& error)
     return text;
 }
 
+std::string render(const Project::SourceExtensionSpelling& error)
+{
+    std::string text = "error: '";
+    text += printablePath(error.source);
+    text += "' has an extension scrap does not compile\n"
+            "hint: rename it to end in .cpp, .cc or .cxx and run the command again\n";
+    return text;
+}
+
 /**
  * Render whichever alternative @p error holds.
  */

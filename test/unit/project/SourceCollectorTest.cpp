@@ -78,6 +78,23 @@ TEST(SourceCollectorTest, RecognisesTheAcceptedExtensions)
 }
 
 /**
+ * A source extension spelled in another case is reported, since a compiler
+ * may not read the file as C++. A header spelled so is not a source.
+ */
+TEST(SourceCollectorTest, ReportsASourceExtensionSpelledInAnotherCase)
+{
+    const TempDirectory temp;
+    temp.writeFile("src/main.cpp", SourceText);
+    temp.writeFile("src/Helper.Cpp", SourceText);
+    temp.writeFile("src/Helper.H", "#pragma once\n");
+
+    const auto collected = collectSources(temp.path(), { executableNamed("app", "src/main.cpp") });
+
+    ASSERT_FALSE(collected.has_value());
+    EXPECT_EQ(std::get<SourceExtensionSpelling>(collected.error()).source, "src/Helper.Cpp");
+}
+
+/**
  * Two executables share the code beside them and differ in the file that
  * starts each one.
  */

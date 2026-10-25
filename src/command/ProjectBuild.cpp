@@ -87,9 +87,8 @@ const Project::TargetSources* libraryWithoutSources(const std::vector<Project::T
 }
 
 /**
- * The sources of each of @p targets. A source directory that cannot be read,
- * a declared file spelled with another case than the source it reaches, or a
- * library left with nothing to build it from, is reported.
+ * The sources of each of @p targets. Sources that cannot be decided, or a
+ * library left with nothing to build it from, are reported.
  */
 std::expected<std::vector<Project::TargetSources>, int> sourcesToBuild(const Project::LoadedProject& project,
                                                                        const std::vector<Project::Target>& targets)

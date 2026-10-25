@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <expected>  // IWYU pragma: keep
 #include <filesystem>
 #include <optional>
@@ -24,14 +25,37 @@ constexpr std::string_view SourceDirectory = "src";
 /// Extensions a source file is recognised by.
 constexpr std::array<std::string_view, 3> SourceExtensions{ ".cpp", ".cc", ".cxx" };
 
-bool isSource(const std::filesystem::directory_entry& entry)
+/// How a file below src/ is read by its extension.
+enum class SourceKind : std::uint8_t {
+    NotASource,
+    Source,
+    OtherCase,  ///< A source extension spelled in another case.
+};
+
+std::string lowerCase(std::string text)
+{
+    for (char& ch : text) {
+        if ((ch >= 'A') && (ch <= 'Z')) {
+            ch = static_cast<char>(ch - 'A' + 'a');
+        }
+    }
+    return text;
+}
+
+SourceKind sourceKind(const std::filesystem::directory_entry& entry)
 {
     std::error_code ec;
     if ((! entry.is_regular_file(ec)) || ec) {
-        return false;
+        return SourceKind::NotASource;
     }
     const std::string extension = entry.path().extension().string();
-    return (std::ranges::find(SourceExtensions, extension) != SourceExtensions.end());
+    if (std::ranges::contains(SourceExtensions, extension)) {
+        return SourceKind::Source;
+    }
+    if (std::ranges::contains(SourceExtensions, lowerCase(extension))) {
+        return SourceKind::OtherCase;
+    }
+    return SourceKind::NotASource;
 }
 
 /**
@@ -42,7 +66,7 @@ bool isSource(const std::filesystem::directory_entry& entry)
  * its sources out would link an artifact from fewer files than the project
  * holds, and nothing later in the build would name what went missing.
  */
-std::expected<std::vector<std::filesystem::path>, SourceScanFailure> scanSourceDirectory(const std::filesystem::path& projectRoot)
+std::expected<std::vector<std::filesystem::path>, SourceCollectionError> scanSourceDirectory(const std::filesystem::path& projectRoot)
 {
     const std::filesystem::path directory = projectRoot / SourceDirectory;
     std::error_code ec;
@@ -64,8 +88,14 @@ std::expected<std::vector<std::filesystem::path>, SourceScanFailure> scanSourceD
     // loop would never run and the walk would stop as though it had finished.
     for (const std::filesystem::recursive_directory_iterator end; it != end;) {
         const std::filesystem::path current = it->path();
-        if (isSource(*it)) {
+        switch (sourceKind(*it)) {
+        case SourceKind::Source:
             sources.push_back(current.lexically_relative(projectRoot).lexically_normal());
+            break;
+        case SourceKind::OtherCase:
+            return std::unexpected(SourceExtensionSpelling{ .source = current.lexically_relative(projectRoot).lexically_normal() });
+        case SourceKind::NotASource:
+            break;
         }
         it.increment(ec);
         if (ec) {
