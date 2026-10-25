@@ -663,8 +663,9 @@ TEST_F(CliE2ETest, ProjectScopeNoConfig)
  */
 TEST_F(CliE2ETest, ExternalNameIsShownAsText)
 {
-    // 0x9B is CSI to a terminal in an eight-bit locale.
-    const std::string name = "\x9b"
+    // U+009B, CSI among the C1 control characters. Every file system the
+    // tests run on can hold it, since it is well-formed UTF-8.
+    const std::string name = "\xc2\x9b"
                              "x";
     makeDummy("scrap-" + name, "exit 0");
     const auto other = _temp->writeFile("other/scrap-" + name, "#!/bin/sh\nexit 0\n");
@@ -675,8 +676,8 @@ TEST_F(CliE2ETest, ExternalNameIsShownAsText)
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 1);
     EXPECT_EQ(result.stderrText,
-              "warning: command '\\x9Bx' already registered; ignoring duplicate\n"
-              "Command '\\x9Bx' is not available yet.\n"
+              "warning: command '\\xC2\\x9Bx' already registered; ignoring duplicate\n"
+              "Command '\\xC2\\x9Bx' is not available yet.\n"
               "Run 'scrap --help' for usage information.\n");
 }
 
