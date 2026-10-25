@@ -656,6 +656,30 @@ TEST_F(CliE2ETest, ProjectScopeNoConfig)
     EXPECT_EQ(result.stdoutText.find("totally-fake-project-script"), std::string::npos);
 }
 
+/**
+ * An external command is named by its filename, which can hold any byte, so
+ * every line that names one shows a byte a terminal acts on as text: the
+ * warning for a name found twice, and the line for a command not available.
+ */
+TEST_F(CliE2ETest, ExternalNameIsShownAsText)
+{
+    // 0x9B is CSI to a terminal in an eight-bit locale.
+    const std::string name = "\x9b"
+                             "x";
+    makeDummy("scrap-" + name, "exit 0");
+    const auto other = _temp->writeFile("other/scrap-" + name, "#!/bin/sh\nexit 0\n");
+    std::filesystem::permissions(other, std::filesystem::perms::owner_exec, std::filesystem::perm_options::add);
+
+    auto result = runScrap({ name }, { "PATH=" + (_root / "other").string() + ":/usr/bin:/bin" }, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_EQ(result.stderrText,
+              "warning: command '\\x9Bx' already registered; ignoring duplicate\n"
+              "Command '\\x9Bx' is not available yet.\n"
+              "Run 'scrap --help' for usage information.\n");
+}
+
 // --- TS-04: builtin vs external name collision priority ------------------------
 
 TEST_F(CliE2ETest, Priority)
