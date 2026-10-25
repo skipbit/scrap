@@ -233,18 +233,16 @@ std::expected<void, int> runBuild(const RuntimeEnvironment& env,
  */
 std::expected<std::vector<Project::Target>, int> resolveBuildTargets(const Project::LoadedProject& project)
 {
-    // An empty declaration states that the project builds nothing, which is a
-    // different answer from finding nothing where no declaration was written.
     auto targets = Project::resolveTargets(project.root, project.manifest);
-    if (targets.empty() && (! project.manifest.declaresTargets)) {
+    if (! targets.has_value()) {
         std::cerr << renderNoTargetToBuild(project.root);
         return std::unexpected(1);
     }
-    if (std::ranges::count(targets, Project::TargetKind::Library, &Project::Target::kind) > 1) {
+    if (std::ranges::count(*targets, Project::TargetKind::Library, &Project::Target::kind) > 1) {
         std::cerr << renderSeveralLibraries();
         return std::unexpected(1);
     }
-    return targets;
+    return *std::move(targets);
 }
 
 }  // anonymous namespace

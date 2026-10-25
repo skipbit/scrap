@@ -2,6 +2,7 @@
 
 #include "project/Manifest.h"
 
+#include <expected>  // IWYU pragma: keep
 #include <filesystem>
 #include <optional>
 #include <string_view>
@@ -13,13 +14,22 @@ namespace scrap::Project {
 inline constexpr std::string_view DefaultEntryPoint = "src/main.cpp";
 
 /**
+ * @brief The manifest declares no target and the default layout has no entry
+ *        point, so the project gives nothing to build.
+ *
+ * A manifest that declares an empty list is not this: it states that the
+ * project builds nothing.
+ */
+struct NoTargetFound { };
+
+/**
  * @brief Decide which targets a project builds.
  *
  * A manifest that declares [[bin]] or [[lib]] says exactly what to build,
  * including when it declares an empty list. Only a manifest that declares
  * neither is read against the default layout: src/main.cpp becomes a single
  * executable named after the package. A project with neither declaration nor
- * src/main.cpp has nothing to build.
+ * src/main.cpp is reported, so an empty list always comes from a declaration.
  *
  * A declared entry point is returned whether or not the file is there. The
  * layout is consulted to decide whether a target can be inferred at all,
@@ -29,9 +39,10 @@ inline constexpr std::string_view DefaultEntryPoint = "src/main.cpp";
  *
  * @param projectRoot Directory the manifest was read from.
  * @param manifest Parsed manifest.
- * @return Targets to build, empty when there are none.
+ * @return Targets to build, empty when the manifest declares none, or
+ *         NoTargetFound when it declares nothing and none is inferred.
  */
-[[nodiscard]] std::vector<Target> resolveTargets(const std::filesystem::path& projectRoot, const Manifest& manifest);
+[[nodiscard]] std::expected<std::vector<Target>, NoTargetFound> resolveTargets(const std::filesystem::path& projectRoot, const Manifest& manifest);
 
 /**
  * @brief Decide which of a project's targets a build of one of them needs.

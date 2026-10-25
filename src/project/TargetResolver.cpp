@@ -3,6 +3,7 @@
 #include "project/Manifest.h"
 
 #include <algorithm>
+#include <expected>  // IWYU pragma: keep
 #include <filesystem>
 #include <iterator>
 #include <optional>
@@ -15,7 +16,7 @@ namespace scrap::Project {
 /**
  * Return the manifest's targets, or the one inferred from the default layout.
  */
-std::vector<Target> resolveTargets(const std::filesystem::path& projectRoot, const Manifest& manifest)
+std::expected<std::vector<Target>, NoTargetFound> resolveTargets(const std::filesystem::path& projectRoot, const Manifest& manifest)
 {
     if (manifest.declaresTargets) {
         return manifest.targets;
@@ -24,10 +25,10 @@ std::vector<Target> resolveTargets(const std::filesystem::path& projectRoot, con
     const std::filesystem::path entryPoint{ DefaultEntryPoint };
     std::error_code ec;
     if (! std::filesystem::is_regular_file(projectRoot / entryPoint, ec)) {
-        return {};
+        return std::unexpected(NoTargetFound{});
     }
 
-    return { Target{ .kind = TargetKind::Executable, .name = manifest.package.name, .source = entryPoint } };
+    return std::vector<Target>{ Target{ .kind = TargetKind::Executable, .name = manifest.package.name, .source = entryPoint } };
 }
 
 /**
