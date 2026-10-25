@@ -263,6 +263,25 @@ TEST(ProjectDiagnosticTest, RendersAManifestErrorWithItsLocation)
 }
 
 /**
+ * The project being built writes its manifest, so its path, a key it names
+ * and the parser's message, which quotes what it read, show what a terminal
+ * would act on as text.
+ */
+TEST(ProjectDiagnosticTest, RendersAManifestErrorAsText)
+{
+    const ProjectError error = ManifestError{ .file = "/home/me/\x1b]0;t\x07/scrap.toml",
+                                              .position = SourcePosition{ .line = 2, .column = 7 },
+                                              .key = "package.k\x1b[2J",
+                                              .message = "already the entry point of the executable 'x\xc2\x9by'",
+                                              .kind = ManifestErrorKind::Invalid };
+
+    EXPECT_EQ(renderProjectError(error),
+              "/home/me/\\x1B]0;t\\x07/scrap.toml:2:7: error: package.k\\x1B[2J: "
+              "already the entry point of the executable 'x\\xC2\\x9By'\n"
+              "hint: correct scrap.toml and run the command again\n");
+}
+
+/**
  * A manifest that could not be read points at the file, not at its contents.
  */
 TEST(ProjectDiagnosticTest, RendersAnUnreadableManifest)

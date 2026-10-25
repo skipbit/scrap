@@ -1077,6 +1077,31 @@ TEST_F(CliE2ETest, BuildReportsAManifestErrorWithItsLocation)
     EXPECT_NE(result.stderrText.find("\nhint: "), std::string::npos) << result.stderrText;
 }
 
+/**
+ * The manifest belongs to the project being built, and the parser quotes
+ * the bytes it read, so neither a key it names nor a value it could not read
+ * reaches the terminal as bytes.
+ */
+TEST_F(CliE2ETest, BuildReportsAManifestErrorAsText)
+{
+    const std::string manifest = (std::filesystem::canonical(_root) / "scrap.toml").string();
+    const std::vector<std::pair<std::string, std::string>> cases{
+        { "\"k\\u001b]0;t\\u0007\" = 1", ": error: package.k\\x1B]0;t\\x07: unknown key; expected one of name version std\n" },
+        { "x = tr\x1b", ": error: Error while parsing boolean: expected 'true', saw 'tr\\x1B'\n" },
+    };
+    for (const auto& [line, shown] : cases) {
+        writeFile("scrap.toml", std::string{ ValidManifest } + line + "\n");
+
+        auto result = runScrap({ "build" }, {}, _root);
+
+        ASSERT_TRUE(result.exitedNormally) << line;
+        EXPECT_EQ(result.exitCode, 1) << line;
+        EXPECT_NE(result.stderrText.find(shown), std::string::npos) << result.stderrText;
+        EXPECT_EQ(result.stderrText.find('\x1b'), std::string::npos) << result.stderrText;
+        EXPECT_EQ(result.stderrText.rfind(manifest, 0), 0U) << result.stderrText;
+    }
+}
+
 TEST_F(CliE2ETest, BuildFindsTheProjectAboveTheWorkingDirectory)
 {
     writeFile("scrap.toml", ValidManifest);

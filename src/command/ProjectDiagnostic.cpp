@@ -101,11 +101,13 @@ std::string render(const Project::ProjectNotFound& error)
 
 /**
  * A manifest that could not be read points at the file itself; one whose
- * contents are wrong points at editing it.
+ * contents are wrong points at editing it. The project being built writes
+ * the manifest, and the parser quotes what it read, so the line is shown as
+ * text.
  */
 std::string render(const Project::ManifestError& error)
 {
-    std::string text = Project::describe(error);
+    std::string text = printableText(Project::describe(error));
     if (error.kind == Project::ManifestErrorKind::Unreadable) {
         text += "\nhint: check that ";
         text += Project::ManifestFileName;
