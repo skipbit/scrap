@@ -39,6 +39,25 @@ TEST(PrintableTextTest, EscapesAC1ControlCharacter)
 }
 
 /**
+ * A character that changes the direction text is shown in would make a name
+ * read in an order other than its bytes, so it is escaped. A string literal
+ * holding one misleads whoever reads the test, so each is built from its
+ * bytes.
+ */
+TEST(PrintableTextTest, EscapesWhatChangesTheDirectionOfText)
+{
+    // U+202A to U+202E, the embeddings, the pop and the overrides.
+    EXPECT_EQ(printableText(std::string{ '\xe2', '\x80', '\xaa' }), "\\xE2\\x80\\xAA");
+    EXPECT_EQ(printableText(std::string{ '\xe2', '\x80', '\xae' }), "\\xE2\\x80\\xAE");
+    // U+2066 to U+2069, the isolates and their pop.
+    EXPECT_EQ(printableText(std::string{ '\xe2', '\x81', '\xa6' }), "\\xE2\\x81\\xA6");
+    EXPECT_EQ(printableText(std::string{ '\xe2', '\x81', '\xa9' }), "\\xE2\\x81\\xA9");
+    // U+202F and U+2070, just after each range, stay.
+    EXPECT_EQ(printableText("\xe2\x80\xaf"), "\xe2\x80\xaf");
+    EXPECT_EQ(printableText("\xe2\x81\xb0"), "\xe2\x81\xb0");
+}
+
+/**
  * A byte that starts no well-formed sequence is escaped, and a path is
  * rendered by the same rule as any other text.
  */

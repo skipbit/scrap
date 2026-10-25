@@ -9,10 +9,12 @@ namespace scrap::Command {
 /**
  * @brief Text made safe to print.
  *
- * A value from outside can hold any byte, so control characters, a backslash
- * and bytes that form no well-formed UTF-8 sequence become \xNN, while letters
- * outside ASCII stay as they are: what a terminal would act on reaches it as
- * text, and what the user typed stays readable.
+ * A value from outside can hold any byte, so control characters, a backslash,
+ * the characters that change the direction of text and bytes that form no
+ * well-formed UTF-8 sequence become \xNN, while letters outside ASCII stay as
+ * they are: what a terminal would act on, or what would show the text in an
+ * order other than its bytes, reaches it as text, and what the user typed
+ * stays readable.
  *
  * @param text Text to render.
  * @return The text for a terminal.

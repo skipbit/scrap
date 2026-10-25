@@ -66,12 +66,28 @@ std::size_t utf8SequenceLength(std::string_view text, const std::size_t index)
     return length;
 }
 
+/**
+ * Whether the well-formed sequence of @p length bytes at @p index is a
+ * character that changes the direction text is shown in: U+202A to U+202E
+ * or U+2066 to U+2069.
+ */
+bool changesDirection(std::string_view text, const std::size_t index, const std::size_t length)
+{
+    if ((length != 3) || (static_cast<unsigned char>(text[index]) != 0xE2U)) {
+        return false;
+    }
+    const auto second = static_cast<unsigned char>(text[index + 1]);
+    const auto third = static_cast<unsigned char>(text[index + 2]);
+    return ((second == 0x80U) && (third >= 0xAAU) && (third <= 0xAEU)) || ((second == 0x81U) && (third >= 0xA6U) && (third <= 0xA9U));
+}
+
 }  // anonymous namespace
 
 /**
  * A byte outside ASCII is kept only as part of a well-formed UTF-8 sequence
- * that is not a C1 control character. A lone byte in that range is escaped,
- * since a terminal in an eight-bit locale acts on 0x80 to 0x9F as controls.
+ * that is neither a C1 control character nor a character that changes the
+ * direction of text. A lone byte in that range is escaped, since a terminal
+ * in an eight-bit locale acts on 0x80 to 0x9F as controls.
  */
 std::string printableText(const std::string_view text)
 {
@@ -94,10 +110,11 @@ std::string printableText(const std::string_view text)
         if (length == 0) {
             appendEscaped(byte, result);
             ++index;
-        } else if (isC1) {
-            appendEscaped(byte, result);
-            appendEscaped(static_cast<unsigned char>(text[index + 1]), result);
-            index += 2;
+        } else if (isC1 || changesDirection(text, index, length)) {
+            for (std::size_t offset = 0; offset < length; ++offset) {
+                appendEscaped(static_cast<unsigned char>(text[index + offset]), result);
+            }
+            index += length;
         } else {
             result.append(text, index, length);
             index += length;
