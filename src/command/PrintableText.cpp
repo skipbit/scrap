@@ -67,18 +67,28 @@ std::size_t utf8SequenceLength(std::string_view text, const std::size_t index)
 }
 
 /**
- * Whether the well-formed sequence of @p length bytes at @p index is a
- * character that changes the direction text is shown in: U+202A to U+202E
+ * The code point the well-formed sequence @p sequence encodes.
+ */
+char32_t codePointOf(const std::string_view sequence)
+{
+    char32_t codePoint = static_cast<unsigned char>(sequence.front()) & (0x7FU >> sequence.size());
+    for (const char ch : sequence.substr(1)) {
+        codePoint = (codePoint << 6U) | (static_cast<unsigned char>(ch) & 0x3FU);
+    }
+    return codePoint;
+}
+
+/**
+ * Whether the well-formed character @p codePoint is escaped byte by byte: a
+ * C1 control character, which a terminal in an eight-bit locale acts on, or
+ * a character that changes the direction text is shown in, U+202A to U+202E
  * or U+2066 to U+2069.
  */
-bool changesDirection(std::string_view text, const std::size_t index, const std::size_t length)
+bool isEscapedCharacter(const char32_t codePoint)
 {
-    if ((length != 3) || (static_cast<unsigned char>(text[index]) != 0xE2U)) {
-        return false;
-    }
-    const auto second = static_cast<unsigned char>(text[index + 1]);
-    const auto third = static_cast<unsigned char>(text[index + 2]);
-    return ((second == 0x80U) && (third >= 0xAAU) && (third <= 0xAEU)) || ((second == 0x81U) && (third >= 0xA6U) && (third <= 0xA9U));
+    const bool isC1 = ((codePoint >= 0x80U) && (codePoint <= 0x9FU));
+    const bool changesDirection = (((codePoint >= 0x202AU) && (codePoint <= 0x202EU)) || ((codePoint >= 0x2066U) && (codePoint <= 0x2069U)));
+    return isC1 || changesDirection;
 }
 
 /**
@@ -115,11 +125,10 @@ std::string escapeText(const std::string_view text, const bool isOutput)
         }
 
         const std::size_t length = utf8SequenceLength(text, index);
-        const bool isC1 = ((length == 2) && (byte == 0xC2U) && (static_cast<unsigned char>(text[index + 1]) <= 0x9FU));
         if (length == 0) {
             appendEscaped(byte, result);
             ++index;
-        } else if (isC1 || changesDirection(text, index, length)) {
+        } else if (isEscapedCharacter(codePointOf(text.substr(index, length)))) {
             for (std::size_t offset = 0; offset < length; ++offset) {
                 appendEscaped(static_cast<unsigned char>(text[index + offset]), result);
             }
