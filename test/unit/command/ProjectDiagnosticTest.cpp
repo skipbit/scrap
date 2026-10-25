@@ -11,6 +11,7 @@
 #include <gtest/gtest.h>
 
 #include <cerrno>
+#include <filesystem>
 #include <optional>
 #include <string>
 #include <system_error>
@@ -86,6 +87,23 @@ TEST(ProjectDiagnosticTest, RendersAMissingProject)
     EXPECT_EQ(renderProjectError(error),
               "error: could not find scrap.toml in '/home/me/work' or any parent directory\n"
               "hint: run 'scrap new <project-name>' to create a project\n");
+}
+
+/**
+ * A path comes from the user or from the directory scrap runs in, and can
+ * hold any byte, so what a terminal would act on in it is shown as text.
+ */
+TEST(ProjectDiagnosticTest, RendersAPathItCannotSearchFromAsText)
+{
+    const std::filesystem::path path = "/home/me/\x1b]0;t\x07";
+    const std::string shown = "/home/me/\\x1B]0;t\\x07";
+
+    EXPECT_EQ(renderProjectError(NotADirectory{ .path = path }),
+              "error: '" + shown + "' is not a directory\n" + "hint: pass a directory inside a project, or omit the path to use the current directory\n");
+    EXPECT_EQ(renderProjectError(PathInaccessible{ .path = path, .reason = "Permission denied" }),
+              "error: cannot access '" + shown + "': Permission denied\n" + "hint: check the permissions of the path\n");
+    EXPECT_EQ(renderProjectError(ProjectNotFound{ .startDir = path }),
+              "error: could not find scrap.toml in '" + shown + "' or any parent directory\n" + "hint: run 'scrap new <project-name>' to create a project\n");
 }
 
 /**
