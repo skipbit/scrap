@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <expected>  // IWYU pragma: keep
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -111,14 +112,55 @@ std::vector<std::filesystem::path> sourcesExcept(const std::vector<std::filesyst
     return sources;
 }
 
+/**
+ * The text of @p path with its ASCII letters in lower case.
+ */
+std::string foldedCase(const std::filesystem::path& path)
+{
+    std::string text = path.string();
+    std::ranges::transform(text, text.begin(), [](const char c) {
+        return ((c >= 'A') && (c <= 'Z')) ? static_cast<char>(c - 'A' + 'a') : c;
+    });
+    return text;
+}
+
+/**
+ * The scanned source that @p named reaches under another spelling: one whose
+ * name differs only in case and which the file system reports as the same
+ * file. Comparing the spellings first keeps two names of one file, such as a
+ * hard link, from being read as a misspelling.
+ */
+std::optional<std::filesystem::path> otherSpellingOf(const std::filesystem::path& projectRoot,
+                                                     const std::vector<std::filesystem::path>& scanned,
+                                                     const std::filesystem::path& named)
+{
+    if (named.empty() || (std::ranges::find(scanned, named) != scanned.end())) {
+        return std::nullopt;
+    }
+    const std::string folded = foldedCase(named);
+    for (const std::filesystem::path& source : scanned) {
+        std::error_code ec;
+        if ((foldedCase(source) == folded) && std::filesystem::equivalent(projectRoot / source, projectRoot / named, ec)) {
+            return source;
+        }
+    }
+    return std::nullopt;
+}
+
 }  // anonymous namespace
 
-std::expected<std::vector<TargetSources>, SourceScanFailure> collectSources(const std::filesystem::path& projectRoot,
-                                                                            const std::vector<Target>& targets)
+std::expected<std::vector<TargetSources>, SourceCollectionError> collectSources(const std::filesystem::path& projectRoot,
+                                                                                const std::vector<Target>& targets)
 {
     const auto scanned = scanSourceDirectory(projectRoot);
     if (! scanned.has_value()) {
         return std::unexpected(scanned.error());
+    }
+    for (const Target& target : targets) {
+        const std::filesystem::path named = target.source.lexically_normal();
+        if (const auto found = otherSpellingOf(projectRoot, *scanned, named)) {
+            return std::unexpected(MisspelledSource{ .declared = named, .found = *found });
+        }
     }
 
     const bool hasLibrary = std::ranges::contains(targets, TargetKind::Library, &Target::kind);

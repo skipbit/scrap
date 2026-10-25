@@ -88,14 +88,15 @@ const Project::TargetSources* libraryWithoutSources(const std::vector<Project::T
 
 /**
  * The sources of each of @p targets. A source directory that cannot be read,
- * or a library left with nothing to build it from, is reported.
+ * a declared file spelled with another case than the source it reaches, or a
+ * library left with nothing to build it from, is reported.
  */
 std::expected<std::vector<Project::TargetSources>, int> sourcesToBuild(const Project::LoadedProject& project,
                                                                        const std::vector<Project::Target>& targets)
 {
     auto sources = Project::collectSources(project.root, targets);
     if (! sources.has_value()) {
-        std::cerr << renderSourceScanFailure(sources.error());
+        std::cerr << renderSourceCollectionError(sources.error());
         return std::unexpected(1);
     }
     if (const Project::TargetSources* const found = libraryWithoutSources(*sources); found != nullptr) {

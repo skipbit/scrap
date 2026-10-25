@@ -5,6 +5,7 @@
 #include <expected>  // IWYU pragma: keep
 #include <filesystem>
 #include <string>
+#include <variant>
 #include <vector>
 
 namespace scrap::Project {
@@ -26,6 +27,23 @@ struct SourceScanFailure {
 };
 
 /**
+ * @brief A declared file reaches a source below src/ under a spelling that
+ *        differs from the source's name only in case.
+ *
+ * A file system that ignores case reaches the one file under both spellings,
+ * which a build would compile twice.
+ */
+struct MisspelledSource {
+    std::filesystem::path declared;  ///< As the manifest spells it, normalized.
+    std::filesystem::path found;     ///< As the file system names it, relative to the project root.
+};
+
+/**
+ * @brief Why the sources of a project could not be decided.
+ */
+using SourceCollectionError = std::variant<SourceScanFailure, MisspelledSource>;
+
+/**
  * @brief Decide which sources each target is built from.
  *
  * Without a library, every source below src/ belongs to each executable,
@@ -34,7 +52,9 @@ struct SourceScanFailure {
  * its own entry point wherever it sits, since a declaration states what to
  * build whether or not the default layout expects the file there. Paths are
  * compared once normalized, so "./src/main.cpp" and "src/main.cpp" name the
- * same file.
+ * same file. A declared file that reaches a source below src/ under a
+ * spelling differing only in case, as a file system that ignores case
+ * allows, is reported with both spellings.
  *
  * A source is recognised by its extension, spelled in lower case: .cpp, .cc
  * or .cxx. The list comes back sorted, so a build reads the same sources
@@ -54,9 +74,10 @@ struct SourceScanFailure {
  * @param projectRoot Directory the manifest was read from.
  * @param targets Targets to build, as resolveTargets() returned them.
  * @return Each target with its sources, in the order the targets were given,
- *         or the directory that could not be read.
+ *         or the directory that could not be read, or the declared file
+ *         spelled with another case.
  */
-[[nodiscard]] std::expected<std::vector<TargetSources>, SourceScanFailure> collectSources(const std::filesystem::path& projectRoot,
-                                                                                          const std::vector<Target>& targets);
+[[nodiscard]] std::expected<std::vector<TargetSources>, SourceCollectionError> collectSources(const std::filesystem::path& projectRoot,
+                                                                                              const std::vector<Target>& targets);
 
 }  // namespace scrap::Project

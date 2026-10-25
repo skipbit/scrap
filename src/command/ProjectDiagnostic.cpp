@@ -436,6 +436,28 @@ std::string renderSourceScanFailure(const Project::SourceScanFailure& failure)
     return text;
 }
 
+std::string renderMisspelledSource(const Project::MisspelledSource& error)
+{
+    std::string text = "error: ";
+    text += Project::ManifestFileName;
+    text += " names '";
+    text += printablePath(error.declared);
+    text += "', which is spelled '";
+    text += printablePath(error.found);
+    text += "' on disk\nhint: correct ";
+    text += Project::ManifestFileName;
+    text += " and run the command again\n";
+    return text;
+}
+
+std::string renderSourceCollectionError(const Project::SourceCollectionError& error)
+{
+    if (const auto* const failure = std::get_if<Project::SourceScanFailure>(&error)) {
+        return renderSourceScanFailure(*failure);
+    }
+    return renderMisspelledSource(std::get<Project::MisspelledSource>(error));
+}
+
 std::string renderCompilationDatabaseFailure(const Compile::DatabaseWriteFailure& failure)
 {
     std::string text = "error: cannot ";

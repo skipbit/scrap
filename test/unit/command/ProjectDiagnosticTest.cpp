@@ -37,6 +37,7 @@ using scrap::Command::renderOutputRemovalFailure;
 using scrap::Command::renderProjectError;
 using scrap::Command::renderSeveralExecutablesToRun;
 using scrap::Command::renderSeveralLibraries;
+using scrap::Command::renderSourceCollectionError;
 using scrap::Command::renderSourceScanFailure;
 using scrap::Command::renderStepFailures;
 using scrap::Command::renderUnsupportedStandard;
@@ -46,6 +47,7 @@ using scrap::Compile::DatabaseWriteStep;
 using scrap::Project::LanguageStandard;
 using scrap::Project::ManifestError;
 using scrap::Project::ManifestErrorKind;
+using scrap::Project::MisspelledSource;
 using scrap::Project::NotADirectory;
 using scrap::Project::PathInaccessible;
 using scrap::Project::ProjectError;
@@ -173,6 +175,19 @@ TEST(ProjectDiagnosticTest, EscapesAControlCharacterInASourceDirectory)
     EXPECT_EQ(renderSourceScanFailure(failure),
               "error: cannot read '/home/me/hello/src/a\\x1B[31m': Permission denied\n"
               "hint: check the permissions of the path\n");
+}
+
+/**
+ * A declared file spelled with another case than the file on disk is shown
+ * in both spellings, and points at the manifest.
+ */
+TEST(ProjectDiagnosticTest, RendersADeclaredFileSpelledWithAnotherCase)
+{
+    const MisspelledSource error{ .declared = "src/Main.cpp", .found = "src/main.cpp" };
+
+    EXPECT_EQ(renderSourceCollectionError(error),
+              "error: scrap.toml names 'src/Main.cpp', which is spelled 'src/main.cpp' on disk\n"
+              "hint: correct scrap.toml and run the command again\n");
 }
 
 /**
