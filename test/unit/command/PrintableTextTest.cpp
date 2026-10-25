@@ -5,6 +5,7 @@
 #include <string>
 #include <string_view>
 
+using scrap::Command::printableLines;
 using scrap::Command::printableName;
 using scrap::Command::printablePath;
 using scrap::Command::printableText;
@@ -90,6 +91,16 @@ TEST(PrintableTextTest, KeepsTheCharactersAtTheEdgesOfWhatUnicodeAllows)
     for (const std::string_view text : { "\xc2\xa0", "\xe0\xa0\x80", "\xed\x9f\xbf", "\xee\x80\x80", "\xf0\x90\x80\x80", "\xf4\x8f\xbf\xbf" }) {
         EXPECT_EQ(printableText(text), text);
     }
+}
+
+/**
+ * A program's output keeps the bytes it is laid out with and the backslashes
+ * it quotes, and escapes the rest as any other text.
+ */
+TEST(PrintableTextTest, KeepsTheLayoutOfOutput)
+{
+    EXPECT_EQ(printableLines("a\tb\\n\nc"), "a\tb\\n\nc");
+    EXPECT_EQ(printableLines(std::string_view{ "a\r\x1b\x07\xc2\x9b\xc0" }), "a\\x0D\\x1B\\x07\\xC2\\x9B\\xC0");
 }
 
 /**

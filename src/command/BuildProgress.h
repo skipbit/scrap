@@ -60,10 +60,10 @@ private:
  * @brief @p text as it can be written to a terminal.
  *
  * The sequences a compiler colours its diagnostics with are kept when
- * @p keepColor says to, and removed when it does not. Every other escape
- * sequence is written as text: a diagnostic quotes the source it read, so a
- * project being built decides what it holds, and a terminal is not asked to
- * act on it.
+ * @p keepColor says to, and removed when it does not. Everything else is
+ * escaped as printableLines() escapes, every other escape sequence included:
+ * a diagnostic quotes the source it read, so a project being built decides
+ * what it holds, and a terminal is not asked to act on it.
  */
 [[nodiscard]] std::string printableOutput(std::string_view text, bool keepColor);
 

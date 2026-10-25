@@ -164,12 +164,35 @@ TEST(BuildProgressTest, WritesEveryOtherSequenceAsText)
         EXPECT_EQ(printableOutput("\x1b]0;pwned\x07"
                                   "after",
                                   keepColor),
-                  "\\x1B]0;pwned\x07"
+                  "\\x1B]0;pwned\\x07"
                   "after")
             << keepColor;
         EXPECT_EQ(printableOutput("\x1b[2Jgone", keepColor), "\\x1B[2Jgone") << keepColor;
         EXPECT_EQ(printableOutput("a lone \x1b stays", keepColor), "a lone \\x1B stays") << keepColor;
     }
+}
+
+/**
+ * A byte that is not an escape can still be one a terminal acts on, so
+ * everything printableText() escapes is written as text here too, colour or
+ * not. The bytes a diagnostic is laid out with and quotes source in stay.
+ */
+TEST(BuildProgressTest, WritesEveryOtherControlAsText)
+{
+    for (const bool keepColor : { false, true }) {
+        // CSI and OSC in an eight-bit locale, the bell, a backspace, a
+        // carriage return and an overlong encoding.
+        EXPECT_EQ(printableOutput("\x9b"
+                                  "2J \x9d"
+                                  "0;t \x07 \x08 \r \xc0\x9b",
+                                  keepColor),
+                  "\\x9B2J \\x9D0;t \\x07 \\x08 \\x0D \\xC0\\x9B")
+            << keepColor;
+        EXPECT_EQ(printableOutput(std::string{ 'a', '\xe2', '\x80', '\xae', 'b' }, keepColor), "a\\xE2\\x80\\xAEb") << keepColor;
+        // Lines, a tab, a quoted backslash and the quotes gcc writes in UTF-8.
+        EXPECT_EQ(printableOutput("1 |\tprintf(\"a\\n\");\n\xe2\x80\x98x\xe2\x80\x99\n", keepColor), "1 |\tprintf(\"a\\n\");\n\xe2\x80\x98x\xe2\x80\x99\n") << keepColor;
+    }
+    EXPECT_EQ(printableOutput("\x1b[01;31m\x9b\x1b[0m", true), "\x1b[01;31m\\x9B\x1b[0m");
 }
 
 /**

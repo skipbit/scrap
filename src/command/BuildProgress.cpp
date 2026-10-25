@@ -116,26 +116,25 @@ std::string printableOutput(const std::string_view text, const bool keepColor)
 {
     std::string result;
     result.reserve(text.size());
-    for (std::size_t index = 0; index < text.size();) {
-        if (text[index] != Escape) {
-            result += text[index];
-            ++index;
-            continue;
-        }
-
-        const std::size_t end = colorSequenceEnd(text, index);
+    std::size_t start = 0;
+    std::size_t index = 0;
+    while (index < text.size()) {
+        const std::size_t end = (text[index] == Escape) ? colorSequenceEnd(text, index) : index;
         if (end == index) {
-            // Anything else the terminal would act on is written as text, as
-            // every other string scrap prints is.
-            result += "\\x1B";
             ++index;
             continue;
         }
+        // What lies between the colour sequences, an escape that starts
+        // anything else among it, is written as every other string scrap
+        // prints is.
+        result += printableLines(text.substr(start, index - start));
         if (keepColor) {
             result.append(text, index, end - index);
         }
         index = end;
+        start = end;
     }
+    result += printableLines(text.substr(start));
     return result;
 }
 

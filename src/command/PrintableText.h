@@ -22,6 +22,18 @@ namespace scrap::Command {
 [[nodiscard]] std::string printableText(std::string_view text);
 
 /**
+ * @brief A program's output made safe to print.
+ *
+ * Escaped as printableText() escapes, except that a line feed, a tab and a
+ * backslash stay: the output runs over lines laid out with tabs, and quotes
+ * source that holds backslashes.
+ *
+ * @param text Output to render.
+ * @return The output for a terminal.
+ */
+[[nodiscard]] std::string printableLines(std::string_view text);
+
+/**
  * @brief A path made safe to print.
  *
  * A path carries a directory the user named, which can hold any byte. Every

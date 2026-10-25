@@ -81,22 +81,31 @@ bool changesDirection(std::string_view text, const std::size_t index, const std:
     return ((second == 0x80U) && (third >= 0xAAU) && (third <= 0xAEU)) || ((second == 0x81U) && (third >= 0xA6U) && (third <= 0xA9U));
 }
 
-}  // anonymous namespace
+/**
+ * Whether @p byte, an ASCII one, is laid out or quoted in a program's output
+ * and kept there.
+ */
+bool keptInOutput(const unsigned char byte)
+{
+    return (byte == '\n') || (byte == '\t') || (byte == '\\');
+}
 
 /**
  * A byte outside ASCII is kept only as part of a well-formed UTF-8 sequence
  * that is neither a C1 control character nor a character that changes the
  * direction of text. A lone byte in that range is escaped, since a terminal
- * in an eight-bit locale acts on 0x80 to 0x9F as controls.
+ * in an eight-bit locale acts on 0x80 to 0x9F as controls. The bytes
+ * keptInOutput() names are kept too when @p isOutput says so.
  */
-std::string printableText(const std::string_view text)
+std::string escapeText(const std::string_view text, const bool isOutput)
 {
     std::string result;
     std::size_t index = 0;
     while (index < text.size()) {
         const auto byte = static_cast<unsigned char>(text[index]);
         if (byte < 0x80U) {
-            if ((byte < 0x20U) || (byte == 0x7FU) || (text[index] == '\\')) {
+            const bool escaped = ((byte < 0x20U) || (byte == 0x7FU) || (text[index] == '\\'));
+            if (escaped && ! (isOutput && keptInOutput(byte))) {
                 appendEscaped(byte, result);
             } else {
                 result += text[index];
@@ -121,6 +130,18 @@ std::string printableText(const std::string_view text)
         }
     }
     return result;
+}
+
+}  // anonymous namespace
+
+std::string printableText(const std::string_view text)
+{
+    return escapeText(text, false);
+}
+
+std::string printableLines(const std::string_view text)
+{
+    return escapeText(text, true);
 }
 
 std::string printablePath(const std::filesystem::path& path)
