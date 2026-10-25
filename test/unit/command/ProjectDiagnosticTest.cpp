@@ -47,11 +47,11 @@ using scrap::Compile::DatabaseWriteStep;
 using scrap::Project::LanguageStandard;
 using scrap::Project::ManifestError;
 using scrap::Project::ManifestErrorKind;
-using scrap::Project::MisspelledSource;
 using scrap::Project::NotADirectory;
 using scrap::Project::PathInaccessible;
 using scrap::Project::ProjectError;
 using scrap::Project::ProjectNotFound;
+using scrap::Project::SourceNamedTwice;
 using scrap::Project::SourcePosition;
 using scrap::Project::SourceScanFailure;
 
@@ -178,16 +178,27 @@ TEST(ProjectDiagnosticTest, EscapesAControlCharacterInASourceDirectory)
 }
 
 /**
- * A declared file spelled with another case than the file on disk is shown
- * in both spellings, and points at the manifest.
+ * A declared file that names a source under another path is shown with both
+ * paths, and points at the manifest.
  */
-TEST(ProjectDiagnosticTest, RendersADeclaredFileSpelledWithAnotherCase)
+TEST(ProjectDiagnosticTest, RendersADeclaredFileThatNamesASourceTwice)
 {
-    const MisspelledSource error{ .declared = "src/Main.cpp", .found = "src/main.cpp" };
+    const SourceNamedTwice error{ .declared = "src/Main.cpp", .found = "src/main.cpp" };
 
     EXPECT_EQ(renderSourceCollectionError(error),
-              "error: scrap.toml names 'src/Main.cpp', which is spelled 'src/main.cpp' on disk\n"
+              "error: scrap.toml names 'src/Main.cpp', which is the same file as 'src/main.cpp'\n"
               "hint: correct scrap.toml and run the command again\n");
+}
+
+/**
+ * A source directory that cannot be read reaches the same text through the
+ * error of the whole collection.
+ */
+TEST(ProjectDiagnosticTest, RendersASourceScanFailureAmongTheCollectionErrors)
+{
+    const SourceScanFailure failure{ .directory = "/home/me/hello/src/private", .reason = "Permission denied" };
+
+    EXPECT_EQ(renderSourceCollectionError(failure), renderSourceScanFailure(failure));
 }
 
 /**

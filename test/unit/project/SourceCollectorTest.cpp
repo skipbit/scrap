@@ -150,10 +150,35 @@ TEST(SourceCollectorTest, ReportsAnEntryPointSpelledWithAnotherCase)
     const auto collected = collectSources(temp.path(), { executableNamed("app", "src/Main.cpp") });
 
     ASSERT_FALSE(collected.has_value());
-    const auto* const misspelled = std::get_if<MisspelledSource>(&collected.error());
-    ASSERT_NE(misspelled, nullptr);
-    EXPECT_EQ(misspelled->declared, "src/Main.cpp");
-    EXPECT_EQ(misspelled->found, "src/main.cpp");
+    const auto* const named = std::get_if<SourceNamedTwice>(&collected.error());
+    ASSERT_NE(named, nullptr);
+    EXPECT_EQ(named->declared, "src/Main.cpp");
+    EXPECT_EQ(named->found, "src/main.cpp");
+}
+
+/**
+ * A declared file that is a hard link to a source below src/ is the same file
+ * under another path, which would be compiled under both, so the declaration
+ * is reported.
+ */
+TEST(SourceCollectorTest, ReportsAnEntryPointLinkedToASource)
+{
+    const TempDirectory temp;
+    temp.writeFile("src/main.cpp", SourceText);
+    temp.makeDirectory("extra");
+    std::error_code ec;
+    std::filesystem::create_hard_link(temp.path() / "src/main.cpp", temp.path() / "extra/main.cpp", ec);
+    if (ec) {
+        GTEST_SKIP() << "no hard link: " << ec.message();
+    }
+
+    const auto collected = collectSources(temp.path(), { executableNamed("app", "extra/main.cpp") });
+
+    ASSERT_FALSE(collected.has_value());
+    const auto* const named = std::get_if<SourceNamedTwice>(&collected.error());
+    ASSERT_NE(named, nullptr);
+    EXPECT_EQ(named->declared, "extra/main.cpp");
+    EXPECT_EQ(named->found, "src/main.cpp");
 }
 
 /**

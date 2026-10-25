@@ -27,21 +27,21 @@ struct SourceScanFailure {
 };
 
 /**
- * @brief A declared file reaches a source below src/ under a spelling that
- *        differs from the source's name only in case.
+ * @brief A declared file is a source below src/ reached under another path.
  *
- * A file system that ignores case reaches the one file under both spellings,
- * which a build would compile twice.
+ * A spelling that differs only in case, on a file system that ignores case,
+ * and a hard link both reach the one file under two paths, which a build
+ * would compile twice.
  */
-struct MisspelledSource {
-    std::filesystem::path declared;  ///< As the manifest spells it, normalized.
-    std::filesystem::path found;     ///< As the file system names it, relative to the project root.
+struct SourceNamedTwice {
+    std::filesystem::path declared;  ///< As the manifest names it, normalized.
+    std::filesystem::path found;     ///< As the scan found it, relative to the project root.
 };
 
 /**
  * @brief Why the sources of a project could not be decided.
  */
-using SourceCollectionError = std::variant<SourceScanFailure, MisspelledSource>;
+using SourceCollectionError = std::variant<SourceScanFailure, SourceNamedTwice>;
 
 /**
  * @brief Decide which sources each target is built from.
@@ -52,9 +52,8 @@ using SourceCollectionError = std::variant<SourceScanFailure, MisspelledSource>;
  * its own entry point wherever it sits, since a declaration states what to
  * build whether or not the default layout expects the file there. Paths are
  * compared once normalized, so "./src/main.cpp" and "src/main.cpp" name the
- * same file. A declared file that reaches a source below src/ under a
- * spelling differing only in case, as a file system that ignores case
- * allows, is reported with both spellings.
+ * same file. A declared file that the file system reports as the same file
+ * as a source below src/ under another path is reported with both paths.
  *
  * A source is recognised by its extension, spelled in lower case: .cpp, .cc
  * or .cxx. The list comes back sorted, so a build reads the same sources
@@ -75,7 +74,7 @@ using SourceCollectionError = std::variant<SourceScanFailure, MisspelledSource>;
  * @param targets Targets to build, as resolveTargets() returned them.
  * @return Each target with its sources, in the order the targets were given,
  *         or the directory that could not be read, or the declared file
- *         spelled with another case.
+ *         that names a source under another path.
  */
 [[nodiscard]] std::expected<std::vector<TargetSources>, SourceCollectionError> collectSources(const std::filesystem::path& projectRoot,
                                                                                               const std::vector<Target>& targets);

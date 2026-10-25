@@ -113,34 +113,20 @@ std::vector<std::filesystem::path> sourcesExcept(const std::vector<std::filesyst
 }
 
 /**
- * The text of @p path with its ASCII letters in lower case.
+ * The scanned source that @p named reaches under another path, as the file
+ * system decides. A declared file that does not exist is the same file as
+ * none of them; the compiler reports it.
  */
-std::string foldedCase(const std::filesystem::path& path)
-{
-    std::string text = path.string();
-    std::ranges::transform(text, text.begin(), [](const char c) {
-        return ((c >= 'A') && (c <= 'Z')) ? static_cast<char>(c - 'A' + 'a') : c;
-    });
-    return text;
-}
-
-/**
- * The scanned source that @p named reaches under another spelling: one whose
- * name differs only in case and which the file system reports as the same
- * file. Comparing the spellings first keeps two names of one file, such as a
- * hard link, from being read as a misspelling.
- */
-std::optional<std::filesystem::path> otherSpellingOf(const std::filesystem::path& projectRoot,
-                                                     const std::vector<std::filesystem::path>& scanned,
-                                                     const std::filesystem::path& named)
+std::optional<std::filesystem::path> sameFileAmong(const std::filesystem::path& projectRoot,
+                                                   const std::vector<std::filesystem::path>& scanned,
+                                                   const std::filesystem::path& named)
 {
     if (named.empty() || (std::ranges::find(scanned, named) != scanned.end())) {
         return std::nullopt;
     }
-    const std::string folded = foldedCase(named);
     for (const std::filesystem::path& source : scanned) {
         std::error_code ec;
-        if ((foldedCase(source) == folded) && std::filesystem::equivalent(projectRoot / source, projectRoot / named, ec)) {
+        if (std::filesystem::equivalent(projectRoot / source, projectRoot / named, ec)) {
             return source;
         }
     }
@@ -156,12 +142,6 @@ std::expected<std::vector<TargetSources>, SourceCollectionError> collectSources(
     if (! scanned.has_value()) {
         return std::unexpected(scanned.error());
     }
-    for (const Target& target : targets) {
-        const std::filesystem::path named = target.source.lexically_normal();
-        if (const auto found = otherSpellingOf(projectRoot, *scanned, named)) {
-            return std::unexpected(MisspelledSource{ .declared = named, .found = *found });
-        }
-    }
 
     const bool hasLibrary = std::ranges::contains(targets, TargetKind::Library, &Target::kind);
     std::vector<TargetSources> collected;
@@ -169,6 +149,9 @@ std::expected<std::vector<TargetSources>, SourceCollectionError> collectSources(
     for (std::size_t index = 0; index < targets.size(); ++index) {
         const Target& target = targets[index];
         const std::filesystem::path named = target.source.lexically_normal();
+        if (const auto found = sameFileAmong(projectRoot, *scanned, named)) {
+            return std::unexpected(SourceNamedTwice{ .declared = named, .found = *found });
+        }
         std::vector<std::filesystem::path> sources;
         if (hasLibrary && (target.kind == TargetKind::Executable)) {
             sources.push_back(named);
