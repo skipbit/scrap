@@ -31,19 +31,25 @@ constexpr std::string_view ColorSequenceStart = "\x1b[";
  * bytes there start something else.
  *
  * A compiler colours its diagnostics with the sequences that set an
- * attribute, and gcc clears the rest of the line after each of them. Every
- * other sequence is one this has no reason to pass on.
+ * attribute, whose parameters are digits and ';', and gcc clears the rest of
+ * the line after each of them. Every other sequence, one that erases more or
+ * takes another parameter among them, is one this has no reason to pass on.
  */
 std::size_t colorSequenceEnd(std::string_view text, std::size_t index)
 {
     if (! text.substr(index).starts_with(ColorSequenceStart)) {
         return index;
     }
-    std::size_t end = (index + ColorSequenceStart.size());
-    while ((end < text.size()) && (text[end] >= '0') && (text[end] <= '?')) {
+    const std::size_t parametersStart = (index + ColorSequenceStart.size());
+    std::size_t end = parametersStart;
+    while ((end < text.size()) && (((text[end] >= '0') && (text[end] <= '9')) || (text[end] == ';'))) {
         ++end;
     }
-    if ((end < text.size()) && ((text[end] == 'm') || (text[end] == 'K'))) {
+    if (end == text.size()) {
+        return index;
+    }
+    const std::string_view parameters = text.substr(parametersStart, end - parametersStart);
+    if ((text[end] == 'm') || ((text[end] == 'K') && (parameters.empty() || (parameters == "0")))) {
         return (end + 1);
     }
     return index;

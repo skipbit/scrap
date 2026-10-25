@@ -173,6 +173,22 @@ TEST(BuildProgressTest, WritesEveryOtherSequenceAsText)
 }
 
 /**
+ * Only the forms a compiler colours with pass as colour: a sequence that
+ * erases more than the rest of the line, or takes a parameter no colour
+ * takes, is written as text.
+ */
+TEST(BuildProgressTest, PassesOnlyTheFormsACompilerColoursWith)
+{
+    for (const bool keepColor : { false, true }) {
+        EXPECT_EQ(printableOutput("a\x1b[2Kb", keepColor), "a\\x1B[2Kb") << keepColor;
+        EXPECT_EQ(printableOutput("a\x1b[1Kb", keepColor), "a\\x1B[1Kb") << keepColor;
+        EXPECT_EQ(printableOutput("a\x1b[?1mb", keepColor), "a\\x1B[?1mb") << keepColor;
+    }
+    EXPECT_EQ(printableOutput("\x1b[01;35m\x1b[Ka\x1b[0Kb\x1b[m", true), "\x1b[01;35m\x1b[Ka\x1b[0Kb\x1b[m");
+    EXPECT_EQ(printableOutput("\x1b[0;1;31ma\x1b[0m", true), "\x1b[0;1;31ma\x1b[0m");
+}
+
+/**
  * A byte that is not an escape can still be one a terminal acts on, so
  * everything printableText() escapes is written as text here too, colour or
  * not. The bytes a diagnostic is laid out with and quotes source in stay.
