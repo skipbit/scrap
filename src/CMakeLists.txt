@@ -55,6 +55,7 @@ scrap_apply_compile_settings(scrap_project WARNINGS_AS_ERRORS)
 
 # Running other programs
 add_library(scrap_process STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/process/ExecutableFile.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/process/Subprocess.cpp
 )
 target_include_directories(scrap_process PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

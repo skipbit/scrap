@@ -7,6 +7,7 @@
 #include "command/OptionSchema.h"
 #include "command/ParsedOptions.h"
 #include "command/RuntimeEnvironment.h"
+#include "process/ExecutableFile.h"
 
 #include <filesystem>
 #include <memory>
@@ -27,19 +28,7 @@ constexpr std::string_view ExternalPrefix = "scrap-";
  */
 bool isScrapExecutable(const std::filesystem::directory_entry& entry)
 {
-    std::error_code ec;
-    if ((! entry.is_regular_file(ec)) || ec) {
-        return false;
-    }
-    auto filename = entry.path().filename().string();
-    if (! filename.starts_with(ExternalPrefix)) {
-        return false;
-    }
-    auto status = std::filesystem::status(entry.path(), ec);
-    if (ec) {
-        return false;
-    }
-    return ((status.permissions() & std::filesystem::perms::owner_exec) != std::filesystem::perms::none);
+    return entry.path().filename().string().starts_with(ExternalPrefix) && Process::isExecutableFile(entry.path());
 }
 
 /**
