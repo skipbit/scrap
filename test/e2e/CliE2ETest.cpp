@@ -656,6 +656,31 @@ TEST_F(CliE2ETest, ProjectScopeNoConfig)
     EXPECT_EQ(result.stdoutText.find("totally-fake-project-script"), std::string::npos);
 }
 
+/**
+ * An external command is named by its filename, which can hold any byte, so
+ * every line that names one shows a byte a terminal acts on as text: the
+ * warning for a name found twice, and the line for a command not available.
+ */
+TEST_F(CliE2ETest, ExternalNameIsShownAsText)
+{
+    // U+009B, CSI among the C1 control characters. Every file system the
+    // tests run on can hold it, since it is well-formed UTF-8.
+    const std::string name = "\xc2\x9b"
+                             "x";
+    makeDummy("scrap-" + name, "exit 0");
+    const auto other = _temp->writeFile("other/scrap-" + name, "#!/bin/sh\nexit 0\n");
+    std::filesystem::permissions(other, std::filesystem::perms::owner_exec, std::filesystem::perm_options::add);
+
+    auto result = runScrap({ name }, { "PATH=" + (_root / "other").string() + ":/usr/bin:/bin" }, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_EQ(result.stderrText,
+              "warning: command '\\xC2\\x9Bx' already registered; ignoring duplicate\n"
+              "Command '\\xC2\\x9Bx' is not available yet.\n"
+              "Run 'scrap --help' for usage information.\n");
+}
+
 // --- TS-04: builtin vs external name collision priority ------------------------
 
 TEST_F(CliE2ETest, Priority)
@@ -972,6 +997,30 @@ esac)");
     EXPECT_NE(result.stdoutText.find("metadata-greets-you"), std::string::npos);
 }
 
+/**
+ * An external command answers --scrap-metadata with a description of its
+ * own, so the help shows what a terminal would act on in it as text, both in
+ * the listing and in the command's own help.
+ */
+TEST_F(CliE2ETest, ExternalDescriptionIsShownAsText)
+{
+    // An OSC sequence that rewrites the terminal's title.
+    makeDummy("scrap-greet", R"(case "$1" in
+  --scrap-metadata) printf 'greets you \033]0;pwn\007\n' ;;
+esac)");
+
+    auto listing = runScrap({ "--help" }, {}, _root);
+    auto own = runScrap({ "help", "greet" }, {}, _root);
+
+    ASSERT_TRUE(listing.exitedNormally);
+    EXPECT_EQ(listing.exitCode, 0);
+    EXPECT_NE(listing.stdoutText.find("greets you \\x1B]0;pwn\\x07\n"), std::string::npos) << listing.stdoutText;
+    EXPECT_EQ(listing.stdoutText.find('\x1b'), std::string::npos);
+    ASSERT_TRUE(own.exitedNormally);
+    EXPECT_EQ(own.exitCode, 0);
+    EXPECT_EQ(own.stdoutText, "USAGE: scrap greet\n\ngreets you \\x1B]0;pwn\\x07\n");
+}
+
 // --- TS-09: all version forms agree ----------------------------------------------
 
 TEST_F(CliE2ETest, VersionForms)
@@ -1027,6 +1076,31 @@ TEST_F(CliE2ETest, BuildReportsAManifestErrorWithItsLocation)
     EXPECT_NE(result.stderrText.find(manifest + ":1:1: error: package.name: required key is missing\n"), std::string::npos)
         << result.stderrText;
     EXPECT_NE(result.stderrText.find("\nhint: "), std::string::npos) << result.stderrText;
+}
+
+/**
+ * The manifest belongs to the project being built, and the parser quotes
+ * the bytes it read, so neither a key it names nor a value it could not read
+ * reaches the terminal as bytes.
+ */
+TEST_F(CliE2ETest, BuildReportsAManifestErrorAsText)
+{
+    const std::string manifest = (std::filesystem::canonical(_root) / "scrap.toml").string();
+    const std::vector<std::pair<std::string, std::string>> cases{
+        { "\"k\\u001b]0;t\\u0007\" = 1", ": error: package.k\\x1B]0;t\\x07: unknown key; expected one of name version std\n" },
+        { "x = tr\x1b", ": error: Error while parsing boolean: expected 'true', saw 'tr\\x1B'\n" },
+    };
+    for (const auto& [line, shown] : cases) {
+        writeFile("scrap.toml", std::string{ ValidManifest } + line + "\n");
+
+        auto result = runScrap({ "build" }, {}, _root);
+
+        ASSERT_TRUE(result.exitedNormally) << line;
+        EXPECT_EQ(result.exitCode, 1) << line;
+        EXPECT_NE(result.stderrText.find(shown), std::string::npos) << result.stderrText;
+        EXPECT_EQ(result.stderrText.find('\x1b'), std::string::npos) << result.stderrText;
+        EXPECT_EQ(result.stderrText.rfind(manifest, 0), 0U) << result.stderrText;
+    }
 }
 
 TEST_F(CliE2ETest, BuildFindsTheProjectAboveTheWorkingDirectory)

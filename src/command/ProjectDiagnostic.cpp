@@ -71,7 +71,7 @@ std::string projectNameHint()
 std::string render(const Project::NotADirectory& error)
 {
     std::string text = "error: '";
-    text += error.path.string();
+    text += printablePath(error.path);
     text += "' is not a directory\n";
     text += PathHint;
     return text;
@@ -80,7 +80,7 @@ std::string render(const Project::NotADirectory& error)
 std::string render(const Project::PathInaccessible& error)
 {
     std::string text = "error: cannot access '";
-    text += error.path.string();
+    text += printablePath(error.path);
     text += "': ";
     text += error.reason;
     text += '\n';
@@ -93,7 +93,7 @@ std::string render(const Project::ProjectNotFound& error)
     std::string text = "error: could not find ";
     text += Project::ManifestFileName;
     text += " in '";
-    text += error.startDir.string();
+    text += printablePath(error.startDir);
     text += "' or any parent directory\n";
     text += "hint: run 'scrap new <project-name>' to create a project\n";
     return text;
@@ -101,11 +101,13 @@ std::string render(const Project::ProjectNotFound& error)
 
 /**
  * A manifest that could not be read points at the file itself; one whose
- * contents are wrong points at editing it.
+ * contents are wrong points at editing it. The project being built writes
+ * the manifest, and the parser quotes what it read, so the line is shown as
+ * text.
  */
 std::string render(const Project::ManifestError& error)
 {
-    std::string text = Project::describe(error);
+    std::string text = printableText(Project::describe(error));
     if (error.kind == Project::ManifestErrorKind::Unreadable) {
         text += "\nhint: check that ";
         text += Project::ManifestFileName;

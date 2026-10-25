@@ -159,6 +159,83 @@ TEST(DefaultHelpRendererTest, RenderGlobal_ExternalOnlyNoBuiltinSection)
 }
 
 /**
+ * An external command is named by its filename and describes itself, so
+ * what a terminal would act on in either is shown as text, and the columns
+ * line up on the name as it is shown.
+ */
+TEST(DefaultHelpRendererTest, RenderGlobal_ShowsAnExternalNameAndDescriptionAsText)
+{
+    DefaultHelpRenderer renderer;
+    std::vector<HelpEntry> entries;
+    entries.push_back(makeHelpEntry("build", CommandSource::Builtin, "", "Build"));
+    entries.push_back(makeHelpEntry("ab\x9b", CommandSource::External, "", "greets \x1b]0;pwn\x07"));
+
+    auto result = renderer.renderGlobal(entries);
+
+    EXPECT_EQ(result,
+              "USAGE: scrap [OPTIONS] <COMMAND>\n"
+              "\nCommands:\n"
+              "    build     Build\n"
+              "\nExternal Commands:\n"
+              "    ab\\x9B    greets \\x1B]0;pwn\\x07\n"
+              "\nSee 'scrap help <command>' for more information.\n");
+}
+
+/**
+ * A command's own help shows the words that name it and its description as
+ * text.
+ */
+TEST(DefaultHelpRendererTest, RenderCommand_ShowsThePathAndDescriptionAsText)
+{
+    DefaultHelpRenderer renderer;
+    CommandSpec spec;
+    spec.name = "ab\x9b";
+    spec.description = "greets \x1b]0;pwn\x07";
+
+    auto result = renderer.renderCommand("ab\x9b", spec);
+
+    EXPECT_EQ(result, "USAGE: scrap ab\\x9B\n\ngreets \\x1B]0;pwn\\x07\n");
+}
+
+/**
+ * Every column lines up on the names as they are shown, so a name that grows
+ * when escaped widens its column instead of running past it.
+ */
+TEST(DefaultHelpRendererTest, RenderCommand_LinesUpOnTheNamesAsShown)
+{
+    DefaultHelpRenderer renderer;
+    CommandSpec spec;
+    spec.name = "x";
+
+    CommandSpec sub1;
+    sub1.name = "a\x01";
+    sub1.description = "First";
+    CommandSpec sub2;
+    sub2.name = "bc";
+    sub2.description = "Second";
+    spec.subcommands = { sub1, sub2 };
+
+    OptionDef opt1;
+    opt1.longName = "a\\b";
+    opt1.description = "First";
+    OptionDef opt2;
+    opt2.longName = "cdef";
+    opt2.description = "Second";
+    spec.options.named = { opt1, opt2 };
+
+    auto result = renderer.renderCommand("x", spec);
+
+    EXPECT_EQ(result,
+              "USAGE: scrap x [OPTIONS] <COMMAND>\n"
+              "\nSUBCOMMANDS:\n"
+              "    a\\x01    First\n"
+              "    bc       Second\n"
+              "\nOPTIONS:\n"
+              "    --a\\x5Cb    First\n"
+              "    --cdef      Second\n");
+}
+
+/**
  * renderCommand should list subcommands.
  */
 TEST(DefaultHelpRendererTest, RenderCommand_WithSubcommands)

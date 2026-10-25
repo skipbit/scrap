@@ -107,12 +107,12 @@ int Application::run(std::span<const char* const> argv, const RuntimeEnvironment
         auto& invocation = *result;
         const auto found = catalog.match(invocation.commandPath);
         if ((found.deepest == nullptr) || (found.depth != invocation.commandPath.size())) {
-            std::cerr << "Internal error: command not found after parsing: " << typedPath(invocation.commandPath) << "\n";
+            std::cerr << "Internal error: command not found after parsing: " << printableText(typedPath(invocation.commandPath)) << "\n";
             return 1;
         }
         auto handler = found.deepest->createHandler(invocation.options);
         if (handler == nullptr) {
-            std::cerr << "Command '" << typedPath(invocation.commandPath) << "' is not available yet.\n";
+            std::cerr << "Command '" << printableText(typedPath(invocation.commandPath)) << "' is not available yet.\n";
             std::cerr << "Run 'scrap --help' for usage information.\n";
             return 1;
         }

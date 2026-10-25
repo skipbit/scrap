@@ -3,6 +3,7 @@
 #include "command/CommandEntry.h"
 #include "command/CommandSpec.h"
 #include "command/HelpRenderer.h"
+#include "command/PrintableText.h"
 
 #include <algorithm>
 #include <iostream>
@@ -30,7 +31,7 @@ void CommandCatalog::addEntries(std::vector<CommandEntry> entries)
         });
 
         if (i != _entries.end()) {
-            std::cerr << "warning: command '" << incoming.spec.name << "' already registered; ignoring duplicate\n";
+            std::cerr << "warning: command '" << printableText(incoming.spec.name) << "' already registered; ignoring duplicate\n";
             continue;
         }
 
