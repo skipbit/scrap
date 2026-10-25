@@ -261,6 +261,29 @@ std::string render(const Project::CannotCreate& error)
     return text;
 }
 
+std::string render(const Project::SourceScanFailure& failure)
+{
+    return renderSourceScanFailure(failure);
+}
+
+/**
+ * A declared file that names a source under another path points at the
+ * manifest, where the path is written.
+ */
+std::string render(const Project::SourceNamedTwice& error)
+{
+    std::string text = "error: ";
+    text += Project::ManifestFileName;
+    text += " names '";
+    text += printablePath(error.declared);
+    text += "', which is the same file as '";
+    text += printablePath(error.found);
+    text += "'\nhint: correct ";
+    text += Project::ManifestFileName;
+    text += " and run the command again\n";
+    return text;
+}
+
 /**
  * Render whichever alternative @p error holds.
  */
@@ -434,6 +457,11 @@ std::string renderSourceScanFailure(const Project::SourceScanFailure& failure)
     text += '\n';
     text += PermissionHint;
     return text;
+}
+
+std::string renderSourceCollectionError(const Project::SourceCollectionError& error)
+{
+    return renderAlternative(error);
 }
 
 std::string renderCompilationDatabaseFailure(const Compile::DatabaseWriteFailure& failure)

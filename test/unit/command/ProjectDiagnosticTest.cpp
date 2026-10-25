@@ -37,6 +37,7 @@ using scrap::Command::renderOutputRemovalFailure;
 using scrap::Command::renderProjectError;
 using scrap::Command::renderSeveralExecutablesToRun;
 using scrap::Command::renderSeveralLibraries;
+using scrap::Command::renderSourceCollectionError;
 using scrap::Command::renderSourceScanFailure;
 using scrap::Command::renderStepFailures;
 using scrap::Command::renderUnsupportedStandard;
@@ -50,6 +51,7 @@ using scrap::Project::NotADirectory;
 using scrap::Project::PathInaccessible;
 using scrap::Project::ProjectError;
 using scrap::Project::ProjectNotFound;
+using scrap::Project::SourceNamedTwice;
 using scrap::Project::SourcePosition;
 using scrap::Project::SourceScanFailure;
 
@@ -173,6 +175,30 @@ TEST(ProjectDiagnosticTest, EscapesAControlCharacterInASourceDirectory)
     EXPECT_EQ(renderSourceScanFailure(failure),
               "error: cannot read '/home/me/hello/src/a\\x1B[31m': Permission denied\n"
               "hint: check the permissions of the path\n");
+}
+
+/**
+ * A declared file that names a source under another path is shown with both
+ * paths, and points at the manifest.
+ */
+TEST(ProjectDiagnosticTest, RendersADeclaredFileThatNamesASourceTwice)
+{
+    const SourceNamedTwice error{ .declared = "src/Main.cpp", .found = "src/main.cpp" };
+
+    EXPECT_EQ(renderSourceCollectionError(error),
+              "error: scrap.toml names 'src/Main.cpp', which is the same file as 'src/main.cpp'\n"
+              "hint: correct scrap.toml and run the command again\n");
+}
+
+/**
+ * A source directory that cannot be read reaches the same text through the
+ * error of the whole collection.
+ */
+TEST(ProjectDiagnosticTest, RendersASourceScanFailureAmongTheCollectionErrors)
+{
+    const SourceScanFailure failure{ .directory = "/home/me/hello/src/private", .reason = "Permission denied" };
+
+    EXPECT_EQ(renderSourceCollectionError(failure), renderSourceScanFailure(failure));
 }
 
 /**

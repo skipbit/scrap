@@ -7,6 +7,7 @@
 
 #include <filesystem>
 #include <system_error>
+#include <variant>
 #include <vector>
 
 using namespace scrap::Project;
@@ -24,6 +25,17 @@ Target executableNamed(const char* name, const char* entryPoint)
 Target libraryNamed(const char* name, const char* entryPoint)
 {
     return Target{ .kind = TargetKind::Library, .name = name, .source = entryPoint };
+}
+
+/**
+ * Whether the file system holding @p directory reaches a file under a
+ * spelling that differs from its name only in case.
+ */
+bool ignoresCase(const TempDirectory& directory)
+{
+    directory.writeFile("Probe", "");
+    std::error_code ec;
+    return std::filesystem::exists(directory.path() / "probe", ec);
 }
 
 }  // namespace
@@ -123,6 +135,73 @@ TEST(SourceCollectorTest, ExcludesAnEntryPointWrittenWithADotComponent)
 }
 
 /**
+ * On a file system that ignores case, an entry point spelled with another case
+ * reaches the file the scan found, which would be compiled under both
+ * spellings, so the declaration is reported.
+ */
+TEST(SourceCollectorTest, ReportsAnEntryPointSpelledWithAnotherCase)
+{
+    const TempDirectory temp;
+    if (! ignoresCase(temp)) {
+        GTEST_SKIP() << "case-sensitive file system";
+    }
+    temp.writeFile("src/main.cpp", SourceText);
+
+    const auto collected = collectSources(temp.path(), { executableNamed("app", "src/Main.cpp") });
+
+    ASSERT_FALSE(collected.has_value());
+    const auto* const named = std::get_if<SourceNamedTwice>(&collected.error());
+    ASSERT_NE(named, nullptr);
+    EXPECT_EQ(named->declared, "src/Main.cpp");
+    EXPECT_EQ(named->found, "src/main.cpp");
+}
+
+/**
+ * A declared file that is a hard link to a source below src/ is the same file
+ * under another path, which would be compiled under both, so the declaration
+ * is reported.
+ */
+TEST(SourceCollectorTest, ReportsAnEntryPointLinkedToASource)
+{
+    const TempDirectory temp;
+    temp.writeFile("src/main.cpp", SourceText);
+    temp.makeDirectory("extra");
+    std::error_code ec;
+    std::filesystem::create_hard_link(temp.path() / "src/main.cpp", temp.path() / "extra/main.cpp", ec);
+    if (ec) {
+        GTEST_SKIP() << "no hard link: " << ec.message();
+    }
+
+    const auto collected = collectSources(temp.path(), { executableNamed("app", "extra/main.cpp") });
+
+    ASSERT_FALSE(collected.has_value());
+    const auto* const named = std::get_if<SourceNamedTwice>(&collected.error());
+    ASSERT_NE(named, nullptr);
+    EXPECT_EQ(named->declared, "extra/main.cpp");
+    EXPECT_EQ(named->found, "src/main.cpp");
+}
+
+/**
+ * On a file system that tells case apart, two names differing only in case
+ * are two files, and the declared one is the entry point.
+ */
+TEST(SourceCollectorTest, KeepsTwoFilesWhoseNamesDifferOnlyInCase)
+{
+    const TempDirectory temp;
+    if (ignoresCase(temp)) {
+        GTEST_SKIP() << "case-insensitive file system";
+    }
+    temp.writeFile("src/main.cpp", SourceText);
+    temp.writeFile("src/Main.cpp", SourceText);
+
+    const auto collected = collectSources(temp.path(), { executableNamed("app", "src/Main.cpp") });
+
+    ASSERT_TRUE(collected.has_value());
+    ASSERT_EQ(collected->size(), 1);
+    EXPECT_EQ((*collected)[0].sources, (std::vector<std::filesystem::path>{ "src/Main.cpp", "src/main.cpp" }));
+}
+
+/**
  * A declaration states what to build wherever the file sits, so an entry point
  * the scan does not reach is compiled all the same.
  */
@@ -183,8 +262,8 @@ TEST(SourceCollectorTest, ReportsASourceDirectoryItCannotRead)
     std::filesystem::permissions(locked, std::filesystem::perms::owner_all, ec);
 
     ASSERT_FALSE(collected.has_value());
-    EXPECT_EQ(collected.error().directory, locked);
-    EXPECT_FALSE(collected.error().reason.empty());
+    EXPECT_EQ(std::get<SourceScanFailure>(collected.error()).directory, locked);
+    EXPECT_FALSE(std::get<SourceScanFailure>(collected.error()).reason.empty());
 }
 
 /**
@@ -199,8 +278,8 @@ TEST(SourceCollectorTest, ReportsASourceDirectoryItCannotExamine)
     const auto collected = collectSources(temp.path(), { executableNamed("app", "src/main.cpp") });
 
     ASSERT_FALSE(collected.has_value());
-    EXPECT_EQ(collected.error().directory, temp.path() / "src");
-    EXPECT_FALSE(collected.error().reason.empty());
+    EXPECT_EQ(std::get<SourceScanFailure>(collected.error()).directory, temp.path() / "src");
+    EXPECT_FALSE(std::get<SourceScanFailure>(collected.error()).reason.empty());
 }
 
 /**

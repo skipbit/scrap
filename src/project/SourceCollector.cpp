@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <expected>  // IWYU pragma: keep
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -111,10 +112,31 @@ std::vector<std::filesystem::path> sourcesExcept(const std::vector<std::filesyst
     return sources;
 }
 
+/**
+ * The scanned source that @p named reaches under another path, as the file
+ * system decides. A declared file that does not exist is the same file as
+ * none of them; the compiler reports it.
+ */
+std::optional<std::filesystem::path> sameFileAmong(const std::filesystem::path& projectRoot,
+                                                   const std::vector<std::filesystem::path>& scanned,
+                                                   const std::filesystem::path& named)
+{
+    if (named.empty() || (std::ranges::find(scanned, named) != scanned.end())) {
+        return std::nullopt;
+    }
+    for (const std::filesystem::path& source : scanned) {
+        std::error_code ec;
+        if (std::filesystem::equivalent(projectRoot / source, projectRoot / named, ec)) {
+            return source;
+        }
+    }
+    return std::nullopt;
+}
+
 }  // anonymous namespace
 
-std::expected<std::vector<TargetSources>, SourceScanFailure> collectSources(const std::filesystem::path& projectRoot,
-                                                                            const std::vector<Target>& targets)
+std::expected<std::vector<TargetSources>, SourceCollectionError> collectSources(const std::filesystem::path& projectRoot,
+                                                                                const std::vector<Target>& targets)
 {
     const auto scanned = scanSourceDirectory(projectRoot);
     if (! scanned.has_value()) {
@@ -127,6 +149,9 @@ std::expected<std::vector<TargetSources>, SourceScanFailure> collectSources(cons
     for (std::size_t index = 0; index < targets.size(); ++index) {
         const Target& target = targets[index];
         const std::filesystem::path named = target.source.lexically_normal();
+        if (const auto found = sameFileAmong(projectRoot, *scanned, named)) {
+            return std::unexpected(SourceNamedTwice{ .declared = named, .found = *found });
+        }
         std::vector<std::filesystem::path> sources;
         if (hasLibrary && (target.kind == TargetKind::Executable)) {
             sources.push_back(named);

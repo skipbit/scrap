@@ -137,6 +137,15 @@ namespace scrap::Command {
 [[nodiscard]] std::string renderSourceScanFailure(const Project::SourceScanFailure& failure);
 
 /**
+ * @brief Describe why the sources of a project could not be decided, and
+ *        what to do next.
+ *
+ * @param error Failure returned by scrap::Project::collectSources().
+ * @return Text for standard error, each line ending in a newline.
+ */
+[[nodiscard]] std::string renderSourceCollectionError(const Project::SourceCollectionError& error);
+
+/**
  * @brief Describe a compilation database that could not be written, and what
  *        to do next.
  *
