@@ -5,6 +5,7 @@
 #include <string>
 #include <string_view>
 
+using scrap::Command::printableLines;
 using scrap::Command::printableName;
 using scrap::Command::printablePath;
 using scrap::Command::printableText;
@@ -39,6 +40,30 @@ TEST(PrintableTextTest, EscapesAC1ControlCharacter)
 }
 
 /**
+ * A character that changes the direction text is shown in would make a name
+ * read in an order other than its bytes, so it is escaped. A string literal
+ * holding one misleads whoever reads the test, so each is built from its
+ * bytes.
+ */
+TEST(PrintableTextTest, EscapesWhatChangesTheDirectionOfText)
+{
+    // U+202A to U+202E, the embeddings, the pop and the overrides.
+    EXPECT_EQ(printableText(std::string{ '\xe2', '\x80', '\xaa' }), "\\xE2\\x80\\xAA");
+    EXPECT_EQ(printableText(std::string{ '\xe2', '\x80', '\xae' }), "\\xE2\\x80\\xAE");
+    // U+2066 to U+2069, the isolates and their pop.
+    EXPECT_EQ(printableText(std::string{ '\xe2', '\x81', '\xa6' }), "\\xE2\\x81\\xA6");
+    EXPECT_EQ(printableText(std::string{ '\xe2', '\x81', '\xa9' }), "\\xE2\\x81\\xA9");
+    // U+061C, U+200E and U+200F, the marks.
+    EXPECT_EQ(printableText(std::string{ '\xd8', '\x9c' }), "\\xD8\\x9C");
+    EXPECT_EQ(printableText(std::string{ '\xe2', '\x80', '\x8e' }), "\\xE2\\x80\\x8E");
+    EXPECT_EQ(printableText(std::string{ '\xe2', '\x80', '\x8f' }), "\\xE2\\x80\\x8F");
+    // U+061B, U+2010, U+202F and U+2070, next to them, stay.
+    for (const std::string_view text : { "\xd8\x9b", "\xe2\x80\x90", "\xe2\x80\xaf", "\xe2\x81\xb0" }) {
+        EXPECT_EQ(printableText(text), text);
+    }
+}
+
+/**
  * A byte that starts no well-formed sequence is escaped, and a path is
  * rendered by the same rule as any other text.
  */
@@ -46,6 +71,41 @@ TEST(PrintableTextTest, EscapesBytesThatFormNoUtf8Sequence)
 {
     EXPECT_EQ(printablePath("/home/me/\xe4\xbd/hello"), "/home/me/\\xE4\\xBD/hello");
     EXPECT_EQ(printablePath("/home/me/\xff/hello"), "/home/me/\\xFF/hello");
+}
+
+/**
+ * A sequence whose bits look right is still not well formed when it encodes
+ * a character in more bytes than it needs, a surrogate, or a value above
+ * U+10FFFF, so each of its bytes is escaped.
+ */
+TEST(PrintableTextTest, EscapesSequencesUnicodeDoesNotAllow)
+{
+    EXPECT_EQ(printableText("\xc0\x9b"), "\\xC0\\x9B");
+    EXPECT_EQ(printableText("\xe0\x82\x9b"), "\\xE0\\x82\\x9B");
+    EXPECT_EQ(printableText("\xed\xa0\x80"), "\\xED\\xA0\\x80");
+    EXPECT_EQ(printableText("\xf4\x90\x80\x80"), "\\xF4\\x90\\x80\\x80");
+    EXPECT_EQ(printableText("\xf5\x80\x80\x80"), "\\xF5\\x80\\x80\\x80");
+}
+
+/**
+ * The characters next to what Unicode does not allow stay as they are.
+ */
+TEST(PrintableTextTest, KeepsTheCharactersAtTheEdgesOfWhatUnicodeAllows)
+{
+    // U+00A0, U+0800, U+D7FF, U+E000, U+10000 and U+10FFFF.
+    for (const std::string_view text : { "\xc2\xa0", "\xe0\xa0\x80", "\xed\x9f\xbf", "\xee\x80\x80", "\xf0\x90\x80\x80", "\xf4\x8f\xbf\xbf" }) {
+        EXPECT_EQ(printableText(text), text);
+    }
+}
+
+/**
+ * A program's output keeps the bytes it is laid out with and the backslashes
+ * it quotes, and escapes the rest as any other text.
+ */
+TEST(PrintableTextTest, KeepsTheLayoutOfOutput)
+{
+    EXPECT_EQ(printableLines("a\tb\\n\nc"), "a\tb\\n\nc");
+    EXPECT_EQ(printableLines(std::string_view{ "a\r\x1b\x07\xc2\x9b\xc0" }), "a\\x0D\\x1B\\x07\\xC2\\x9B\\xC0");
 }
 
 /**

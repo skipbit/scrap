@@ -9,15 +9,29 @@ namespace scrap::Command {
 /**
  * @brief Text made safe to print.
  *
- * A value from outside can hold any byte, so control characters, a backslash
- * and bytes that form no well-formed UTF-8 sequence become \xNN, while letters
- * outside ASCII stay as they are: what a terminal would act on reaches it as
- * text, and what the user typed stays readable.
+ * A value from outside can hold any byte, so control characters, a backslash,
+ * the characters that change the direction of text and bytes that form no
+ * well-formed UTF-8 sequence become \xNN, while letters outside ASCII stay as
+ * they are: what a terminal would act on, or what would show the text in an
+ * order other than its bytes, reaches it as text, and what the user typed
+ * stays readable.
  *
  * @param text Text to render.
  * @return The text for a terminal.
  */
 [[nodiscard]] std::string printableText(std::string_view text);
+
+/**
+ * @brief A program's output made safe to print.
+ *
+ * Escaped as printableText() escapes, except that a line feed, a tab and a
+ * backslash stay: the output runs over lines laid out with tabs, and quotes
+ * source that holds backslashes.
+ *
+ * @param text Output to render.
+ * @return The output for a terminal.
+ */
+[[nodiscard]] std::string printableLines(std::string_view text);
 
 /**
  * @brief A path made safe to print.
