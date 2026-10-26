@@ -18,6 +18,7 @@
 #include <cstddef>
 #include <filesystem>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -284,12 +285,26 @@ std::string render(const Project::SourceNamedTwice& error)
     return text;
 }
 
+/// The items joined with ", ", the last one with " or ".
+std::string joinWithOr(std::span<const std::string_view> items)
+{
+    std::string text;
+    for (std::size_t index = 0; index < items.size(); ++index) {
+        if (index != 0) {
+            text += (index + 1 == items.size()) ? " or " : ", ";
+        }
+        text += items[index];
+    }
+    return text;
+}
+
 std::string render(const Project::SourceExtensionSpelling& error)
 {
     std::string text = "error: '";
     text += printablePath(error.source);
-    text += "' has an extension scrap does not compile\n"
-            "hint: rename it to end in .cpp, .cc or .cxx and run the command again\n";
+    text += "' has an extension scrap does not compile\nhint: rename it to end in ";
+    text += joinWithOr(Project::SourceExtensions);
+    text += " and run the command again\n";
     return text;
 }
 

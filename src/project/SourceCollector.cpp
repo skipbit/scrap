@@ -3,7 +3,6 @@
 #include "project/Manifest.h"
 
 #include <algorithm>
-#include <array>
 #include <cstdint>
 #include <expected>  // IWYU pragma: keep
 #include <filesystem>
@@ -20,9 +19,6 @@ namespace {
 
 /// Directory the default layout keeps sources in.
 constexpr std::string_view SourceDirectory = "src";
-
-/// Extensions a source file is recognised by.
-constexpr std::array<std::string_view, 3> SourceExtensions{ ".cpp", ".cc", ".cxx" };
 
 /// How a file below src/ is read by its extension.
 enum class SourceKind : std::uint8_t {
@@ -69,7 +65,9 @@ bool isDirectoryLink(const std::filesystem::directory_entry& entry)
  * A project without the directory has nothing to scan, which is not a
  * failure. A directory that exists and cannot be read is reported: leaving
  * its sources out would link an artifact from fewer files than the project
- * holds, and nothing later in the build would name what went missing.
+ * holds, and nothing later in the build would name what went missing. A link
+ * to a directory and a source extension spelled in another case are reported
+ * too.
  */
 std::expected<std::vector<std::filesystem::path>, SourceCollectionError> scanSourceDirectory(const std::filesystem::path& projectRoot)
 {
@@ -93,15 +91,16 @@ std::expected<std::vector<std::filesystem::path>, SourceCollectionError> scanSou
     // loop would never run and the walk would stop as though it had finished.
     for (const std::filesystem::recursive_directory_iterator end; it != end;) {
         const std::filesystem::path current = it->path();
+        const std::filesystem::path relative = current.lexically_relative(projectRoot).lexically_normal();
         if (isDirectoryLink(*it)) {
-            return std::unexpected(SourceDirectoryLink{ .link = current.lexically_relative(projectRoot).lexically_normal() });
+            return std::unexpected(SourceDirectoryLink{ .link = relative });
         }
         switch (sourceKind(*it)) {
         case SourceKind::Source:
-            sources.push_back(current.lexically_relative(projectRoot).lexically_normal());
+            sources.push_back(relative);
             break;
         case SourceKind::OtherCase:
-            return std::unexpected(SourceExtensionSpelling{ .source = current.lexically_relative(projectRoot).lexically_normal() });
+            return std::unexpected(SourceExtensionSpelling{ .source = relative });
         case SourceKind::NotASource:
             break;
         }
@@ -131,7 +130,8 @@ std::vector<std::filesystem::path> entryPointsOf(const std::vector<Target>& targ
 
 /**
  * The scanned sources except the entry points other than @p named, with
- * @p named inserted in order when it is not among them.
+ * @p named inserted in order when it is not among them. @p scanned is sorted,
+ * which the insertion relies on.
  */
 std::vector<std::filesystem::path> sourcesExcept(const std::vector<std::filesystem::path>& scanned,
                                                  const std::vector<std::filesystem::path>& entryPoints,

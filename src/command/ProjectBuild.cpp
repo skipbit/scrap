@@ -242,7 +242,7 @@ std::expected<std::vector<Project::Target>, int> resolveBuildTargets(const Proje
         std::cerr << renderSeveralLibraries();
         return std::unexpected(1);
     }
-    return *std::move(targets);
+    return std::move(*targets);
 }
 
 }  // anonymous namespace

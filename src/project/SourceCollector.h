@@ -2,13 +2,18 @@
 
 #include "project/Manifest.h"
 
+#include <array>
 #include <expected>  // IWYU pragma: keep
 #include <filesystem>
 #include <string>
+#include <string_view>
 #include <variant>
 #include <vector>
 
 namespace scrap::Project {
+
+/// Extensions a source file is recognised by.
+inline constexpr std::array<std::string_view, 3> SourceExtensions{ ".cpp", ".cc", ".cxx" };
 
 /**
  * @brief A target and the sources a build compiles for it.
