@@ -3,7 +3,6 @@
 #include "project/Manifest.h"
 
 #include <algorithm>
-#include <cstdint>
 #include <expected>  // IWYU pragma: keep
 #include <filesystem>
 #include <optional>
@@ -20,13 +19,6 @@ namespace {
 /// Directory the default layout keeps sources in.
 constexpr std::string_view SourceDirectory = "src";
 
-/// How a file below src/ is read by its extension.
-enum class SourceKind : std::uint8_t {
-    NotASource,
-    Source,
-    OtherCase,  ///< A source extension spelled in another case.
-};
-
 std::string lowerCase(std::string text)
 {
     for (char& ch : text) {
@@ -37,39 +29,52 @@ std::string lowerCase(std::string text)
     return text;
 }
 
-SourceKind sourceKind(const std::filesystem::directory_entry& entry)
+bool isSource(const std::filesystem::directory_entry& entry)
 {
     std::error_code ec;
-    if ((! entry.is_regular_file(ec)) || ec) {
-        return SourceKind::NotASource;
-    }
-    const std::string extension = entry.path().extension().string();
-    if (std::ranges::contains(SourceExtensions, extension)) {
-        return SourceKind::Source;
-    }
-    if (std::ranges::contains(SourceExtensions, lowerCase(extension))) {
-        return SourceKind::OtherCase;
-    }
-    return SourceKind::NotASource;
-}
-
-bool isDirectoryLink(const std::filesystem::directory_entry& entry)
-{
-    std::error_code ec;
-    return (entry.is_symlink(ec) && entry.is_directory(ec));
+    return entry.is_regular_file(ec) && std::ranges::contains(SourceExtensions, entry.path().extension().string());
 }
 
 /**
- * Every source below src/, as normalized paths relative to the project root.
+ * Why the scan leaves @p entry out although it looks like a source, or
+ * nothing when it is a source or does not look like one.
+ */
+std::optional<LeftOutReason> leftOutReason(const std::filesystem::directory_entry& entry)
+{
+    std::error_code ec;
+    if (entry.is_symlink(ec) && entry.is_directory(ec)) {
+        return LeftOutReason::DirectoryLink;
+    }
+    const std::string extension = entry.path().extension().string();
+    const std::string lower = lowerCase(extension);
+    if (! std::ranges::contains(SourceExtensions, lower)) {
+        return std::nullopt;
+    }
+    if (entry.is_symlink(ec) && (! entry.exists(ec))) {
+        return LeftOutReason::BrokenLink;
+    }
+    if ((extension != lower) && entry.is_regular_file(ec)) {
+        return LeftOutReason::ExtensionSpelling;
+    }
+    return std::nullopt;
+}
+
+/// What the scan of src/ found.
+struct ScannedSources {
+    std::vector<std::filesystem::path> sources;  ///< Relative to the project root, normalized and sorted.
+    std::vector<LeftOutEntry> leftOut;           ///< Sorted by path.
+};
+
+/**
+ * Every source below src/, as normalized paths relative to the project root,
+ * and what looks like a source but is left out.
  *
  * A project without the directory has nothing to scan, which is not a
  * failure. A directory that exists and cannot be read is reported: leaving
  * its sources out would link an artifact from fewer files than the project
- * holds, and nothing later in the build would name what went missing. A link
- * to a directory and a source extension spelled in another case are reported
- * too.
+ * holds, and nothing later in the build would name what went missing.
  */
-std::expected<std::vector<std::filesystem::path>, SourceCollectionError> scanSourceDirectory(const std::filesystem::path& projectRoot)
+std::expected<ScannedSources, SourceCollectionError> scanSourceDirectory(const std::filesystem::path& projectRoot)
 {
     const std::filesystem::path directory = projectRoot / SourceDirectory;
     std::error_code ec;
@@ -78,10 +83,10 @@ std::expected<std::vector<std::filesystem::path>, SourceCollectionError> scanSou
         return std::unexpected(SourceScanFailure{ .directory = directory, .reason = ec.message() });
     }
     if (! std::filesystem::is_directory(status)) {
-        return std::vector<std::filesystem::path>{};
+        return ScannedSources{};
     }
 
-    std::vector<std::filesystem::path> sources;
+    ScannedSources scanned;
     std::filesystem::recursive_directory_iterator it(directory, ec);
     if (ec) {
         return std::unexpected(SourceScanFailure{ .directory = directory, .reason = ec.message() });
@@ -92,25 +97,19 @@ std::expected<std::vector<std::filesystem::path>, SourceCollectionError> scanSou
     for (const std::filesystem::recursive_directory_iterator end; it != end;) {
         const std::filesystem::path current = it->path();
         const std::filesystem::path relative = current.lexically_relative(projectRoot).lexically_normal();
-        if (isDirectoryLink(*it)) {
-            return std::unexpected(SourceDirectoryLink{ .link = relative });
-        }
-        switch (sourceKind(*it)) {
-        case SourceKind::Source:
-            sources.push_back(relative);
-            break;
-        case SourceKind::OtherCase:
-            return std::unexpected(SourceExtensionSpelling{ .source = relative });
-        case SourceKind::NotASource:
-            break;
+        if (isSource(*it)) {
+            scanned.sources.push_back(relative);
+        } else if (const auto reason = leftOutReason(*it)) {
+            scanned.leftOut.push_back(LeftOutEntry{ .path = relative, .reason = *reason });
         }
         it.increment(ec);
         if (ec) {
             return std::unexpected(SourceScanFailure{ .directory = current, .reason = ec.message() });
         }
     }
-    std::ranges::sort(sources);
-    return sources;
+    std::ranges::sort(scanned.sources);
+    std::ranges::sort(scanned.leftOut, {}, &LeftOutEntry::path);
+    return scanned;
 }
 
 /**
@@ -175,31 +174,35 @@ std::optional<std::filesystem::path> sameFileAmong(const std::filesystem::path& 
 
 }  // anonymous namespace
 
-std::expected<std::vector<TargetSources>, SourceCollectionError> collectSources(const std::filesystem::path& projectRoot,
-                                                                                const std::vector<Target>& targets)
+std::expected<CollectedSources, SourceCollectionError> collectSources(const std::filesystem::path& projectRoot, const std::vector<Target>& targets)
 {
-    const auto scanned = scanSourceDirectory(projectRoot);
+    auto scanned = scanSourceDirectory(projectRoot);
     if (! scanned.has_value()) {
         return std::unexpected(scanned.error());
     }
 
     const bool hasLibrary = std::ranges::contains(targets, TargetKind::Library, &Target::kind);
     const std::vector<std::filesystem::path> entryPoints = entryPointsOf(targets);
-    std::vector<TargetSources> collected;
-    collected.reserve(targets.size());
+    CollectedSources collected;
+    collected.targets.reserve(targets.size());
     for (const Target& target : targets) {
         const std::filesystem::path named = target.source.lexically_normal();
-        if (const auto found = sameFileAmong(projectRoot, *scanned, named)) {
+        if (const auto found = sameFileAmong(projectRoot, scanned->sources, named)) {
             return std::unexpected(SourceNamedTwice{ .declared = named, .found = *found });
         }
         std::vector<std::filesystem::path> sources;
         if (hasLibrary && (target.kind == TargetKind::Executable)) {
             sources.push_back(named);
         } else {
-            sources = sourcesExcept(*scanned, entryPoints, named);
+            sources = sourcesExcept(scanned->sources, entryPoints, named);
         }
-        collected.push_back(TargetSources{ .target = target, .sources = std::move(sources) });
+        // A declared file is built, so it is not listed as left out.
+        std::erase_if(scanned->leftOut, [&](const LeftOutEntry& entry) {
+            return entry.path == named;
+        });
+        collected.targets.push_back(TargetSources{ .target = target, .sources = std::move(sources) });
     }
+    collected.leftOut = std::move(scanned->leftOut);
     return collected;
 }
 

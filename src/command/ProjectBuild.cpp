@@ -87,22 +87,26 @@ const Project::TargetSources* libraryWithoutSources(const std::vector<Project::T
 }
 
 /**
- * The sources of each of @p targets. Sources that cannot be decided, or a
- * library left with nothing to build it from, are reported.
+ * The sources of each of @p targets. What below src/ is left out is named.
+ * Sources that cannot be decided, or a library left with nothing to build it
+ * from, are reported.
  */
 std::expected<std::vector<Project::TargetSources>, int> sourcesToBuild(const Project::LoadedProject& project,
                                                                        const std::vector<Project::Target>& targets)
 {
-    auto sources = Project::collectSources(project.root, targets);
-    if (! sources.has_value()) {
-        std::cerr << renderSourceCollectionError(sources.error());
+    auto collected = Project::collectSources(project.root, targets);
+    if (! collected.has_value()) {
+        std::cerr << renderSourceCollectionError(collected.error());
         return std::unexpected(1);
     }
-    if (const Project::TargetSources* const found = libraryWithoutSources(*sources); found != nullptr) {
+    for (const Project::LeftOutEntry& entry : collected->leftOut) {
+        std::cerr << renderLeftOut(entry);
+    }
+    if (const Project::TargetSources* const found = libraryWithoutSources(collected->targets); found != nullptr) {
         std::cerr << renderLibraryWithoutSources(found->target.name);
         return std::unexpected(1);
     }
-    return std::move(*sources);
+    return std::move(collected->targets);
 }
 
 /**

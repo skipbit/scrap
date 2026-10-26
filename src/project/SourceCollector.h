@@ -3,6 +3,7 @@
 #include "project/Manifest.h"
 
 #include <array>
+#include <cstdint>
 #include <expected>  // IWYU pragma: keep
 #include <filesystem>
 #include <string>
@@ -44,28 +45,39 @@ struct SourceNamedTwice {
 };
 
 /**
- * @brief A file below src/ ends in a source extension spelled in another case.
- *
- * A compiler picks the language from the extension, and some spellings, such
- * as .Cpp, are not C++ to it: the file would be passed on unused and leave no
- * object behind.
- */
-struct SourceExtensionSpelling {
-    std::filesystem::path source;  ///< Relative to the project root.
-};
-
-/**
- * @brief A symbolic link below src/ names a directory, which the scan does not
- *        follow, so the sources below it would be left out.
- */
-struct SourceDirectoryLink {
-    std::filesystem::path link;  ///< Relative to the project root.
-};
-
-/**
  * @brief Why the sources of a project could not be decided.
  */
-using SourceCollectionError = std::variant<SourceScanFailure, SourceNamedTwice, SourceExtensionSpelling, SourceDirectoryLink>;
+using SourceCollectionError = std::variant<SourceScanFailure, SourceNamedTwice>;
+
+/**
+ * @brief Why an entry below src/ that looks like a source is not built.
+ */
+enum class LeftOutReason : std::uint8_t {
+    /// Its extension is a source extension spelled in another case.
+    ExtensionSpelling,
+    /// It is a symbolic link to a directory, which the scan does not follow.
+    DirectoryLink,
+    /// It is a symbolic link to a file that does not exist.
+    BrokenLink,
+};
+
+/**
+ * @brief An entry below src/ that the build leaves out.
+ */
+struct LeftOutEntry {
+    std::filesystem::path path;  ///< Relative to the project root.
+    LeftOutReason reason;
+
+    friend bool operator==(const LeftOutEntry&, const LeftOutEntry&) = default;
+};
+
+/**
+ * @brief The sources of each target, and what below src/ is left out.
+ */
+struct CollectedSources {
+    std::vector<TargetSources> targets;  ///< In the order the targets were given.
+    std::vector<LeftOutEntry> leftOut;   ///< Sorted by path.
+};
 
 /**
  * @brief Decide which sources each target is built from.
@@ -80,15 +92,19 @@ using SourceCollectionError = std::variant<SourceScanFailure, SourceNamedTwice, 
  * as a source below src/ under another path is reported with both paths.
  *
  * A source is recognised by its extension, spelled in lower case: .cpp, .cc
- * or .cxx. A file whose extension is one of these in another case is
- * reported. The list comes back sorted, so a build reads the same sources
+ * or .cxx. The list comes back sorted, so a build reads the same sources
  * whatever order the file system reports its entries in.
  *
  * A project without src/ is not a failure, since a target can declare an
  * entry point anywhere. A directory that exists and cannot be read, or whose
- * state cannot be determined, is reported with the path that failed. A
- * symbolic link to a directory is not followed and is reported; a link to a
- * file is read as the file it names.
+ * state cannot be determined, is reported with the path that failed. A link
+ * to a file is read as the file it names.
+ *
+ * What the scan does not build is left out and listed, so the build goes on
+ * as before and can still name it: a file whose extension is a source
+ * extension in another case, a symbolic link to a directory, which is not
+ * followed, and a link named as a source that names no file. A declared file
+ * is built and not listed.
  *
  * A project with a library gives the sources below src/ to the library, except
  * the entry points of the executables, and adds the file the library names,
@@ -97,12 +113,11 @@ using SourceCollectionError = std::variant<SourceScanFailure, SourceNamedTwice, 
  *
  * @param projectRoot Directory the manifest was read from.
  * @param targets Targets to build, as resolveTargets() returned them.
- * @return Each target with its sources, in the order the targets were given,
- *         or the directory that could not be read, the declared file that
- *         names a source under another path, the file whose extension is
- *         spelled in another case, or the link to a directory.
+ * @return Each target with its sources and what was left out, or the
+ *         directory that could not be read or the declared file that names a
+ *         source under another path.
  */
-[[nodiscard]] std::expected<std::vector<TargetSources>, SourceCollectionError> collectSources(const std::filesystem::path& projectRoot,
-                                                                                              const std::vector<Target>& targets);
+[[nodiscard]] std::expected<CollectedSources, SourceCollectionError> collectSources(const std::filesystem::path& projectRoot,
+                                                                                    const std::vector<Target>& targets);
 
 }  // namespace scrap::Project

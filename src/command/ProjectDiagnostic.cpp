@@ -298,25 +298,6 @@ std::string joinWithOr(std::span<const std::string_view> items)
     return text;
 }
 
-std::string render(const Project::SourceExtensionSpelling& error)
-{
-    std::string text = "error: '";
-    text += printablePath(error.source);
-    text += "' has an extension scrap does not compile\nhint: rename it to end in ";
-    text += joinWithOr(Project::SourceExtensions);
-    text += " and run the command again\n";
-    return text;
-}
-
-std::string render(const Project::SourceDirectoryLink& error)
-{
-    std::string text = "error: '";
-    text += printablePath(error.link);
-    text += "' is a symbolic link to a directory, which scrap does not follow\n"
-            "hint: replace the link with the directory it names and run the command again\n";
-    return text;
-}
-
 /**
  * Render whichever alternative @p error holds.
  */
@@ -495,6 +476,28 @@ std::string renderSourceScanFailure(const Project::SourceScanFailure& failure)
 std::string renderSourceCollectionError(const Project::SourceCollectionError& error)
 {
     return renderAlternative(error);
+}
+
+std::string renderLeftOut(const Project::LeftOutEntry& entry)
+{
+    std::string text = "warning: leaving out '";
+    text += printablePath(entry.path);
+    text += "', ";
+    switch (entry.reason) {
+    case Project::LeftOutReason::ExtensionSpelling:
+        text += "whose extension is not ";
+        text += joinWithOr(Project::SourceExtensions);
+        text += " in lower case";
+        break;
+    case Project::LeftOutReason::DirectoryLink:
+        text += "a symbolic link to a directory, which scrap does not follow";
+        break;
+    case Project::LeftOutReason::BrokenLink:
+        text += "a symbolic link to a file that does not exist";
+        break;
+    }
+    text += '\n';
+    return text;
 }
 
 std::string renderCompilationDatabaseFailure(const Compile::DatabaseWriteFailure& failure)
