@@ -1,7 +1,8 @@
 #include "project/driver/DiskProjectFileSystem.h"
 
+#include "file/WholeFile.h"
+
 #include <cerrno>
-#include <cstddef>
 #include <expected>  // IWYU pragma: keep
 #include <fcntl.h>
 #include <filesystem>
@@ -74,26 +75,9 @@ std::error_code DiskProjectFileSystem::writeNewFile(const std::filesystem::path&
         return lastFailure();
     }
 
-    const char* data = content.data();
-    std::size_t remaining = content.size();
-    while (remaining > 0) {
-        const ssize_t written = ::write(descriptor, data, remaining);
-        if (written < 0) {
-            if (errno == EINTR) {
-                continue;
-            }
-            const std::error_code failure = lastFailure();
-            ::close(descriptor);
-            return failure;
-        }
-        if (written == 0) {
-            // POSIX allows a write of zero bytes to report nothing written,
-            // which would leave the loop where it started.
-            ::close(descriptor);
-            return std::make_error_code(std::errc::io_error);
-        }
-        data += written;
-        remaining -= static_cast<std::size_t>(written);
+    if (const std::error_code failure = File::writeAll(descriptor, content)) {
+        ::close(descriptor);
+        return failure;
     }
 
     if (::close(descriptor) != 0) {

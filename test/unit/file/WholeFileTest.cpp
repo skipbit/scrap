@@ -4,9 +4,11 @@
 
 #include <gtest/gtest.h>
 
+#include <fcntl.h>
 #include <filesystem>
 #include <string>
 #include <system_error>
+#include <unistd.h>
 
 using namespace scrap::File;
 using scrap::TestSupport::TempDirectory;
@@ -66,4 +68,50 @@ TEST(WholeFileTest, ReportsADirectoryThatDoesNotExist)
 
     EXPECT_EQ(failure, std::errc::no_such_file_or_directory);
     EXPECT_FALSE(std::filesystem::exists(temp.path() / "missing"));
+}
+
+/**
+ * The whole content reaches the descriptor, which is left open.
+ */
+TEST(WholeFileTest, WritesTheWholeContent)
+{
+    const TempDirectory temp;
+    const std::filesystem::path file = temp.writeFile("out", "");
+    const int descriptor = ::open(file.c_str(), O_WRONLY);
+    ASSERT_GE(descriptor, 0);
+
+    EXPECT_FALSE(writeAll(descriptor, std::string{ "a\nb\0c", 5 }));
+
+    EXPECT_EQ(::close(descriptor), 0);
+    EXPECT_EQ(temp.readFile(file), (std::string{ "a\nb\0c", 5 }));
+}
+
+/**
+ * A descriptor opened only for reading is reported.
+ */
+TEST(WholeFileTest, ReportsADescriptorThatCannotBeWritten)
+{
+    const TempDirectory temp;
+    const std::filesystem::path file = temp.writeFile("in", "");
+    const int descriptor = ::open(file.c_str(), O_RDONLY);
+    ASSERT_GE(descriptor, 0);
+
+    EXPECT_EQ(writeAll(descriptor, "new"), std::errc::bad_file_descriptor);
+
+    ::close(descriptor);
+}
+
+/**
+ * A device with no space left is reported as the operating system names it.
+ */
+TEST(WholeFileTest, ReportsADeviceWithNoSpace)
+{
+    const int descriptor = ::open("/dev/full", O_WRONLY);
+    if (descriptor < 0) {
+        GTEST_SKIP() << "no /dev/full on this system";
+    }
+
+    EXPECT_EQ(writeAll(descriptor, "new"), std::errc::no_space_on_device);
+
+    ::close(descriptor);
 }

@@ -33,9 +33,8 @@ std::error_code lastFailure()
     return { errno, std::generic_category() };
 }
 
-/**
- * Write the whole of @p content to @p descriptor.
- */
+}  // anonymous namespace
+
 std::error_code writeAll(const int descriptor, std::string_view content)
 {
     const char* data = content.data();
@@ -58,8 +57,6 @@ std::error_code writeAll(const int descriptor, std::string_view content)
     }
     return {};
 }
-
-}  // anonymous namespace
 
 std::error_code replaceFile(const std::filesystem::path& file, std::string_view content)
 {

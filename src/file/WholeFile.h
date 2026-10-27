@@ -46,4 +46,15 @@ enum class ReadFailure : std::uint8_t {
  */
 [[nodiscard]] std::error_code replaceFile(const std::filesystem::path& file, std::string_view content);
 
+/**
+ * @brief Write the whole of @p content to @p descriptor.
+ *
+ * A write interrupted by a signal is repeated, and a write that reports
+ * nothing written is a failure, since repeating it would make no progress.
+ * The descriptor is left open.
+ *
+ * @return Nothing on success, or what the operating system reported.
+ */
+[[nodiscard]] std::error_code writeAll(int descriptor, std::string_view content);
+
 }  // namespace scrap::File
