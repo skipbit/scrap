@@ -27,6 +27,7 @@ using scrap::Command::renderArchiverNotFound;
 using scrap::Command::renderArchiverNotNamed;
 using scrap::Command::renderCompilationDatabaseFailure;
 using scrap::Command::renderExecutableNotStarted;
+using scrap::Command::renderLeftOut;
 using scrap::Command::renderLibraryWithoutSources;
 using scrap::Command::renderNoCompilerFound;
 using scrap::Command::renderNoExecutableNamed;
@@ -45,6 +46,8 @@ using scrap::Command::renderUnusableCompilerRequest;
 using scrap::Compile::DatabaseWriteFailure;
 using scrap::Compile::DatabaseWriteStep;
 using scrap::Project::LanguageStandard;
+using scrap::Project::LeftOutEntry;
+using scrap::Project::LeftOutReason;
 using scrap::Project::ManifestError;
 using scrap::Project::ManifestErrorKind;
 using scrap::Project::NotADirectory;
@@ -188,6 +191,37 @@ TEST(ProjectDiagnosticTest, RendersADeclaredFileThatNamesASourceTwice)
     EXPECT_EQ(renderSourceCollectionError(error),
               "error: scrap.toml names 'src/Main.cpp', which is the same file as 'src/main.cpp'\n"
               "hint: correct scrap.toml and run the command again\n");
+}
+
+/**
+ * A source extension spelled in another case is named with the spellings
+ * that are compiled.
+ */
+TEST(ProjectDiagnosticTest, RendersASourceExtensionSpelledInAnotherCaseLeftOut)
+{
+    const LeftOutEntry entry{ .path = "src/Helper.Cpp", .reason = LeftOutReason::ExtensionSpelling };
+
+    EXPECT_EQ(renderLeftOut(entry), "warning: leaving out 'src/Helper.Cpp', whose extension is not .cpp, .cc or .cxx in lower case\n");
+}
+
+/**
+ * A link to a directory below src/ is named as one scrap does not follow.
+ */
+TEST(ProjectDiagnosticTest, RendersALinkToADirectoryLeftOut)
+{
+    const LeftOutEntry entry{ .path = "src/shared", .reason = LeftOutReason::DirectoryLink };
+
+    EXPECT_EQ(renderLeftOut(entry), "warning: leaving out 'src/shared', a symbolic link to a directory, which scrap does not follow\n");
+}
+
+/**
+ * A link named as a source that names no file is named as such.
+ */
+TEST(ProjectDiagnosticTest, RendersALinkToNothingLeftOut)
+{
+    const LeftOutEntry entry{ .path = "src/util.cpp", .reason = LeftOutReason::BrokenLink };
+
+    EXPECT_EQ(renderLeftOut(entry), "warning: leaving out 'src/util.cpp', a symbolic link to a file that does not exist\n");
 }
 
 /**

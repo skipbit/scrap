@@ -146,6 +146,15 @@ namespace scrap::Command {
 [[nodiscard]] std::string renderSourceCollectionError(const Project::SourceCollectionError& error);
 
 /**
+ * @brief Describe an entry below src/ that looks like a source and is left
+ *        out of the build.
+ *
+ * @param entry Entry listed by scrap::Project::collectSources().
+ * @return Text for standard error, ending in a newline.
+ */
+[[nodiscard]] std::string renderLeftOut(const Project::LeftOutEntry& entry);
+
+/**
  * @brief Describe a compilation database that could not be written, and what
  *        to do next.
  *

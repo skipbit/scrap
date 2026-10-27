@@ -142,10 +142,11 @@ TEST(ProjectCreatorTest, DefaultTemplateLoadsAsAProject)
     EXPECT_EQ(project->manifest.package.version, "0.1.0");
     EXPECT_FALSE(project->manifest.declaresTargets);
     const auto targets = resolveTargets(project->root, project->manifest);
-    ASSERT_EQ(targets.size(), 1U);
-    EXPECT_EQ(targets[0].kind, TargetKind::Executable);
-    EXPECT_EQ(targets[0].name, "hello");
-    EXPECT_EQ(targets[0].source, "src/main.cpp");
+    ASSERT_TRUE(targets.has_value());
+    ASSERT_EQ(targets->size(), 1U);
+    EXPECT_EQ((*targets)[0].kind, TargetKind::Executable);
+    EXPECT_EQ((*targets)[0].name, "hello");
+    EXPECT_EQ((*targets)[0].source, "src/main.cpp");
 }
 
 /**

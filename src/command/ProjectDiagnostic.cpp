@@ -18,6 +18,7 @@
 #include <cstddef>
 #include <filesystem>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -284,6 +285,19 @@ std::string render(const Project::SourceNamedTwice& error)
     return text;
 }
 
+/// The items joined with ", ", the last one with " or ".
+std::string joinWithOr(std::span<const std::string_view> items)
+{
+    std::string text;
+    for (std::size_t index = 0; index < items.size(); ++index) {
+        if (index != 0) {
+            text += (index + 1 == items.size()) ? " or " : ", ";
+        }
+        text += items[index];
+    }
+    return text;
+}
+
 /**
  * Render whichever alternative @p error holds.
  */
@@ -462,6 +476,28 @@ std::string renderSourceScanFailure(const Project::SourceScanFailure& failure)
 std::string renderSourceCollectionError(const Project::SourceCollectionError& error)
 {
     return renderAlternative(error);
+}
+
+std::string renderLeftOut(const Project::LeftOutEntry& entry)
+{
+    std::string text = "warning: leaving out '";
+    text += printablePath(entry.path);
+    text += "', ";
+    switch (entry.reason) {
+    case Project::LeftOutReason::ExtensionSpelling:
+        text += "whose extension is not ";
+        text += joinWithOr(Project::SourceExtensions);
+        text += " in lower case";
+        break;
+    case Project::LeftOutReason::DirectoryLink:
+        text += "a symbolic link to a directory, which scrap does not follow";
+        break;
+    case Project::LeftOutReason::BrokenLink:
+        text += "a symbolic link to a file that does not exist";
+        break;
+    }
+    text += '\n';
+    return text;
 }
 
 std::string renderCompilationDatabaseFailure(const Compile::DatabaseWriteFailure& failure)

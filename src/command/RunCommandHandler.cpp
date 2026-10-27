@@ -51,8 +51,9 @@ int RunCommandHandler::execute(const InvocationContext& ctx)
 
     // Which executable to run is settled before building, so a project that
     // has none, or more than one and no choice among them, is not built for
-    // nothing.
-    const auto executables = executablesAmong(Project::resolveTargets(project->root, project->manifest));
+    // nothing. Finding no target and declaring none give the same answer here,
+    // since either way there is nothing to run.
+    const auto executables = executablesAmong(Project::resolveTargets(project->root, project->manifest).value_or(std::vector<Project::Target>{}));
     const std::optional<std::string> requested = requestedName(ctx.options, BinOption);
     // A project with no executable is answered the same whatever name was
     // asked for, since no name would run anything.

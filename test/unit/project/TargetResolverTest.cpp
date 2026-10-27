@@ -41,10 +41,11 @@ TEST(TargetResolverTest, ReturnsDeclaredTargetsUnchanged)
 
     const auto targets = resolveTargets(temp.path(), manifest);
 
-    ASSERT_EQ(targets.size(), 1);
-    EXPECT_EQ(targets[0].kind, TargetKind::Library);
-    EXPECT_EQ(targets[0].name, "declared");
-    EXPECT_EQ(targets[0].source, "other/entry.cpp");
+    ASSERT_TRUE(targets.has_value());
+    ASSERT_EQ(targets->size(), 1);
+    EXPECT_EQ((*targets)[0].kind, TargetKind::Library);
+    EXPECT_EQ((*targets)[0].name, "declared");
+    EXPECT_EQ((*targets)[0].source, "other/entry.cpp");
 }
 
 /**
@@ -58,21 +59,23 @@ TEST(TargetResolverTest, InfersExecutableFromTheDefaultLayout)
 
     const auto targets = resolveTargets(temp.path(), manifestNamed("my-app"));
 
-    ASSERT_EQ(targets.size(), 1);
-    EXPECT_EQ(targets[0].kind, TargetKind::Executable);
-    EXPECT_EQ(targets[0].name, "my-app");
-    EXPECT_EQ(targets[0].source, "src/main.cpp");
+    ASSERT_TRUE(targets.has_value());
+    ASSERT_EQ(targets->size(), 1);
+    EXPECT_EQ((*targets)[0].kind, TargetKind::Executable);
+    EXPECT_EQ((*targets)[0].name, "my-app");
+    EXPECT_EQ((*targets)[0].source, "src/main.cpp");
 }
 
 /**
- * Without a declaration and without src/main.cpp there is nothing to build.
+ * Without a declaration and without src/main.cpp no target is found, which is
+ * a different answer from a declaration of none.
  */
-TEST(TargetResolverTest, ReturnsNothingWhenTheDefaultEntryPointIsAbsent)
+TEST(TargetResolverTest, FindsNoTargetWhenTheDefaultEntryPointIsAbsent)
 {
     const TempDirectory temp;
     temp.writeFile("src/other.cpp", "int other() { return 0; }\n");
 
-    EXPECT_TRUE(resolveTargets(temp.path(), manifestNamed("my-app")).empty());
+    EXPECT_FALSE(resolveTargets(temp.path(), manifestNamed("my-app")).has_value());
 }
 
 /**
@@ -83,7 +86,7 @@ TEST(TargetResolverTest, IgnoresADirectoryNamedLikeTheEntryPoint)
     const TempDirectory temp;
     temp.makeDirectory("src/main.cpp");
 
-    EXPECT_TRUE(resolveTargets(temp.path(), manifestNamed("my-app")).empty());
+    EXPECT_FALSE(resolveTargets(temp.path(), manifestNamed("my-app")).has_value());
 }
 
 /**
@@ -98,7 +101,10 @@ TEST(TargetResolverTest, DoesNotInferWhenTheDeclarationIsEmpty)
     Manifest manifest = manifestNamed("my-app");
     manifest.declaresTargets = true;
 
-    EXPECT_TRUE(resolveTargets(temp.path(), manifest).empty());
+    const auto targets = resolveTargets(temp.path(), manifest);
+
+    ASSERT_TRUE(targets.has_value());
+    EXPECT_TRUE(targets->empty());
 }
 
 /**
@@ -117,8 +123,9 @@ TEST(TargetResolverTest, ReturnsADeclaredEntryPointThatIsNotOnDisk)
 
     const auto targets = resolveTargets(temp.path(), manifest);
 
-    ASSERT_EQ(targets.size(), 1);
-    EXPECT_EQ(targets[0].source, "src/typo.cpp");
+    ASSERT_TRUE(targets.has_value());
+    ASSERT_EQ(targets->size(), 1);
+    EXPECT_EQ((*targets)[0].source, "src/typo.cpp");
 }
 
 /**

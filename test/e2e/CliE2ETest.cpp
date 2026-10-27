@@ -1243,6 +1243,22 @@ TEST_F(CliE2ETest, BuildReportsASourceDirectoryItCannotRead)
     EXPECT_NE(result.stderrText.find("\nhint: check the permissions of the path\n"), std::string::npos) << result.stderrText;
 }
 
+TEST_F(CliE2ETest, BuildNamesWhatItLeavesOutAndGoesOn)
+{
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp", MainSource);
+    writeFile("src/Helper.CPP", MainSource);
+
+    auto result = runScrap({ "build" }, { dummyCompiler() }, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_NE(result.stderrText.find("warning: leaving out 'src/Helper.CPP', whose extension is not .cpp, .cc or .cxx in lower case\n"),
+              std::string::npos)
+        << result.stderrText;
+    EXPECT_EQ(result.stderrText.find("Compiling app (src/Helper.CPP)"), std::string::npos) << result.stderrText;
+}
+
 // --- build: choosing the compiler ----------------------------------------------
 
 TEST_F(CliE2ETest, BuildReportsTheCompilerTheVariableNames)

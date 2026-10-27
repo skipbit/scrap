@@ -87,23 +87,26 @@ const Project::TargetSources* libraryWithoutSources(const std::vector<Project::T
 }
 
 /**
- * The sources of each of @p targets. A source directory that cannot be read,
- * a declared file spelled with another case than the source it reaches, or a
- * library left with nothing to build it from, is reported.
+ * The sources of each of @p targets. What below src/ is left out is named.
+ * Sources that cannot be decided, or a library left with nothing to build it
+ * from, are reported.
  */
 std::expected<std::vector<Project::TargetSources>, int> sourcesToBuild(const Project::LoadedProject& project,
                                                                        const std::vector<Project::Target>& targets)
 {
-    auto sources = Project::collectSources(project.root, targets);
-    if (! sources.has_value()) {
-        std::cerr << renderSourceCollectionError(sources.error());
+    auto collected = Project::collectSources(project.root, targets);
+    if (! collected.has_value()) {
+        std::cerr << renderSourceCollectionError(collected.error());
         return std::unexpected(1);
     }
-    if (const Project::TargetSources* const found = libraryWithoutSources(*sources); found != nullptr) {
+    for (const Project::LeftOutEntry& entry : collected->leftOut) {
+        std::cerr << renderLeftOut(entry);
+    }
+    if (const Project::TargetSources* const found = libraryWithoutSources(collected->targets); found != nullptr) {
         std::cerr << renderLibraryWithoutSources(found->target.name);
         return std::unexpected(1);
     }
-    return std::move(*sources);
+    return std::move(collected->targets);
 }
 
 /**
@@ -234,18 +237,16 @@ std::expected<void, int> runBuild(const RuntimeEnvironment& env,
  */
 std::expected<std::vector<Project::Target>, int> resolveBuildTargets(const Project::LoadedProject& project)
 {
-    // An empty declaration states that the project builds nothing, which is a
-    // different answer from finding nothing where no declaration was written.
     auto targets = Project::resolveTargets(project.root, project.manifest);
-    if (targets.empty() && (! project.manifest.declaresTargets)) {
+    if (! targets.has_value()) {
         std::cerr << renderNoTargetToBuild(project.root);
         return std::unexpected(1);
     }
-    if (std::ranges::count(targets, Project::TargetKind::Library, &Project::Target::kind) > 1) {
+    if (std::ranges::count(*targets, Project::TargetKind::Library, &Project::Target::kind) > 1) {
         std::cerr << renderSeveralLibraries();
         return std::unexpected(1);
     }
-    return targets;
+    return std::move(*targets);
 }
 
 }  // anonymous namespace

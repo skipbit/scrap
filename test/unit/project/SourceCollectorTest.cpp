@@ -54,8 +54,8 @@ TEST(SourceCollectorTest, CollectsEverySourceBelowSrc)
     const auto collected = collectSources(temp.path(), { executableNamed("app", "src/main.cpp") });
 
     ASSERT_TRUE(collected.has_value());
-    ASSERT_EQ(collected->size(), 1);
-    EXPECT_EQ((*collected)[0].sources, (std::vector<std::filesystem::path>{ "src/detail/helper.cpp", "src/main.cpp", "src/util.cpp" }));
+    ASSERT_EQ(collected->targets.size(), 1);
+    EXPECT_EQ(collected->targets[0].sources, (std::vector<std::filesystem::path>{ "src/detail/helper.cpp", "src/main.cpp", "src/util.cpp" }));
 }
 
 /**
@@ -73,8 +73,43 @@ TEST(SourceCollectorTest, RecognisesTheAcceptedExtensions)
     const auto collected = collectSources(temp.path(), { executableNamed("app", "src/main.cpp") });
 
     ASSERT_TRUE(collected.has_value());
-    ASSERT_EQ(collected->size(), 1);
-    EXPECT_EQ((*collected)[0].sources, (std::vector<std::filesystem::path>{ "src/legacy.cc", "src/main.cpp", "src/other.cxx" }));
+    ASSERT_EQ(collected->targets.size(), 1);
+    EXPECT_EQ(collected->targets[0].sources, (std::vector<std::filesystem::path>{ "src/legacy.cc", "src/main.cpp", "src/other.cxx" }));
+}
+
+/**
+ * A source extension spelled in another case is left out, as before, so a
+ * project builds what it built.
+ */
+TEST(SourceCollectorTest, LeavesOutASourceExtensionSpelledInAnotherCase)
+{
+    const TempDirectory temp;
+    temp.writeFile("src/main.cpp", SourceText);
+    temp.writeFile("src/Helper.Cpp", SourceText);
+
+    const auto collected = collectSources(temp.path(), { executableNamed("app", "src/main.cpp") });
+
+    ASSERT_TRUE(collected.has_value());
+    ASSERT_EQ(collected->targets.size(), 1);
+    EXPECT_EQ(collected->targets[0].sources, (std::vector<std::filesystem::path>{ "src/main.cpp" }));
+    EXPECT_EQ(collected->leftOut, (std::vector<LeftOutEntry>{ { .path = "src/Helper.Cpp", .reason = LeftOutReason::ExtensionSpelling } }));
+}
+
+/**
+ * A declared entry point is built whatever the case of its extension.
+ */
+TEST(SourceCollectorTest, BuildsADeclaredEntryPointSpelledInAnotherCase)
+{
+    const TempDirectory temp;
+    temp.writeFile("src/Main.CPP", SourceText);
+    temp.writeFile("src/util.cpp", SourceText);
+
+    const auto collected = collectSources(temp.path(), { executableNamed("app", "src/Main.CPP") });
+
+    ASSERT_TRUE(collected.has_value());
+    ASSERT_EQ(collected->targets.size(), 1);
+    EXPECT_EQ(collected->targets[0].sources, (std::vector<std::filesystem::path>{ "src/Main.CPP", "src/util.cpp" }));
+    EXPECT_TRUE(collected->leftOut.empty());
 }
 
 /**
@@ -91,11 +126,11 @@ TEST(SourceCollectorTest, ExcludesTheEntryPointOfAnotherTarget)
     const auto collected = collectSources(temp.path(), { executableNamed("app", "src/main.cpp"), executableNamed("tool", "src/tool.cpp") });
 
     ASSERT_TRUE(collected.has_value());
-    ASSERT_EQ(collected->size(), 2);
-    EXPECT_EQ((*collected)[0].target.name, "app");
-    EXPECT_EQ((*collected)[0].sources, (std::vector<std::filesystem::path>{ "src/main.cpp", "src/shared.cpp" }));
-    EXPECT_EQ((*collected)[1].target.name, "tool");
-    EXPECT_EQ((*collected)[1].sources, (std::vector<std::filesystem::path>{ "src/shared.cpp", "src/tool.cpp" }));
+    ASSERT_EQ(collected->targets.size(), 2);
+    EXPECT_EQ(collected->targets[0].target.name, "app");
+    EXPECT_EQ(collected->targets[0].sources, (std::vector<std::filesystem::path>{ "src/main.cpp", "src/shared.cpp" }));
+    EXPECT_EQ(collected->targets[1].target.name, "tool");
+    EXPECT_EQ(collected->targets[1].sources, (std::vector<std::filesystem::path>{ "src/shared.cpp", "src/tool.cpp" }));
 }
 
 /**
@@ -111,8 +146,8 @@ TEST(SourceCollectorTest, MatchesAnEntryPointWrittenWithADotComponent)
     const auto collected = collectSources(temp.path(), { executableNamed("app", "./src/main.cpp") });
 
     ASSERT_TRUE(collected.has_value());
-    ASSERT_EQ(collected->size(), 1);
-    EXPECT_EQ((*collected)[0].sources, (std::vector<std::filesystem::path>{ "src/main.cpp", "src/util.cpp" }));
+    ASSERT_EQ(collected->targets.size(), 1);
+    EXPECT_EQ(collected->targets[0].sources, (std::vector<std::filesystem::path>{ "src/main.cpp", "src/util.cpp" }));
 }
 
 /**
@@ -129,9 +164,9 @@ TEST(SourceCollectorTest, ExcludesAnEntryPointWrittenWithADotComponent)
         = collectSources(temp.path(), { executableNamed("app", "./src/main.cpp"), executableNamed("tool", "src/tool.cpp") });
 
     ASSERT_TRUE(collected.has_value());
-    ASSERT_EQ(collected->size(), 2);
-    EXPECT_EQ((*collected)[0].sources, (std::vector<std::filesystem::path>{ "src/main.cpp" }));
-    EXPECT_EQ((*collected)[1].sources, (std::vector<std::filesystem::path>{ "src/tool.cpp" }));
+    ASSERT_EQ(collected->targets.size(), 2);
+    EXPECT_EQ(collected->targets[0].sources, (std::vector<std::filesystem::path>{ "src/main.cpp" }));
+    EXPECT_EQ(collected->targets[1].sources, (std::vector<std::filesystem::path>{ "src/tool.cpp" }));
 }
 
 /**
@@ -197,8 +232,8 @@ TEST(SourceCollectorTest, KeepsTwoFilesWhoseNamesDifferOnlyInCase)
     const auto collected = collectSources(temp.path(), { executableNamed("app", "src/Main.cpp") });
 
     ASSERT_TRUE(collected.has_value());
-    ASSERT_EQ(collected->size(), 1);
-    EXPECT_EQ((*collected)[0].sources, (std::vector<std::filesystem::path>{ "src/Main.cpp", "src/main.cpp" }));
+    ASSERT_EQ(collected->targets.size(), 1);
+    EXPECT_EQ(collected->targets[0].sources, (std::vector<std::filesystem::path>{ "src/Main.cpp", "src/main.cpp" }));
 }
 
 /**
@@ -214,8 +249,25 @@ TEST(SourceCollectorTest, KeepsAnEntryPointOutsideTheSourceDirectory)
     const auto collected = collectSources(temp.path(), { executableNamed("app", "app/start.cpp") });
 
     ASSERT_TRUE(collected.has_value());
-    ASSERT_EQ(collected->size(), 1);
-    EXPECT_EQ((*collected)[0].sources, (std::vector<std::filesystem::path>{ "app/start.cpp", "src/util.cpp" }));
+    ASSERT_EQ(collected->targets.size(), 1);
+    EXPECT_EQ(collected->targets[0].sources, (std::vector<std::filesystem::path>{ "app/start.cpp", "src/util.cpp" }));
+}
+
+/**
+ * A declared entry point the scan did not find takes its place in the sorted
+ * list. The file is missing, which the compiler reports.
+ */
+TEST(SourceCollectorTest, PlacesAnEntryPointTheScanDidNotFindInOrder)
+{
+    const TempDirectory temp;
+    temp.writeFile("src/a.cpp", SourceText);
+    temp.writeFile("src/c.cpp", SourceText);
+
+    const auto collected = collectSources(temp.path(), { executableNamed("app", "src/b.cpp") });
+
+    ASSERT_TRUE(collected.has_value());
+    ASSERT_EQ(collected->targets.size(), 1);
+    EXPECT_EQ(collected->targets[0].sources, (std::vector<std::filesystem::path>{ "src/a.cpp", "src/b.cpp", "src/c.cpp" }));
 }
 
 /**
@@ -229,8 +281,8 @@ TEST(SourceCollectorTest, ReturnsTheEntryPointWhenThereIsNoSourceDirectory)
     const auto collected = collectSources(temp.path(), { executableNamed("app", "src/main.cpp") });
 
     ASSERT_TRUE(collected.has_value());
-    ASSERT_EQ(collected->size(), 1);
-    EXPECT_EQ((*collected)[0].sources, (std::vector<std::filesystem::path>{ "src/main.cpp" }));
+    ASSERT_EQ(collected->targets.size(), 1);
+    EXPECT_EQ(collected->targets[0].sources, (std::vector<std::filesystem::path>{ "src/main.cpp" }));
 }
 
 /**
@@ -283,6 +335,92 @@ TEST(SourceCollectorTest, ReportsASourceDirectoryItCannotExamine)
 }
 
 /**
+ * A symbolic link to a directory below src/ is not followed, and the scan
+ * goes on past it.
+ */
+TEST(SourceCollectorTest, LeavesOutALinkToADirectoryBelowSrc)
+{
+    const TempDirectory temp;
+    temp.writeFile("src/main.cpp", SourceText);
+    temp.writeFile("shared/util.cpp", SourceText);
+    std::error_code ec;
+    std::filesystem::create_directory_symlink("../shared", temp.path() / "src" / "shared", ec);
+    if (ec) {
+        GTEST_SKIP() << "the file system cannot hold a symbolic link: " << ec.message();
+    }
+
+    const auto collected = collectSources(temp.path(), { executableNamed("app", "src/main.cpp") });
+
+    ASSERT_TRUE(collected.has_value());
+    ASSERT_EQ(collected->targets.size(), 1);
+    EXPECT_EQ(collected->targets[0].sources, (std::vector<std::filesystem::path>{ "src/main.cpp" }));
+    EXPECT_EQ(collected->leftOut, (std::vector<LeftOutEntry>{ { .path = "src/shared", .reason = LeftOutReason::DirectoryLink } }));
+}
+
+/**
+ * A symbolic link named as a source that names no file is left out.
+ */
+TEST(SourceCollectorTest, LeavesOutALinkToNothing)
+{
+    const TempDirectory temp;
+    temp.writeFile("src/main.cpp", SourceText);
+    std::error_code ec;
+    std::filesystem::create_symlink("../shared/util.cpp", temp.path() / "src" / "util.cpp", ec);
+    if (ec) {
+        GTEST_SKIP() << "the file system cannot hold a symbolic link: " << ec.message();
+    }
+
+    const auto collected = collectSources(temp.path(), { executableNamed("app", "src/main.cpp") });
+
+    ASSERT_TRUE(collected.has_value());
+    ASSERT_EQ(collected->targets.size(), 1);
+    EXPECT_EQ(collected->targets[0].sources, (std::vector<std::filesystem::path>{ "src/main.cpp" }));
+    EXPECT_EQ(collected->leftOut, (std::vector<LeftOutEntry>{ { .path = "src/util.cpp", .reason = LeftOutReason::BrokenLink } }));
+}
+
+/**
+ * Everything left out is listed, sorted so the list does not depend on the
+ * order the file system reports.
+ */
+TEST(SourceCollectorTest, ListsWhatIsLeftOutInOrder)
+{
+    const TempDirectory temp;
+    temp.writeFile("src/main.cpp", SourceText);
+    temp.writeFile("src/c/Three.CC", SourceText);
+    temp.writeFile("src/a/One.Cpp", SourceText);
+    temp.writeFile("src/b/Two.CXX", SourceText);
+
+    const auto collected = collectSources(temp.path(), { executableNamed("app", "src/main.cpp") });
+
+    ASSERT_TRUE(collected.has_value());
+    EXPECT_EQ(collected->leftOut,
+              (std::vector<LeftOutEntry>{ { .path = "src/a/One.Cpp", .reason = LeftOutReason::ExtensionSpelling },
+                                          { .path = "src/b/Two.CXX", .reason = LeftOutReason::ExtensionSpelling },
+                                          { .path = "src/c/Three.CC", .reason = LeftOutReason::ExtensionSpelling } }));
+}
+
+/**
+ * A symbolic link to a file below src/ is compiled as the file it names.
+ */
+TEST(SourceCollectorTest, ReadsALinkToAFileAsTheFileItNames)
+{
+    const TempDirectory temp;
+    temp.writeFile("src/main.cpp", SourceText);
+    temp.writeFile("shared/util.cpp", SourceText);
+    std::error_code ec;
+    std::filesystem::create_symlink("../shared/util.cpp", temp.path() / "src" / "util.cpp", ec);
+    if (ec) {
+        GTEST_SKIP() << "the file system cannot hold a symbolic link: " << ec.message();
+    }
+
+    const auto collected = collectSources(temp.path(), { executableNamed("app", "src/main.cpp") });
+
+    ASSERT_TRUE(collected.has_value());
+    ASSERT_EQ(collected->targets.size(), 1);
+    EXPECT_EQ(collected->targets[0].sources, (std::vector<std::filesystem::path>{ "src/main.cpp", "src/util.cpp" }));
+}
+
+/**
  * Beside a library, the sources below src/ belong to the library, except the
  * entry points of the executables, and each executable keeps its entry point
  * alone.
@@ -299,10 +437,10 @@ TEST(SourceCollectorTest, GivesTheSourcesBesideALibraryToTheLibrary)
                                           { executableNamed("app", "src/main.cpp"), executableNamed("tool", "src/tool.cpp"), libraryNamed("core", "") });
 
     ASSERT_TRUE(collected.has_value());
-    ASSERT_EQ(collected->size(), 3);
-    EXPECT_EQ((*collected)[0].sources, (std::vector<std::filesystem::path>{ "src/main.cpp" }));
-    EXPECT_EQ((*collected)[1].sources, (std::vector<std::filesystem::path>{ "src/tool.cpp" }));
-    EXPECT_EQ((*collected)[2].sources, (std::vector<std::filesystem::path>{ "src/core.cpp", "src/detail.cpp" }));
+    ASSERT_EQ(collected->targets.size(), 3);
+    EXPECT_EQ(collected->targets[0].sources, (std::vector<std::filesystem::path>{ "src/main.cpp" }));
+    EXPECT_EQ(collected->targets[1].sources, (std::vector<std::filesystem::path>{ "src/tool.cpp" }));
+    EXPECT_EQ(collected->targets[2].sources, (std::vector<std::filesystem::path>{ "src/core.cpp", "src/detail.cpp" }));
 }
 
 /**
@@ -317,8 +455,8 @@ TEST(SourceCollectorTest, AddsTheFileALibraryNames)
     const auto collected = collectSources(temp.path(), { libraryNamed("core", "./extra/glue.cpp") });
 
     ASSERT_TRUE(collected.has_value());
-    ASSERT_EQ(collected->size(), 1);
-    EXPECT_EQ((*collected)[0].sources, (std::vector<std::filesystem::path>{ "extra/glue.cpp", "src/core.cpp" }));
+    ASSERT_EQ(collected->targets.size(), 1);
+    EXPECT_EQ(collected->targets[0].sources, (std::vector<std::filesystem::path>{ "extra/glue.cpp", "src/core.cpp" }));
 }
 
 /**
@@ -333,8 +471,8 @@ TEST(SourceCollectorTest, GivesALibraryNothingWithoutSources)
     const auto collected = collectSources(temp.path(), { executableNamed("app", "src/main.cpp"), libraryNamed("core", "") });
 
     ASSERT_TRUE(collected.has_value());
-    ASSERT_EQ(collected->size(), 2);
-    EXPECT_TRUE((*collected)[1].sources.empty());
+    ASSERT_EQ(collected->targets.size(), 2);
+    EXPECT_TRUE(collected->targets[1].sources.empty());
 }
 
 /**
@@ -348,5 +486,5 @@ TEST(SourceCollectorTest, CollectsNothingWithoutATarget)
     const auto collected = collectSources(temp.path(), {});
 
     ASSERT_TRUE(collected.has_value());
-    EXPECT_TRUE(collected->empty());
+    EXPECT_TRUE(collected->targets.empty());
 }
