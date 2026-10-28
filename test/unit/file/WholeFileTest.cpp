@@ -67,3 +67,28 @@ TEST(WholeFileTest, ReportsADirectoryThatDoesNotExist)
     EXPECT_EQ(failure, std::errc::no_such_file_or_directory);
     EXPECT_FALSE(std::filesystem::exists(temp.path() / "missing"));
 }
+
+/**
+ * A new file holds the whole content.
+ */
+TEST(WholeFileTest, WritesANewFileWhole)
+{
+    const TempDirectory temp;
+
+    EXPECT_FALSE(writeNewFile(temp.path() / "out", std::string{ "a\nb\0c", 5 }));
+
+    EXPECT_EQ(temp.readFile("out"), (std::string{ "a\nb\0c", 5 }));
+}
+
+/**
+ * A file already at the path is reported and kept as it was.
+ */
+TEST(WholeFileTest, KeepsAFileAlreadyAtThePath)
+{
+    const TempDirectory temp;
+    temp.writeFile("out", "previous");
+
+    EXPECT_EQ(writeNewFile(temp.path() / "out", "new"), std::errc::file_exists);
+
+    EXPECT_EQ(temp.readFile("out"), "previous");
+}

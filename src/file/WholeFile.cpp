@@ -19,7 +19,7 @@ namespace scrap::File {
 
 namespace {
 
-/// Permissions a replaced file is created with, before the process umask.
+/// Permissions a written file is created with, before the process umask.
 constexpr mode_t WrittenFileMode = 0644;
 
 /// How many staged names are tried when others are already taken.
@@ -61,31 +61,43 @@ std::error_code writeAll(const int descriptor, std::string_view content)
 
 }  // anonymous namespace
 
+std::error_code writeNewFile(const std::filesystem::path& file, std::string_view content)
+{
+    // O_EXCL fails when anything is at the path; O_NOFOLLOW states the same
+    // for a final symbolic link on systems where O_EXCL alone would follow it.
+    // NOLINTNEXTLINE(hicpp-signed-bitwise) - POSIX open() flag combination
+    const int descriptor = ::open(file.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, WrittenFileMode);
+    if (descriptor < 0) {
+        return lastFailure();
+    }
+
+    std::error_code failure = writeAll(descriptor, content);
+    if ((::close(descriptor) != 0) && (! failure)) {
+        failure = lastFailure();
+    }
+    if (failure) {
+        ::unlink(file.c_str());
+    }
+    return failure;
+}
+
 std::error_code replaceFile(const std::filesystem::path& file, std::string_view content)
 {
     const std::string prefix = file.string() + "." + std::to_string(::getpid()) + ".";
     for (int attempt = 0; attempt < StagingAttempts; ++attempt) {
         const std::filesystem::path staged = prefix + std::to_string(attempt) + ".tmp";
-        // NOLINTNEXTLINE(hicpp-signed-bitwise) - POSIX open() flag combination
-        const int descriptor = ::open(staged.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, WrittenFileMode);
-        if (descriptor < 0) {
-            if (errno == EEXIST) {
+        if (const std::error_code failure = writeNewFile(staged, content)) {
+            if (failure == std::errc::file_exists) {
                 continue;
             }
-            return lastFailure();
+            return failure;
         }
-
-        std::error_code failure = writeAll(descriptor, content);
-        if ((::close(descriptor) != 0) && (! failure)) {
-            failure = lastFailure();
-        }
-        if ((! failure) && (::rename(staged.c_str(), file.c_str()) != 0)) {
-            failure = lastFailure();
-        }
-        if (failure) {
+        if (::rename(staged.c_str(), file.c_str()) != 0) {
+            const std::error_code failure = lastFailure();
             ::unlink(staged.c_str());
+            return failure;
         }
-        return failure;
+        return {};
     }
     return std::make_error_code(std::errc::file_exists);
 }
