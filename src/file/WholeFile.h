@@ -47,14 +47,16 @@ enum class ReadFailure : std::uint8_t {
 [[nodiscard]] std::error_code replaceFile(const std::filesystem::path& file, std::string_view content);
 
 /**
- * @brief Write the whole of @p content to @p descriptor.
+ * @brief Create @p file and put @p content in it, whole.
  *
- * A write interrupted by a signal is repeated, and a write that reports
- * nothing written is a failure, since repeating it would make no progress.
- * The descriptor is left open.
+ * The call fails when anything is at the path, a symbolic link included,
+ * which is then neither followed nor truncated. The file is created readable
+ * by everyone and writable by its owner, before the process umask, and is
+ * removed again when writing it fails.
  *
- * @return Nothing on success, or what the operating system reported.
+ * @return Nothing on success, file_exists when something is at the path, or
+ *         what the operating system reported.
  */
-[[nodiscard]] std::error_code writeAll(int descriptor, std::string_view content);
+[[nodiscard]] std::error_code writeNewFile(const std::filesystem::path& file, std::string_view content);
 
 }  // namespace scrap::File
