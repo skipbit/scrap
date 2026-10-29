@@ -92,6 +92,23 @@ public:
 namespace {
 
 /**
+ * The slot for @p def in @p slots, holding its declared default.
+ *
+ * CLI11 writes a slot only when its option is given, so an omitted option
+ * keeps the default. A default of another type than the option throws.
+ */
+template <typename T>
+NamedSlot<T>& slotFor(std::unordered_map<std::string, NamedSlot<T>>& slots, const OptionDef& def)
+{
+    auto& slot = slots[def.longName];
+    if (def.defaultValue.has_value()) {
+        slot.value = std::get<T>(*def.defaultValue);
+        slot.hasDefault = true;
+    }
+    return slot;
+}
+
+/**
  * Register one OptionDef as a CLI11 option or flag.
  *
  * Writes the parsed value into @p storage so it can be harvested
@@ -108,33 +125,25 @@ void addOption(CLI::App& app, const OptionDef& def, OptionStorage& storage)
 
     switch (def.type) {
     case OptionValueType::Bool: {
-        auto& slot = storage.bools[def.longName];
+        auto& slot = slotFor(storage.bools, def);
         slot.option = app.add_flag(nameStr, slot.value, def.description);
         break;
     }
     case OptionValueType::Int64: {
-        auto& slot = storage.ints[def.longName];
+        auto& slot = slotFor(storage.ints, def);
         auto* opt = app.add_option(nameStr, slot.value, def.description);
         slot.option = opt;
         if (def.required) {
             opt->required();
-        }
-        if (def.defaultValue.has_value()) {
-            opt->default_val(std::get<std::int64_t>(*def.defaultValue));
-            slot.hasDefault = true;
         }
         break;
     }
     case OptionValueType::String: {
-        auto& slot = storage.strings[def.longName];
+        auto& slot = slotFor(storage.strings, def);
         auto* opt = app.add_option(nameStr, slot.value, def.description);
         slot.option = opt;
         if (def.required) {
             opt->required();
-        }
-        if (def.defaultValue.has_value()) {
-            opt->default_val(std::get<std::string>(*def.defaultValue));
-            slot.hasDefault = true;
         }
         if (! def.choices.empty()) {
             opt->check(CLI::IsMember(def.choices));
@@ -142,7 +151,7 @@ void addOption(CLI::App& app, const OptionDef& def, OptionStorage& storage)
         break;
     }
     case OptionValueType::StringList: {
-        auto& slot = storage.stringLists[def.longName];
+        auto& slot = slotFor(storage.stringLists, def);
         auto* opt = app.add_option(nameStr, slot.value, def.description);
         slot.option = opt;
         opt->expected(-1);
