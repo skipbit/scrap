@@ -43,15 +43,17 @@ struct PositionalSlot {
 };
 
 /**
- * One string option's value and the option CLI11 registered for it, whose
- * count tells an empty value given from one omitted.
+ * One named option's value and the option CLI11 registered for it, whose
+ * count tells a value given from one omitted.
  *
  * The option belongs to the CLI::App built in parse(), so a slot is read
  * only while that app is alive.
  */
-struct StringSlot {
-    std::string value;
+template <typename T>
+struct NamedSlot {
+    T value{};
     const CLI::Option* option = nullptr;
+    bool hasDefault = false;  ///< The spec declares a default, which an omitted option carries.
 };
 
 /**
@@ -66,10 +68,10 @@ struct StringSlot {
  * the references that CLI11 holds to earlier elements.
  */
 struct OptionStorage {
-    std::unordered_map<std::string, bool> bools;
-    std::unordered_map<std::string, std::int64_t> ints;
-    std::unordered_map<std::string, StringSlot> strings;
-    std::unordered_map<std::string, std::vector<std::string>> stringLists;
+    std::unordered_map<std::string, NamedSlot<bool>> bools;
+    std::unordered_map<std::string, NamedSlot<std::int64_t>> ints;
+    std::unordered_map<std::string, NamedSlot<std::string>> strings;
+    std::unordered_map<std::string, NamedSlot<std::vector<std::string>>> stringLists;
     std::deque<PositionalSlot> positionals;
     bool takesTrailing = false;  ///< Copied from the spec, not written by CLI11.
 };
@@ -106,18 +108,20 @@ void addOption(CLI::App& app, const OptionDef& def, OptionStorage& storage)
 
     switch (def.type) {
     case OptionValueType::Bool: {
-        storage.bools[def.longName] = false;
-        app.add_flag(nameStr, storage.bools[def.longName], def.description);
+        auto& slot = storage.bools[def.longName];
+        slot.option = app.add_flag(nameStr, slot.value, def.description);
         break;
     }
     case OptionValueType::Int64: {
-        storage.ints[def.longName] = 0;
-        auto* opt = app.add_option(nameStr, storage.ints[def.longName], def.description);
+        auto& slot = storage.ints[def.longName];
+        auto* opt = app.add_option(nameStr, slot.value, def.description);
+        slot.option = opt;
         if (def.required) {
             opt->required();
         }
         if (def.defaultValue.has_value()) {
             opt->default_val(std::get<std::int64_t>(*def.defaultValue));
+            slot.hasDefault = true;
         }
         break;
     }
@@ -130,6 +134,7 @@ void addOption(CLI::App& app, const OptionDef& def, OptionStorage& storage)
         }
         if (def.defaultValue.has_value()) {
             opt->default_val(std::get<std::string>(*def.defaultValue));
+            slot.hasDefault = true;
         }
         if (! def.choices.empty()) {
             opt->check(CLI::IsMember(def.choices));
@@ -137,8 +142,9 @@ void addOption(CLI::App& app, const OptionDef& def, OptionStorage& storage)
         break;
     }
     case OptionValueType::StringList: {
-        storage.stringLists[def.longName] = {};
-        auto* opt = app.add_option(nameStr, storage.stringLists[def.longName], def.description);
+        auto& slot = storage.stringLists[def.longName];
+        auto* opt = app.add_option(nameStr, slot.value, def.description);
+        slot.option = opt;
         opt->expected(-1);
         if (def.required) {
             opt->required();
@@ -287,6 +293,21 @@ std::optional<DottedWord> findDottedWord(std::span<const char* const> words, std
 }
 
 /**
+ * Harvest the named options of one type into @p opts: a value given on the
+ * command line, or the declared default of one omitted. An option omitted
+ * without a default is left out, so a handler tells it from any value.
+ */
+template <typename T>
+void harvestNamed(const std::unordered_map<std::string, NamedSlot<T>>& slots, ParsedOptions& opts)
+{
+    for (const auto& [name, slot] : slots) {
+        if ((slot.option->count() > 0) || slot.hasDefault) {
+            opts.named[name] = slot.value;
+        }
+    }
+}
+
+/**
  * Harvest parsed values from OptionStorage into ParsedOptions.
  *
  * Only positionals given on the command line are harvested. CLI11 fills
@@ -297,22 +318,10 @@ ParsedOptions harvestOptions(const OptionStorage& storage)
 {
     ParsedOptions opts;
 
-    for (const auto& [name, value] : storage.bools) {
-        opts.named[name] = value;
-    }
-    for (const auto& [name, value] : storage.ints) {
-        opts.named[name] = value;
-    }
-    for (const auto& [name, slot] : storage.strings) {
-        if ((! slot.value.empty()) || (slot.option->count() > 0)) {
-            opts.named[name] = slot.value;
-        }
-    }
-    for (const auto& [name, value] : storage.stringLists) {
-        if (! value.empty()) {
-            opts.named[name] = value;
-        }
-    }
+    harvestNamed(storage.bools, opts);
+    harvestNamed(storage.ints, opts);
+    harvestNamed(storage.strings, opts);
+    harvestNamed(storage.stringLists, opts);
 
     for (const PositionalSlot& slot : storage.positionals) {
         if (slot.option->count() == 0) {

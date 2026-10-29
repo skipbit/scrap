@@ -310,6 +310,88 @@ TEST(CLI11ParserAdapterTest, Parse_Int64Option)
     EXPECT_EQ(std::get<std::int64_t>(it->second), 8);
 }
 
+TEST(CLI11ParserAdapterTest, Parse_BoolFlag_OmittedIsAbsent)
+{
+    CLI11ParserAdapter adapter;
+
+    CommandSpec spec = makeSpec("build");
+    spec.options.named.push_back(OptionDef{
+        .longName = "release",
+        .shortName = std::nullopt,
+        .type = OptionValueType::Bool,
+        .required = false,
+        .description = "",
+        .defaultValue = std::nullopt,
+        .choices = {},
+    });
+
+    adapter.configure(std::vector{ spec });
+
+    ArgvBuilder argv{ "scrap", "build" };
+    auto result = adapter.parse(argv.span());
+
+    ASSERT_TRUE(result.has_value());
+    EXPECT_EQ(result->options.named.count("release"), 0);
+}
+
+TEST(CLI11ParserAdapterTest, Parse_Int64Option_ZeroGivenAndOmitted)
+{
+    CLI11ParserAdapter adapter;
+
+    CommandSpec spec = makeSpec("build");
+    spec.options.named.push_back(OptionDef{
+        .longName = "jobs",
+        .shortName = std::nullopt,
+        .type = OptionValueType::Int64,
+        .required = false,
+        .description = "",
+        .defaultValue = std::nullopt,
+        .choices = {},
+    });
+
+    adapter.configure(std::vector{ spec });
+
+    ArgvBuilder given{ "scrap", "build", "--jobs", "0" };
+    auto result = adapter.parse(given.span());
+
+    ASSERT_TRUE(result.has_value());
+    auto it = result->options.named.find("jobs");
+    ASSERT_NE(it, result->options.named.end());
+    EXPECT_EQ(std::get<std::int64_t>(it->second), 0);
+
+    ArgvBuilder omitted{ "scrap", "build" };
+    auto without = adapter.parse(omitted.span());
+
+    ASSERT_TRUE(without.has_value());
+    EXPECT_EQ(without->options.named.count("jobs"), 0);
+}
+
+TEST(CLI11ParserAdapterTest, Parse_Int64Option_OmittedCarriesItsDefault)
+{
+    CLI11ParserAdapter adapter;
+
+    CommandSpec spec = makeSpec("build");
+    spec.options.named.push_back(OptionDef{
+        .longName = "jobs",
+        .shortName = std::nullopt,
+        .type = OptionValueType::Int64,
+        .required = false,
+        .description = "",
+        .defaultValue = OptionValue{ std::int64_t{ 4 } },
+        .choices = {},
+    });
+
+    adapter.configure(std::vector{ spec });
+
+    ArgvBuilder argv{ "scrap", "build" };
+    auto result = adapter.parse(argv.span());
+
+    ASSERT_TRUE(result.has_value());
+    auto it = result->options.named.find("jobs");
+    ASSERT_NE(it, result->options.named.end());
+    EXPECT_EQ(std::get<std::int64_t>(it->second), 4);
+}
+
 // =============================================================================
 // Positional arguments
 // =============================================================================
