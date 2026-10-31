@@ -67,6 +67,8 @@ add_library(scrap_toolchain STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/ProgramSearch.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/SystemArchiver.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/SystemCompiler.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/ToolchainSpecifier.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/ToolchainVersion.cpp
 )
 target_include_directories(scrap_toolchain PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(scrap_toolchain PRIVATE scrap_process)
