@@ -72,6 +72,9 @@ scrap_add_unit_test(toolchain SOURCES
     unit/toolchain/CompilerIdentityTest.cpp
     unit/toolchain/SystemArchiverTest.cpp
     unit/toolchain/SystemCompilerTest.cpp
+    unit/toolchain/ToolchainIndexParserTest.cpp
+    unit/toolchain/ToolchainSpecifierTest.cpp
+    unit/toolchain/ToolchainVersionTest.cpp
 )
 
 scrap_add_unit_test(file SOURCES
