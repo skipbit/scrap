@@ -10,8 +10,9 @@ namespace scrap::Command {
 /**
  * @brief Resolver that discovers external commands from the filesystem.
  *
- * Scans directories in RuntimeEnvironment::searchPaths for executables
- * matching the scrap-* naming pattern and builds CommandEntry trees
+ * Scans "<RuntimeEnvironment::scrapHome>/bin", then
+ * RuntimeEnvironment::systemSearchPaths, for executables matching the
+ * scrap-* naming pattern and builds CommandEntry trees
  * with metadata fetched from ExternalMetadataProvider.
  */
 class ExternalCommandResolver : public CommandResolver {
@@ -26,7 +27,7 @@ public:
     /**
      * @brief Scan search paths for scrap-* executables and return entries.
      *
-     * @param env Runtime environment containing searchPaths to scan.
+     * @param env Runtime environment naming the directories to scan.
      * @return CommandEntry list for discovered external commands.
      */
     std::vector<CommandEntry> resolve(const RuntimeEnvironment& env) override;

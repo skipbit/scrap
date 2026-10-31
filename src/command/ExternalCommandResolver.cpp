@@ -72,6 +72,20 @@ CommandEntry buildEntry(const std::filesystem::path& executablePath, ExternalMet
     return entry;
 }
 
+/**
+ * Where external commands are looked for, in order: the directory below
+ * SCRAP_HOME that scrap installs commands into, then PATH.
+ */
+std::vector<std::filesystem::path> commandSearchPaths(const RuntimeEnvironment& env)
+{
+    std::vector<std::filesystem::path> paths;
+    if (env.scrapHome.has_value()) {
+        paths.push_back(*env.scrapHome / "bin");
+    }
+    paths.insert(paths.end(), env.systemSearchPaths.begin(), env.systemSearchPaths.end());
+    return paths;
+}
+
 }  // anonymous namespace
 
 /**
@@ -83,13 +97,13 @@ ExternalCommandResolver::ExternalCommandResolver(std::unique_ptr<ExternalMetadat
 }
 
 /**
- * Scan env.searchPaths for scrap-* executables and build CommandEntry list.
+ * Scan the command search paths for scrap-* executables and build CommandEntry list.
  */
 std::vector<CommandEntry> ExternalCommandResolver::resolve(const RuntimeEnvironment& env)
 {
     std::vector<CommandEntry> entries;
 
-    for (const auto& searchPath : env.searchPaths) {
+    for (const auto& searchPath : commandSearchPaths(env)) {
         std::error_code ec;
         if ((! std::filesystem::is_directory(searchPath, ec)) || ec) {
             continue;

@@ -48,12 +48,9 @@ RuntimeEnvironment makeRuntimeEnvironment(const std::filesystem::path& cwd,
     env.workingDirectory = cwd;
     env.preferredCompiler = compilerEnv;
     env.systemSearchPaths = splitSearchPaths(pathEnv);
-
     if (! scrapHome.empty()) {
-        env.searchPaths.emplace_back(std::filesystem::path(scrapHome) / "bin");
+        env.scrapHome = scrapHome;
     }
-    env.searchPaths.insert(env.searchPaths.end(), env.systemSearchPaths.begin(), env.systemSearchPaths.end());
-
     return env;
 }
 

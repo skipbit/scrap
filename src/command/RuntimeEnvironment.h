@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -15,15 +16,15 @@ struct RuntimeEnvironment {
     std::filesystem::path workingDirectory;
 
     /**
-     * Where scrap looks for the commands it dispatches to: its own directory
-     * first, then PATH.
+     * The directory scrap keeps what it installs in, from SCRAP_HOME, or
+     * nothing when it is not set.
      */
-    std::vector<std::filesystem::path> searchPaths;
+    std::optional<std::filesystem::path> scrapHome;
 
     /**
-     * Where the system's own programs are found: PATH alone. Kept apart from
-     * searchPaths so that a program scrap installed into its own directory is
-     * never reported as one the system provides.
+     * Where the system's own programs are found: the directories PATH lists,
+     * in order. A program scrap installed below scrapHome is not among them,
+     * so it is never reported as one the system provides.
      */
     std::vector<std::filesystem::path> systemSearchPaths;
 

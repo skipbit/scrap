@@ -91,7 +91,7 @@ protected:
 };
 
 /**
- * Verify that scrap-* executables are discovered from searchPaths.
+ * Verify that scrap-* executables are discovered on PATH.
  */
 TEST_F(ExternalCommandResolverTest, FindsScrapPrefixedExecutables)
 {
@@ -102,7 +102,7 @@ TEST_F(ExternalCommandResolverTest, FindsScrapPrefixedExecutables)
     ExternalCommandResolver resolver(std::move(provider));
 
     RuntimeEnvironment env;
-    env.searchPaths = { _tempDir };
+    env.systemSearchPaths = { _tempDir };
     auto entries = resolver.resolve(env);
 
     EXPECT_EQ(entries.size(), 2);
@@ -122,7 +122,7 @@ TEST_F(ExternalCommandResolverTest, SkipsNonScrapFiles)
     ExternalCommandResolver resolver(std::move(provider));
 
     RuntimeEnvironment env;
-    env.searchPaths = { _tempDir };
+    env.systemSearchPaths = { _tempDir };
     auto entries = resolver.resolve(env);
 
     EXPECT_EQ(entries.size(), 1);
@@ -140,14 +140,14 @@ TEST_F(ExternalCommandResolverTest, SkipsNonExecutables)
     ExternalCommandResolver resolver(std::move(provider));
 
     RuntimeEnvironment env;
-    env.searchPaths = { _tempDir };
+    env.systemSearchPaths = { _tempDir };
     auto entries = resolver.resolve(env);
 
     EXPECT_TRUE(entries.empty());
 }
 
 /**
- * Verify that empty searchPaths produces no entries.
+ * Verify that an environment naming no directory produces no entries.
  */
 TEST_F(ExternalCommandResolverTest, EmptySearchPathsReturnsEmpty)
 {
@@ -161,6 +161,30 @@ TEST_F(ExternalCommandResolverTest, EmptySearchPathsReturnsEmpty)
 }
 
 /**
+ * Verify that the directory below SCRAP_HOME is scanned before PATH, so a
+ * command scrap installed comes ahead of one of the same name on PATH.
+ */
+TEST_F(ExternalCommandResolverTest, ScansScrapHomeBinBeforePath)
+{
+    std::filesystem::create_directories(_tempDir / "home" / "bin");
+    std::filesystem::create_directories(_tempDir / "path");
+    createExecutable("path/scrap-lint");
+    createExecutable("home/bin/scrap-lint");
+
+    auto provider = std::make_unique<MockMetadataProvider>();
+    ExternalCommandResolver resolver(std::move(provider));
+
+    RuntimeEnvironment env;
+    env.scrapHome = _tempDir / "home";
+    env.systemSearchPaths = { _tempDir / "path" };
+    auto entries = resolver.resolve(env);
+
+    ASSERT_EQ(entries.size(), 2);
+    EXPECT_EQ(entries[0].location, _tempDir / "home" / "bin" / "scrap-lint");
+    EXPECT_EQ(entries[1].location, _tempDir / "path" / "scrap-lint");
+}
+
+/**
  * Verify that discovered entries have External source.
  */
 TEST_F(ExternalCommandResolverTest, EntriesHaveExternalSource)
@@ -171,7 +195,7 @@ TEST_F(ExternalCommandResolverTest, EntriesHaveExternalSource)
     ExternalCommandResolver resolver(std::move(provider));
 
     RuntimeEnvironment env;
-    env.searchPaths = { _tempDir };
+    env.systemSearchPaths = { _tempDir };
     auto entries = resolver.resolve(env);
 
     ASSERT_EQ(entries.size(), 1);
@@ -189,7 +213,7 @@ TEST_F(ExternalCommandResolverTest, EntriesKeepWhereTheyWereFound)
     ExternalCommandResolver resolver(std::move(provider));
 
     RuntimeEnvironment env;
-    env.searchPaths = { _tempDir };
+    env.systemSearchPaths = { _tempDir };
     auto entries = resolver.resolve(env);
 
     ASSERT_EQ(entries.size(), 1);
