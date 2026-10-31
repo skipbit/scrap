@@ -9,6 +9,7 @@
 #include "command/RuntimeEnvironment.h"
 #include "process/ExecutableFile.h"
 
+#include <algorithm>
 #include <filesystem>
 #include <memory>
 #include <string>
@@ -73,16 +74,38 @@ CommandEntry buildEntry(const std::filesystem::path& executablePath, ExternalMet
 }
 
 /**
+ * @p directory spelled so that two spellings of one directory compare equal:
+ * normalized, without a trailing separator.
+ */
+std::filesystem::path comparableDirectory(const std::filesystem::path& directory)
+{
+    std::filesystem::path normal = directory.lexically_normal();
+    if ((! normal.has_filename()) && (normal != normal.root_path())) {
+        normal = normal.parent_path();
+    }
+    return normal;
+}
+
+/**
  * Where external commands are looked for, in order: the directory below
- * SCRAP_HOME that scrap installs commands into, then PATH.
+ * SCRAP_HOME that scrap installs commands into, then PATH. A directory listed
+ * again is left out, so each command in it is found once.
  */
 std::vector<std::filesystem::path> commandSearchPaths(const RuntimeEnvironment& env)
 {
-    std::vector<std::filesystem::path> paths;
+    std::vector<std::filesystem::path> candidates;
     if (env.scrapHome.has_value()) {
-        paths.push_back(*env.scrapHome / "bin");
+        candidates.push_back(*env.scrapHome / "bin");
     }
-    paths.insert(paths.end(), env.systemSearchPaths.begin(), env.systemSearchPaths.end());
+    candidates.insert(candidates.end(), env.systemSearchPaths.begin(), env.systemSearchPaths.end());
+
+    std::vector<std::filesystem::path> paths;
+    for (const std::filesystem::path& candidate : candidates) {
+        std::filesystem::path directory = comparableDirectory(candidate);
+        if (! std::ranges::contains(paths, directory)) {
+            paths.push_back(std::move(directory));
+        }
+    }
     return paths;
 }
 

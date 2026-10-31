@@ -23,8 +23,7 @@ struct RuntimeEnvironment {
 
     /**
      * Where the system's own programs are found: the directories PATH lists,
-     * in order. A program scrap installed below scrapHome is not among them,
-     * so it is never reported as one the system provides.
+     * in order, as given.
      */
     std::vector<std::filesystem::path> systemSearchPaths;
 

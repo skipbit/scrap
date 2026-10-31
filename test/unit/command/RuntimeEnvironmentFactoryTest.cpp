@@ -9,7 +9,7 @@ using namespace scrap::Command;
 /**
  * PATH segments are split on ':' and preserved in order.
  */
-TEST(RuntimeEnvironmentFactoryTest, SplitsPathIntoSearchPathsInOrder)
+TEST(RuntimeEnvironmentFactoryTest, SplitsPathInOrder)
 {
     auto env = makeRuntimeEnvironment("/project", "", "/usr/local/bin:/usr/bin:/bin", "");
 
@@ -52,9 +52,9 @@ TEST(RuntimeEnvironmentFactoryTest, LeavesScrapHomeUnsetWhenEmpty)
 }
 
 /**
- * Empty SCRAP_HOME and empty PATH yield no search paths at all.
+ * Empty SCRAP_HOME and empty PATH leave no home and no PATH directory.
  */
-TEST(RuntimeEnvironmentFactoryTest, EmptyInputsYieldEmptySearchPaths)
+TEST(RuntimeEnvironmentFactoryTest, EmptyInputsLeaveNoHomeAndNoPath)
 {
     auto env = makeRuntimeEnvironment("/project", "", "", "");
 

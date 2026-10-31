@@ -149,7 +149,7 @@ TEST_F(ExternalCommandResolverTest, SkipsNonExecutables)
 /**
  * Verify that an environment naming no directory produces no entries.
  */
-TEST_F(ExternalCommandResolverTest, EmptySearchPathsReturnsEmpty)
+TEST_F(ExternalCommandResolverTest, NoDirectoryReturnsEmpty)
 {
     auto provider = std::make_unique<MockMetadataProvider>();
     ExternalCommandResolver resolver(std::move(provider));
@@ -182,6 +182,88 @@ TEST_F(ExternalCommandResolverTest, ScansScrapHomeBinBeforePath)
     ASSERT_EQ(entries.size(), 2);
     EXPECT_EQ(entries[0].location, _tempDir / "home" / "bin" / "scrap-lint");
     EXPECT_EQ(entries[1].location, _tempDir / "path" / "scrap-lint");
+}
+
+/**
+ * Verify that a directory below SCRAP_HOME that PATH lists too, however it is
+ * spelled there, is scanned once.
+ */
+TEST_F(ExternalCommandResolverTest, ScansScrapHomeBinOnceWhenPathListsIt)
+{
+    std::filesystem::create_directories(_tempDir / "home" / "bin");
+    createExecutable("home/bin/scrap-lint");
+
+    auto provider = std::make_unique<MockMetadataProvider>();
+    ExternalCommandResolver resolver(std::move(provider));
+
+    RuntimeEnvironment env;
+    env.scrapHome = _tempDir / "home";
+    env.systemSearchPaths = { _tempDir / "home" / "bin", _tempDir / "home" / "bin/", _tempDir / "home" / "." / "bin" };
+    auto entries = resolver.resolve(env);
+
+    ASSERT_EQ(entries.size(), 1);
+    EXPECT_EQ(entries[0].location, _tempDir / "home" / "bin" / "scrap-lint");
+}
+
+/**
+ * Verify that a directory PATH lists twice is scanned once.
+ */
+TEST_F(ExternalCommandResolverTest, ScansADirectoryPathListsTwiceOnce)
+{
+    createExecutable("scrap-lint");
+
+    auto provider = std::make_unique<MockMetadataProvider>();
+    ExternalCommandResolver resolver(std::move(provider));
+
+    RuntimeEnvironment env;
+    env.systemSearchPaths = { _tempDir, _tempDir / "" };
+    auto entries = resolver.resolve(env);
+
+    ASSERT_EQ(entries.size(), 1);
+    EXPECT_EQ(entries[0].location, _tempDir / "scrap-lint");
+}
+
+/**
+ * Verify that without SCRAP_HOME nothing is scanned beside PATH, not even a
+ * bin directory below the working directory.
+ */
+TEST_F(ExternalCommandResolverTest, ScansNoBinBesidePathWhenScrapHomeIsUnset)
+{
+    std::filesystem::create_directories(_tempDir / "bin");
+    createExecutable("bin/scrap-lint");
+    const std::filesystem::path previous = std::filesystem::current_path();
+    std::filesystem::current_path(_tempDir);
+
+    auto provider = std::make_unique<MockMetadataProvider>();
+    ExternalCommandResolver resolver(std::move(provider));
+
+    RuntimeEnvironment env;
+    auto entries = resolver.resolve(env);
+    std::filesystem::current_path(previous);
+
+    EXPECT_TRUE(entries.empty());
+}
+
+/**
+ * Verify that a SCRAP_HOME without a bin directory is passed over and PATH
+ * is still scanned.
+ */
+TEST_F(ExternalCommandResolverTest, PassesOverScrapHomeWithoutBin)
+{
+    std::filesystem::create_directories(_tempDir / "home");
+    std::filesystem::create_directories(_tempDir / "path");
+    createExecutable("path/scrap-lint");
+
+    auto provider = std::make_unique<MockMetadataProvider>();
+    ExternalCommandResolver resolver(std::move(provider));
+
+    RuntimeEnvironment env;
+    env.scrapHome = _tempDir / "home";
+    env.systemSearchPaths = { _tempDir / "path" };
+    auto entries = resolver.resolve(env);
+
+    ASSERT_EQ(entries.size(), 1);
+    EXPECT_EQ(entries[0].location, _tempDir / "path" / "scrap-lint");
 }
 
 /**

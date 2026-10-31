@@ -11,8 +11,8 @@ namespace scrap::Command {
  * @brief Resolver that discovers external commands from the filesystem.
  *
  * Scans "<RuntimeEnvironment::scrapHome>/bin", then
- * RuntimeEnvironment::systemSearchPaths, for executables matching the
- * scrap-* naming pattern and builds CommandEntry trees
+ * RuntimeEnvironment::systemSearchPaths, each directory once, for executables
+ * matching the scrap-* naming pattern and builds CommandEntry trees
  * with metadata fetched from ExternalMetadataProvider.
  */
 class ExternalCommandResolver : public CommandResolver {
