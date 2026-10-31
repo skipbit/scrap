@@ -16,9 +16,8 @@ namespace scrap::Command {
  * resolving the current working directory.
  *
  * @param cwd       Current working directory, used as workingDirectory.
- * @param scrapHome Value of SCRAP_HOME, or empty if unset. When non-empty,
- *                  "<scrapHome>/bin" is prepended to searchPaths, and to
- *                  searchPaths alone: systemSearchPaths holds PATH as given.
+ * @param scrapHome Value of SCRAP_HOME, or empty if unset, used as scrapHome
+ *                  when non-empty.
  * @param pathEnv   Value of PATH, colon-separated. Empty segments (from
  *                  leading, trailing, or doubled colons) are skipped.
  * @param compilerEnv Value of CXX, or empty if unset, used as

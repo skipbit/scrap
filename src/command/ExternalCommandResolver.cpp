@@ -9,6 +9,7 @@
 #include "command/RuntimeEnvironment.h"
 #include "process/ExecutableFile.h"
 
+#include <algorithm>
 #include <filesystem>
 #include <memory>
 #include <string>
@@ -72,6 +73,42 @@ CommandEntry buildEntry(const std::filesystem::path& executablePath, ExternalMet
     return entry;
 }
 
+/**
+ * @p directory spelled so that two spellings of one directory compare equal:
+ * normalized, without a trailing separator.
+ */
+std::filesystem::path comparableDirectory(const std::filesystem::path& directory)
+{
+    std::filesystem::path normal = directory.lexically_normal();
+    if ((! normal.has_filename()) && (normal != normal.root_path())) {
+        normal = normal.parent_path();
+    }
+    return normal;
+}
+
+/**
+ * Where external commands are looked for, in order: the directory below
+ * SCRAP_HOME that scrap installs commands into, then PATH. A directory listed
+ * again is left out, so each command in it is found once.
+ */
+std::vector<std::filesystem::path> commandSearchPaths(const RuntimeEnvironment& env)
+{
+    std::vector<std::filesystem::path> candidates;
+    if (env.scrapHome.has_value()) {
+        candidates.push_back(*env.scrapHome / "bin");
+    }
+    candidates.insert(candidates.end(), env.systemSearchPaths.begin(), env.systemSearchPaths.end());
+
+    std::vector<std::filesystem::path> paths;
+    for (const std::filesystem::path& candidate : candidates) {
+        std::filesystem::path directory = comparableDirectory(candidate);
+        if (! std::ranges::contains(paths, directory)) {
+            paths.push_back(std::move(directory));
+        }
+    }
+    return paths;
+}
+
 }  // anonymous namespace
 
 /**
@@ -83,13 +120,13 @@ ExternalCommandResolver::ExternalCommandResolver(std::unique_ptr<ExternalMetadat
 }
 
 /**
- * Scan env.searchPaths for scrap-* executables and build CommandEntry list.
+ * Scan the command search paths for scrap-* executables and build CommandEntry list.
  */
 std::vector<CommandEntry> ExternalCommandResolver::resolve(const RuntimeEnvironment& env)
 {
     std::vector<CommandEntry> entries;
 
-    for (const auto& searchPath : env.searchPaths) {
+    for (const auto& searchPath : commandSearchPaths(env)) {
         std::error_code ec;
         if ((! std::filesystem::is_directory(searchPath, ec)) || ec) {
             continue;

@@ -9,14 +9,14 @@ using namespace scrap::Command;
 /**
  * PATH segments are split on ':' and preserved in order.
  */
-TEST(RuntimeEnvironmentFactoryTest, SplitsPathIntoSearchPathsInOrder)
+TEST(RuntimeEnvironmentFactoryTest, SplitsPathInOrder)
 {
     auto env = makeRuntimeEnvironment("/project", "", "/usr/local/bin:/usr/bin:/bin", "");
 
-    ASSERT_EQ(env.searchPaths.size(), 3);
-    EXPECT_EQ(env.searchPaths[0], "/usr/local/bin");
-    EXPECT_EQ(env.searchPaths[1], "/usr/bin");
-    EXPECT_EQ(env.searchPaths[2], "/bin");
+    ASSERT_EQ(env.systemSearchPaths.size(), 3);
+    EXPECT_EQ(env.systemSearchPaths[0], "/usr/local/bin");
+    EXPECT_EQ(env.systemSearchPaths[1], "/usr/bin");
+    EXPECT_EQ(env.systemSearchPaths[2], "/bin");
 }
 
 /**
@@ -26,42 +26,39 @@ TEST(RuntimeEnvironmentFactoryTest, SkipsEmptyPathSegments)
 {
     auto env = makeRuntimeEnvironment("/project", "", ":/usr/bin::/bin:", "");
 
-    ASSERT_EQ(env.searchPaths.size(), 2);
-    EXPECT_EQ(env.searchPaths[0], "/usr/bin");
-    EXPECT_EQ(env.searchPaths[1], "/bin");
+    ASSERT_EQ(env.systemSearchPaths.size(), 2);
+    EXPECT_EQ(env.systemSearchPaths[0], "/usr/bin");
+    EXPECT_EQ(env.systemSearchPaths[1], "/bin");
 }
 
 /**
- * A non-empty SCRAP_HOME prepends "<scrapHome>/bin" ahead of the PATH entries.
+ * A non-empty SCRAP_HOME is carried as it was given.
  */
-TEST(RuntimeEnvironmentFactoryTest, PrependsScrapHomeBinWhenNonEmpty)
+TEST(RuntimeEnvironmentFactoryTest, CarriesScrapHomeWhenNonEmpty)
 {
     auto env = makeRuntimeEnvironment("/project", "/opt/scrap", "/usr/bin", "");
 
-    ASSERT_EQ(env.searchPaths.size(), 2);
-    EXPECT_EQ(env.searchPaths[0], "/opt/scrap/bin");
-    EXPECT_EQ(env.searchPaths[1], "/usr/bin");
+    EXPECT_EQ(env.scrapHome, std::filesystem::path("/opt/scrap"));
 }
 
 /**
- * An empty SCRAP_HOME does not prepend anything.
+ * An empty SCRAP_HOME leaves scrapHome unset rather than naming the empty path.
  */
-TEST(RuntimeEnvironmentFactoryTest, DoesNotPrependWhenScrapHomeEmpty)
+TEST(RuntimeEnvironmentFactoryTest, LeavesScrapHomeUnsetWhenEmpty)
 {
     auto env = makeRuntimeEnvironment("/project", "", "/usr/bin", "");
 
-    ASSERT_EQ(env.searchPaths.size(), 1);
-    EXPECT_EQ(env.searchPaths[0], "/usr/bin");
+    EXPECT_FALSE(env.scrapHome.has_value());
 }
 
 /**
- * Empty SCRAP_HOME and empty PATH yield no search paths at all.
+ * Empty SCRAP_HOME and empty PATH leave no home and no PATH directory.
  */
-TEST(RuntimeEnvironmentFactoryTest, EmptyInputsYieldEmptySearchPaths)
+TEST(RuntimeEnvironmentFactoryTest, EmptyInputsLeaveNoHomeAndNoPath)
 {
     auto env = makeRuntimeEnvironment("/project", "", "", "");
 
-    EXPECT_TRUE(env.searchPaths.empty());
+    EXPECT_FALSE(env.scrapHome.has_value());
     EXPECT_TRUE(env.systemSearchPaths.empty());
 }
 
@@ -87,7 +84,7 @@ TEST(RuntimeEnvironmentFactoryTest, SystemSearchPathsHoldPathAlone)
     ASSERT_EQ(env.systemSearchPaths.size(), 2);
     EXPECT_EQ(env.systemSearchPaths[0], "/usr/bin");
     EXPECT_EQ(env.systemSearchPaths[1], "/bin");
-    EXPECT_EQ(env.searchPaths[0], "/opt/scrap/bin");
+    EXPECT_EQ(env.scrapHome, std::filesystem::path("/opt/scrap"));
 }
 
 /**

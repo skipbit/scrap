@@ -135,10 +135,10 @@ TEST(RuntimeEnvironmentTest, PathConstruction)
 {
     RuntimeEnvironment env;
     env.workingDirectory = "/tmp/project";
-    env.searchPaths = { "/usr/local/bin", "/usr/bin" };
+    env.systemSearchPaths = { "/usr/local/bin", "/usr/bin" };
 
     EXPECT_EQ(env.workingDirectory, "/tmp/project");
-    EXPECT_EQ(env.searchPaths.size(), 2);
+    EXPECT_EQ(env.systemSearchPaths.size(), 2);
 }
 
 TEST(CommandSourceTest, EnumValues)
