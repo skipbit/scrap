@@ -61,15 +61,19 @@ add_library(scrap_process STATIC
 target_include_directories(scrap_process PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 scrap_apply_compile_settings(scrap_process WARNINGS_AS_ERRORS)
 
-# Toolchain detection
+# Toolchains: detecting the system's, and reading specifiers and the index
 add_library(scrap_toolchain STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/CompilerIdentity.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/ProgramSearch.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/SystemArchiver.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/SystemCompiler.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/ToolchainIndexParser.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/ToolchainName.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/ToolchainSpecifier.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/ToolchainVersion.cpp
 )
 target_include_directories(scrap_toolchain PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(scrap_toolchain PRIVATE scrap_process)
+target_link_libraries(scrap_toolchain PRIVATE scrap_process tomlplusplus::tomlplusplus)
 scrap_apply_compile_settings(scrap_toolchain WARNINGS_AS_ERRORS)
 
 # Compile commands
