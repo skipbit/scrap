@@ -32,6 +32,12 @@ struct RuntimeEnvironment {
      * nothing.
      */
     std::string preferredCompiler;
+
+    /**
+     * The toolchain the environment chooses, system or a specifier as
+     * written in SCRAP_TOOLCHAIN, or empty when it chooses none.
+     */
+    std::string requestedToolchain;
 };
 
 }  // namespace scrap::Command

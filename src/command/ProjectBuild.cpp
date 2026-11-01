@@ -5,8 +5,8 @@
 #include "build/StepHistory.h"
 #include "build/StepRunner.h"
 #include "command/BuildProgress.h"
+#include "command/CompilerChoice.h"
 #include "command/ParsedOptions.h"
-#include "command/PrintableText.h"
 #include "command/ProjectDiagnostic.h"
 #include "command/RuntimeEnvironment.h"
 #include "compile/ArchiveCommand.h"
@@ -20,7 +20,6 @@
 #include "project/TargetResolver.h"
 #include "toolchain/CompilerIdentity.h"
 #include "toolchain/SystemArchiver.h"
-#include "toolchain/SystemCompiler.h"
 
 #include <algorithm>
 #include <expected>  // IWYU pragma: keep
@@ -37,24 +36,6 @@
 namespace scrap::Command {
 
 namespace {
-
-/**
- * How the compiler in use was arrived at, in the words the output uses.
- */
-std::string_view describeOrigin(const Toolchain::CompilerOrigin origin)
-{
-    switch (origin) {
-    case Toolchain::CompilerOrigin::CompilerVariable:
-        return "from CXX";
-    case Toolchain::CompilerOrigin::DefaultOnPath:
-        return "found on PATH";
-    case Toolchain::CompilerOrigin::KnownName:
-        return "found on PATH as a known name";
-    }
-    // Every origin is answered above, so an origin added without a word here
-    // fails the build rather than being described as one of the others.
-    std::unreachable();
-}
 
 /**
  * Finish a project that states it builds nothing.
@@ -134,22 +115,18 @@ std::expected<std::vector<Compile::ArchiveCommand>, int> planArchives(const Runt
 }
 
 /**
- * The system compiler the build uses, named on standard error with how it was
- * found. When none can be used, the reason is reported instead.
+ * The compiler the build of @p project uses, named on standard error with
+ * where it came from. When none can be used, the reason is reported instead.
  */
-std::expected<Toolchain::SystemCompiler, int> findCompiler(const RuntimeEnvironment& env)
+std::expected<ChosenCompiler, int> findCompiler(const RuntimeEnvironment& env, const Project::LoadedProject& project)
 {
-    auto compiler = Toolchain::detectSystemCompiler(env.preferredCompiler, env.systemSearchPaths);
-    if (! compiler.has_value()) {
-        if (compiler.error().requested.empty()) {
-            std::cerr << renderNoCompilerFound();
-        } else {
-            std::cerr << renderUnusableCompilerRequest(compiler.error().requested);
-        }
+    auto chosen = chooseCompiler(env, project.manifest.toolchain);
+    if (! chosen.has_value()) {
+        std::cerr << chosen.error();
         return std::unexpected(1);
     }
-    std::cerr << "Using the system compiler '" << printablePath(compiler->path) << "' (" << describeOrigin(compiler->origin) << ")\n";
-    return std::move(*compiler);
+    std::cerr << chosen->announcement;
+    return std::move(*chosen);
 }
 
 /**
@@ -302,7 +279,7 @@ std::expected<std::filesystem::path, int> buildProject(const RuntimeEnvironment&
         return std::unexpected(sources.error());
     }
 
-    const auto compiler = findCompiler(env);
+    const auto compiler = findCompiler(env, project);
     if (! compiler.has_value()) {
         return std::unexpected(compiler.error());
     }
@@ -310,8 +287,8 @@ std::expected<std::filesystem::path, int> buildProject(const RuntimeEnvironment&
     const Compile::BuildSettings settings{
         .projectRoot = project.root,
         .buildDirectory = buildDirectory,
-        .compiler = compiler->path,
-        .driver = Compile::CompilerDriver{ Toolchain::identifyCompiler(compiler->path) },
+        .compiler = compiler->compiler,
+        .driver = Compile::CompilerDriver{ Toolchain::identifyCompiler(compiler->compiler) },
         .standard = project.manifest.package.standard,
         .profile = profile
     };
@@ -325,7 +302,7 @@ std::expected<std::filesystem::path, int> buildProject(const RuntimeEnvironment&
     // The database is written before the build stops for a reason below, so
     // an editor reads the commands whether or not they can run.
     if (! settings.driver.standardOption(settings.standard).has_value()) {
-        std::cerr << renderUnsupportedStandard(compiler->path, settings.standard);
+        std::cerr << renderUnsupportedStandard(compiler->compiler, settings.standard);
         return std::unexpected(1);
     }
 

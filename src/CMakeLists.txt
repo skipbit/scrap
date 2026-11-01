@@ -126,6 +126,7 @@ add_library(scrap_command STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/command/CommandHandler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/CommandPath.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/CommandResolver.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/CompilerChoice.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/DefaultHelpRenderer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/DefaultVersionRenderer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ExternalCommandResolver.cpp
@@ -145,6 +146,7 @@ add_library(scrap_command STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/command/RuntimeEnvironmentFactory.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ScriptsReader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/StubScriptsReader.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainDiagnostic.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainSelectCommandHandler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainUnselectCommandHandler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/VersionRenderer.cpp

@@ -370,6 +370,33 @@ protected:
     }
 
     /**
+     * Install @p family @p version as installToolchain() does, with a
+     * compiler that adds a line naming the toolchain to compilers-used and
+     * then runs the compiler this test binary was built with, so a build
+     * with it succeeds and says which toolchain it used.
+     */
+    void installWorkingToolchain(std::string_view family, std::string_view version) const
+    {
+        installToolchain(family, version);
+        const std::string name = std::string{ family } + "@" + std::string{ version };
+        const std::string body = "#!/bin/sh\necho '" + name + "' >> '" + (_root / "compilers-used").string() + "'\nexec '" + SCRAP_TEST_CXX
+                                 + "' \"$@\"\n";
+        for (const char* host : { "linux-x86_64", "linux-aarch64", "darwin-x86_64", "darwin-aarch64" }) {
+            const auto compiler = _temp->writeFile("toolchains/" + std::string{ family } + "/" + std::string{ version } + "/" + host + "/bin/g++", body);
+            std::filesystem::permissions(compiler, std::filesystem::perms::owner_exec, std::filesystem::perm_options::add);
+        }
+    }
+
+    /**
+     * The toolchains the compilers installWorkingToolchain() lays out have
+     * run as, one line each, in order.
+     */
+    [[nodiscard]] std::string compilersUsed() const
+    {
+        return readFile("compilers-used");
+    }
+
+    /**
      * The contents of @p relative below the fixture directory, empty when it
      * cannot be read.
      */
@@ -2814,4 +2841,134 @@ TEST_F(CliE2ETest, ToolchainCommandsNeedSomewhereToKeepToolchains)
             << args.back();
     }
     EXPECT_FALSE(std::filesystem::exists(_root / "config.toml"));
+}
+
+/**
+ * The toolchain a build uses comes from SCRAP_TOOLCHAIN, then the project's
+ * [toolchain] name, then the global default, and the build says which; the
+ * same installed toolchain serves another project too.
+ */
+TEST_F(CliE2ETest, BuildUsesTheToolchainChosenFirst)
+{
+    installWorkingToolchain("gcc", "15.1.0");
+    installWorkingToolchain("gcc", "15.2.0");
+    ASSERT_EQ(runScrap({ "toolchain", "select", "gcc@15.1.0" }, {}, _root).exitCode, 0);
+    writeFile("hello/scrap.toml", ValidManifest);
+    writeFile("hello/src/main.cpp", MainSource);
+    const std::filesystem::path hello = _root / "hello";
+
+    auto global = runScrap({ "build" }, {}, hello, BuildTimeout);
+    EXPECT_EQ(global.exitCode, 0) << global.stderrText;
+    EXPECT_NE(global.stderrText.find("Using the toolchain 'gcc@15.1.0' (from the global default)\n"), std::string::npos) << global.stderrText;
+    EXPECT_TRUE(compilersUsed().ends_with("gcc@15.1.0\n")) << compilersUsed();
+
+    writeFile("hello/scrap.toml", std::string{ ValidManifest } + "[toolchain]\nname = \"gcc@15.2.0\"\n");
+    auto project = runScrap({ "build" }, {}, hello, BuildTimeout);
+    EXPECT_EQ(project.exitCode, 0) << project.stderrText;
+    EXPECT_NE(project.stderrText.find("Using the toolchain 'gcc@15.2.0' (from scrap.toml)\n"), std::string::npos) << project.stderrText;
+    EXPECT_TRUE(compilersUsed().ends_with("gcc@15.2.0\n")) << compilersUsed();
+
+    auto variable = runScrap({ "build" }, { "SCRAP_TOOLCHAIN=gcc@15.1.0" }, hello, BuildTimeout);
+    EXPECT_EQ(variable.exitCode, 0) << variable.stderrText;
+    EXPECT_NE(variable.stderrText.find("Using the toolchain 'gcc@15.1.0' (from SCRAP_TOOLCHAIN, overriding scrap.toml)\n"), std::string::npos)
+        << variable.stderrText;
+    EXPECT_TRUE(compilersUsed().ends_with("gcc@15.1.0\n")) << compilersUsed();
+
+    writeFile("other/scrap.toml", ValidManifest);
+    writeFile("other/src/main.cpp", MainSource);
+    auto other = runScrap({ "build" }, { "SCRAP_TOOLCHAIN=gcc@15.2.0" }, _root / "other", BuildTimeout);
+    EXPECT_EQ(other.exitCode, 0) << other.stderrText;
+    EXPECT_NE(other.stderrText.find("Using the toolchain 'gcc@15.2.0' (from SCRAP_TOOLCHAIN)\n"), std::string::npos) << other.stderrText;
+}
+
+/**
+ * system chooses the compiler the system provides over the global default.
+ */
+TEST_F(CliE2ETest, BuildUsesTheSystemCompilerWhenSystemIsChosen)
+{
+    installWorkingToolchain("gcc", "15.2.0");
+    ASSERT_EQ(runScrap({ "toolchain", "select", "gcc" }, {}, _root).exitCode, 0);
+    writeFile("hello/scrap.toml", std::string{ ValidManifest } + "[toolchain]\nname = \"system\"\n");
+    writeFile("hello/src/main.cpp", MainSource);
+
+    auto result = runScrap({ "build" }, { realCompiler() }, _root / "hello", BuildTimeout);
+
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_NE(result.stderrText.find("Using the system compiler '"), std::string::npos) << result.stderrText;
+    EXPECT_EQ(compilersUsed(), "");
+}
+
+/**
+ * A toolchain that is not installed stops the build before anything is
+ * compiled, with the command that installs it; nothing is installed in
+ * passing.
+ */
+TEST_F(CliE2ETest, BuildDoesNotStartWithoutTheToolchainItNames)
+{
+    writeFile("hello/scrap.toml", std::string{ ValidManifest } + "[toolchain]\nname = \"gcc@15.2.0\"\n");
+    writeFile("hello/src/main.cpp", MainSource);
+
+    auto result = runScrap({ "build" }, { realCompiler() }, _root / "hello", BuildTimeout);
+
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_EQ(result.stderrText, "error: toolchain 'gcc@15.2.0' is not installed\nhint: run 'scrap toolchain install gcc@15.2.0'\n");
+    EXPECT_FALSE(std::filesystem::exists(_root / "hello" / "build"));
+    EXPECT_FALSE(std::filesystem::exists(_root / "toolchains"));
+}
+
+/**
+ * With nothing chosen and no compiler on the system, an installed toolchain
+ * is not used in its place, and the build says how to select one.
+ */
+TEST_F(CliE2ETest, BuildDoesNotChooseAnInstalledToolchainUnasked)
+{
+    installWorkingToolchain("gcc", "15.2.0");
+    writeFile("hello/scrap.toml", ValidManifest);
+    writeFile("hello/src/main.cpp", MainSource);
+    std::filesystem::create_directories(_root / "empty");
+
+    auto result = runScrap({ "build" }, { "PATH=" + (_root / "empty").string() }, _root / "hello", BuildTimeout);
+
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_EQ(result.stderrText,
+              "error: no C++ compiler found\n"
+              "hint: select an installed toolchain with 'scrap toolchain select <toolchain>', such as 'gcc@15.2.0'\n");
+    EXPECT_EQ(compilersUsed(), "");
+}
+
+/**
+ * SCRAP_TOOLCHAIN that is neither system nor a specifier is reported.
+ */
+TEST_F(CliE2ETest, BuildReportsAToolchainVariableItCannotRead)
+{
+    writeFile("hello/scrap.toml", ValidManifest);
+    writeFile("hello/src/main.cpp", MainSource);
+
+    auto result = runScrap({ "build" }, { "SCRAP_TOOLCHAIN=gcc@15.x" }, _root / "hello", BuildTimeout);
+
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_EQ(result.stderrText,
+              "error: SCRAP_TOOLCHAIN holds 'gcc@15.x', which is not a toolchain specifier: its version is not numbers joined by dots\n"
+              "hint: set it to <family>[@<version>], such as 'gcc@15', or to system, or unset it\n");
+}
+
+/**
+ * A config.toml that cannot be read stops a build that would read the
+ * global default, and no other.
+ */
+TEST_F(CliE2ETest, BuildReadsTheGlobalDefaultOnlyWhenItNeedsIt)
+{
+    writeFile("config.toml", "[defaults]\ntoolchain = 15\n");
+    writeFile("hello/scrap.toml", ValidManifest);
+    writeFile("hello/src/main.cpp", MainSource);
+    const std::string config = (std::filesystem::canonical(_root) / "config.toml").string();
+
+    auto needed = runScrap({ "build" }, { realCompiler() }, _root / "hello", BuildTimeout);
+    EXPECT_EQ(needed.exitCode, 1);
+    EXPECT_EQ(needed.stderrText,
+              config + ":2:13: error: defaults.toolchain: must be a string\n"
+                       "hint: fix the file, or remove it to clear the settings it holds\n");
+
+    auto passedOver = runScrap({ "build" }, { realCompiler(), "SCRAP_TOOLCHAIN=system" }, _root / "hello", BuildTimeout);
+    EXPECT_EQ(passedOver.exitCode, 0) << passedOver.stderrText;
 }

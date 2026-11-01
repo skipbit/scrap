@@ -3,15 +3,47 @@
 #include <gtest/gtest.h>
 
 #include <filesystem>
+#include <string>
 
 using namespace scrap::Command;
+
+namespace {
+
+/**
+ * The process inputs a test gives, any of which it may leave out.
+ */
+struct GivenInputs {
+    std::filesystem::path workingDirectory{};
+    std::string scrapHome{};
+    std::string home{};
+    std::string path{};
+    std::string compiler{};
+    std::string toolchain{};
+};
+
+/**
+ * The environment made from @p given, with what it leaves out empty.
+ */
+RuntimeEnvironment environmentOf(const GivenInputs& given)
+{
+    return makeRuntimeEnvironment(ProcessInputs{
+        .workingDirectory = given.workingDirectory,
+        .scrapHome = given.scrapHome,
+        .home = given.home,
+        .path = given.path,
+        .compiler = given.compiler,
+        .toolchain = given.toolchain,
+    });
+}
+
+}  // namespace
 
 /**
  * PATH segments are split on ':' and preserved in order.
  */
 TEST(RuntimeEnvironmentFactoryTest, SplitsPathInOrder)
 {
-    auto env = makeRuntimeEnvironment(ProcessInputs{ .workingDirectory = "/project", .path = "/usr/local/bin:/usr/bin:/bin" });
+    auto env = environmentOf({ .workingDirectory = "/project", .path = "/usr/local/bin:/usr/bin:/bin" });
 
     ASSERT_EQ(env.systemSearchPaths.size(), 3);
     EXPECT_EQ(env.systemSearchPaths[0], "/usr/local/bin");
@@ -24,7 +56,7 @@ TEST(RuntimeEnvironmentFactoryTest, SplitsPathInOrder)
  */
 TEST(RuntimeEnvironmentFactoryTest, SkipsEmptyPathSegments)
 {
-    auto env = makeRuntimeEnvironment(ProcessInputs{ .workingDirectory = "/project", .path = ":/usr/bin::/bin:" });
+    auto env = environmentOf({ .workingDirectory = "/project", .path = ":/usr/bin::/bin:" });
 
     ASSERT_EQ(env.systemSearchPaths.size(), 2);
     EXPECT_EQ(env.systemSearchPaths[0], "/usr/bin");
@@ -36,7 +68,7 @@ TEST(RuntimeEnvironmentFactoryTest, SkipsEmptyPathSegments)
  */
 TEST(RuntimeEnvironmentFactoryTest, CarriesScrapHomeWhenNonEmpty)
 {
-    auto env = makeRuntimeEnvironment(ProcessInputs{ .workingDirectory = "/project", .scrapHome = "/opt/scrap", .path = "/usr/bin" });
+    auto env = environmentOf({ .workingDirectory = "/project", .scrapHome = "/opt/scrap", .path = "/usr/bin" });
 
     EXPECT_EQ(env.scrapHome, std::filesystem::path("/opt/scrap"));
 }
@@ -47,7 +79,7 @@ TEST(RuntimeEnvironmentFactoryTest, CarriesScrapHomeWhenNonEmpty)
  */
 TEST(RuntimeEnvironmentFactoryTest, LeavesScrapHomeUnsetWithoutScrapHomeOrHome)
 {
-    auto env = makeRuntimeEnvironment(ProcessInputs{ .workingDirectory = "/project", .path = "/usr/bin" });
+    auto env = environmentOf({ .workingDirectory = "/project", .path = "/usr/bin" });
 
     EXPECT_FALSE(env.scrapHome.has_value());
 }
@@ -58,7 +90,7 @@ TEST(RuntimeEnvironmentFactoryTest, LeavesScrapHomeUnsetWithoutScrapHomeOrHome)
  */
 TEST(RuntimeEnvironmentFactoryTest, FallsBackToDotScrapBelowHome)
 {
-    auto env = makeRuntimeEnvironment(ProcessInputs{ .workingDirectory = "/project", .home = "/home/user", .path = "/usr/bin" });
+    auto env = environmentOf({ .workingDirectory = "/project", .home = "/home/user", .path = "/usr/bin" });
 
     EXPECT_EQ(env.scrapHome, std::filesystem::path("/home/user/.scrap"));
 }
@@ -68,7 +100,7 @@ TEST(RuntimeEnvironmentFactoryTest, FallsBackToDotScrapBelowHome)
  */
 TEST(RuntimeEnvironmentFactoryTest, PrefersScrapHomeOverHome)
 {
-    auto env = makeRuntimeEnvironment(ProcessInputs{ .workingDirectory = "/project", .scrapHome = "/opt/scrap", .home = "/home/user", .path = "/usr/bin" });
+    auto env = environmentOf({ .workingDirectory = "/project", .scrapHome = "/opt/scrap", .home = "/home/user", .path = "/usr/bin" });
 
     EXPECT_EQ(env.scrapHome, std::filesystem::path("/opt/scrap"));
 }
@@ -80,8 +112,8 @@ TEST(RuntimeEnvironmentFactoryTest, PrefersScrapHomeOverHome)
  */
 TEST(RuntimeEnvironmentFactoryTest, TakesARelativeHomeAgainstTheWorkingDirectory)
 {
-    EXPECT_EQ(makeRuntimeEnvironment(ProcessInputs{ .workingDirectory = "/project", .scrapHome = "tools/scrap" }).scrapHome, std::filesystem::path("/project/tools/scrap"));
-    EXPECT_EQ(makeRuntimeEnvironment(ProcessInputs{ .workingDirectory = "/project", .home = "user" }).scrapHome, std::filesystem::path("/project/user/.scrap"));
+    EXPECT_EQ(environmentOf({ .workingDirectory = "/project", .scrapHome = "tools/scrap" }).scrapHome, std::filesystem::path("/project/tools/scrap"));
+    EXPECT_EQ(environmentOf({ .workingDirectory = "/project", .home = "user" }).scrapHome, std::filesystem::path("/project/user/.scrap"));
 }
 
 /**
@@ -89,7 +121,7 @@ TEST(RuntimeEnvironmentFactoryTest, TakesARelativeHomeAgainstTheWorkingDirectory
  */
 TEST(RuntimeEnvironmentFactoryTest, EmptyInputsLeaveNoHomeAndNoPath)
 {
-    auto env = makeRuntimeEnvironment(ProcessInputs{ .workingDirectory = "/project" });
+    auto env = environmentOf({ .workingDirectory = "/project" });
 
     EXPECT_FALSE(env.scrapHome.has_value());
     EXPECT_TRUE(env.systemSearchPaths.empty());
@@ -101,7 +133,7 @@ TEST(RuntimeEnvironmentFactoryTest, EmptyInputsLeaveNoHomeAndNoPath)
 TEST(RuntimeEnvironmentFactoryTest, WorkingDirectoryMatchesCwd)
 {
     const std::filesystem::path cwd = "/some/project/root";
-    auto env = makeRuntimeEnvironment(ProcessInputs{ .workingDirectory = cwd });
+    auto env = environmentOf({ .workingDirectory = cwd });
 
     EXPECT_EQ(env.workingDirectory, cwd);
 }
@@ -112,7 +144,7 @@ TEST(RuntimeEnvironmentFactoryTest, WorkingDirectoryMatchesCwd)
  */
 TEST(RuntimeEnvironmentFactoryTest, SystemSearchPathsHoldPathAlone)
 {
-    auto env = makeRuntimeEnvironment(ProcessInputs{ .workingDirectory = "/project", .scrapHome = "/opt/scrap", .path = "/usr/bin:/bin" });
+    auto env = environmentOf({ .workingDirectory = "/project", .scrapHome = "/opt/scrap", .path = "/usr/bin:/bin" });
 
     ASSERT_EQ(env.systemSearchPaths.size(), 2);
     EXPECT_EQ(env.systemSearchPaths[0], "/usr/bin");
@@ -125,8 +157,18 @@ TEST(RuntimeEnvironmentFactoryTest, SystemSearchPathsHoldPathAlone)
  */
 TEST(RuntimeEnvironmentFactoryTest, PreferredCompilerCarriesTheCompilerVariable)
 {
-    EXPECT_EQ(makeRuntimeEnvironment(ProcessInputs{ .workingDirectory = "/project", .path = "/usr/bin", .compiler = "clang++" }).preferredCompiler, "clang++");
-    EXPECT_EQ(makeRuntimeEnvironment(ProcessInputs{ .workingDirectory = "/project", .path = "/usr/bin", .compiler = "/opt/gcc/bin/g++" }).preferredCompiler, "/opt/gcc/bin/g++");
+    EXPECT_EQ(environmentOf({ .workingDirectory = "/project", .path = "/usr/bin", .compiler = "clang++" }).preferredCompiler, "clang++");
+    EXPECT_EQ(environmentOf({ .workingDirectory = "/project", .path = "/usr/bin", .compiler = "/opt/gcc/bin/g++" }).preferredCompiler, "/opt/gcc/bin/g++");
+}
+
+/**
+ * The toolchain the environment chooses is carried as it was given, and is
+ * empty when SCRAP_TOOLCHAIN is unset.
+ */
+TEST(RuntimeEnvironmentFactoryTest, RequestedToolchainCarriesTheToolchainVariable)
+{
+    EXPECT_EQ(environmentOf({ .workingDirectory = "/project", .toolchain = "gcc@15" }).requestedToolchain, "gcc@15");
+    EXPECT_TRUE(environmentOf({ .workingDirectory = "/project" }).requestedToolchain.empty());
 }
 
 /**
@@ -135,5 +177,5 @@ TEST(RuntimeEnvironmentFactoryTest, PreferredCompilerCarriesTheCompilerVariable)
  */
 TEST(RuntimeEnvironmentFactoryTest, PreferredCompilerIsEmptyWhenUnset)
 {
-    EXPECT_TRUE(makeRuntimeEnvironment(ProcessInputs{ .workingDirectory = "/project", .path = "/usr/bin" }).preferredCompiler.empty());
+    EXPECT_TRUE(environmentOf({ .workingDirectory = "/project", .path = "/usr/bin" }).preferredCompiler.empty());
 }

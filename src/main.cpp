@@ -57,6 +57,7 @@ int main(int argc, char* argv[])
             .home = environmentVariable("HOME"),
             .path = environmentVariable("PATH"),
             .compiler = environmentVariable("CXX"),
+            .toolchain = environmentVariable("SCRAP_TOOLCHAIN"),
         });
 
         auto helpRenderer = std::make_unique<DefaultHelpRenderer>();

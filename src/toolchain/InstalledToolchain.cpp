@@ -3,14 +3,17 @@
 #include "file/WholeFile.h"
 #include "toolchain/HostEnvironment.h"
 #include "toolchain/InstallRecord.h"
+#include "toolchain/ToolchainName.h"
 #include "toolchain/ToolchainSpecifier.h"
 #include "toolchain/ToolchainVersion.h"
 
+#include <algorithm>
 #include <expected>  // IWYU pragma: keep
 #include <filesystem>
 #include <optional>
 #include <string>
 #include <system_error>
+#include <vector>
 
 namespace scrap::Toolchain {
 
@@ -84,6 +87,30 @@ std::expected<std::optional<InstalledToolchain>, std::string> findInstalledToolc
         return std::nullopt;
     }
     return readInstalled(specifier.family, *newest, newestDirectory);
+}
+
+std::optional<InstalledToolchain> anyInstalledToolchain(const std::filesystem::path& scrapHome, const HostEnvironment& host)
+{
+    std::vector<std::string> families;
+    std::error_code ec;
+    for (std::filesystem::directory_iterator it(scrapHome / "toolchains", ec), end; (! ec) && (it != end); it.increment(ec)) {
+        const std::string name = it->path().filename().string();
+        if (isToolchainName(name)) {
+            families.push_back(name);
+        }
+    }
+    std::ranges::sort(families);
+    for (const std::string& family : families) {
+        const auto found = findInstalledToolchain(scrapHome, host, ToolchainSpecifier{ .family = family, .version = std::nullopt });
+        if (! found.has_value()) {
+            continue;
+        }
+        const std::optional<InstalledToolchain>& toolchain = *found;
+        if (toolchain.has_value()) {
+            return toolchain;
+        }
+    }
+    return std::nullopt;
 }
 
 }  // namespace scrap::Toolchain

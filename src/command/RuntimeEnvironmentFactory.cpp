@@ -58,6 +58,7 @@ RuntimeEnvironment makeRuntimeEnvironment(const ProcessInputs& inputs)
     RuntimeEnvironment env;
     env.workingDirectory = inputs.workingDirectory;
     env.preferredCompiler = inputs.compiler;
+    env.requestedToolchain = inputs.toolchain;
     env.systemSearchPaths = splitSearchPaths(inputs.path);
     env.scrapHome = resolveScrapHome(inputs.workingDirectory, inputs.scrapHome, inputs.home);
     return env;

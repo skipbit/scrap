@@ -37,4 +37,14 @@ struct InstalledToolchain {
                                                                                                    const HostEnvironment& host,
                                                                                                    const ToolchainSpecifier& specifier);
 
+/**
+ * @brief One toolchain installed below @p scrapHome for @p host, to show as
+ *        an example: the newest of the family that comes first by name.
+ *
+ * A family whose newest toolchain cannot be used is passed over.
+ *
+ * @return The toolchain, or nothing when none is installed.
+ */
+[[nodiscard]] std::optional<InstalledToolchain> anyInstalledToolchain(const std::filesystem::path& scrapHome, const HostEnvironment& host);
+
 }  // namespace scrap::Toolchain

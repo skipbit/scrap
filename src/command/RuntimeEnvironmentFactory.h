@@ -13,11 +13,12 @@ namespace scrap::Command {
  *        when unset.
  */
 struct ProcessInputs {
-    std::filesystem::path workingDirectory{};
-    std::string scrapHome{};  ///< SCRAP_HOME
-    std::string home{};       ///< HOME
-    std::string path{};       ///< PATH, colon-separated.
-    std::string compiler{};   ///< CXX
+    std::filesystem::path workingDirectory;
+    std::string scrapHome;  ///< SCRAP_HOME
+    std::string home;       ///< HOME
+    std::string path;       ///< PATH, colon-separated.
+    std::string compiler;   ///< CXX
+    std::string toolchain;  ///< SCRAP_TOOLCHAIN
 };
 
 /**
@@ -35,7 +36,8 @@ struct ProcessInputs {
  * directory in each directory a command is run from.
  *
  * Empty PATH segments (from leading, trailing, or doubled colons) are
- * skipped. CXX is carried as preferredCompiler.
+ * skipped. CXX is carried as preferredCompiler, and SCRAP_TOOLCHAIN as
+ * requestedToolchain.
  */
 [[nodiscard]] RuntimeEnvironment makeRuntimeEnvironment(const ProcessInputs& inputs);
 

@@ -2,7 +2,7 @@
 
 #include "command/GlobalDefaultFile.h"
 #include "command/InvocationContext.h"
-#include "command/PrintableText.h"
+#include "command/ToolchainDiagnostic.h"
 #include "toolchain/HostEnvironment.h"
 #include "toolchain/InstalledToolchain.h"
 #include "toolchain/ToolchainChoice.h"
@@ -28,18 +28,15 @@ std::expected<std::string, std::string> installedChoice(const std::filesystem::p
 {
     const auto host = Toolchain::hostEnvironment();
     if (! host.has_value()) {
-        return std::unexpected(std::string{ "error: no toolchain is built for this host\n"
-                                            "hint: run 'scrap toolchain select system' to use the compiler found on the system\n" });
+        return std::unexpected(renderNoToolchainForHost());
     }
     const auto installed = Toolchain::findInstalledToolchain(scrapHome, *host, specifier);
     if (! installed.has_value()) {
-        return std::unexpected("error: cannot use the installed toolchain: " + printableText(installed.error())
-                               + "\nhint: run 'scrap toolchain install --force " + printableText(text) + "'\n");
+        return std::unexpected(renderUnusableInstalled(text, installed.error()));
     }
     const std::optional<Toolchain::InstalledToolchain>& found = *installed;
     if (! found.has_value()) {
-        return std::unexpected("error: toolchain '" + printableText(text) + "' is not installed\nhint: run 'scrap toolchain install "
-                               + printableText(text) + "'\n");
+        return std::unexpected(renderNotInstalled(text));
     }
     return found->family + "@" + found->version.text();
 }
@@ -52,8 +49,7 @@ int ToolchainSelectCommandHandler::execute(const InvocationContext& ctx)
     const std::string text = ctx.options.positional.empty() ? std::string{} : ctx.options.positional.front();
     const auto choice = Toolchain::parseToolchainChoice(text);
     if (! choice.has_value()) {
-        std::cerr << "error: '" << printableText(text) << "' is not a toolchain specifier: " << choice.error() << "\n"
-                  << "hint: write it as <family>[@<version>], such as 'gcc@15', or as system\n";
+        std::cerr << renderNotASpecifier(text, choice.error());
         return 1;
     }
 
