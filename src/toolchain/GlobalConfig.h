@@ -1,11 +1,22 @@
 #pragma once
 
+#include <cstdint>
 #include <expected>
 #include <optional>
 #include <string>
 #include <string_view>
 
 namespace scrap::Toolchain {
+
+/**
+ * @brief Where and why the text of config.toml cannot be read.
+ */
+struct GlobalConfigFault {
+    std::uint32_t line = 0;    ///< One-based.
+    std::uint32_t column = 0;  ///< One-based.
+    std::string key;           ///< Dotted key, e.g. "defaults.toolchain"; empty when the text is not TOML.
+    std::string message;
+};
 
 /**
  * @brief Read the global default toolchain from the text of config.toml.
@@ -16,9 +27,9 @@ namespace scrap::Toolchain {
  *
  * @return The default as written, which is system or a specifier, or
  *         nothing when none is set; or where and why the text cannot be
- *         read, e.g. "line 2: defaults.toolchain: must be a string".
+ *         read.
  */
-[[nodiscard]] std::expected<std::optional<std::string>, std::string> readDefaultToolchain(std::string_view text);
+[[nodiscard]] std::expected<std::optional<std::string>, GlobalConfigFault> readDefaultToolchain(std::string_view text);
 
 /**
  * @brief The text of config.toml with the global default toolchain set to
@@ -32,6 +43,6 @@ namespace scrap::Toolchain {
  * @return The new text, or why @p text cannot be read; text that cannot be
  *         read is never written over, since what it holds would be lost.
  */
-[[nodiscard]] std::expected<std::string, std::string> writeDefaultToolchain(std::string_view text, const std::optional<std::string>& toolchain);
+[[nodiscard]] std::expected<std::string, GlobalConfigFault> writeDefaultToolchain(std::string_view text, const std::optional<std::string>& toolchain);
 
 }  // namespace scrap::Toolchain

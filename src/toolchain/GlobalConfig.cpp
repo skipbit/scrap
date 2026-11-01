@@ -19,23 +19,19 @@ constexpr std::string_view DefaultsKey = "defaults";
 constexpr std::string_view ToolchainKey = "toolchain";
 
 /**
- * A fault at @p node, naming the line it starts on and its key.
+ * A fault at @p source, under @p key.
  */
-std::string faultAt(const toml::node& node, std::string_view key, std::string_view what)
+GlobalConfigFault faultAt(const toml::source_region& source, std::string key, std::string message)
 {
-    std::string message = "line " + std::to_string(node.source().begin.line) + ": ";
-    message += key;
-    message += ": ";
-    message += what;
-    return message;
+    return GlobalConfigFault{ .line = source.begin.line, .column = source.begin.column, .key = std::move(key), .message = std::move(message) };
 }
 
-std::expected<toml::table, std::string> parseConfig(std::string_view text)
+std::expected<toml::table, GlobalConfigFault> parseConfig(std::string_view text)
 {
     toml::parse_result parsed = toml::parse(text);
     if (! parsed) {
         const toml::parse_error& error = parsed.error();
-        return std::unexpected("line " + std::to_string(error.source().begin.line) + ": " + std::string{ error.description() });
+        return std::unexpected(faultAt(error.source(), {}, std::string{ error.description() }));
     }
     return std::move(parsed).table();
 }
@@ -43,7 +39,7 @@ std::expected<toml::table, std::string> parseConfig(std::string_view text)
 /**
  * The default toolchain @p root holds, checked to be system or a specifier.
  */
-std::expected<std::optional<std::string>, std::string> defaultIn(const toml::table& root)
+std::expected<std::optional<std::string>, GlobalConfigFault> defaultIn(const toml::table& root)
 {
     const toml::node* defaults = root.get(DefaultsKey);
     if (defaults == nullptr) {
@@ -51,7 +47,7 @@ std::expected<std::optional<std::string>, std::string> defaultIn(const toml::tab
     }
     const toml::table* table = defaults->as_table();
     if (table == nullptr) {
-        return std::unexpected(faultAt(*defaults, "defaults", "must be a table"));
+        return std::unexpected(faultAt(defaults->source(), "defaults", "must be a table"));
     }
     const toml::node* node = table->get(ToolchainKey);
     if (node == nullptr) {
@@ -59,17 +55,17 @@ std::expected<std::optional<std::string>, std::string> defaultIn(const toml::tab
     }
     std::optional<std::string> value = node->value_exact<std::string>();
     if (! value.has_value()) {
-        return std::unexpected(faultAt(*node, "defaults.toolchain", "must be a string"));
+        return std::unexpected(faultAt(node->source(), "defaults.toolchain", "must be a string"));
     }
     if (auto choice = parseToolchainChoice(*value); ! choice.has_value()) {
-        return std::unexpected(faultAt(*node, "defaults.toolchain", "is neither system nor a toolchain specifier: " + choice.error()));
+        return std::unexpected(faultAt(node->source(), "defaults.toolchain", "is neither system nor a toolchain specifier: " + choice.error()));
     }
     return value;
 }
 
 }  // anonymous namespace
 
-std::expected<std::optional<std::string>, std::string> readDefaultToolchain(std::string_view text)
+std::expected<std::optional<std::string>, GlobalConfigFault> readDefaultToolchain(std::string_view text)
 {
     auto root = parseConfig(text);
     if (! root.has_value()) {
@@ -78,7 +74,7 @@ std::expected<std::optional<std::string>, std::string> readDefaultToolchain(std:
     return defaultIn(*root);
 }
 
-std::expected<std::string, std::string> writeDefaultToolchain(std::string_view text, const std::optional<std::string>& toolchain)
+std::expected<std::string, GlobalConfigFault> writeDefaultToolchain(std::string_view text, const std::optional<std::string>& toolchain)
 {
     auto root = parseConfig(text);
     if (! root.has_value()) {

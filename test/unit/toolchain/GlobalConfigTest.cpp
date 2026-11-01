@@ -11,12 +11,24 @@ using namespace scrap::Toolchain;
 namespace {
 
 /**
+ * @p fault as "<line>:<column>: <key>: <message>", leaving out an empty key.
+ */
+std::string described(const GlobalConfigFault& fault)
+{
+    std::string text = std::to_string(fault.line) + ":" + std::to_string(fault.column) + ": ";
+    if (! fault.key.empty()) {
+        text += fault.key + ": ";
+    }
+    return text + fault.message;
+}
+
+/**
  * The default @p text holds, failing the test when it cannot be read.
  */
 std::optional<std::string> defaultIn(std::string_view text)
 {
     const auto read = readDefaultToolchain(text);
-    EXPECT_TRUE(read.has_value()) << read.error();
+    EXPECT_TRUE(read.has_value()) << described(read.error());
     return read.value_or("<unreadable>");
 }
 
@@ -58,15 +70,16 @@ TEST(GlobalConfigTest, PassesOverUnknownKeys)
 }
 
 /**
- * Text that cannot be read is refused, naming the line and the key.
+ * Text that cannot be read is refused, naming the line, the column and the
+ * key.
  */
 TEST(GlobalConfigTest, RefusesTextThatCannotBeRead)
 {
-    EXPECT_EQ(readDefaultToolchain("[defaults\n").error().substr(0, 8), "line 1: ");
-    EXPECT_EQ(readDefaultToolchain("defaults = 1\n").error(), "line 1: defaults: must be a table");
-    EXPECT_EQ(readDefaultToolchain("[defaults]\ntoolchain = 15\n").error(), "line 2: defaults.toolchain: must be a string");
-    EXPECT_EQ(readDefaultToolchain("[defaults]\ntoolchain = \"gcc@\"\n").error(),
-              "line 2: defaults.toolchain: is neither system nor a toolchain specifier: it names no version after '@'");
+    EXPECT_EQ(described(readDefaultToolchain("[defaults\n").error()).substr(0, 6), "1:10: ");
+    EXPECT_EQ(described(readDefaultToolchain("defaults = 1\n").error()), "1:12: defaults: must be a table");
+    EXPECT_EQ(described(readDefaultToolchain("[defaults]\ntoolchain = 15\n").error()), "2:13: defaults.toolchain: must be a string");
+    EXPECT_EQ(described(readDefaultToolchain("[defaults]\ntoolchain = \"gcc@\"\n").error()),
+              "2:13: defaults.toolchain: is neither system nor a toolchain specifier: it names no version after '@'");
 }
 
 /**
@@ -75,11 +88,11 @@ TEST(GlobalConfigTest, RefusesTextThatCannotBeRead)
 TEST(GlobalConfigTest, WritesTheDefault)
 {
     const auto first = writeDefaultToolchain("", "gcc@15.1.0");
-    ASSERT_TRUE(first.has_value()) << first.error();
+    ASSERT_TRUE(first.has_value()) << described(first.error());
     EXPECT_EQ(defaultIn(*first), "gcc@15.1.0");
 
     const auto second = writeDefaultToolchain(*first, "gcc@15.2.0");
-    ASSERT_TRUE(second.has_value()) << second.error();
+    ASSERT_TRUE(second.has_value()) << described(second.error());
     EXPECT_EQ(defaultIn(*second), "gcc@15.2.0");
 }
 
@@ -92,12 +105,12 @@ TEST(GlobalConfigTest, KeepsOtherKeysWhenWriting)
     const std::string text = "later = 1\n[defaults]\ntoolchain = \"llvm\"\neditor = \"vi\"\n";
 
     const auto set = writeDefaultToolchain(text, "gcc");
-    ASSERT_TRUE(set.has_value()) << set.error();
+    ASSERT_TRUE(set.has_value()) << described(set.error());
     EXPECT_TRUE(set->contains("later = 1"));
     EXPECT_TRUE(set->contains("editor = 'vi'"));
 
     const auto removed = writeDefaultToolchain(text, std::nullopt);
-    ASSERT_TRUE(removed.has_value()) << removed.error();
+    ASSERT_TRUE(removed.has_value()) << described(removed.error());
     EXPECT_EQ(defaultIn(*removed), std::nullopt);
     EXPECT_TRUE(removed->contains("later = 1"));
     EXPECT_TRUE(removed->contains("editor = 'vi'"));
@@ -120,6 +133,6 @@ TEST(GlobalConfigTest, RemovesTheDefault)
 TEST(GlobalConfigTest, RefusesToWriteOverTextThatCannotBeRead)
 {
     EXPECT_FALSE(writeDefaultToolchain("[defaults\n", "gcc").has_value());
-    EXPECT_EQ(writeDefaultToolchain("defaults = 1\n", "gcc").error(), "line 1: defaults: must be a table");
-    EXPECT_EQ(writeDefaultToolchain("[defaults]\ntoolchain = 15\n", std::nullopt).error(), "line 2: defaults.toolchain: must be a string");
+    EXPECT_EQ(described(writeDefaultToolchain("defaults = 1\n", "gcc").error()), "1:12: defaults: must be a table");
+    EXPECT_EQ(described(writeDefaultToolchain("[defaults]\ntoolchain = 15\n", std::nullopt).error()), "2:13: defaults.toolchain: must be a string");
 }
