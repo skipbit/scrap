@@ -1,0 +1,84 @@
+#include "command/ToolchainSelectCommandHandler.h"
+
+#include "command/GlobalDefaultFile.h"
+#include "command/InvocationContext.h"
+#include "command/PrintableText.h"
+#include "toolchain/HostEnvironment.h"
+#include "toolchain/InstalledToolchain.h"
+#include "toolchain/ToolchainChoice.h"
+#include "toolchain/ToolchainSpecifier.h"
+
+#include <expected>  // IWYU pragma: keep
+#include <filesystem>
+#include <iostream>
+#include <optional>
+#include <string>
+#include <utility>
+#include <variant>
+
+namespace scrap::Command {
+
+namespace {
+
+/**
+ * What to keep as the global default for @p specifier: the newest
+ * installed toolchain it names, written in full.
+ */
+std::expected<std::string, std::string> installedChoice(const std::filesystem::path& scrapHome, const std::string& text, const Toolchain::ToolchainSpecifier& specifier)
+{
+    const auto host = Toolchain::hostEnvironment();
+    if (! host.has_value()) {
+        return std::unexpected(std::string{ "error: no toolchain is built for this host\n"
+                                            "hint: run 'scrap toolchain select system' to use the compiler found on the system\n" });
+    }
+    const auto installed = Toolchain::findInstalledToolchain(scrapHome, *host, specifier);
+    if (! installed.has_value()) {
+        return std::unexpected("error: cannot use the installed toolchain: " + printableText(installed.error())
+                               + "\nhint: run 'scrap toolchain install --force " + printableText(text) + "'\n");
+    }
+    const std::optional<Toolchain::InstalledToolchain>& found = *installed;
+    if (! found.has_value()) {
+        return std::unexpected("error: toolchain '" + printableText(text) + "' is not installed\nhint: run 'scrap toolchain install "
+                               + printableText(text) + "'\n");
+    }
+    return found->family + "@" + found->version.text();
+}
+
+}  // anonymous namespace
+
+int ToolchainSelectCommandHandler::execute(const InvocationContext& ctx)
+{
+    // The parser requires the specifier, so the first positional is there.
+    const std::string text = ctx.options.positional.empty() ? std::string{} : ctx.options.positional.front();
+    const auto choice = Toolchain::parseToolchainChoice(text);
+    if (! choice.has_value()) {
+        std::cerr << "error: '" << printableText(text) << "' is not a toolchain specifier: " << choice.error() << "\n"
+                  << "hint: write it as <family>[@<version>], such as 'gcc@15', or as system\n";
+        return 1;
+    }
+
+    const auto scrapHome = requireScrapHome(*ctx.env);
+    if (! scrapHome.has_value()) {
+        std::cerr << scrapHome.error();
+        return 1;
+    }
+
+    std::string selected = "system";
+    if (const auto* specifier = std::get_if<Toolchain::ToolchainSpecifier>(&*choice)) {
+        auto installed = installedChoice(*scrapHome, text, *specifier);
+        if (! installed.has_value()) {
+            std::cerr << installed.error();
+            return 1;
+        }
+        selected = std::move(*installed);
+    }
+
+    if (auto written = writeGlobalDefault(globalConfigFile(*scrapHome), selected); ! written.has_value()) {
+        std::cerr << written.error();
+        return 1;
+    }
+    std::cerr << "Selected '" << selected << "' as the global default\n";
+    return 0;
+}
+
+}  // namespace scrap::Command

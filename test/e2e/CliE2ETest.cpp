@@ -356,6 +356,20 @@ protected:
     }
 
     /**
+     * Lay out @p family @p version below the fixture's SCRAP_HOME as an
+     * install would, for every host scrap is released for, so the test
+     * holds wherever it runs. Its compiler is an empty file.
+     */
+    void installToolchain(std::string_view family, std::string_view version) const
+    {
+        for (const char* host : { "linux-x86_64", "linux-aarch64", "darwin-x86_64", "darwin-aarch64" }) {
+            const std::string directory = "toolchains/" + std::string{ family } + "/" + std::string{ version } + "/" + host;
+            _temp->writeFile(directory + "/bin/g++", "");
+            _temp->writeFile(directory + "/.scrap-toolchain.toml", "compiler = \"bin/g++\"\n");
+        }
+    }
+
+    /**
      * The contents of @p relative below the fixture directory, empty when it
      * cannot be read.
      */
@@ -2696,4 +2710,108 @@ TEST_F(CliE2ETest, NewRejectsNamesItCannotUse)
     }
     EXPECT_TRUE(std::filesystem::is_empty(_root / "work"));
     EXPECT_FALSE(std::filesystem::exists(_root / "x"));
+}
+
+/**
+ * A selected toolchain is kept in config.toml for later commands; a family
+ * alone is kept as its newest installed version; one that is not installed
+ * is refused and leaves the default as it was; unselect removes it.
+ */
+TEST_F(CliE2ETest, SelectsAndUnselectsTheGlobalDefault)
+{
+    installToolchain("gcc", "15.1.0");
+    installToolchain("gcc", "15.2.0");
+
+    auto exact = runScrap({ "toolchain", "select", "gcc@15.1.0" }, {}, _root);
+    ASSERT_TRUE(exact.exitedNormally);
+    EXPECT_EQ(exact.exitCode, 0) << exact.stderrText;
+    EXPECT_TRUE(exact.stdoutText.empty()) << exact.stdoutText;
+    EXPECT_EQ(exact.stderrText, "Selected 'gcc@15.1.0' as the global default\n");
+    EXPECT_NE(readFile("config.toml").find("toolchain = 'gcc@15.1.0'"), std::string::npos) << readFile("config.toml");
+
+    auto family = runScrap({ "toolchain", "select", "gcc" }, {}, _root);
+    EXPECT_EQ(family.exitCode, 0) << family.stderrText;
+    EXPECT_EQ(family.stderrText, "Selected 'gcc@15.2.0' as the global default\n");
+
+    auto missing = runScrap({ "toolchain", "select", "gcc@14" }, {}, _root);
+    EXPECT_EQ(missing.exitCode, 1);
+    EXPECT_EQ(missing.stderrText, "error: toolchain 'gcc@14' is not installed\nhint: run 'scrap toolchain install gcc@14'\n");
+    EXPECT_NE(readFile("config.toml").find("toolchain = 'gcc@15.2.0'"), std::string::npos) << readFile("config.toml");
+
+    auto unselect = runScrap({ "toolchain", "unselect" }, {}, _root);
+    EXPECT_EQ(unselect.exitCode, 0) << unselect.stderrText;
+    EXPECT_EQ(unselect.stderrText, "Unselected 'gcc@15.2.0'; no toolchain is selected globally\n");
+    EXPECT_EQ(readFile("config.toml").find("toolchain"), std::string::npos) << readFile("config.toml");
+
+    auto again = runScrap({ "toolchain", "unselect" }, {}, _root);
+    EXPECT_EQ(again.exitCode, 0) << again.stderrText;
+    EXPECT_EQ(again.stderrText, "No toolchain is selected globally\n");
+}
+
+/**
+ * The word system selects the compiler found on the system, installed or
+ * not.
+ */
+TEST_F(CliE2ETest, SelectsTheSystemCompiler)
+{
+    auto result = runScrap({ "toolchain", "select", "system" }, {}, _root);
+
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_EQ(result.stderrText, "Selected 'system' as the global default\n");
+    EXPECT_NE(readFile("config.toml").find("toolchain = 'system'"), std::string::npos) << readFile("config.toml");
+}
+
+/**
+ * Text that is not a specifier is refused with its reason, and nothing is
+ * written.
+ */
+TEST_F(CliE2ETest, SelectRefusesTextThatIsNotASpecifier)
+{
+    auto result = runScrap({ "toolchain", "select", "gcc@" }, {}, _root);
+
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_EQ(result.stderrText,
+              "error: 'gcc@' is not a toolchain specifier: it names no version after '@'\n"
+              "hint: write it as <family>[@<version>], such as 'gcc@15', or as system\n");
+    EXPECT_FALSE(std::filesystem::exists(_root / "config.toml"));
+}
+
+/**
+ * A config.toml that cannot be read is pointed at as a compiler points at a
+ * fault, and is not written over, so what it holds is not lost.
+ */
+TEST_F(CliE2ETest, SelectLeavesAConfigItCannotReadAsItIs)
+{
+    installToolchain("gcc", "15.2.0");
+    writeFile("config.toml", "[defaults]\ntoolchain = 15\n");
+    const std::string config = (std::filesystem::canonical(_root) / "config.toml").string();
+
+    for (const std::vector<std::string>& args : { std::vector<std::string>{ "toolchain", "select", "gcc" }, std::vector<std::string>{ "toolchain", "unselect" } }) {
+        auto result = runScrap(args, {}, _root);
+
+        EXPECT_EQ(result.exitCode, 1) << args.back();
+        EXPECT_EQ(result.stderrText,
+                  config + ":2:13: error: defaults.toolchain: must be a string\n"
+                           "hint: fix the file, or remove it to clear the settings it holds\n")
+            << args.back();
+        EXPECT_EQ(readFile("config.toml"), "[defaults]\ntoolchain = 15\n") << args.back();
+    }
+}
+
+/**
+ * Without SCRAP_HOME and HOME there is nowhere to keep a default, which the
+ * toolchain commands report.
+ */
+TEST_F(CliE2ETest, ToolchainCommandsNeedSomewhereToKeepToolchains)
+{
+    for (const std::vector<std::string>& args : { std::vector<std::string>{ "toolchain", "select", "system" }, std::vector<std::string>{ "toolchain", "unselect" } }) {
+        auto result = runScrap(args, { "SCRAP_HOME=" }, _root);
+
+        EXPECT_EQ(result.exitCode, 1) << args.back();
+        EXPECT_EQ(result.stderrText,
+                  "error: cannot tell where to keep toolchains: SCRAP_HOME and HOME are both unset\n"
+                  "hint: set SCRAP_HOME to the directory to keep them in, and run the command again\n")
+            << args.back();
+    }
+    EXPECT_FALSE(std::filesystem::exists(_root / "config.toml"));
 }
