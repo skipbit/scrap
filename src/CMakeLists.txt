@@ -62,10 +62,13 @@ target_include_directories(scrap_process PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 scrap_apply_compile_settings(scrap_process WARNINGS_AS_ERRORS)
 
 # Toolchains: detecting the system's, reading specifiers and the index,
-# and keeping the global default
+# keeping the global default, and finding the installed ones
 add_library(scrap_toolchain STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/CompilerIdentity.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/GlobalConfig.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/HostEnvironment.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/InstallRecord.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/InstalledToolchain.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/ProgramSearch.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/SystemArchiver.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/SystemCompiler.cpp
@@ -77,7 +80,7 @@ add_library(scrap_toolchain STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/driver/TomlText.cpp
 )
 target_include_directories(scrap_toolchain PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(scrap_toolchain PRIVATE scrap_process tomlplusplus::tomlplusplus)
+target_link_libraries(scrap_toolchain PRIVATE scrap_file scrap_process tomlplusplus::tomlplusplus)
 scrap_apply_compile_settings(scrap_toolchain WARNINGS_AS_ERRORS)
 
 # Compile commands

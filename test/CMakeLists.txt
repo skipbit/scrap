@@ -71,6 +71,9 @@ scrap_add_unit_test(process SOURCES
 scrap_add_unit_test(toolchain SOURCES
     unit/toolchain/CompilerIdentityTest.cpp
     unit/toolchain/GlobalConfigTest.cpp
+    unit/toolchain/HostEnvironmentTest.cpp
+    unit/toolchain/InstallRecordTest.cpp
+    unit/toolchain/InstalledToolchainTest.cpp
     unit/toolchain/SystemArchiverTest.cpp
     unit/toolchain/SystemCompilerTest.cpp
     unit/toolchain/ToolchainChoiceTest.cpp
