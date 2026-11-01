@@ -50,7 +50,7 @@ add_library(scrap_project STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/project/driver/DiskProjectFileSystem.cpp
 )
 target_include_directories(scrap_project PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(scrap_project PRIVATE scrap_file tomlplusplus::tomlplusplus)
+target_link_libraries(scrap_project PRIVATE scrap_file scrap_toolchain tomlplusplus::tomlplusplus)
 scrap_apply_compile_settings(scrap_project WARNINGS_AS_ERRORS)
 
 # Running other programs

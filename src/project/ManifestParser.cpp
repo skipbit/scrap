@@ -4,6 +4,7 @@
 #include "project/LanguageStandard.h"
 #include "project/Manifest.h"
 #include "project/ManifestError.h"
+#include "toolchain/ToolchainChoice.h"
 
 #include <toml++/toml.hpp>
 
@@ -42,6 +43,9 @@ constexpr std::array<std::string_view, 6> KnownLibraryKeys{ "name", "src", "incl
 
 /// Keys the public table of a [[lib]] entry recognises.
 constexpr std::array<std::string_view, 4> KnownPublicKeys{ "include-dirs", "defines", "compile-flags", "link-flags" };
+
+/// Keys the [toolchain] table recognises.
+constexpr std::array<std::string_view, 1> KnownToolchainKeys{ "name" };
 
 /**
  * A string read out of the manifest, kept with the node it came from so a
@@ -574,6 +578,33 @@ std::expected<void, ManifestError> parseTargetArray(const std::filesystem::path&
     return {};
 }
 
+/**
+ * Read the toolchain [toolchain] names, which is system or a specifier;
+ * nothing when the table is not there.
+ */
+std::expected<std::optional<std::string>, ManifestError> parseToolchain(const std::filesystem::path& file, const toml::table& root)
+{
+    const toml::node* node = root.get("toolchain");
+    if (node == nullptr) {
+        return std::nullopt;
+    }
+    const toml::table* table = node->as_table();
+    if (table == nullptr) {
+        return std::unexpected(errorAt(file, *node, "toolchain", "must be a table"));
+    }
+    if (auto known = rejectUnknownKeys(file, *table, "toolchain", KnownToolchainKeys); ! known.has_value()) {
+        return std::unexpected(known.error());
+    }
+    auto name = requireString(file, *table, "toolchain", "name");
+    if (! name.has_value()) {
+        return std::unexpected(name.error());
+    }
+    if (auto choice = Toolchain::parseToolchainChoice(name->value); ! choice.has_value()) {
+        return std::unexpected(errorAt(file, *name->node, "toolchain.name", "is neither system nor a toolchain specifier: " + choice.error()));
+    }
+    return std::move(name->value);
+}
+
 }  // anonymous namespace
 
 /**
@@ -608,6 +639,11 @@ std::expected<Manifest, ManifestError> parseManifest(std::string_view text, cons
     if (! libraries.has_value()) {
         return std::unexpected(libraries.error());
     }
+    auto toolchain = parseToolchain(file, parsed.table());
+    if (! toolchain.has_value()) {
+        return std::unexpected(toolchain.error());
+    }
+    manifest.toolchain = std::move(*toolchain);
 
     return manifest;
 }

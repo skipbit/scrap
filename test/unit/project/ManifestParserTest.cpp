@@ -8,6 +8,7 @@
 #include <gtest/gtest.h>
 
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -207,15 +208,56 @@ version = "0.1.0"
 
 [dependencies]
 fmt = "10.2.1"
-
-[toolchain]
-name = "llvm"
 )";
 
     const auto manifest = parseManifest(text, ManifestName);
 
     ASSERT_TRUE(manifest.has_value());
     EXPECT_EQ(manifest->package.name, "my-app");
+}
+
+/**
+ * [toolchain] name is read as written, a specifier or system, and a
+ * manifest without the table chooses none.
+ */
+TEST(ManifestParserTest, ReadsTheToolchainItChooses)
+{
+    const std::string package = "[package]\nname = \"app\"\nversion = \"0.1.0\"\n";
+
+    const auto specifier = parseManifest(package + "[toolchain]\nname = \"gcc@15.2.0\"\n", ManifestName);
+    ASSERT_TRUE(specifier.has_value()) << describe(specifier.error());
+    EXPECT_EQ(specifier->toolchain, std::optional<std::string>{ "gcc@15.2.0" });
+
+    const auto system = parseManifest(package + "[toolchain]\nname = \"system\"\n", ManifestName);
+    ASSERT_TRUE(system.has_value()) << describe(system.error());
+    EXPECT_EQ(system->toolchain, std::optional<std::string>{ "system" });
+
+    const auto none = parseManifest(package, ManifestName);
+    ASSERT_TRUE(none.has_value()) << describe(none.error());
+    EXPECT_FALSE(none->toolchain.has_value());
+}
+
+/**
+ * [toolchain] holds name alone, and the name must be system or a specifier;
+ * each fault points at where it was written.
+ */
+TEST(ManifestParserTest, ReportsAToolchainItCannotUse)
+{
+    const std::string package = "[package]\nname = \"app\"\nversion = \"0.1.0\"\n";
+    const auto fault = [&](const std::string& toolchain) {
+        const auto manifest = parseManifest(package + toolchain, ManifestName);
+        return manifest.has_value() ? std::string{ "<read>" } : describe(manifest.error());
+    };
+
+    const auto notATable = parseManifest("toolchain = \"gcc\"\n" + package, ManifestName);
+    ASSERT_FALSE(notATable.has_value());
+    EXPECT_EQ(describe(notATable.error()), "scrap.toml:1:13: error: toolchain: must be a table");
+    EXPECT_EQ(fault("[toolchain]\nname = \"gcc\"\nversion = \"15\"\n"),
+              "scrap.toml:6:11: error: toolchain.version: unknown key; expected one of name");
+    EXPECT_EQ(fault("[toolchain]\n"), "scrap.toml:4:1: error: toolchain.name: required key is missing");
+    EXPECT_EQ(fault("[toolchain]\nname = 15\n"), "scrap.toml:5:8: error: toolchain.name: must be a string");
+    EXPECT_EQ(fault("[toolchain]\nname = \"gcc@\"\n"),
+              "scrap.toml:5:8: error: toolchain.name: is neither system nor a toolchain specifier: it names no version after '@'");
 }
 
 /**
