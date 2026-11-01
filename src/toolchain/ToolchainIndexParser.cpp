@@ -50,8 +50,14 @@ std::string keyBelow(std::string_view table, std::string_view key)
     return joined;
 }
 
+bool isControlCharacter(char c)
+{
+    return static_cast<unsigned char>(c) < 0x20;
+}
+
 /**
- * The non-empty string @p table holds at @p key.
+ * The non-empty string @p table holds at @p key, free of control characters
+ * so it cannot break a line it is later written into.
  */
 std::expected<std::string, ToolchainIndexError> requireString(const toml::table& table, std::string_view tableKey, std::string_view key)
 {
@@ -65,6 +71,9 @@ std::expected<std::string, ToolchainIndexError> requireString(const toml::table&
     }
     if (value->empty()) {
         return std::unexpected(faultAt(*node, keyBelow(tableKey, key), "must not be empty"));
+    }
+    if (std::ranges::any_of(*value, isControlCharacter)) {
+        return std::unexpected(faultAt(*node, keyBelow(tableKey, key), "must not contain a control character"));
     }
     return std::move(*value);
 }

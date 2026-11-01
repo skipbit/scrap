@@ -402,3 +402,16 @@ TEST(ToolchainIndexParserTest, ReadsInFullAToolchainThisScrapMeets)
     EXPECT_EQ(faultOf(indexWith("[[toolchains]]\nfamily = \"../gcc\"\nversion = \"16.1.0\"\nmin_scrap_version = \"0.5.0\"\n")),
               "line 7: toolchains[0].family: must hold only lowercase letters, digits, '-', '_', '.' and '+', and not be '.' or '..'");
 }
+
+/**
+ * A string holding a control character refuses the whole index, so no
+ * value read from it can break a line it is later written into.
+ */
+TEST(ToolchainIndexParserTest, RefusesAControlCharacter)
+{
+    const std::string rule = "must not contain a control character";
+
+    EXPECT_EQ(faultOf(gccWithIngot("url = \"https://example.com/a\\n\"\nsha256 = \"" + std::string{ Sha256 } + "\"\n")), "line 16: toolchains[0].ingots[0].url: " + rule);
+    EXPECT_EQ(faultOf(gccWithIngot("registry = \"r\\t\"\ntag = \"t\"\ndigest = \"" + std::string{ Digest } + "\"\n")), "line 16: toolchains[0].ingots[0].registry: " + rule);
+    EXPECT_EQ(faultOf(gccWithIngot("registry = \"r\"\ntag = \"gcc:15\\r\"\ndigest = \"" + std::string{ Digest } + "\"\n")), "line 17: toolchains[0].ingots[0].tag: " + rule);
+}
