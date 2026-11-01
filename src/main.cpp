@@ -25,6 +25,19 @@
 
 using namespace scrap::Command;
 
+namespace {
+
+/**
+ * The value of the environment variable @p name, empty when it is unset.
+ */
+std::string environmentVariable(const char* name)
+{
+    const char* value = std::getenv(name);
+    return (value != nullptr) ? std::string{ value } : std::string{};
+}
+
+}  // namespace
+
 /**
  * Composition root: wires the CLI parser, renderers, and command resolvers
  * together and dispatches to Application::run().
@@ -32,22 +45,19 @@ using namespace scrap::Command;
 int main(int argc, char* argv[])
 {
     try {
-        const char* scrapHomeEnv = std::getenv("SCRAP_HOME");
-        const char* homeEnv = std::getenv("HOME");
-        const char* pathEnv = std::getenv("PATH");
-        const char* compilerEnv = std::getenv("CXX");
-
         std::error_code ec;
         auto cwd = std::filesystem::current_path(ec);
         if (ec) {
             cwd = ".";
         }
 
-        auto env = makeRuntimeEnvironment(cwd,
-                                          scrapHomeEnv != nullptr ? std::string{ scrapHomeEnv } : std::string{},
-                                          homeEnv != nullptr ? std::string{ homeEnv } : std::string{},
-                                          pathEnv != nullptr ? std::string{ pathEnv } : std::string{},
-                                          compilerEnv != nullptr ? std::string{ compilerEnv } : std::string{});
+        auto env = makeRuntimeEnvironment(ProcessInputs{
+            .workingDirectory = cwd,
+            .scrapHome = environmentVariable("SCRAP_HOME"),
+            .home = environmentVariable("HOME"),
+            .path = environmentVariable("PATH"),
+            .compiler = environmentVariable("CXX"),
+        });
 
         auto helpRenderer = std::make_unique<DefaultHelpRenderer>();
         auto versionRenderer = std::make_unique<DefaultVersionRenderer>();

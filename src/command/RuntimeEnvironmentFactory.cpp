@@ -53,21 +53,13 @@ std::optional<std::filesystem::path> resolveScrapHome(const std::filesystem::pat
 
 }  // anonymous namespace
 
-/**
- * Build a RuntimeEnvironment from the given cwd, SCRAP_HOME, HOME, PATH and
- * CXX values.
- */
-RuntimeEnvironment makeRuntimeEnvironment(const std::filesystem::path& cwd,
-                                          const std::string& scrapHome,
-                                          const std::string& home,
-                                          const std::string& pathEnv,
-                                          const std::string& compilerEnv)
+RuntimeEnvironment makeRuntimeEnvironment(const ProcessInputs& inputs)
 {
     RuntimeEnvironment env;
-    env.workingDirectory = cwd;
-    env.preferredCompiler = compilerEnv;
-    env.systemSearchPaths = splitSearchPaths(pathEnv);
-    env.scrapHome = resolveScrapHome(cwd, scrapHome, home);
+    env.workingDirectory = inputs.workingDirectory;
+    env.preferredCompiler = inputs.compiler;
+    env.systemSearchPaths = splitSearchPaths(inputs.path);
+    env.scrapHome = resolveScrapHome(inputs.workingDirectory, inputs.scrapHome, inputs.home);
     return env;
 }
 
