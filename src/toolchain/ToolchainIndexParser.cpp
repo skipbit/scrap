@@ -80,7 +80,7 @@ std::expected<std::string, ToolchainIndexError> requireName(const toml::table& t
         return std::unexpected(name.error());
     }
     if (! isToolchainName(*name)) {
-        return std::unexpected(faultAt(*table.get(key), keyBelow(tableKey, key), "must hold only letters, digits, '-', '_', '.' and '+', and not be '.' or '..'"));
+        return std::unexpected(faultAt(*table.get(key), keyBelow(tableKey, key), "must hold only lowercase letters, digits, '-', '_', '.' and '+', and not be '.' or '..'"));
     }
     return std::move(*name);
 }

@@ -342,7 +342,7 @@ TEST(ToolchainIndexParserTest, RefusesAMalformedIngot)
  */
 TEST(ToolchainIndexParserTest, RefusesANameThatCannotStandInAPath)
 {
-    const std::string rule = "must hold only letters, digits, '-', '_', '.' and '+', and not be '.' or '..'";
+    const std::string rule = "must hold only lowercase letters, digits, '-', '_', '.' and '+', and not be '.' or '..'";
     const std::string url = "url = \"u\"\nsha256 = \"" + std::string{ Sha256 } + "\"\n";
 
     EXPECT_EQ(faultOf(indexWith("[[toolchains]]\nfamily = \"../gcc\"\nversion = \"15.2.0\"\nstatus = \"active\"\ncompiler = \"g++\"\n")), "line 7: toolchains[0].family: " + rule);
@@ -400,5 +400,5 @@ TEST(ToolchainIndexParserTest, ReadsInFullAToolchainThisScrapMeets)
     EXPECT_EQ(faultOf(indexWith("[[toolchains]]\nfamily = \"gcc\"\nversion = \"16.1.0\"\nmin_scrap_version = \"0.4.0\"\nstatus = \"preview\"\n")),
               "line 10: toolchains[0].status: must be active, deprecated or disabled");
     EXPECT_EQ(faultOf(indexWith("[[toolchains]]\nfamily = \"../gcc\"\nversion = \"16.1.0\"\nmin_scrap_version = \"0.5.0\"\n")),
-              "line 7: toolchains[0].family: must hold only letters, digits, '-', '_', '.' and '+', and not be '.' or '..'");
+              "line 7: toolchains[0].family: must hold only lowercase letters, digits, '-', '_', '.' and '+', and not be '.' or '..'");
 }

@@ -75,10 +75,11 @@ TEST(ToolchainSpecifierTest, RejectsMalformedText)
  */
 TEST(ToolchainSpecifierTest, RejectsAFamilyThatIsNotAName)
 {
-    const std::string reason = "its family holds a character other than letters, digits, '-', '_', '.' and '+', or is '.' or '..'";
+    const std::string reason = "its family holds a character other than lowercase letters, digits, '-', '_', '.' and '+', or is '.' or '..'";
     EXPECT_EQ(rejectionOf("../gcc"), reason);
     EXPECT_EQ(rejectionOf("..@15"), reason);
     EXPECT_EQ(rejectionOf("gcc/x@15"), reason);
+    EXPECT_EQ(rejectionOf("GCC@15"), reason);
     EXPECT_EQ(rejectionOf("g++@15"), "");
 }
 

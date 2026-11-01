@@ -27,7 +27,7 @@ std::expected<ToolchainSpecifier, std::string> parseToolchainSpecifier(std::stri
     }
     const std::string_view family = text.substr(0, at);
     if (! isToolchainName(family)) {
-        return std::unexpected("its family holds a character other than letters, digits, '-', '_', '.' and '+', or is '.' or '..'");
+        return std::unexpected("its family holds a character other than lowercase letters, digits, '-', '_', '.' and '+', or is '.' or '..'");
     }
     if (at == std::string_view::npos) {
         return ToolchainSpecifier{ .family = std::string{ family }, .version = std::nullopt };
