@@ -33,6 +33,7 @@ int main(int argc, char* argv[])
 {
     try {
         const char* scrapHomeEnv = std::getenv("SCRAP_HOME");
+        const char* homeEnv = std::getenv("HOME");
         const char* pathEnv = std::getenv("PATH");
         const char* compilerEnv = std::getenv("CXX");
 
@@ -44,6 +45,7 @@ int main(int argc, char* argv[])
 
         auto env = makeRuntimeEnvironment(cwd,
                                           scrapHomeEnv != nullptr ? std::string{ scrapHomeEnv } : std::string{},
+                                          homeEnv != nullptr ? std::string{ homeEnv } : std::string{},
                                           pathEnv != nullptr ? std::string{ pathEnv } : std::string{},
                                           compilerEnv != nullptr ? std::string{ compilerEnv } : std::string{});
 

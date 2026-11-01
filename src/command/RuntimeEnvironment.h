@@ -16,8 +16,8 @@ struct RuntimeEnvironment {
     std::filesystem::path workingDirectory;
 
     /**
-     * The directory scrap keeps what it installs in, from SCRAP_HOME, or
-     * nothing when it is not set.
+     * The directory scrap keeps what it installs in: SCRAP_HOME, else
+     * ".scrap" below HOME, or nothing when neither is set.
      */
     std::optional<std::filesystem::path> scrapHome;
 
