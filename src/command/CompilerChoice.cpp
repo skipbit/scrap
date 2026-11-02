@@ -145,14 +145,19 @@ std::expected<std::optional<NamedToolchain>, std::string> namedToolchain(const R
 }
 
 /**
- * The compiler the system provides, or why there is none.
+ * The compiler the system provides, or why there is none. The line naming
+ * it says where system was named, when @p source says it was.
  */
-std::expected<ChosenCompiler, Toolchain::NoCompiler> systemCompiler(const RuntimeEnvironment& env)
+std::expected<ChosenCompiler, Toolchain::NoCompiler> systemCompiler(const RuntimeEnvironment& env, const std::optional<ChoiceSource> source)
 {
     auto found = Toolchain::detectSystemCompiler(env.preferredCompiler, env.systemSearchPaths);
     if (found.has_value()) {
         std::string announcement = "Using the system compiler '" + printablePath(found->path) + "' (";
         announcement += describeOrigin(found->origin);
+        if (source.has_value()) {
+            announcement += ", as system ";
+            announcement += describeSource(*source);
+        }
         announcement += ")\n";
         return ChosenCompiler{ .compiler = std::move(found->path), .runtimeLibraryDirectories = {}, .announcement = std::move(announcement) };
     }
@@ -219,7 +224,7 @@ std::expected<ChosenCompiler, std::string> chooseCompiler(const RuntimeEnvironme
     }
     const std::optional<NamedToolchain>& toolchain = *named;
     if (! toolchain.has_value()) {
-        auto system = systemCompiler(env);
+        auto system = systemCompiler(env, std::nullopt);
         if (! system.has_value()) {
             return std::unexpected(renderNoCompilerWhereNothingIsNamed(env, system.error()));
         }
@@ -228,7 +233,7 @@ std::expected<ChosenCompiler, std::string> chooseCompiler(const RuntimeEnvironme
     if (const auto* specifier = std::get_if<Toolchain::ToolchainSpecifier>(&toolchain->choice)) {
         return installedCompiler(env, *toolchain, *specifier);
     }
-    auto system = systemCompiler(env);
+    auto system = systemCompiler(env, toolchain->source);
     if (! system.has_value()) {
         return std::unexpected(renderNoSystemCompiler(system.error()));
     }

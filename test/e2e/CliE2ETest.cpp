@@ -2922,7 +2922,8 @@ TEST_F(CliE2ETest, BuildEmbedsTheRuntimeLibraryDirectoryOfTheToolchain)
 }
 
 /**
- * system chooses the compiler the system provides over the global default.
+ * system chooses the compiler the system provides over the global default,
+ * and the build says where system was named.
  */
 TEST_F(CliE2ETest, BuildUsesTheSystemCompilerWhenSystemIsChosen)
 {
@@ -2931,10 +2932,23 @@ TEST_F(CliE2ETest, BuildUsesTheSystemCompilerWhenSystemIsChosen)
     writeFile("hello/scrap.toml", std::string{ ValidManifest } + "[toolchain]\nname = \"system\"\n");
     writeFile("hello/src/main.cpp", MainSource);
 
-    auto result = runScrap({ "build" }, { realCompiler() }, _root / "hello", BuildTimeout);
+    auto project = runScrap({ "build" }, { realCompiler() }, _root / "hello", BuildTimeout);
 
-    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
-    EXPECT_NE(result.stderrText.find("Using the system compiler '"), std::string::npos) << result.stderrText;
+    EXPECT_EQ(project.exitCode, 0) << project.stderrText;
+    EXPECT_NE(project.stderrText.find("' (from CXX, as system from scrap.toml)\n"), std::string::npos) << project.stderrText;
+    EXPECT_EQ(compilersUsed(), "");
+
+    ASSERT_EQ(runScrap({ "toolchain", "select", "system" }, {}, _root).exitCode, 0);
+    writeFile("hello/scrap.toml", ValidManifest);
+    auto global = runScrap({ "build" }, { realCompiler() }, _root / "hello", BuildTimeout);
+
+    EXPECT_EQ(global.exitCode, 0) << global.stderrText;
+    EXPECT_NE(global.stderrText.find("' (from CXX, as system from the global default)\n"), std::string::npos) << global.stderrText;
+
+    auto variable = runScrap({ "build" }, { realCompiler(), "SCRAP_TOOLCHAIN=system" }, _root / "hello", BuildTimeout);
+
+    EXPECT_EQ(variable.exitCode, 0) << variable.stderrText;
+    EXPECT_NE(variable.stderrText.find("' (from CXX, as system from SCRAP_TOOLCHAIN)\n"), std::string::npos) << variable.stderrText;
     EXPECT_EQ(compilersUsed(), "");
 }
 
