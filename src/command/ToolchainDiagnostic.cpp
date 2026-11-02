@@ -62,6 +62,11 @@ std::string render(const std::string_view specifier, const Toolchain::NotInstall
     return renderNotInstalled(specifier);
 }
 
+std::string render(std::string_view, const Toolchain::CannotListToolchains& fault)
+{
+    return "error: cannot list '" + printablePath(fault.directory) + "': " + fault.code.message() + "\n" + std::string{ PermissionHint };
+}
+
 }  // anonymous namespace
 
 std::string renderNotASpecifier(std::string_view text, std::string_view reason)

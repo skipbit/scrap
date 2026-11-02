@@ -71,9 +71,9 @@ std::string InstalledToolchain::name() const
     return family + "@" + version.text();
 }
 
-std::expected<std::optional<InstalledToolchain>, std::string> findInstalledToolchain(const std::filesystem::path& scrapHome,
-                                                                                     const HostEnvironment& host,
-                                                                                     const ToolchainSpecifier& specifier)
+std::expected<std::optional<InstalledToolchain>, InstalledToolchainFault> findInstalledToolchain(const std::filesystem::path& scrapHome,
+                                                                                                 const HostEnvironment& host,
+                                                                                                 const ToolchainSpecifier& specifier)
 {
     const std::filesystem::path familyPath = familyDirectory(scrapHome, specifier.family);
     std::error_code ec;
@@ -82,7 +82,7 @@ std::expected<std::optional<InstalledToolchain>, std::string> findInstalledToolc
         return std::nullopt;
     }
     if (ec) {
-        return std::unexpected("cannot list '" + familyPath.string() + "': " + ec.message());
+        return std::unexpected(CannotListToolchains{ .directory = familyPath, .code = ec });
     }
 
     std::optional<ToolchainVersion> newest;
@@ -99,13 +99,17 @@ std::expected<std::optional<InstalledToolchain>, std::string> findInstalledToolc
         }
         entries.increment(ec);
         if (ec) {
-            return std::unexpected("cannot list '" + familyPath.string() + "': " + ec.message());
+            return std::unexpected(CannotListToolchains{ .directory = familyPath, .code = ec });
         }
     }
     if (! newest.has_value()) {
         return std::nullopt;
     }
-    return readInstalled(specifier.family, *newest, newestDirectory);
+    auto installed = readInstalled(specifier.family, *newest, newestDirectory);
+    if (! installed.has_value()) {
+        return std::unexpected(UnusableInstalled{ .reason = std::move(installed.error()) });
+    }
+    return std::move(*installed);
 }
 
 std::expected<InstalledToolchain, InstalledToolchainFault> findInstalledToolchainForHost(const std::filesystem::path& scrapHome,
@@ -117,7 +121,7 @@ std::expected<InstalledToolchain, InstalledToolchainFault> findInstalledToolchai
     }
     auto found = findInstalledToolchain(scrapHome, *host, specifier);
     if (! found.has_value()) {
-        return std::unexpected(UnusableInstalled{ .reason = std::move(found.error()) });
+        return std::unexpected(std::move(found.error()));
     }
     std::optional<InstalledToolchain>& toolchain = *found;
     if (! toolchain.has_value()) {

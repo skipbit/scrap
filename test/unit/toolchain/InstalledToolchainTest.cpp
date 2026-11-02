@@ -34,13 +34,23 @@ void install(const TempDirectory& home, std::string_view family, std::string_vie
 }
 
 /**
+ * The reason @p fault gives when it reports an unusable toolchain, or
+ * "<other fault>".
+ */
+std::string reasonOf(const InstalledToolchainFault& fault)
+{
+    const auto* unusable = std::get_if<UnusableInstalled>(&fault);
+    return unusable == nullptr ? "<other fault>" : unusable->reason;
+}
+
+/**
  * The version of the toolchain @p specifier finds below @p home, or
  * "<none>" when it finds none.
  */
 std::string versionFound(const TempDirectory& home, std::string_view specifier)
 {
     const auto found = findInstalledToolchain(home.path(), Host, parseToolchainSpecifier(specifier).value());
-    EXPECT_TRUE(found.has_value()) << found.error();
+    EXPECT_TRUE(found.has_value()) << reasonOf(found.error());
     if (! found.has_value() || ! found->has_value()) {
         return "<none>";
     }
@@ -112,12 +122,12 @@ TEST(InstalledToolchainTest, RefusesTheNewestWhenItsRecordCannotBeUsed)
 
     const auto broken = findInstalledToolchain(home.path(), Host, parseToolchainSpecifier("gcc").value());
     ASSERT_FALSE(broken.has_value());
-    EXPECT_TRUE(broken.error().ends_with("line 1: compiler: must be a string")) << broken.error();
+    EXPECT_TRUE(reasonOf(broken.error()).ends_with("line 1: compiler: must be a string")) << reasonOf(broken.error());
 
     home.writeFile("toolchains/gcc/15.2.0/linux-x86_64/" + std::string{ InstallRecordName }, "compiler = \"bin/clang++\"\n");
     const auto missing = findInstalledToolchain(home.path(), Host, parseToolchainSpecifier("gcc").value());
     ASSERT_FALSE(missing.has_value());
-    EXPECT_TRUE(missing.error().ends_with("bin/clang++', which is not there")) << missing.error();
+    EXPECT_TRUE(reasonOf(missing.error()).ends_with("bin/clang++', which is not there")) << reasonOf(missing.error());
 }
 
 /**
@@ -133,7 +143,7 @@ TEST(InstalledToolchainTest, FindsTheRuntimeLibraryDirectories)
     home.writeFile(directory + "/" + std::string{ InstallRecordName }, "compiler = \"bin/g++\"\nruntime-library-dirs = [\"lib64\"]\n");
 
     const auto found = findInstalledToolchain(home.path(), Host, parseToolchainSpecifier("gcc").value());
-    ASSERT_TRUE(found.has_value()) << found.error();
+    ASSERT_TRUE(found.has_value()) << reasonOf(found.error());
     ASSERT_TRUE(found->has_value());
     const std::vector<std::filesystem::path> expected{ home.path() / directory / "lib64" };
     EXPECT_EQ((*found)->runtimeLibraryDirectories, expected);
@@ -141,7 +151,7 @@ TEST(InstalledToolchainTest, FindsTheRuntimeLibraryDirectories)
     home.writeFile(directory + "/" + std::string{ InstallRecordName }, "compiler = \"bin/g++\"\nruntime-library-dirs = [\"lib\"]\n");
     const auto missing = findInstalledToolchain(home.path(), Host, parseToolchainSpecifier("gcc").value());
     ASSERT_FALSE(missing.has_value());
-    EXPECT_TRUE(missing.error().ends_with("/lib', which is not there")) << missing.error();
+    EXPECT_TRUE(reasonOf(missing.error()).ends_with("/lib', which is not there")) << reasonOf(missing.error());
 }
 
 /**
@@ -210,4 +220,24 @@ TEST(InstalledToolchainTest, ReportsAnInstalledToolchainThatCannotBeUsed)
     const auto* unusable = std::get_if<UnusableInstalled>(&found.error());
     ASSERT_NE(unusable, nullptr);
     EXPECT_TRUE(unusable->reason.ends_with("which is not there")) << unusable->reason;
+}
+
+/**
+ * A family directory that cannot be listed is reported as such, with where
+ * and why, rather than as a toolchain to install again.
+ */
+TEST(InstalledToolchainTest, ReportsAFamilyThatCannotBeListed)
+{
+    const TempDirectory home;
+    home.writeFile("toolchains/.keep", "");
+    // A link to itself fails to list even for a user every permission lets in.
+    std::filesystem::create_directory_symlink("gcc", home.path() / "toolchains" / "gcc");
+
+    const auto found = findInstalledToolchain(home.path(), Host, parseToolchainSpecifier("gcc").value());
+
+    ASSERT_FALSE(found.has_value());
+    const auto* unlisted = std::get_if<CannotListToolchains>(&found.error());
+    ASSERT_NE(unlisted, nullptr) << reasonOf(found.error());
+    EXPECT_EQ(unlisted->directory, home.path() / "toolchains" / "gcc");
+    EXPECT_TRUE(unlisted->code) << unlisted->code.message();
 }

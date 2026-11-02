@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <system_error>
 #include <variant>
 #include <vector>
 
@@ -45,9 +46,18 @@ struct UnusableInstalled {
 struct NotInstalled { };
 
 /**
+ * @brief The directory the versions of a family are kept in cannot be
+ *        listed.
+ */
+struct CannotListToolchains {
+    std::filesystem::path directory;
+    std::error_code code;
+};
+
+/**
  * @brief Why no installed toolchain can be used for a specifier.
  */
-using InstalledToolchainFault = std::variant<NoToolchainForHost, UnusableInstalled, NotInstalled>;
+using InstalledToolchainFault = std::variant<NoToolchainForHost, UnusableInstalled, NotInstalled, CannotListToolchains>;
 
 /**
  * @brief The newest toolchain installed below @p scrapHome for @p host that
@@ -60,11 +70,12 @@ using InstalledToolchainFault = std::variant<NoToolchainForHost, UnusableInstall
  * error rather than a reason to choose an older one.
  *
  * @return The toolchain, nothing when none is installed, or why the one
- *         found cannot be used.
+ *         found cannot be used (UnusableInstalled) or the versions cannot
+ *         be listed (CannotListToolchains).
  */
-[[nodiscard]] std::expected<std::optional<InstalledToolchain>, std::string> findInstalledToolchain(const std::filesystem::path& scrapHome,
-                                                                                                   const HostEnvironment& host,
-                                                                                                   const ToolchainSpecifier& specifier);
+[[nodiscard]] std::expected<std::optional<InstalledToolchain>, InstalledToolchainFault> findInstalledToolchain(const std::filesystem::path& scrapHome,
+                                                                                                               const HostEnvironment& host,
+                                                                                                               const ToolchainSpecifier& specifier);
 
 /**
  * @brief The newest toolchain installed below @p scrapHome for the host

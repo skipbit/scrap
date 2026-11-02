@@ -79,6 +79,9 @@ TEST(ToolchainDiagnosticTest, RendersWhyNoInstalledToolchainCanBeUsed)
     EXPECT_EQ(renderInstalledToolchainFault("gcc@15", NotInstalled{}),
               "error: toolchain 'gcc@15' is not installed\n"
               "hint: run 'scrap toolchain install gcc@15'\n");
+    const std::error_code denied = std::make_error_code(std::errc::permission_denied);
+    EXPECT_EQ(renderInstalledToolchainFault("gcc@15", CannotListToolchains{ .directory = "/home/me/.scrap/toolchains/gcc", .code = denied }),
+              "error: cannot list '/home/me/.scrap/toolchains/gcc': " + denied.message() + "\n" + PermissionLine);
 }
 
 /**
