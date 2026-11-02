@@ -50,7 +50,7 @@ add_library(scrap_project STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/project/driver/DiskProjectFileSystem.cpp
 )
 target_include_directories(scrap_project PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(scrap_project PRIVATE scrap_file tomlplusplus::tomlplusplus)
+target_link_libraries(scrap_project PRIVATE scrap_file scrap_toolchain tomlplusplus::tomlplusplus)
 scrap_apply_compile_settings(scrap_project WARNINGS_AS_ERRORS)
 
 # Running other programs
@@ -61,19 +61,28 @@ add_library(scrap_process STATIC
 target_include_directories(scrap_process PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 scrap_apply_compile_settings(scrap_process WARNINGS_AS_ERRORS)
 
-# Toolchains: detecting the system's, and reading specifiers and the index
+# Toolchains: detecting the system's, reading specifiers and the index,
+# keeping the global default, and finding the installed ones
 add_library(scrap_toolchain STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/CompilerIdentity.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/GlobalConfig.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/GlobalConfigFile.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/HostEnvironment.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/InstallRecord.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/InstalledToolchain.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/ProgramSearch.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/ScrapHomeLayout.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/SystemArchiver.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/SystemCompiler.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/ToolchainChoice.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/ToolchainIndexParser.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/ToolchainName.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/ToolchainSpecifier.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/ToolchainVersion.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/driver/TomlText.cpp
 )
 target_include_directories(scrap_toolchain PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(scrap_toolchain PRIVATE scrap_process tomlplusplus::tomlplusplus)
+target_link_libraries(scrap_toolchain PRIVATE scrap_file scrap_process tomlplusplus::tomlplusplus)
 scrap_apply_compile_settings(scrap_toolchain WARNINGS_AS_ERRORS)
 
 # Compile commands
@@ -119,6 +128,7 @@ add_library(scrap_command STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/command/CommandHandler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/CommandPath.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/CommandResolver.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/CompilerChoice.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/DefaultHelpRenderer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/DefaultVersionRenderer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ExternalCommandResolver.cpp
@@ -135,14 +145,19 @@ add_library(scrap_command STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ProjectDiagnostic.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/RunCommandHandler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/RuntimeEnvironmentFactory.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/ScrapHome.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ScriptsReader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/StubScriptsReader.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainDiagnostic.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainSelectCommandHandler.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainUnselectCommandHandler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/VersionRenderer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/driver/CLI11ParserAdapter.cpp
 )
 target_include_directories(scrap_command PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-# The command headers name project, compile and build types; the toolchain,
-# running a program and CLI11 stay inside.
+# The command headers other libraries include name project, compile and
+# build types; the toolchain, running a program and CLI11 stay inside, so
+# only headers used within the command library may name them.
 target_link_libraries(scrap_command
     PUBLIC scrap_project scrap_compile scrap_build
     PRIVATE scrap_toolchain scrap_process CLI11::CLI11

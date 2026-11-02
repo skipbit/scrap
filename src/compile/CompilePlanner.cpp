@@ -279,6 +279,9 @@ std::vector<LinkCommand> planLinkCommands(const BuildSettings& settings, const s
         if (const auto color = settings.driver.colorOption(); color.has_value()) {
             arguments.push_back(*color);
         }
+        for (const std::filesystem::path& directory : settings.runtimeLibraryDirectories) {
+            arguments.insert(arguments.end(), { "-Xlinker", "-rpath", "-Xlinker", directory.string() });
+        }
         std::vector<std::filesystem::path> inputs;
         for (const std::string& object : objectFiles(settings, entry)) {
             inputs.emplace_back(object);

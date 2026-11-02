@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <filesystem>
 #include <string>
 #include <string_view>
@@ -57,5 +58,34 @@ namespace scrap::Command {
  * @return The name as text for a terminal.
  */
 [[nodiscard]] std::string printableName(std::string_view name);
+
+/// The longest value echoed back, counted before any escape expands it.
+inline constexpr std::size_t EchoedValueLimit = 64;
+
+/**
+ * @brief A value the user gave, made safe to print and cut where it is
+ *        longer than EchoedValueLimit.
+ *
+ * Every value long enough to be cut is already too long to be a project
+ * name, so the cut costs the reader nothing and keeps one screen enough for
+ * the message. A target name is not cut: it names something the manifest
+ * declares, and a message has to name it as the manifest does.
+ *
+ * @param text Value to render.
+ * @return The value as text for a terminal, ending in "..." when cut.
+ */
+[[nodiscard]] std::string printableEcho(std::string_view text);
+
+/**
+ * @brief Text the user typed, made safe to print as printableText() makes
+ *        it and cut where it is longer than EchoedValueLimit.
+ *
+ * Letters outside ASCII stay readable, so a mistyped letter shows as typed.
+ * A cut that splits a letter leaves bytes that printableText() escapes.
+ *
+ * @param text Text to render.
+ * @return The text for a terminal, ending in "..." when cut.
+ */
+[[nodiscard]] std::string printableTypedEcho(std::string_view text);
 
 }  // namespace scrap::Command

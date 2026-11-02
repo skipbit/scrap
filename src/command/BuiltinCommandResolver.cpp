@@ -14,6 +14,8 @@
 #include "command/ProjectBuild.h"
 #include "command/RunCommandHandler.h"
 #include "command/RuntimeEnvironment.h"
+#include "command/ToolchainSelectCommandHandler.h"
+#include "command/ToolchainUnselectCommandHandler.h"
 #include "command/VersionRenderer.h"
 #include "project/ProjectFileSystem.h"
 
@@ -243,6 +245,42 @@ CommandEntry makeRunEntry()
     return entry;
 }
 
+/**
+ * Create the entry for "toolchain select", which takes the specifier of the
+ * toolchain to keep as the global default.
+ */
+CommandEntry makeToolchainSelectEntry()
+{
+    CommandEntry entry;
+    entry.spec.name = "select";
+    entry.spec.description = "Select a toolchain as the global default";
+    entry.spec.category = "Toolchain Commands";
+    entry.spec.options.positional.push_back(
+        PositionalDef{ .name = "specifier", .description = "Toolchain to select, as <family>[@<version>] or system", .required = true });
+    entry.source = CommandSource::Builtin;
+    entry.createHandler = [](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
+        return std::make_unique<ToolchainSelectCommandHandler>();
+    };
+    return entry;
+}
+
+/**
+ * Create the entry for "toolchain unselect", which removes the global
+ * default.
+ */
+CommandEntry makeToolchainUnselectEntry()
+{
+    CommandEntry entry;
+    entry.spec.name = "unselect";
+    entry.spec.description = "Remove the global default toolchain";
+    entry.spec.category = "Toolchain Commands";
+    entry.source = CommandSource::Builtin;
+    entry.createHandler = [](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
+        return std::make_unique<ToolchainUnselectCommandHandler>();
+    };
+    return entry;
+}
+
 }  // anonymous namespace
 
 /**
@@ -305,7 +343,8 @@ std::vector<CommandEntry> BuiltinCommandResolver::resolve([[maybe_unused]] const
         auto toolchain = makePlaceholder("toolchain", "Manage toolchains", "Toolchain Commands");
         toolchain.subcommands.push_back(makePlaceholder("list", "Display installed toolchains", "Toolchain Commands"));
         toolchain.subcommands.push_back(makePlaceholder("install", "Install a new toolchain", "Toolchain Commands"));
-        toolchain.subcommands.push_back(makePlaceholder("select", "Select a toolchain as the default", "Toolchain Commands"));
+        toolchain.subcommands.push_back(makeToolchainSelectEntry());
+        toolchain.subcommands.push_back(makeToolchainUnselectEntry());
         entries.push_back(std::move(toolchain));
     }
 

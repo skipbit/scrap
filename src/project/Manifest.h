@@ -4,6 +4,7 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -81,6 +82,9 @@ struct Manifest {
      * is a different statement from declaring no targets.
      */
     bool declaresTargets = false;
+
+    /// The toolchain [toolchain] name chooses, system or a specifier as written; nothing when it chooses none.
+    std::optional<std::string> toolchain;
 };
 
 }  // namespace scrap::Project

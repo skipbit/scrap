@@ -2,6 +2,7 @@
 
 #include "build/BuildOutput.h"
 #include "build/BuildStep.h"
+#include "command/PermissionHint.h"
 #include "command/PrintableText.h"
 #include "command/ProjectArgument.h"
 #include "compile/CompilationDatabase.h"
@@ -30,11 +31,10 @@ namespace scrap::Command {
 
 namespace {
 
+static_assert(EchoedValueLimit == Project::MaxProjectNameLength, "a value cut for echo is longer than any project name");
+
 /// Next step for a path argument that cannot be searched from.
 constexpr std::string_view PathHint = "hint: pass a directory inside a project, or omit the path to use the current directory\n";
-
-/// Next step for a path the operating system refused.
-constexpr std::string_view PermissionHint = "hint: check the permissions of the path\n";
 
 /// Next step for a disk or a quota that is full.
 constexpr std::string_view DiskSpaceHint = "hint: free some disk space and run the command again\n";
@@ -119,26 +119,6 @@ std::string render(const Project::ManifestError& error)
         text += " and run the command again\n";
     }
     return text;
-}
-
-/// The longest value echoed back, counted before any escape expands it.
-constexpr std::size_t EchoedNameLimit = Project::MaxProjectNameLength;
-
-/**
- * A value the user gave, made safe to print and cut where it is longer than
- * a name can be.
- *
- * Every value long enough to be cut is already too long to be the name it
- * was given as, so the cut costs the reader nothing and keeps one screen
- * enough for the message. A target name is not cut: it names something the
- * manifest declares, and a message has to name it as the manifest does.
- */
-std::string printableEcho(const std::string_view text)
-{
-    if (text.size() <= EchoedNameLimit) {
-        return printableName(text);
-    }
-    return printableName(text.substr(0, EchoedNameLimit)) + "...";
 }
 
 std::string render(const Project::InvalidProjectName& error)
@@ -329,25 +309,6 @@ std::string renderProjectArgumentError(const ProjectArgumentError& error)
         return renderEmptyPathArgument();
     }
     return renderProjectError(std::get<Project::ProjectError>(error));
-}
-
-std::string renderNoCompilerFound()
-{
-    return "error: no C++ compiler found\n"
-           "hint: install a C++ compiler, or set CXX to the one to use\n";
-}
-
-/**
- * The value is echoed through printableEcho(), since the environment can hold any
- * byte and the answer is read in a terminal.
- */
-std::string renderUnusableCompilerRequest(const std::string_view requested)
-{
-    std::string text = "error: CXX names '";
-    text += printableEcho(requested);
-    text += "', which cannot be run\n";
-    text += "hint: set CXX to the path of a compiler, or unset it to search for one\n";
-    return text;
 }
 
 std::string renderNoTargetToBuild(const std::filesystem::path& projectRoot)

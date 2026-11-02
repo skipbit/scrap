@@ -4,6 +4,7 @@
 
 #include <cstddef>
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -33,24 +34,33 @@ std::vector<std::filesystem::path> splitSearchPaths(const std::string& pathEnv)
     return paths;
 }
 
+/**
+ * The directory scrap keeps what it installs in: SCRAP_HOME, else ".scrap"
+ * below HOME, taken against @p cwd; nothing when both are empty.
+ */
+std::optional<std::filesystem::path> resolveScrapHome(const std::filesystem::path& cwd,
+                                                      const std::string& scrapHome,
+                                                      const std::string& home)
+{
+    if (! scrapHome.empty()) {
+        return cwd / scrapHome;
+    }
+    if (! home.empty()) {
+        return cwd / home / ".scrap";
+    }
+    return std::nullopt;
+}
+
 }  // anonymous namespace
 
-/**
- * Build a RuntimeEnvironment from the given cwd, SCRAP_HOME, PATH and CXX
- * values.
- */
-RuntimeEnvironment makeRuntimeEnvironment(const std::filesystem::path& cwd,
-                                          const std::string& scrapHome,
-                                          const std::string& pathEnv,
-                                          const std::string& compilerEnv)
+RuntimeEnvironment makeRuntimeEnvironment(const ProcessInputs& inputs)
 {
     RuntimeEnvironment env;
-    env.workingDirectory = cwd;
-    env.preferredCompiler = compilerEnv;
-    env.systemSearchPaths = splitSearchPaths(pathEnv);
-    if (! scrapHome.empty()) {
-        env.scrapHome = scrapHome;
-    }
+    env.workingDirectory = inputs.workingDirectory;
+    env.preferredCompiler = inputs.compiler;
+    env.requestedToolchain = inputs.toolchain;
+    env.systemSearchPaths = splitSearchPaths(inputs.path);
+    env.scrapHome = resolveScrapHome(inputs.workingDirectory, inputs.scrapHome, inputs.home);
     return env;
 }
 

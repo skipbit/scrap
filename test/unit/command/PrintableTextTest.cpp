@@ -5,10 +5,12 @@
 #include <string>
 #include <string_view>
 
+using scrap::Command::printableEcho;
 using scrap::Command::printableLines;
 using scrap::Command::printableName;
 using scrap::Command::printablePath;
 using scrap::Command::printableText;
+using scrap::Command::printableTypedEcho;
 
 /**
  * Letters outside ASCII are what the user typed, so a well-formed sequence
@@ -119,4 +121,28 @@ TEST(PrintableTextTest, EscapesWhatANameCannotPrint)
     EXPECT_EQ(printableName(std::string_view{ "a\x1b[31m\x7f\\b" }), "a\\x1B[31m\\x7F\\x5Cb");
     EXPECT_EQ(printableName("\xe6\x97\xa5"), "\\xE6\\x97\\xA5");
     EXPECT_EQ(printableName(std::string(100, 'n')), std::string(100, 'n'));
+}
+
+/**
+ * A value is escaped as a name is, and cut where it is longer than a project
+ * name can be.
+ */
+TEST(PrintableTextTest, CutsAnEchoedValueThatIsTooLongToBeAName)
+{
+    EXPECT_EQ(printableEcho("a\x1b[31m"), "a\\x1B[31m");
+    EXPECT_EQ(printableEcho(std::string(64, 'n')), std::string(64, 'n'));
+    EXPECT_EQ(printableEcho(std::string(65, 'n')), std::string(64, 'n') + "...");
+}
+
+/**
+ * Text the user typed is cut as an echoed value is, and keeps its letters
+ * outside ASCII; a letter the cut splits is escaped.
+ */
+TEST(PrintableTextTest, CutsTypedTextAndKeepsItsLetters)
+{
+    // U+FF11, three bytes.
+    EXPECT_EQ(printableTypedEcho("gcc@\xef\xbc\x91"), "gcc@\xef\xbc\x91");
+    EXPECT_EQ(printableTypedEcho("a\x1b[31m"), "a\\x1B[31m");
+    EXPECT_EQ(printableTypedEcho(std::string(65, 'n')), std::string(64, 'n') + "...");
+    EXPECT_EQ(printableTypedEcho(std::string(63, 'n') + "\xef\xbc\x91"), std::string(63, 'n') + "\\xEF...");
 }

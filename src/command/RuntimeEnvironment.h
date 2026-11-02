@@ -16,8 +16,8 @@ struct RuntimeEnvironment {
     std::filesystem::path workingDirectory;
 
     /**
-     * The directory scrap keeps what it installs in, from SCRAP_HOME, or
-     * nothing when it is not set.
+     * The directory scrap keeps what it installs in: SCRAP_HOME, else
+     * ".scrap" below HOME, or nothing when neither is set.
      */
     std::optional<std::filesystem::path> scrapHome;
 
@@ -32,6 +32,12 @@ struct RuntimeEnvironment {
      * nothing.
      */
     std::string preferredCompiler;
+
+    /**
+     * The toolchain the environment chooses, system or a specifier as
+     * written in SCRAP_TOOLCHAIN, or empty when it chooses none.
+     */
+    std::string requestedToolchain;
 };
 
 }  // namespace scrap::Command

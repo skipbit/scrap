@@ -46,21 +46,6 @@ namespace scrap::Command {
 [[nodiscard]] std::string renderProjectArgumentError(const ProjectArgumentError& error);
 
 /**
- * @brief Describe a system with no C++ compiler, and what to do next.
- *
- * @return Text for standard error, each line ending in a newline.
- */
-[[nodiscard]] std::string renderNoCompilerFound();
-
-/**
- * @brief Describe a compiler the environment asked for and cannot be run.
- *
- * @param requested The value CXX gave.
- * @return Text for standard error, each line ending in a newline.
- */
-[[nodiscard]] std::string renderUnusableCompilerRequest(std::string_view requested);
-
-/**
  * @brief Describe a project that has nothing to build, and what to do next.
  *
  * @param projectRoot Directory the manifest was read from.

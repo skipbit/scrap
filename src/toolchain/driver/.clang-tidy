@@ -1,0 +1,12 @@
+---
+# Writing TOML with toml++ combines the bits of its format_flags, which the
+# static analyzer reports from inside toml++'s headers, where no NOLINT can
+# reach. Only the code in this directory leaves that check out; it stays on
+# for the rest of scrap, and returns when the TOML writer here is replaced.
+
+InheritParentConfig: true
+
+Checks: >
+  -clang-analyzer-optin.core.EnumCastOutOfRange
+
+WarningsAsErrors: '*'

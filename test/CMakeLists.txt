@@ -57,6 +57,7 @@ scrap_add_unit_test(command SOURCES
     unit/command/ProjectCommandResolverTest.cpp
     unit/command/ProjectDiagnosticTest.cpp
     unit/command/RuntimeEnvironmentFactoryTest.cpp
+    unit/command/ToolchainDiagnosticTest.cpp
     unit/command/ApplicationTest.cpp
     PROPERTIES TIMEOUT 60
 )
@@ -70,8 +71,15 @@ scrap_add_unit_test(process SOURCES
 
 scrap_add_unit_test(toolchain SOURCES
     unit/toolchain/CompilerIdentityTest.cpp
+    unit/toolchain/GlobalConfigFileTest.cpp
+    unit/toolchain/GlobalConfigTest.cpp
+    unit/toolchain/HostEnvironmentTest.cpp
+    unit/toolchain/InstallRecordTest.cpp
+    unit/toolchain/InstalledToolchainTest.cpp
+    unit/toolchain/ScrapHomeLayoutTest.cpp
     unit/toolchain/SystemArchiverTest.cpp
     unit/toolchain/SystemCompilerTest.cpp
+    unit/toolchain/ToolchainChoiceTest.cpp
     unit/toolchain/ToolchainIndexParserTest.cpp
     unit/toolchain/ToolchainNameTest.cpp
     unit/toolchain/ToolchainSpecifierTest.cpp
