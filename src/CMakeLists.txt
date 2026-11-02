@@ -155,8 +155,9 @@ add_library(scrap_command STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/command/driver/CLI11ParserAdapter.cpp
 )
 target_include_directories(scrap_command PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-# The command headers name project, compile and build types; the toolchain,
-# running a program and CLI11 stay inside.
+# The command headers other libraries include name project, compile and
+# build types; the toolchain, running a program and CLI11 stay inside, so
+# only headers used within the command library may name them.
 target_link_libraries(scrap_command
     PUBLIC scrap_project scrap_compile scrap_build
     PRIVATE scrap_toolchain scrap_process CLI11::CLI11
