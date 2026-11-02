@@ -30,6 +30,7 @@ find_package(Threads REQUIRED)
 
 # Reading and writing whole files
 add_library(scrap_file STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/file/StagedFile.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/file/WholeFile.cpp
 )
 target_include_directories(scrap_file PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

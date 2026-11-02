@@ -87,6 +87,7 @@ scrap_add_unit_test(toolchain SOURCES
 )
 
 scrap_add_unit_test(file SOURCES
+    unit/file/StagedFileTest.cpp
     unit/file/WholeFileTest.cpp
 )
 
