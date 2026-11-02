@@ -1,12 +1,12 @@
 #pragma once
 
 #include "command/RuntimeEnvironment.h"
-#include "toolchain/InstalledToolchain.h"
 
 #include <expected>
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace scrap::Command {
 
@@ -14,9 +14,9 @@ namespace scrap::Command {
  * @brief The compiler a build uses, and where it came from.
  */
 struct ChosenCompiler {
-    std::filesystem::path compiler;                          ///< The program to run, as an absolute path.
-    std::optional<Toolchain::InstalledToolchain> toolchain;  ///< The installed toolchain it belongs to; nothing for the system's.
-    std::string announcement;                                ///< The line naming it, ending in a newline.
+    std::filesystem::path compiler;                                ///< The program to run, as an absolute path.
+    std::vector<std::filesystem::path> runtimeLibraryDirectories;  ///< Where its runtime libraries are; none for the system's compiler.
+    std::string announcement;                                      ///< The line naming it, ending in a newline.
 };
 
 /**

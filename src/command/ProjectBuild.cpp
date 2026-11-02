@@ -19,7 +19,6 @@
 #include "project/SourceCollector.h"
 #include "project/TargetResolver.h"
 #include "toolchain/CompilerIdentity.h"
-#include "toolchain/InstalledToolchain.h"
 #include "toolchain/SystemArchiver.h"
 
 #include <algorithm>
@@ -113,19 +112,6 @@ std::expected<std::vector<Compile::ArchiveCommand>, int> planArchives(const Runt
         return std::unexpected(1);
     }
     return Compile::planArchiveCommands(settings, *archiver, targets);
-}
-
-/**
- * Where the executables built with @p chosen find its runtime libraries:
- * those of its installed toolchain, none for the system's compiler.
- */
-std::vector<std::filesystem::path> runtimeLibraryDirectoriesOf(const ChosenCompiler& chosen)
-{
-    const std::optional<Toolchain::InstalledToolchain>& toolchain = chosen.toolchain;
-    if (! toolchain.has_value()) {
-        return {};
-    }
-    return toolchain->runtimeLibraryDirectories;
 }
 
 /**
@@ -305,7 +291,7 @@ std::expected<std::filesystem::path, int> buildProject(const RuntimeEnvironment&
         .driver = Compile::CompilerDriver{ Toolchain::identifyCompiler(compiler->compiler) },
         .standard = project.manifest.package.standard,
         .profile = profile,
-        .runtimeLibraryDirectories = runtimeLibraryDirectoriesOf(*compiler)
+        .runtimeLibraryDirectories = compiler->runtimeLibraryDirectories
     };
     const auto compiles = Compile::planCompileCommands(settings, *sources);
     const auto written = Compile::writeCompilationDatabase(project.root / buildDirectory, compiles);

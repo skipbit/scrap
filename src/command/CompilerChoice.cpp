@@ -115,7 +115,7 @@ std::expected<ChosenCompiler, std::string> systemCompiler(const RuntimeEnvironme
         std::string announcement = "Using the system compiler '" + printablePath(found->path) + "' (";
         announcement += describeOrigin(found->origin);
         announcement += ")\n";
-        return ChosenCompiler{ .compiler = std::move(found->path), .toolchain = std::nullopt, .announcement = std::move(announcement) };
+        return ChosenCompiler{ .compiler = std::move(found->path), .runtimeLibraryDirectories = {}, .announcement = std::move(announcement) };
     }
     if (! found.error().requested.empty()) {
         return std::unexpected(renderUnusableCompilerRequest(found.error().requested));
@@ -156,7 +156,9 @@ std::expected<ChosenCompiler, std::string> installedCompiler(const RuntimeEnviro
     announcement += describeSource(named.source);
     announcement += ")\n";
     std::filesystem::path compiler = found->compiler;
-    return ChosenCompiler{ .compiler = std::move(compiler), .toolchain = std::move(found), .announcement = std::move(announcement) };
+    return ChosenCompiler{ .compiler = std::move(compiler),
+                           .runtimeLibraryDirectories = std::move(found->runtimeLibraryDirectories),
+                           .announcement = std::move(announcement) };
 }
 
 }  // anonymous namespace
