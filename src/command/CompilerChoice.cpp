@@ -36,10 +36,12 @@ enum class ChoiceSource : std::uint8_t {
 };
 
 /**
- * @brief A toolchain named for the build, as written, and where.
+ * @brief A toolchain named for the build, as written and as understood, and
+ *        where.
  */
 struct NamedToolchain {
     std::string text;
+    Toolchain::ToolchainChoice choice;
     ChoiceSource source = ChoiceSource::Variable;
 };
 
@@ -76,17 +78,37 @@ std::string_view describeOrigin(const Toolchain::CompilerOrigin origin)
 }
 
 /**
+ * @p text, named by @p source, understood as a choice. A name that is no
+ * choice is reported as the place that gave it.
+ */
+std::expected<NamedToolchain, std::string> parseNamed(std::string text, const ChoiceSource source)
+{
+    auto choice = Toolchain::parseToolchainChoice(text);
+    if (! choice.has_value()) {
+        switch (source) {
+        case ChoiceSource::Variable:
+        case ChoiceSource::VariableOverProject:
+            return std::unexpected(renderToolchainVariableNotASpecifier(text, choice.error()));
+        case ChoiceSource::Project:
+        case ChoiceSource::GlobalDefault:
+            return std::unexpected(renderNotASpecifier(text, choice.error()));
+        }
+        std::unreachable();
+    }
+    return NamedToolchain{ .text = std::move(text), .choice = std::move(*choice), .source = source };
+}
+
+/**
  * The toolchain named for the build, in order of precedence, or nothing
  * when none is named.
  */
 std::expected<std::optional<NamedToolchain>, std::string> namedToolchain(const RuntimeEnvironment& env, const std::optional<std::string>& projectToolchain)
 {
     if (! env.requestedToolchain.empty()) {
-        return NamedToolchain{ .text = env.requestedToolchain,
-                               .source = projectToolchain.has_value() ? ChoiceSource::VariableOverProject : ChoiceSource::Variable };
+        return parseNamed(env.requestedToolchain, projectToolchain.has_value() ? ChoiceSource::VariableOverProject : ChoiceSource::Variable);
     }
     if (projectToolchain.has_value()) {
-        return NamedToolchain{ .text = *projectToolchain, .source = ChoiceSource::Project };
+        return parseNamed(*projectToolchain, ChoiceSource::Project);
     }
     if (! env.scrapHome.has_value()) {
         return std::nullopt;
@@ -100,7 +122,7 @@ std::expected<std::optional<NamedToolchain>, std::string> namedToolchain(const R
     if (! globalDefault.has_value()) {
         return std::nullopt;
     }
-    return NamedToolchain{ .text = *globalDefault, .source = ChoiceSource::GlobalDefault };
+    return parseNamed(*globalDefault, ChoiceSource::GlobalDefault);
 }
 
 /**
@@ -184,13 +206,7 @@ std::expected<ChosenCompiler, std::string> chooseCompiler(const RuntimeEnvironme
         }
         return std::move(*system);
     }
-    const auto choice = Toolchain::parseToolchainChoice(toolchain->text);
-    if (! choice.has_value()) {
-        // Only SCRAP_TOOLCHAIN reaches here: scrap.toml and config.toml are
-        // checked as they are read.
-        return std::unexpected(renderToolchainVariableNotASpecifier(toolchain->text, choice.error()));
-    }
-    if (const auto* specifier = std::get_if<Toolchain::ToolchainSpecifier>(&*choice)) {
+    if (const auto* specifier = std::get_if<Toolchain::ToolchainSpecifier>(&toolchain->choice)) {
         return installedCompiler(env, *toolchain, *specifier);
     }
     auto system = systemCompiler(env);
