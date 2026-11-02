@@ -5,6 +5,7 @@
 #include <string>
 #include <string_view>
 
+using scrap::Command::printableEcho;
 using scrap::Command::printableLines;
 using scrap::Command::printableName;
 using scrap::Command::printablePath;
@@ -119,4 +120,15 @@ TEST(PrintableTextTest, EscapesWhatANameCannotPrint)
     EXPECT_EQ(printableName(std::string_view{ "a\x1b[31m\x7f\\b" }), "a\\x1B[31m\\x7F\\x5Cb");
     EXPECT_EQ(printableName("\xe6\x97\xa5"), "\\xE6\\x97\\xA5");
     EXPECT_EQ(printableName(std::string(100, 'n')), std::string(100, 'n'));
+}
+
+/**
+ * A value is escaped as a name is, and cut where it is longer than a project
+ * name can be.
+ */
+TEST(PrintableTextTest, CutsAnEchoedValueThatIsTooLongToBeAName)
+{
+    EXPECT_EQ(printableEcho("a\x1b[31m"), "a\\x1B[31m");
+    EXPECT_EQ(printableEcho(std::string(64, 'n')), std::string(64, 'n'));
+    EXPECT_EQ(printableEcho(std::string(65, 'n')), std::string(64, 'n') + "...");
 }

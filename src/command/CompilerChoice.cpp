@@ -1,7 +1,6 @@
 #include "command/CompilerChoice.h"
 
 #include "command/PrintableText.h"
-#include "command/ProjectDiagnostic.h"
 #include "command/RuntimeEnvironment.h"
 #include "command/ScrapHome.h"
 #include "command/ToolchainDiagnostic.h"
@@ -105,10 +104,9 @@ std::expected<std::optional<NamedToolchain>, std::string> namedToolchain(const R
 }
 
 /**
- * The compiler the system provides. When nothing named a toolchain and
- * there is none, an installed toolchain is shown as one to select, not used.
+ * The compiler the system provides, or why there is none.
  */
-std::expected<ChosenCompiler, std::string> systemCompiler(const RuntimeEnvironment& env, const bool anythingNamed)
+std::expected<ChosenCompiler, Toolchain::NoCompiler> systemCompiler(const RuntimeEnvironment& env)
 {
     auto found = Toolchain::detectSystemCompiler(env.preferredCompiler, env.systemSearchPaths);
     if (found.has_value()) {
@@ -117,16 +115,33 @@ std::expected<ChosenCompiler, std::string> systemCompiler(const RuntimeEnvironme
         announcement += ")\n";
         return ChosenCompiler{ .compiler = std::move(found->path), .runtimeLibraryDirectories = {}, .announcement = std::move(announcement) };
     }
-    if (! found.error().requested.empty()) {
-        return std::unexpected(renderUnusableCompilerRequest(found.error().requested));
+    return std::unexpected(std::move(found.error()));
+}
+
+/**
+ * The report for a system with no compiler.
+ */
+std::string renderNoSystemCompiler(const Toolchain::NoCompiler& missing)
+{
+    if (! missing.requested.empty()) {
+        return renderUnusableCompilerRequest(missing.requested);
     }
+    return renderNoCompilerFound();
+}
+
+/**
+ * The report for a system with no compiler where nothing named a toolchain:
+ * an installed toolchain is shown as one to select, not used.
+ */
+std::string renderNoCompilerWhereNothingIsNamed(const RuntimeEnvironment& env, const Toolchain::NoCompiler& missing)
+{
     const auto host = Toolchain::hostEnvironment();
-    if (! anythingNamed && env.scrapHome.has_value() && host.has_value()) {
+    if (missing.requested.empty() && env.scrapHome.has_value() && host.has_value()) {
         if (const auto example = Toolchain::anyInstalledToolchain(*env.scrapHome, *host); example.has_value()) {
-            return std::unexpected(renderNoCompilerWithInstalled(example->name()));
+            return renderNoCompilerWithInstalled(example->name());
         }
     }
-    return std::unexpected(renderNoCompilerFound());
+    return renderNoSystemCompiler(missing);
 }
 
 /**
@@ -163,7 +178,11 @@ std::expected<ChosenCompiler, std::string> chooseCompiler(const RuntimeEnvironme
     }
     const std::optional<NamedToolchain>& toolchain = *named;
     if (! toolchain.has_value()) {
-        return systemCompiler(env, false);
+        auto system = systemCompiler(env);
+        if (! system.has_value()) {
+            return std::unexpected(renderNoCompilerWhereNothingIsNamed(env, system.error()));
+        }
+        return std::move(*system);
     }
     const auto choice = Toolchain::parseToolchainChoice(toolchain->text);
     if (! choice.has_value()) {
@@ -174,7 +193,11 @@ std::expected<ChosenCompiler, std::string> chooseCompiler(const RuntimeEnvironme
     if (const auto* specifier = std::get_if<Toolchain::ToolchainSpecifier>(&*choice)) {
         return installedCompiler(env, *toolchain, *specifier);
     }
-    return systemCompiler(env, true);
+    auto system = systemCompiler(env);
+    if (! system.has_value()) {
+        return std::unexpected(renderNoSystemCompiler(system.error()));
+    }
+    return std::move(*system);
 }
 
 }  // namespace scrap::Command

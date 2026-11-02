@@ -134,6 +134,25 @@ std::string renderGlobalConfigFileError(const std::filesystem::path& file, const
         error);
 }
 
+std::string renderNoCompilerFound()
+{
+    return "error: no C++ compiler found\n"
+           "hint: install a C++ compiler, or set CXX to the one to use\n";
+}
+
+/**
+ * The value is echoed through printableEcho(), since the environment can hold any
+ * byte and the answer is read in a terminal.
+ */
+std::string renderUnusableCompilerRequest(const std::string_view requested)
+{
+    std::string text = "error: CXX names '";
+    text += printableEcho(requested);
+    text += "', which cannot be run\n";
+    text += "hint: set CXX to the path of a compiler, or unset it to search for one\n";
+    return text;
+}
+
 std::string renderNoCompilerWithInstalled(std::string_view example)
 {
     std::string rendered = "error: no C++ compiler found\nhint: select an installed toolchain with 'scrap toolchain select <toolchain>', such as '";

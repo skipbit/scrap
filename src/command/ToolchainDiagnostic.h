@@ -56,6 +56,18 @@ namespace scrap::Command {
 [[nodiscard]] std::string renderInstalledToolchainFault(std::string_view specifier, const Toolchain::InstalledToolchainFault& fault);
 
 /**
+ * @brief Report a system with no C++ compiler, and what to do next.
+ */
+[[nodiscard]] std::string renderNoCompilerFound();
+
+/**
+ * @brief Report a compiler the environment asked for and cannot be run.
+ *
+ * @param requested The value CXX gave.
+ */
+[[nodiscard]] std::string renderUnusableCompilerRequest(std::string_view requested);
+
+/**
  * @brief Report a system without a C++ compiler where nothing chose a
  *        toolchain, with how to select one of those installed, such as
  *        @p example.

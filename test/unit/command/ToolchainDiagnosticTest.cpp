@@ -80,3 +80,36 @@ TEST(ToolchainDiagnosticTest, RendersWhyNoInstalledToolchainCanBeUsed)
               "error: toolchain 'gcc@15' is not installed\n"
               "hint: run 'scrap toolchain install gcc@15'\n");
 }
+
+/**
+ * A system with no compiler names both ways to give it one: installing a
+ * compiler, or pointing the environment at the one to use.
+ */
+TEST(ToolchainDiagnosticTest, RendersASystemWithNoCompiler)
+{
+    EXPECT_EQ(renderNoCompilerFound(),
+              "error: no C++ compiler found\n"
+              "hint: install a C++ compiler, or set CXX to the one to use\n");
+}
+
+/**
+ * A compiler the environment asked for and cannot be run names the value it
+ * gave, and both ways out: pointing CXX at a program, or leaving it unset.
+ */
+TEST(ToolchainDiagnosticTest, RendersACompilerRequestThatCannotBeRun)
+{
+    EXPECT_EQ(renderUnusableCompilerRequest("ccache g++"),
+              "error: CXX names 'ccache g++', which cannot be run\n"
+              "hint: set CXX to the path of a compiler, or unset it to search for one\n");
+}
+
+/**
+ * The value reaches the terminal as text, since the environment can hold any
+ * byte and an escape sequence would otherwise be acted on.
+ */
+TEST(ToolchainDiagnosticTest, EscapesAControlCharacterInACompilerRequest)
+{
+    EXPECT_EQ(renderUnusableCompilerRequest("g++\x1b[31m"),
+              "error: CXX names 'g++\\x1B[31m', which cannot be run\n"
+              "hint: set CXX to the path of a compiler, or unset it to search for one\n");
+}
