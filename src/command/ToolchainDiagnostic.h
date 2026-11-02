@@ -3,6 +3,7 @@
 #include "toolchain/GlobalConfigFile.h"
 #include "toolchain/InstalledToolchain.h"
 
+#include <cstdint>
 #include <filesystem>
 #include <string>
 #include <string_view>
@@ -34,9 +35,22 @@ namespace scrap::Command {
 [[nodiscard]] std::string renderUnusableInstalled(std::string_view specifier, std::string_view reason);
 
 /**
- * @brief Report that no toolchain is built for the host scrap runs on.
+ * @brief Where a toolchain was named, so a report says where to name
+ *        another.
  */
-[[nodiscard]] std::string renderNoToolchainForHost();
+enum class ToolchainNamedIn : std::uint8_t {
+    CommandLine,   ///< The argument of a command.
+    Variable,      ///< SCRAP_TOOLCHAIN.
+    Project,       ///< The project's [toolchain] name.
+    GlobalDefault  ///< The global default.
+};
+
+/**
+ * @brief Report that no toolchain is built for the host scrap runs on, with
+ *        how to choose the system's compiler where the toolchain was named
+ *        (@p namedIn).
+ */
+[[nodiscard]] std::string renderNoToolchainForHost(ToolchainNamedIn namedIn);
 
 /**
  * @brief Report that there is no directory to keep toolchains in.
@@ -51,9 +65,9 @@ namespace scrap::Command {
 
 /**
  * @brief Report why no installed toolchain can be used for @p specifier,
- *        as the user wrote it.
+ *        as the user wrote it where @p namedIn says.
  */
-[[nodiscard]] std::string renderInstalledToolchainFault(std::string_view specifier, const Toolchain::InstalledToolchainFault& fault);
+[[nodiscard]] std::string renderInstalledToolchainFault(std::string_view specifier, ToolchainNamedIn namedIn, const Toolchain::InstalledToolchainFault& fault);
 
 /**
  * @brief Report a system with no C++ compiler, and what to do next.

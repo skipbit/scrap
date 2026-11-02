@@ -72,15 +72,15 @@ TEST(ToolchainDiagnosticTest, RendersAConfigFileThatCannotBeWritten)
  */
 TEST(ToolchainDiagnosticTest, RendersWhyNoInstalledToolchainCanBeUsed)
 {
-    EXPECT_EQ(renderInstalledToolchainFault("gcc@15", NoToolchainForHost{}), renderNoToolchainForHost());
-    EXPECT_EQ(renderInstalledToolchainFault("gcc@15", UnusableInstalled{ .reason = "its record is broken" }),
+    EXPECT_EQ(renderInstalledToolchainFault("gcc@15", ToolchainNamedIn::Variable, NoToolchainForHost{}), renderNoToolchainForHost(ToolchainNamedIn::Variable));
+    EXPECT_EQ(renderInstalledToolchainFault("gcc@15", ToolchainNamedIn::CommandLine, UnusableInstalled{ .reason = "its record is broken" }),
               "error: cannot use the installed toolchain: its record is broken\n"
               "hint: run 'scrap toolchain install --force gcc@15'\n");
-    EXPECT_EQ(renderInstalledToolchainFault("gcc@15", NotInstalled{}),
+    EXPECT_EQ(renderInstalledToolchainFault("gcc@15", ToolchainNamedIn::CommandLine, NotInstalled{}),
               "error: toolchain 'gcc@15' is not installed\n"
               "hint: run 'scrap toolchain install gcc@15'\n");
     const std::error_code denied = std::make_error_code(std::errc::permission_denied);
-    EXPECT_EQ(renderInstalledToolchainFault("gcc@15", CannotListToolchains{ .directory = "/home/me/.scrap/toolchains/gcc", .code = denied }),
+    EXPECT_EQ(renderInstalledToolchainFault("gcc@15", ToolchainNamedIn::CommandLine, CannotListToolchains{ .directory = "/home/me/.scrap/toolchains/gcc", .code = denied }),
               "error: cannot list '/home/me/.scrap/toolchains/gcc': " + denied.message() + "\n" + PermissionLine);
 }
 
@@ -115,4 +115,21 @@ TEST(ToolchainDiagnosticTest, EscapesAControlCharacterInACompilerRequest)
     EXPECT_EQ(renderUnusableCompilerRequest("g++\x1b[31m"),
               "error: CXX names 'g++\\x1B[31m', which cannot be run\n"
               "hint: set CXX to the path of a compiler, or unset it to search for one\n");
+}
+
+/**
+ * A host without toolchains is answered with how to choose the system's
+ * compiler where the toolchain was named, since a place earlier in the
+ * order would otherwise still name it.
+ */
+TEST(ToolchainDiagnosticTest, RendersAHostWithoutToolchainsByWhereTheToolchainWasNamed)
+{
+    const std::string error = "error: no toolchain is built for this host\n";
+    const std::string selectSystem = "hint: run 'scrap toolchain select system' to use the compiler found on the system\n";
+    EXPECT_EQ(renderNoToolchainForHost(ToolchainNamedIn::CommandLine), error + selectSystem);
+    EXPECT_EQ(renderNoToolchainForHost(ToolchainNamedIn::GlobalDefault), error + selectSystem);
+    EXPECT_EQ(renderNoToolchainForHost(ToolchainNamedIn::Variable),
+              error + "hint: set SCRAP_TOOLCHAIN to system, or unset it, to use the compiler found on the system\n");
+    EXPECT_EQ(renderNoToolchainForHost(ToolchainNamedIn::Project),
+              error + "hint: set name under [toolchain] in scrap.toml to \"system\" to use the compiler found on the system\n");
 }

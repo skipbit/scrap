@@ -62,6 +62,25 @@ std::string_view describeSource(const ChoiceSource source)
     std::unreachable();
 }
 
+/**
+ * Where a toolchain named by @p source was named, for a report.
+ */
+ToolchainNamedIn namedIn(const ChoiceSource source)
+{
+    switch (source) {
+    case ChoiceSource::Variable:
+    case ChoiceSource::VariableOverProject:
+        return ToolchainNamedIn::Variable;
+    case ChoiceSource::Project:
+        return ToolchainNamedIn::Project;
+    case ChoiceSource::GlobalDefault:
+        return ToolchainNamedIn::GlobalDefault;
+    }
+    // Every source is answered above, so a source added without a place
+    // here fails the build rather than being reported as another.
+    std::unreachable();
+}
+
 std::string_view describeOrigin(const Toolchain::CompilerOrigin origin)
 {
     switch (origin) {
@@ -179,7 +198,7 @@ std::expected<ChosenCompiler, std::string> installedCompiler(const RuntimeEnviro
     }
     auto found = Toolchain::findInstalledToolchainForHost(*scrapHome, specifier);
     if (! found.has_value()) {
-        return std::unexpected(renderInstalledToolchainFault(named.text, found.error()));
+        return std::unexpected(renderInstalledToolchainFault(named.text, namedIn(named.source), found.error()));
     }
     std::string announcement = "Using the toolchain '" + printableText(found->name()) + "' (";
     announcement += describeSource(named.source);

@@ -10,6 +10,7 @@
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <utility>
 #include <variant>
 
 namespace scrap::Command {
@@ -47,22 +48,22 @@ std::string render(const Toolchain::CannotWriteConfig& failure)
     return "error: cannot write '" + printablePath(failure.path) + "': " + failure.code.message() + "\n" + std::string{ PermissionHint };
 }
 
-std::string render(std::string_view, const Toolchain::NoToolchainForHost&)
+std::string render(std::string_view, const ToolchainNamedIn namedIn, const Toolchain::NoToolchainForHost&)
 {
-    return renderNoToolchainForHost();
+    return renderNoToolchainForHost(namedIn);
 }
 
-std::string render(const std::string_view specifier, const Toolchain::UnusableInstalled& fault)
+std::string render(const std::string_view specifier, ToolchainNamedIn, const Toolchain::UnusableInstalled& fault)
 {
     return renderUnusableInstalled(specifier, fault.reason);
 }
 
-std::string render(const std::string_view specifier, const Toolchain::NotInstalled&)
+std::string render(const std::string_view specifier, ToolchainNamedIn, const Toolchain::NotInstalled&)
 {
     return renderNotInstalled(specifier);
 }
 
-std::string render(std::string_view, const Toolchain::CannotListToolchains& fault)
+std::string render(std::string_view, ToolchainNamedIn, const Toolchain::CannotListToolchains& fault)
 {
     return "error: cannot list '" + printablePath(fault.directory) + "': " + fault.code.message() + "\n" + std::string{ PermissionHint };
 }
@@ -107,16 +108,27 @@ std::string renderUnusableInstalled(std::string_view specifier, std::string_view
     return rendered;
 }
 
-std::string renderNoToolchainForHost()
+std::string renderNoToolchainForHost(const ToolchainNamedIn namedIn)
 {
-    return "error: no toolchain is built for this host\n"
-           "hint: run 'scrap toolchain select system' to use the compiler found on the system\n";
+    const std::string_view error = "error: no toolchain is built for this host\n";
+    switch (namedIn) {
+    case ToolchainNamedIn::CommandLine:
+    case ToolchainNamedIn::GlobalDefault:
+        return std::string{ error } + "hint: run 'scrap toolchain select system' to use the compiler found on the system\n";
+    case ToolchainNamedIn::Variable:
+        return std::string{ error } + "hint: set SCRAP_TOOLCHAIN to system, or unset it, to use the compiler found on the system\n";
+    case ToolchainNamedIn::Project:
+        return std::string{ error } + "hint: set name under [toolchain] in scrap.toml to \"system\" to use the compiler found on the system\n";
+    }
+    // Every place is answered above, so a place added without a hint here
+    // fails the build rather than being sent to another place's hint.
+    std::unreachable();
 }
 
-std::string renderInstalledToolchainFault(const std::string_view specifier, const Toolchain::InstalledToolchainFault& fault)
+std::string renderInstalledToolchainFault(const std::string_view specifier, const ToolchainNamedIn namedIn, const Toolchain::InstalledToolchainFault& fault)
 {
-    return std::visit([specifier](const auto& alternative) -> std::string {
-        return render(specifier, alternative);
+    return std::visit([specifier, namedIn](const auto& alternative) -> std::string {
+        return render(specifier, namedIn, alternative);
     }, fault);
 }
 

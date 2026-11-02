@@ -28,7 +28,7 @@ std::expected<std::string, std::string> installedChoice(const std::filesystem::p
 {
     const auto installed = Toolchain::findInstalledToolchainForHost(scrapHome, specifier);
     if (! installed.has_value()) {
-        return std::unexpected(renderInstalledToolchainFault(text, installed.error()));
+        return std::unexpected(renderInstalledToolchainFault(text, ToolchainNamedIn::CommandLine, installed.error()));
     }
     return installed->name();
 }
