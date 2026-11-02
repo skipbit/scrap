@@ -4,6 +4,7 @@
 #include "command/PrintableText.h"
 #include "toolchain/GlobalConfig.h"
 #include "toolchain/GlobalConfigFile.h"
+#include "toolchain/InstalledToolchain.h"
 
 #include <filesystem>
 #include <string>
@@ -44,6 +45,21 @@ std::string render(const Toolchain::CannotCreateDirectory& failure)
 std::string render(const Toolchain::CannotWriteConfig& failure)
 {
     return "error: cannot write '" + printablePath(failure.path) + "': " + failure.code.message() + "\n" + std::string{ PermissionHint };
+}
+
+std::string render(std::string_view, const Toolchain::NoToolchainForHost&)
+{
+    return renderNoToolchainForHost();
+}
+
+std::string render(const std::string_view specifier, const Toolchain::UnusableInstalled& fault)
+{
+    return renderUnusableInstalled(specifier, fault.reason);
+}
+
+std::string render(const std::string_view specifier, const Toolchain::NotInstalled&)
+{
+    return renderNotInstalled(specifier);
 }
 
 }  // anonymous namespace
@@ -90,6 +106,13 @@ std::string renderNoToolchainForHost()
 {
     return "error: no toolchain is built for this host\n"
            "hint: run 'scrap toolchain select system' to use the compiler found on the system\n";
+}
+
+std::string renderInstalledToolchainFault(const std::string_view specifier, const Toolchain::InstalledToolchainFault& fault)
+{
+    return std::visit([specifier](const auto& alternative) -> std::string {
+        return render(specifier, alternative);
+    }, fault);
 }
 
 std::string renderNoScrapHome()

@@ -4,7 +4,6 @@
 #include "command/ScrapHome.h"
 #include "command/ToolchainDiagnostic.h"
 #include "toolchain/GlobalConfigFile.h"
-#include "toolchain/HostEnvironment.h"
 #include "toolchain/InstalledToolchain.h"
 #include "toolchain/ScrapHomeLayout.h"
 #include "toolchain/ToolchainChoice.h"
@@ -13,7 +12,6 @@
 #include <expected>  // IWYU pragma: keep
 #include <filesystem>
 #include <iostream>
-#include <optional>
 #include <string>
 #include <utility>
 #include <variant>
@@ -28,19 +26,11 @@ namespace {
  */
 std::expected<std::string, std::string> installedChoice(const std::filesystem::path& scrapHome, const std::string& text, const Toolchain::ToolchainSpecifier& specifier)
 {
-    const auto host = Toolchain::hostEnvironment();
-    if (! host.has_value()) {
-        return std::unexpected(renderNoToolchainForHost());
-    }
-    const auto installed = Toolchain::findInstalledToolchain(scrapHome, *host, specifier);
+    const auto installed = Toolchain::findInstalledToolchainForHost(scrapHome, specifier);
     if (! installed.has_value()) {
-        return std::unexpected(renderUnusableInstalled(text, installed.error()));
+        return std::unexpected(renderInstalledToolchainFault(text, installed.error()));
     }
-    const std::optional<Toolchain::InstalledToolchain>& found = *installed;
-    if (! found.has_value()) {
-        return std::unexpected(renderNotInstalled(text));
-    }
-    return found->family + "@" + found->version.text();
+    return installed->name();
 }
 
 }  // anonymous namespace

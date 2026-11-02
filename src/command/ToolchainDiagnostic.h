@@ -1,6 +1,7 @@
 #pragma once
 
 #include "toolchain/GlobalConfigFile.h"
+#include "toolchain/InstalledToolchain.h"
 
 #include <filesystem>
 #include <string>
@@ -47,6 +48,12 @@ namespace scrap::Command {
  *        or written.
  */
 [[nodiscard]] std::string renderGlobalConfigFileError(const std::filesystem::path& file, const Toolchain::GlobalConfigFileError& error);
+
+/**
+ * @brief Report why no installed toolchain can be used for @p specifier,
+ *        as the user wrote it.
+ */
+[[nodiscard]] std::string renderInstalledToolchainFault(std::string_view specifier, const Toolchain::InstalledToolchainFault& fault);
 
 /**
  * @brief Report a system without a C++ compiler where nothing chose a

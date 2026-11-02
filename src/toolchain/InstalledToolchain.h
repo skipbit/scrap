@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <variant>
 #include <vector>
 
 namespace scrap::Toolchain {
@@ -21,7 +22,32 @@ struct InstalledToolchain {
     std::filesystem::path directory;                               ///< <SCRAP_HOME>/toolchains/<family>/<version>/<platform>-<arch>
     std::filesystem::path compiler;                                ///< The C++ compiler inside the directory.
     std::vector<std::filesystem::path> runtimeLibraryDirectories;  ///< Where its runtime libraries are inside the directory.
+
+    /** The name that selects it, as <family>@<version>. */
+    [[nodiscard]] std::string name() const;
 };
+
+/**
+ * @brief No toolchain is built for the host scrap runs on.
+ */
+struct NoToolchainForHost { };
+
+/**
+ * @brief The installed toolchain that was found cannot be used.
+ */
+struct UnusableInstalled {
+    std::string reason;
+};
+
+/**
+ * @brief No toolchain the specifier names is installed.
+ */
+struct NotInstalled { };
+
+/**
+ * @brief Why no installed toolchain can be used for a specifier.
+ */
+using InstalledToolchainFault = std::variant<NoToolchainForHost, UnusableInstalled, NotInstalled>;
 
 /**
  * @brief The newest toolchain installed below @p scrapHome for @p host that
@@ -39,6 +65,15 @@ struct InstalledToolchain {
 [[nodiscard]] std::expected<std::optional<InstalledToolchain>, std::string> findInstalledToolchain(const std::filesystem::path& scrapHome,
                                                                                                    const HostEnvironment& host,
                                                                                                    const ToolchainSpecifier& specifier);
+
+/**
+ * @brief The newest toolchain installed below @p scrapHome for the host
+ *        scrap runs on that @p specifier names.
+ *
+ * @return The toolchain, or why none can be used.
+ */
+[[nodiscard]] std::expected<InstalledToolchain, InstalledToolchainFault> findInstalledToolchainForHost(const std::filesystem::path& scrapHome,
+                                                                                                       const ToolchainSpecifier& specifier);
 
 /**
  * @brief One toolchain installed below @p scrapHome for @p host, to show as

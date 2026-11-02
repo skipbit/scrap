@@ -4,6 +4,7 @@
 #include "toolchain/HostEnvironment.h"
 #include "toolchain/InstallRecord.h"
 #include "toolchain/ToolchainSpecifier.h"
+#include "toolchain/ToolchainVersion.h"
 
 #include <gtest/gtest.h>
 
@@ -11,6 +12,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <variant>
 #include <vector>
 
 using namespace scrap::Toolchain;
@@ -140,4 +142,72 @@ TEST(InstalledToolchainTest, FindsTheRuntimeLibraryDirectories)
     const auto missing = findInstalledToolchain(home.path(), Host, parseToolchainSpecifier("gcc").value());
     ASSERT_FALSE(missing.has_value());
     EXPECT_TRUE(missing.error().ends_with("/lib', which is not there")) << missing.error();
+}
+
+/**
+ * A toolchain is named as the specifier that selects it is written.
+ */
+TEST(InstalledToolchainTest, NamesItselfAsFamilyAndVersion)
+{
+    const InstalledToolchain toolchain{
+        .family = "gcc", .version = ToolchainVersion::parse("15.2.0").value(), .directory = "", .compiler = "", .runtimeLibraryDirectories = {}
+    };
+
+    EXPECT_EQ(toolchain.name(), "gcc@15.2.0");
+}
+
+/**
+ * The toolchain found for the host carries what was installed.
+ */
+TEST(InstalledToolchainTest, FindsTheToolchainForTheHost)
+{
+    const auto host = hostEnvironment();
+    if (! host.has_value()) {
+        GTEST_SKIP() << "no toolchain is built for this host";
+    }
+    const TempDirectory home;
+    install(home, "gcc", "15.2.0", host->directoryName());
+
+    const auto found = findInstalledToolchainForHost(home.path(), parseToolchainSpecifier("gcc@15").value());
+
+    ASSERT_TRUE(found.has_value());
+    EXPECT_EQ(found->name(), "gcc@15.2.0");
+}
+
+/**
+ * A specifier that nothing installed names is reported as not installed.
+ */
+TEST(InstalledToolchainTest, ReportsAToolchainThatIsNotInstalled)
+{
+    if (! hostEnvironment().has_value()) {
+        GTEST_SKIP() << "no toolchain is built for this host";
+    }
+    const TempDirectory home;
+
+    const auto found = findInstalledToolchainForHost(home.path(), parseToolchainSpecifier("gcc").value());
+
+    ASSERT_FALSE(found.has_value());
+    EXPECT_TRUE(std::holds_alternative<NotInstalled>(found.error()));
+}
+
+/**
+ * An installed toolchain whose record cannot be used is reported with the
+ * reason.
+ */
+TEST(InstalledToolchainTest, ReportsAnInstalledToolchainThatCannotBeUsed)
+{
+    const auto host = hostEnvironment();
+    if (! host.has_value()) {
+        GTEST_SKIP() << "no toolchain is built for this host";
+    }
+    const TempDirectory home;
+    install(home, "gcc", "15.2.0", host->directoryName());
+    home.writeFile("toolchains/gcc/15.2.0/" + host->directoryName() + "/" + std::string{ InstallRecordName }, "compiler = \"bin/missing\"\n");
+
+    const auto found = findInstalledToolchainForHost(home.path(), parseToolchainSpecifier("gcc").value());
+
+    ASSERT_FALSE(found.has_value());
+    const auto* unusable = std::get_if<UnusableInstalled>(&found.error());
+    ASSERT_NE(unusable, nullptr);
+    EXPECT_TRUE(unusable->reason.ends_with("which is not there")) << unusable->reason;
 }

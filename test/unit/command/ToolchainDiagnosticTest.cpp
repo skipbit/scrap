@@ -1,6 +1,7 @@
 #include "command/ToolchainDiagnostic.h"
 
 #include "toolchain/GlobalConfigFile.h"
+#include "toolchain/InstalledToolchain.h"
 
 #include <gtest/gtest.h>
 
@@ -63,4 +64,19 @@ TEST(ToolchainDiagnosticTest, RendersAConfigFileThatCannotBeWritten)
               "error: cannot create '/home/me/scrap': " + denied.message() + "\n" + PermissionLine);
     EXPECT_EQ(renderGlobalConfigFileError(File, CannotWriteConfig{ .path = File, .code = denied }),
               "error: cannot write '/home/me/scrap/config.toml': " + denied.message() + "\n" + PermissionLine);
+}
+
+/**
+ * Each reason no installed toolchain can be used names the specifier as it
+ * was written, where it needs one, and the command that fixes it.
+ */
+TEST(ToolchainDiagnosticTest, RendersWhyNoInstalledToolchainCanBeUsed)
+{
+    EXPECT_EQ(renderInstalledToolchainFault("gcc@15", NoToolchainForHost{}), renderNoToolchainForHost());
+    EXPECT_EQ(renderInstalledToolchainFault("gcc@15", UnusableInstalled{ .reason = "its record is broken" }),
+              "error: cannot use the installed toolchain: its record is broken\n"
+              "hint: run 'scrap toolchain install --force gcc@15'\n");
+    EXPECT_EQ(renderInstalledToolchainFault("gcc@15", NotInstalled{}),
+              "error: toolchain 'gcc@15' is not installed\n"
+              "hint: run 'scrap toolchain install gcc@15'\n");
 }

@@ -123,7 +123,7 @@ std::expected<ChosenCompiler, std::string> systemCompiler(const RuntimeEnvironme
     const auto host = Toolchain::hostEnvironment();
     if (! anythingNamed && env.scrapHome.has_value() && host.has_value()) {
         if (const auto example = Toolchain::anyInstalledToolchain(*env.scrapHome, *host); example.has_value()) {
-            return std::unexpected(renderNoCompilerWithInstalled(example->family + "@" + example->version.text()));
+            return std::unexpected(renderNoCompilerWithInstalled(example->name()));
         }
     }
     return std::unexpected(renderNoCompilerFound());
@@ -140,19 +140,11 @@ std::expected<ChosenCompiler, std::string> installedCompiler(const RuntimeEnviro
     if (! scrapHome.has_value()) {
         return std::unexpected(scrapHome.error());
     }
-    const auto host = Toolchain::hostEnvironment();
-    if (! host.has_value()) {
-        return std::unexpected(renderNoToolchainForHost());
-    }
-    auto installed = Toolchain::findInstalledToolchain(*scrapHome, *host, specifier);
-    if (! installed.has_value()) {
-        return std::unexpected(renderUnusableInstalled(named.text, installed.error()));
-    }
-    std::optional<Toolchain::InstalledToolchain>& found = *installed;
+    auto found = Toolchain::findInstalledToolchainForHost(*scrapHome, specifier);
     if (! found.has_value()) {
-        return std::unexpected(renderNotInstalled(named.text));
+        return std::unexpected(renderInstalledToolchainFault(named.text, found.error()));
     }
-    std::string announcement = "Using the toolchain '" + printableText(found->family + "@" + found->version.text()) + "' (";
+    std::string announcement = "Using the toolchain '" + printableText(found->name()) + "' (";
     announcement += describeSource(named.source);
     announcement += ")\n";
     std::filesystem::path compiler = found->compiler;

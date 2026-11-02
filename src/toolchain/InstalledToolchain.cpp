@@ -66,6 +66,11 @@ std::expected<InstalledToolchain, std::string> readInstalled(const std::string& 
 
 }  // anonymous namespace
 
+std::string InstalledToolchain::name() const
+{
+    return family + "@" + version.text();
+}
+
 std::expected<std::optional<InstalledToolchain>, std::string> findInstalledToolchain(const std::filesystem::path& scrapHome,
                                                                                      const HostEnvironment& host,
                                                                                      const ToolchainSpecifier& specifier)
@@ -101,6 +106,24 @@ std::expected<std::optional<InstalledToolchain>, std::string> findInstalledToolc
         return std::nullopt;
     }
     return readInstalled(specifier.family, *newest, newestDirectory);
+}
+
+std::expected<InstalledToolchain, InstalledToolchainFault> findInstalledToolchainForHost(const std::filesystem::path& scrapHome,
+                                                                                         const ToolchainSpecifier& specifier)
+{
+    const auto host = hostEnvironment();
+    if (! host.has_value()) {
+        return std::unexpected(NoToolchainForHost{});
+    }
+    auto found = findInstalledToolchain(scrapHome, *host, specifier);
+    if (! found.has_value()) {
+        return std::unexpected(UnusableInstalled{ .reason = std::move(found.error()) });
+    }
+    std::optional<InstalledToolchain>& toolchain = *found;
+    if (! toolchain.has_value()) {
+        return std::unexpected(NotInstalled{});
+    }
+    return std::move(*toolchain);
 }
 
 std::optional<InstalledToolchain> anyInstalledToolchain(const std::filesystem::path& scrapHome, const HostEnvironment& host)
