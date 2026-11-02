@@ -8,6 +8,7 @@
 #include "toolchain/GlobalConfigFile.h"
 #include "toolchain/HostEnvironment.h"
 #include "toolchain/InstalledToolchain.h"
+#include "toolchain/ScrapHomeLayout.h"
 #include "toolchain/SystemCompiler.h"
 #include "toolchain/ToolchainChoice.h"
 #include "toolchain/ToolchainSpecifier.h"

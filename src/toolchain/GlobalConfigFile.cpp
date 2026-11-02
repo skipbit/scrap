@@ -67,9 +67,4 @@ std::expected<void, GlobalConfigFileError> writeGlobalDefaultFile(const std::fil
     return {};
 }
 
-std::filesystem::path globalConfigFile(const std::filesystem::path& scrapHome)
-{
-    return scrapHome / "config.toml";
-}
-
 }  // namespace scrap::Toolchain

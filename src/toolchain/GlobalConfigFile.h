@@ -60,9 +60,4 @@ using GlobalConfigFileError = std::variant<GlobalConfigFault, CannotReadConfig, 
  */
 [[nodiscard]] std::expected<void, GlobalConfigFileError> writeGlobalDefaultFile(const std::filesystem::path& file, const std::optional<std::string>& toolchain);
 
-/**
- * @brief Where the global default toolchain is kept below @p scrapHome.
- */
-[[nodiscard]] std::filesystem::path globalConfigFile(const std::filesystem::path& scrapHome);
-
 }  // namespace scrap::Toolchain

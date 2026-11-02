@@ -1,6 +1,7 @@
 #include "toolchain/GlobalConfigFile.h"
 
 #include "support/TempDirectory.h"
+#include "toolchain/ScrapHomeLayout.h"
 
 #include <gtest/gtest.h>
 
@@ -136,12 +137,4 @@ TEST(GlobalConfigFileTest, ReportsADirectoryThatCannotBeCreated)
     ASSERT_NE(failure, nullptr);
     EXPECT_EQ(failure->path, blocker);
     EXPECT_TRUE(failure->code);
-}
-
-/**
- * The default is kept in config.toml directly below SCRAP_HOME.
- */
-TEST(GlobalConfigFileTest, NamesConfigTomlBelowTheHome)
-{
-    EXPECT_EQ(globalConfigFile("/opt/scrap"), std::filesystem::path{ "/opt/scrap/config.toml" });
 }

@@ -3,6 +3,7 @@
 #include "file/WholeFile.h"
 #include "toolchain/HostEnvironment.h"
 #include "toolchain/InstallRecord.h"
+#include "toolchain/ScrapHomeLayout.h"
 #include "toolchain/ToolchainName.h"
 #include "toolchain/ToolchainSpecifier.h"
 #include "toolchain/ToolchainVersion.h"
@@ -69,14 +70,14 @@ std::expected<std::optional<InstalledToolchain>, std::string> findInstalledToolc
                                                                                      const HostEnvironment& host,
                                                                                      const ToolchainSpecifier& specifier)
 {
-    const std::filesystem::path familyDirectory = scrapHome / "toolchains" / specifier.family;
+    const std::filesystem::path familyPath = familyDirectory(scrapHome, specifier.family);
     std::error_code ec;
-    std::filesystem::directory_iterator entries(familyDirectory, ec);
+    std::filesystem::directory_iterator entries(familyPath, ec);
     if (ec == std::errc::no_such_file_or_directory || ec == std::errc::not_a_directory) {
         return std::nullopt;
     }
     if (ec) {
-        return std::unexpected("cannot list '" + familyDirectory.string() + "': " + ec.message());
+        return std::unexpected("cannot list '" + familyPath.string() + "': " + ec.message());
     }
 
     std::optional<ToolchainVersion> newest;
@@ -93,7 +94,7 @@ std::expected<std::optional<InstalledToolchain>, std::string> findInstalledToolc
         }
         entries.increment(ec);
         if (ec) {
-            return std::unexpected("cannot list '" + familyDirectory.string() + "': " + ec.message());
+            return std::unexpected("cannot list '" + familyPath.string() + "': " + ec.message());
         }
     }
     if (! newest.has_value()) {
@@ -106,7 +107,7 @@ std::optional<InstalledToolchain> anyInstalledToolchain(const std::filesystem::p
 {
     std::vector<std::string> families;
     std::error_code ec;
-    for (std::filesystem::directory_iterator it(scrapHome / "toolchains", ec), end; (! ec) && (it != end); it.increment(ec)) {
+    for (std::filesystem::directory_iterator it(toolchainsDirectory(scrapHome), ec), end; (! ec) && (it != end); it.increment(ec)) {
         const std::string name = it->path().filename().string();
         if (isToolchainName(name)) {
             families.push_back(name);

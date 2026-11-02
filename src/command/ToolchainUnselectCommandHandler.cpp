@@ -5,6 +5,7 @@
 #include "command/ScrapHome.h"
 #include "command/ToolchainDiagnostic.h"
 #include "toolchain/GlobalConfigFile.h"
+#include "toolchain/ScrapHomeLayout.h"
 
 #include <filesystem>
 #include <iostream>
