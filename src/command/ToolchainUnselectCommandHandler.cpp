@@ -1,8 +1,10 @@
 #include "command/ToolchainUnselectCommandHandler.h"
 
-#include "command/GlobalDefaultFile.h"
 #include "command/InvocationContext.h"
 #include "command/PrintableText.h"
+#include "command/ScrapHome.h"
+#include "command/ToolchainDiagnostic.h"
+#include "toolchain/GlobalConfigFile.h"
 
 #include <filesystem>
 #include <iostream>
@@ -18,10 +20,10 @@ int ToolchainUnselectCommandHandler::execute(const InvocationContext& ctx)
         std::cerr << scrapHome.error();
         return 1;
     }
-    const std::filesystem::path file = globalConfigFile(*scrapHome);
-    const auto read = readGlobalDefault(file);
+    const std::filesystem::path file = Toolchain::globalConfigFile(*scrapHome);
+    const auto read = Toolchain::readGlobalDefaultFile(file);
     if (! read.has_value()) {
-        std::cerr << read.error();
+        std::cerr << renderGlobalConfigFileError(file, read.error());
         return 1;
     }
     const std::optional<std::string>& selected = *read;
@@ -29,8 +31,8 @@ int ToolchainUnselectCommandHandler::execute(const InvocationContext& ctx)
         std::cerr << "No toolchain is selected globally\n";
         return 0;
     }
-    if (auto written = writeGlobalDefault(file, std::nullopt); ! written.has_value()) {
-        std::cerr << written.error();
+    if (auto written = Toolchain::writeGlobalDefaultFile(file, std::nullopt); ! written.has_value()) {
+        std::cerr << renderGlobalConfigFileError(file, written.error());
         return 1;
     }
     std::cerr << "Unselected '" << printableText(*selected) << "'; no toolchain is selected globally\n";

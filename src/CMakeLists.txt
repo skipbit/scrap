@@ -66,6 +66,7 @@ scrap_apply_compile_settings(scrap_process WARNINGS_AS_ERRORS)
 add_library(scrap_toolchain STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/CompilerIdentity.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/GlobalConfig.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/GlobalConfigFile.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/HostEnvironment.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/InstallRecord.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/InstalledToolchain.cpp
@@ -131,7 +132,6 @@ add_library(scrap_command STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/command/DefaultVersionRenderer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ExternalCommandResolver.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ExternalMetadataProvider.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/command/GlobalDefaultFile.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/HelpRenderer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/HelpRequest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/MetadataProtocolProvider.cpp
@@ -144,6 +144,7 @@ add_library(scrap_command STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ProjectDiagnostic.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/RunCommandHandler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/RuntimeEnvironmentFactory.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/ScrapHome.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ScriptsReader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/StubScriptsReader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainDiagnostic.cpp
@@ -157,7 +158,7 @@ target_include_directories(scrap_command PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 # running a program and CLI11 stay inside.
 target_link_libraries(scrap_command
     PUBLIC scrap_project scrap_compile scrap_build
-    PRIVATE scrap_toolchain scrap_file scrap_process CLI11::CLI11
+    PRIVATE scrap_toolchain scrap_process CLI11::CLI11
 )
 add_dependencies(scrap_command scrap_version_source)
 scrap_apply_compile_settings(scrap_command WARNINGS_AS_ERRORS)

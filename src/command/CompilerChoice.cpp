@@ -1,10 +1,11 @@
 #include "command/CompilerChoice.h"
 
-#include "command/GlobalDefaultFile.h"
 #include "command/PrintableText.h"
 #include "command/ProjectDiagnostic.h"
 #include "command/RuntimeEnvironment.h"
+#include "command/ScrapHome.h"
 #include "command/ToolchainDiagnostic.h"
+#include "toolchain/GlobalConfigFile.h"
 #include "toolchain/HostEnvironment.h"
 #include "toolchain/InstalledToolchain.h"
 #include "toolchain/SystemCompiler.h"
@@ -90,9 +91,10 @@ std::expected<std::optional<NamedToolchain>, std::string> namedToolchain(const R
     if (! env.scrapHome.has_value()) {
         return std::nullopt;
     }
-    const auto read = readGlobalDefault(globalConfigFile(*env.scrapHome));
+    const std::filesystem::path file = Toolchain::globalConfigFile(*env.scrapHome);
+    const auto read = Toolchain::readGlobalDefaultFile(file);
     if (! read.has_value()) {
-        return std::unexpected(read.error());
+        return std::unexpected(renderGlobalConfigFileError(file, read.error()));
     }
     const std::optional<std::string>& globalDefault = *read;
     if (! globalDefault.has_value()) {

@@ -1,5 +1,8 @@
 #pragma once
 
+#include "toolchain/GlobalConfigFile.h"
+
+#include <filesystem>
 #include <string>
 #include <string_view>
 
@@ -33,6 +36,17 @@ namespace scrap::Command {
  * @brief Report that no toolchain is built for the host scrap runs on.
  */
 [[nodiscard]] std::string renderNoToolchainForHost();
+
+/**
+ * @brief Report that there is no directory to keep toolchains in.
+ */
+[[nodiscard]] std::string renderNoScrapHome();
+
+/**
+ * @brief Report why the global default toolchain in @p file cannot be read
+ *        or written.
+ */
+[[nodiscard]] std::string renderGlobalConfigFileError(const std::filesystem::path& file, const Toolchain::GlobalConfigFileError& error);
 
 /**
  * @brief Report a system without a C++ compiler where nothing chose a

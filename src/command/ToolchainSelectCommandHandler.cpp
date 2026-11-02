@@ -1,8 +1,9 @@
 #include "command/ToolchainSelectCommandHandler.h"
 
-#include "command/GlobalDefaultFile.h"
 #include "command/InvocationContext.h"
+#include "command/ScrapHome.h"
 #include "command/ToolchainDiagnostic.h"
+#include "toolchain/GlobalConfigFile.h"
 #include "toolchain/HostEnvironment.h"
 #include "toolchain/InstalledToolchain.h"
 #include "toolchain/ToolchainChoice.h"
@@ -69,8 +70,9 @@ int ToolchainSelectCommandHandler::execute(const InvocationContext& ctx)
         selected = std::move(*installed);
     }
 
-    if (auto written = writeGlobalDefault(globalConfigFile(*scrapHome), selected); ! written.has_value()) {
-        std::cerr << written.error();
+    const std::filesystem::path file = Toolchain::globalConfigFile(*scrapHome);
+    if (auto written = Toolchain::writeGlobalDefaultFile(file, selected); ! written.has_value()) {
+        std::cerr << renderGlobalConfigFileError(file, written.error());
         return 1;
     }
     std::cerr << "Selected '" << selected << "' as the global default\n";

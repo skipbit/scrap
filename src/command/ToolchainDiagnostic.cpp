@@ -1,15 +1,50 @@
 #include "command/ToolchainDiagnostic.h"
 
+#include "command/PermissionHint.h"
 #include "command/PrintableText.h"
+#include "toolchain/GlobalConfig.h"
+#include "toolchain/GlobalConfigFile.h"
 
+#include <filesystem>
 #include <string>
 #include <string_view>
+#include <type_traits>
+#include <variant>
 
 namespace scrap::Command {
 
 namespace {
 
 constexpr std::string_view SpecifierShape = "<family>[@<version>], such as 'gcc@15'";
+
+/**
+ * A fault in the text of @p file, pointed at as a compiler points at one.
+ */
+std::string renderFault(const std::filesystem::path& file, const Toolchain::GlobalConfigFault& fault)
+{
+    std::string text = printablePath(file) + ":" + std::to_string(fault.line) + ":" + std::to_string(fault.column) + ": error: ";
+    if (! fault.key.empty()) {
+        text += fault.key + ": ";
+    }
+    text += printableText(fault.message);
+    text += "\nhint: fix the file, or remove it to clear the settings it holds\n";
+    return text;
+}
+
+std::string render(const Toolchain::CannotReadConfig& failure)
+{
+    return "error: cannot read '" + printablePath(failure.path) + "'\n" + std::string{ PermissionHint };
+}
+
+std::string render(const Toolchain::CannotCreateDirectory& failure)
+{
+    return "error: cannot create '" + printablePath(failure.path) + "': " + failure.code.message() + "\n" + std::string{ PermissionHint };
+}
+
+std::string render(const Toolchain::CannotWriteConfig& failure)
+{
+    return "error: cannot write '" + printablePath(failure.path) + "': " + failure.code.message() + "\n" + std::string{ PermissionHint };
+}
 
 }  // anonymous namespace
 
@@ -55,6 +90,25 @@ std::string renderNoToolchainForHost()
 {
     return "error: no toolchain is built for this host\n"
            "hint: run 'scrap toolchain select system' to use the compiler found on the system\n";
+}
+
+std::string renderNoScrapHome()
+{
+    return "error: cannot tell where to keep toolchains: SCRAP_HOME and HOME are both unset\n"
+           "hint: set SCRAP_HOME to the directory to keep them in, and run the command again\n";
+}
+
+std::string renderGlobalConfigFileError(const std::filesystem::path& file, const Toolchain::GlobalConfigFileError& error)
+{
+    return std::visit(
+        [&file](const auto& alternative) -> std::string {
+        if constexpr (std::is_same_v<std::decay_t<decltype(alternative)>, Toolchain::GlobalConfigFault>) {
+            return renderFault(file, alternative);
+        } else {
+            return render(alternative);
+        }
+    },
+        error);
 }
 
 std::string renderNoCompilerWithInstalled(std::string_view example)

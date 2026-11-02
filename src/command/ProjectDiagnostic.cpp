@@ -2,6 +2,7 @@
 
 #include "build/BuildOutput.h"
 #include "build/BuildStep.h"
+#include "command/PermissionHint.h"
 #include "command/PrintableText.h"
 #include "command/ProjectArgument.h"
 #include "compile/CompilationDatabase.h"
@@ -32,9 +33,6 @@ namespace {
 
 /// Next step for a path argument that cannot be searched from.
 constexpr std::string_view PathHint = "hint: pass a directory inside a project, or omit the path to use the current directory\n";
-
-/// Next step for a path the operating system refused.
-constexpr std::string_view PermissionHint = "hint: check the permissions of the path\n";
 
 /// Next step for a disk or a quota that is full.
 constexpr std::string_view DiskSpaceHint = "hint: free some disk space and run the command again\n";
