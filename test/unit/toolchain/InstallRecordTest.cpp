@@ -4,6 +4,7 @@
 
 #include <filesystem>
 #include <string>
+#include <vector>
 
 using namespace scrap::Toolchain;
 
@@ -41,4 +42,38 @@ TEST(InstallRecordTest, RefusesACompilerOutsideTheToolchain)
     EXPECT_EQ(parseInstallRecord("compiler = \"/usr/bin/g++\"\n").error(), reason);
     EXPECT_EQ(parseInstallRecord("compiler = \"../gcc/bin/g++\"\n").error(), reason);
     EXPECT_EQ(parseInstallRecord("compiler = \"bin/../../g++\"\n").error(), reason);
+}
+
+/**
+ * The runtime library directories are read in order, as paths relative to
+ * the toolchain; a record without them names none.
+ */
+TEST(InstallRecordTest, ReadsTheRuntimeLibraryDirectories)
+{
+    const auto record = parseInstallRecord("compiler = \"bin/g++\"\nruntime-library-dirs = [\"lib64\", \"lib/gcc\"]\n");
+
+    ASSERT_TRUE(record.has_value()) << record.error();
+    const std::vector<std::filesystem::path> expected{ "lib64", "lib/gcc" };
+    EXPECT_EQ(record->runtimeLibraryDirectories, expected);
+
+    const auto without = parseInstallRecord("compiler = \"bin/g++\"\n");
+    ASSERT_TRUE(without.has_value()) << without.error();
+    EXPECT_TRUE(without->runtimeLibraryDirectories.empty());
+}
+
+/**
+ * Runtime library directories that are not a list of strings, or that lead
+ * outside the toolchain, are refused, so a record cannot point the
+ * executables built with it at libraries elsewhere.
+ */
+TEST(InstallRecordTest, RefusesRuntimeLibraryDirectoriesOutsideTheToolchain)
+{
+    EXPECT_EQ(parseInstallRecord("compiler = \"bin/g++\"\nruntime-library-dirs = \"lib64\"\n").error(),
+              "line 2: runtime-library-dirs: must be an array of strings");
+    EXPECT_EQ(parseInstallRecord("compiler = \"bin/g++\"\nruntime-library-dirs = [1]\n").error(),
+              "line 2: runtime-library-dirs: must be a string");
+    const std::string reason = "line 2: runtime-library-dirs: must be a relative path inside the toolchain";
+    EXPECT_EQ(parseInstallRecord("compiler = \"bin/g++\"\nruntime-library-dirs = [\"lib64\", \"/usr/lib\"]\n").error(), reason);
+    EXPECT_EQ(parseInstallRecord("compiler = \"bin/g++\"\nruntime-library-dirs = [\"../lib\"]\n").error(), reason);
+    EXPECT_EQ(parseInstallRecord("compiler = \"bin/g++\"\nruntime-library-dirs = [\"\"]\n").error(), reason);
 }

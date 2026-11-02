@@ -18,12 +18,13 @@ namespace scrap::Compile {
  * @brief What every command of one build shares.
  */
 struct BuildSettings {
-    std::filesystem::path projectRoot;     ///< Where the commands run: the project root, absolute.
-    std::filesystem::path buildDirectory;  ///< Where they write, relative to the project root.
-    std::filesystem::path compiler;        ///< The compiler to run, absolute.
-    CompilerDriver driver;                 ///< How that compiler takes its options.
-    Project::LanguageStandard standard;    ///< The standard the manifest states.
-    BuildProfile profile;                  ///< What the compiler is asked to build for.
+    std::filesystem::path projectRoot;                             ///< Where the commands run: the project root, absolute.
+    std::filesystem::path buildDirectory;                          ///< Where they write, relative to the project root.
+    std::filesystem::path compiler;                                ///< The compiler to run, absolute.
+    CompilerDriver driver;                                         ///< How that compiler takes its options.
+    Project::LanguageStandard standard;                            ///< The standard the manifest states.
+    BuildProfile profile;                                          ///< What the compiler is asked to build for.
+    std::vector<std::filesystem::path> runtimeLibraryDirectories;  ///< Where executables find the compiler's runtime libraries, absolute.
 };
 
 /**
@@ -99,8 +100,11 @@ struct BuildSettings {
 /**
  * @brief Decide the command that links each executable.
  *
- * An executable is written to bin/<target> in the build directory, from the
- * object files planCompileCommands() gives its sources, in the same order,
+ * An executable is written to bin/<target> in the build directory. Each of
+ * the runtime library directories is embedded in it as a run-time search
+ * path, in the order given, and passed to the linker whole, so a comma in
+ * one does not split it. It is linked from the object files
+ * planCompileCommands() gives its sources, in the same order,
  * followed by the library among @p targets, if any: an executable uses the
  * library of its project without naming it. The link flags of the
  * executable come next, then the public ones of that library, after every

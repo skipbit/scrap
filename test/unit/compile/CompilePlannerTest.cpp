@@ -41,7 +41,8 @@ BuildSettings settingsFor(const CompilerIdentity& identity,
                           .compiler = Compiler,
                           .driver = CompilerDriver{ identity },
                           .standard = standard,
-                          .profile = profile };
+                          .profile = profile,
+                          .runtimeLibraryDirectories = {} };
 }
 
 TargetSources targetWithSources(TargetKind kind, const char* name, const char* entryPoint, std::vector<std::filesystem::path> sources)
@@ -351,6 +352,37 @@ TEST(CompilePlannerTest, LinksTheObjectFilesOfAnExecutable)
                                          "-fdiagnostics-color=always",
                                          "build/debug/obj/hello/src/main.cpp.o",
                                          "build/debug/obj/hello/src/util.cpp.o",
+                                         "-o",
+                                         "build/debug/bin/hello" }));
+}
+
+/**
+ * Each runtime library directory is embedded in an executable as a run-time
+ * search path, in order and whole, even with a comma in it; a library is
+ * archived without one.
+ */
+TEST(CompilePlannerTest, EmbedsTheRuntimeLibraryDirectoriesInAnExecutable)
+{
+    BuildSettings settings = settingsFor(CompilerIdentity{});
+    settings.runtimeLibraryDirectories = { "/home/me/.scrap/gcc/lib64", "/home/me/.scrap/a,b" };
+
+    const auto commands = planLinkCommands(settings,
+                                           { executableWithSources("hello", "src/main.cpp", { "src/main.cpp" }),
+                                             targetWithSources(TargetKind::Library, "core", "", { "src/core.cpp" }) });
+
+    ASSERT_EQ(commands.size(), 1);
+    EXPECT_EQ(commands[0].arguments,
+              (std::vector<std::string>{ "/usr/bin/c++",
+                                         "-Xlinker",
+                                         "-rpath",
+                                         "-Xlinker",
+                                         "/home/me/.scrap/gcc/lib64",
+                                         "-Xlinker",
+                                         "-rpath",
+                                         "-Xlinker",
+                                         "/home/me/.scrap/a,b",
+                                         "build/debug/obj/hello/src/main.cpp.o",
+                                         "build/debug/lib/libcore.a",
                                          "-o",
                                          "build/debug/bin/hello" }));
 }

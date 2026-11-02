@@ -372,18 +372,33 @@ protected:
     /**
      * Install @p family @p version as installToolchain() does, with a
      * compiler that adds a line naming the toolchain to compilers-used and
-     * then runs the compiler this test binary was built with, so a build
-     * with it succeeds and says which toolchain it used.
+     * its arguments, one a line, to compiler-arguments, and then runs the
+     * compiler this test binary was built with, so a build with it succeeds
+     * and says which toolchain it used and how.
      */
     void installWorkingToolchain(std::string_view family, std::string_view version) const
     {
         installToolchain(family, version);
         const std::string name = std::string{ family } + "@" + std::string{ version };
-        const std::string body = "#!/bin/sh\necho '" + name + "' >> '" + (_root / "compilers-used").string() + "'\nexec '" + SCRAP_TEST_CXX
-                                 + "' \"$@\"\n";
+        const std::string body = "#!/bin/sh\necho '" + name + "' >> '" + (_root / "compilers-used").string() + "'\nprintf '%s\\n' \"$@\" >> '"
+                                 + (_root / "compiler-arguments").string() + "'\nexec '" + SCRAP_TEST_CXX + "' \"$@\"\n";
         for (const char* host : { "linux-x86_64", "linux-aarch64", "darwin-x86_64", "darwin-aarch64" }) {
             const auto compiler = _temp->writeFile("toolchains/" + std::string{ family } + "/" + std::string{ version } + "/" + host + "/bin/g++", body);
             std::filesystem::permissions(compiler, std::filesystem::perms::owner_exec, std::filesystem::perm_options::add);
+        }
+    }
+
+    /**
+     * Record @p directory as where the runtime libraries of @p family
+     * @p version, laid out by installToolchain(), are, for every host.
+     */
+    void recordRuntimeLibraryDirectory(std::string_view family, std::string_view version, std::string_view directory) const
+    {
+        for (const char* host : { "linux-x86_64", "linux-aarch64", "darwin-x86_64", "darwin-aarch64" }) {
+            const std::string toolchain = "toolchains/" + std::string{ family } + "/" + std::string{ version } + "/" + host;
+            _temp->writeFile(toolchain + "/" + std::string{ directory } + "/.keep", "");
+            _temp->writeFile(toolchain + "/.scrap-toolchain.toml",
+                             "compiler = \"bin/g++\"\nruntime-library-dirs = [\"" + std::string{ directory } + "\"]\n");
         }
     }
 
@@ -2879,6 +2894,31 @@ TEST_F(CliE2ETest, BuildUsesTheToolchainChosenFirst)
     auto other = runScrap({ "build" }, { "SCRAP_TOOLCHAIN=gcc@15.2.0" }, _root / "other", BuildTimeout);
     EXPECT_EQ(other.exitCode, 0) << other.stderrText;
     EXPECT_NE(other.stderrText.find("Using the toolchain 'gcc@15.2.0' (from SCRAP_TOOLCHAIN)\n"), std::string::npos) << other.stderrText;
+}
+
+/**
+ * An executable built with an installed toolchain is linked to search the
+ * toolchain's runtime library directory at run time.
+ */
+TEST_F(CliE2ETest, BuildEmbedsTheRuntimeLibraryDirectoryOfTheToolchain)
+{
+    installWorkingToolchain("gcc", "15.2.0");
+    recordRuntimeLibraryDirectory("gcc", "15.2.0", "lib64");
+    writeFile("hello/scrap.toml", ValidManifest);
+    writeFile("hello/src/main.cpp", MainSource);
+
+    auto result = runScrap({ "build" }, { "SCRAP_TOOLCHAIN=gcc@15.2.0" }, _root / "hello", BuildTimeout);
+
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    const std::string arguments = readFile("compiler-arguments");
+    const std::string embedding = "-Xlinker\n-rpath\n-Xlinker\n";
+    const auto at = arguments.find(embedding);
+    ASSERT_NE(at, std::string::npos) << arguments;
+    const auto start = at + embedding.size();
+    const std::string directory = arguments.substr(start, arguments.find('\n', start) - start);
+    EXPECT_TRUE(directory.ends_with("/lib64")) << directory;
+    EXPECT_NE(directory.find("toolchains/gcc/15.2.0/"), std::string::npos) << directory;
+    EXPECT_TRUE(std::filesystem::path{ directory }.is_absolute()) << directory;
 }
 
 /**

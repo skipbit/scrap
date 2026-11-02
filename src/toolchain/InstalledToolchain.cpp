@@ -13,6 +13,7 @@
 #include <optional>
 #include <string>
 #include <system_error>
+#include <utility>
 #include <vector>
 
 namespace scrap::Toolchain {
@@ -47,7 +48,19 @@ std::expected<InstalledToolchain, std::string> readInstalled(const std::string& 
     if (! std::filesystem::exists(compiler, ec)) {
         return std::unexpected("'" + recordFile.string() + "' names the compiler '" + compiler.string() + "', which is not there");
     }
-    return InstalledToolchain{ .family = family, .version = version, .directory = directory, .compiler = compiler };
+    std::vector<std::filesystem::path> runtimeLibraryDirectories;
+    for (const std::filesystem::path& recorded : record->runtimeLibraryDirectories) {
+        std::filesystem::path runtimeLibraryDirectory = directory / recorded;
+        if (! std::filesystem::is_directory(runtimeLibraryDirectory, ec)) {
+            return std::unexpected("'" + recordFile.string() + "' names the runtime library directory '" + runtimeLibraryDirectory.string() + "', which is not there");
+        }
+        runtimeLibraryDirectories.push_back(std::move(runtimeLibraryDirectory));
+    }
+    return InstalledToolchain{ .family = family,
+                               .version = version,
+                               .directory = directory,
+                               .compiler = compiler,
+                               .runtimeLibraryDirectories = std::move(runtimeLibraryDirectories) };
 }
 
 }  // anonymous namespace

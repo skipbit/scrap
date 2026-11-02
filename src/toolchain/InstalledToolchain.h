@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace scrap::Toolchain {
 
@@ -17,8 +18,9 @@ namespace scrap::Toolchain {
 struct InstalledToolchain {
     std::string family;
     ToolchainVersion version;
-    std::filesystem::path directory;  ///< <SCRAP_HOME>/toolchains/<family>/<version>/<platform>-<arch>
-    std::filesystem::path compiler;   ///< The C++ compiler inside the directory.
+    std::filesystem::path directory;                               ///< <SCRAP_HOME>/toolchains/<family>/<version>/<platform>-<arch>
+    std::filesystem::path compiler;                                ///< The C++ compiler inside the directory.
+    std::vector<std::filesystem::path> runtimeLibraryDirectories;  ///< Where its runtime libraries are inside the directory.
 };
 
 /**
@@ -28,7 +30,8 @@ struct InstalledToolchain {
  * A toolchain counts as installed when its directory holds an install
  * record. A directory whose name is not a version is passed over. When the
  * newest one's record cannot be read, or names a compiler that is not
- * there, that is an error rather than a reason to choose an older one.
+ * there, or a runtime library directory that is not there, that is an
+ * error rather than a reason to choose an older one.
  *
  * @return The toolchain, nothing when none is installed, or why the one
  *         found cannot be used.

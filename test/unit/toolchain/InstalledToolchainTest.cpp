@@ -7,9 +7,11 @@
 
 #include <gtest/gtest.h>
 
+#include <filesystem>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 using namespace scrap::Toolchain;
 using scrap::TestSupport::TempDirectory;
@@ -114,4 +116,28 @@ TEST(InstalledToolchainTest, RefusesTheNewestWhenItsRecordCannotBeUsed)
     const auto missing = findInstalledToolchain(home.path(), Host, parseToolchainSpecifier("gcc").value());
     ASSERT_FALSE(missing.has_value());
     EXPECT_TRUE(missing.error().ends_with("bin/clang++', which is not there")) << missing.error();
+}
+
+/**
+ * The runtime library directories the record names are found inside the
+ * toolchain; one that is not there makes the toolchain unusable.
+ */
+TEST(InstalledToolchainTest, FindsTheRuntimeLibraryDirectories)
+{
+    const TempDirectory home;
+    install(home, "gcc", "15.2.0");
+    const std::string directory = "toolchains/gcc/15.2.0/linux-x86_64";
+    home.writeFile(directory + "/lib64/libstdc++.so.6", "");
+    home.writeFile(directory + "/" + std::string{ InstallRecordName }, "compiler = \"bin/g++\"\nruntime-library-dirs = [\"lib64\"]\n");
+
+    const auto found = findInstalledToolchain(home.path(), Host, parseToolchainSpecifier("gcc").value());
+    ASSERT_TRUE(found.has_value()) << found.error();
+    ASSERT_TRUE(found->has_value());
+    const std::vector<std::filesystem::path> expected{ home.path() / directory / "lib64" };
+    EXPECT_EQ((*found)->runtimeLibraryDirectories, expected);
+
+    home.writeFile(directory + "/" + std::string{ InstallRecordName }, "compiler = \"bin/g++\"\nruntime-library-dirs = [\"lib\"]\n");
+    const auto missing = findInstalledToolchain(home.path(), Host, parseToolchainSpecifier("gcc").value());
+    ASSERT_FALSE(missing.has_value());
+    EXPECT_TRUE(missing.error().ends_with("/lib', which is not there")) << missing.error();
 }
