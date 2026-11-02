@@ -2826,7 +2826,7 @@ TEST_F(CliE2ETest, SelectLeavesAConfigItCannotReadAsItIs)
 {
     installToolchain("gcc", "15.2.0");
     writeFile("config.toml", "[defaults]\ntoolchain = 15\n");
-    const std::string config = (std::filesystem::canonical(_root) / "config.toml").string();
+    const std::string config = (_root / "config.toml").string();
 
     for (const std::vector<std::string>& args : { std::vector<std::string>{ "toolchain", "select", "gcc" }, std::vector<std::string>{ "toolchain", "unselect" } }) {
         auto result = runScrap(args, {}, _root);
@@ -3001,7 +3001,7 @@ TEST_F(CliE2ETest, BuildReadsTheGlobalDefaultOnlyWhenItNeedsIt)
     writeFile("config.toml", "[defaults]\ntoolchain = 15\n");
     writeFile("hello/scrap.toml", ValidManifest);
     writeFile("hello/src/main.cpp", MainSource);
-    const std::string config = (std::filesystem::canonical(_root) / "config.toml").string();
+    const std::string config = (_root / "config.toml").string();
 
     auto needed = runScrap({ "build" }, { realCompiler() }, _root / "hello", BuildTimeout);
     EXPECT_EQ(needed.exitCode, 1);
