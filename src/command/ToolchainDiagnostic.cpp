@@ -72,7 +72,7 @@ std::string render(std::string_view, ToolchainNamedIn, const Toolchain::CannotLi
 
 std::string renderNotASpecifier(std::string_view text, std::string_view reason)
 {
-    std::string rendered = "error: '" + printableText(text) + "' is not a toolchain specifier: ";
+    std::string rendered = "error: '" + printableTypedEcho(text) + "' is not a toolchain specifier: ";
     rendered += reason;
     rendered += "\nhint: write it as ";
     rendered += SpecifierShape;
@@ -82,7 +82,7 @@ std::string renderNotASpecifier(std::string_view text, std::string_view reason)
 
 std::string renderToolchainVariableNotASpecifier(std::string_view value, std::string_view reason)
 {
-    std::string rendered = "error: SCRAP_TOOLCHAIN holds '" + printableText(value) + "', which is not a toolchain specifier: ";
+    std::string rendered = "error: SCRAP_TOOLCHAIN holds '" + printableTypedEcho(value) + "', which is not a toolchain specifier: ";
     rendered += reason;
     rendered += "\nhint: set it to ";
     rendered += SpecifierShape;

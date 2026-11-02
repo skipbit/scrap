@@ -10,6 +10,7 @@ using scrap::Command::printableLines;
 using scrap::Command::printableName;
 using scrap::Command::printablePath;
 using scrap::Command::printableText;
+using scrap::Command::printableTypedEcho;
 
 /**
  * Letters outside ASCII are what the user typed, so a well-formed sequence
@@ -131,4 +132,17 @@ TEST(PrintableTextTest, CutsAnEchoedValueThatIsTooLongToBeAName)
     EXPECT_EQ(printableEcho("a\x1b[31m"), "a\\x1B[31m");
     EXPECT_EQ(printableEcho(std::string(64, 'n')), std::string(64, 'n'));
     EXPECT_EQ(printableEcho(std::string(65, 'n')), std::string(64, 'n') + "...");
+}
+
+/**
+ * Text the user typed is cut as an echoed value is, and keeps its letters
+ * outside ASCII; a letter the cut splits is escaped.
+ */
+TEST(PrintableTextTest, CutsTypedTextAndKeepsItsLetters)
+{
+    // U+FF11, three bytes.
+    EXPECT_EQ(printableTypedEcho("gcc@\xef\xbc\x91"), "gcc@\xef\xbc\x91");
+    EXPECT_EQ(printableTypedEcho("a\x1b[31m"), "a\\x1B[31m");
+    EXPECT_EQ(printableTypedEcho(std::string(65, 'n')), std::string(64, 'n') + "...");
+    EXPECT_EQ(printableTypedEcho(std::string(63, 'n') + "\xef\xbc\x91"), std::string(63, 'n') + "\\xEF...");
 }

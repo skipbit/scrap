@@ -182,4 +182,12 @@ std::string printableEcho(const std::string_view text)
     return printableName(text.substr(0, EchoedValueLimit)) + "...";
 }
 
+std::string printableTypedEcho(const std::string_view text)
+{
+    if (text.size() <= EchoedValueLimit) {
+        return printableText(text);
+    }
+    return printableText(text.substr(0, EchoedValueLimit)) + "...";
+}
+
 }  // namespace scrap::Command

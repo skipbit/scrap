@@ -76,4 +76,16 @@ inline constexpr std::size_t EchoedValueLimit = 64;
  */
 [[nodiscard]] std::string printableEcho(std::string_view text);
 
+/**
+ * @brief Text the user typed, made safe to print as printableText() makes
+ *        it and cut where it is longer than EchoedValueLimit.
+ *
+ * Letters outside ASCII stay readable, so a mistyped letter shows as typed.
+ * A cut that splits a letter leaves bytes that printableText() escapes.
+ *
+ * @param text Text to render.
+ * @return The text for a terminal, ending in "..." when cut.
+ */
+[[nodiscard]] std::string printableTypedEcho(std::string_view text);
+
 }  // namespace scrap::Command

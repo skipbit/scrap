@@ -133,3 +133,22 @@ TEST(ToolchainDiagnosticTest, RendersAHostWithoutToolchainsByWhereTheToolchainWa
     EXPECT_EQ(renderNoToolchainForHost(ToolchainNamedIn::Project),
               error + "hint: set name under [toolchain] in scrap.toml to \"system\" to use the compiler found on the system\n");
 }
+
+/**
+ * A value that is no specifier is echoed cut, as CXX is, so a long value
+ * from the environment or the command line does not fill the terminal.
+ */
+TEST(ToolchainDiagnosticTest, CutsALongValueThatIsNoSpecifier)
+{
+    const std::string kept(64, 'g');
+    const std::string cut = kept + "g";
+
+    EXPECT_EQ(renderToolchainVariableNotASpecifier(cut, "its family is too long"),
+              "error: SCRAP_TOOLCHAIN holds '" + kept + "...', which is not a toolchain specifier: its family is too long\n"
+                                                        "hint: set it to <family>[@<version>], such as 'gcc@15', or to system, or unset it\n");
+    EXPECT_EQ(renderNotASpecifier(cut, "its family is too long"),
+              "error: '" + kept + "...' is not a toolchain specifier: its family is too long\n"
+                                  "hint: write it as <family>[@<version>], such as 'gcc@15', or as system\n");
+    EXPECT_EQ(renderNotASpecifier(kept, "its family is too long").substr(0, 72), "error: '" + kept);
+    EXPECT_EQ(renderNotASpecifier("gcc@\xef\xbc\x91", "its version is not numbers joined by dots").substr(0, 16), "error: 'gcc@\xef\xbc\x91'");
+}
