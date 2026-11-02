@@ -24,6 +24,7 @@ add_custom_target(scrap_version_source ALL
 find_package(CLI11 REQUIRED)
 find_package(TomlPlusPlus REQUIRED)
 find_package(Threads REQUIRED)
+find_package(LibCurl REQUIRED)
 
 # Each module is built once as a library, and the binary and the tests link
 # against it.
@@ -35,6 +36,15 @@ add_library(scrap_file STATIC
 )
 target_include_directories(scrap_file PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 scrap_apply_compile_settings(scrap_file WARNINGS_AS_ERRORS)
+
+# Fetching URLs into files
+add_library(scrap_fetch STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/fetch/CertificateBundle.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/fetch/driver/CurlFetch.cpp
+)
+target_include_directories(scrap_fetch PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(scrap_fetch PRIVATE scrap_file scrap_libcurl)
+scrap_apply_compile_settings(scrap_fetch WARNINGS_AS_ERRORS)
 
 # Project configuration (scrap.toml)
 add_library(scrap_project STATIC

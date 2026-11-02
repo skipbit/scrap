@@ -7,6 +7,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/test)
 # Helpers shared by the tests of more than one module
 add_library(scrap_test_support STATIC
     support/Fifo.cpp
+    support/HttpTestServer.cpp
     support/TempDirectory.cpp
 )
 target_include_directories(scrap_test_support PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
@@ -89,6 +90,15 @@ scrap_add_unit_test(toolchain SOURCES
 scrap_add_unit_test(file SOURCES
     unit/file/StagedFileTest.cpp
     unit/file/WholeFileTest.cpp
+)
+
+# The fetch tests wait on a server that stalls and on a real host; a transfer
+# whose limits no longer stop it would leave them waiting.
+scrap_add_unit_test(fetch SOURCES
+    unit/fetch/CertificateBundleTest.cpp
+    unit/fetch/UrlFetchTest.cpp
+    unit/fetch/UrlFetchOverTheNetworkTest.cpp
+    PROPERTIES TIMEOUT 120
 )
 
 scrap_add_unit_test(project SOURCES
