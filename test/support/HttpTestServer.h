@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <cstddef>
 #include <cstdint>
 #include <map>
 #include <mutex>
@@ -17,7 +18,8 @@ struct HttpTestResponse {
     int status = 200;
     std::string headers;  ///< Extra header lines, each ending in CRLF.
     std::string body;
-    bool stalls = false;  ///< Say nothing, and hold the connection open.
+    bool stalls = false;          ///< Say nothing, and hold the connection open.
+    std::size_t bytesCutOff = 0;  ///< Promise this many bytes beyond the body, and hang up.
 };
 
 /**

@@ -91,7 +91,9 @@ using FetchError = std::variant<UrlRefused, NoCertificateBundle, CertificateFail
  * proxy named by the usual environment variables is used, except for this
  * machine.
  *
- * The destination changes only when the whole of the content has arrived.
+ * The destination changes only when the response has ended as it said it would.
+ * One that ends by closing the connection cannot show it was cut short, so a
+ * caller that must have the whole content checks it.
  *
  * @return Nothing on success, or what went wrong.
  */

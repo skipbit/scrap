@@ -306,6 +306,23 @@ TEST(UrlFetchTest, GivesUpOnAServerThatStalls)
     EXPECT_FALSE(std::filesystem::exists(temp.path() / "out"));
 }
 
+TEST(UrlFetchTest, ReportsAResponseCutShortAndLeavesTheDestinationAsItWas)
+{
+    const TempDirectory temp;
+    HttpTestResponse response;
+    response.body = "part of";
+    response.bytesCutOff = 10;
+    const HttpTestServer server{ { { "/file", response } } };
+    ASSERT_FALSE(writeNewFile(temp.path() / "out", "previous").operator bool());
+
+    const auto fetched = fetchToFile(requestFor(server.url("/file"), temp.path() / "out"));
+
+    ASSERT_FALSE(fetched.has_value());
+    EXPECT_TRUE(std::holds_alternative<TransferFailure>(fetched.error()));
+    EXPECT_EQ(readWholeFile(temp.path() / "out"), "previous");
+    EXPECT_EQ(temp.entries(), (std::vector<std::string>{ "out" }));
+}
+
 TEST(UrlFetchTest, ReportsAConnectionThatCannotBeMade)
 {
     const TempDirectory temp;

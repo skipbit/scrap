@@ -157,7 +157,7 @@ void HttpTestServer::answer(const int connection)
     }
 
     const auto found = _responses.find(requestedPath(requestLine));
-    const HttpTestResponse notFound{ .status = 404, .headers = {}, .body = "not found", .stalls = false };
+    const HttpTestResponse notFound{ .status = 404, .headers = {}, .body = "not found", .stalls = false, .bytesCutOff = 0 };
     const HttpTestResponse& response = (found != _responses.end()) ? found->second : notFound;
     if (response.stalls) {
         // Returns when the client hangs up or the server stops.
@@ -172,7 +172,7 @@ void HttpTestServer::answer(const int connection)
 
     std::string head = "HTTP/1.1 " + std::to_string(response.status) + " Test\r\n";
     head += response.headers;
-    head += "Content-Length: " + std::to_string(response.body.size()) + "\r\n";
+    head += "Content-Length: " + std::to_string(response.body.size() + response.bytesCutOff) + "\r\n";
     head += "Connection: close\r\n\r\n";
     writeAll(connection, head);
     writeAll(connection, response.body);
