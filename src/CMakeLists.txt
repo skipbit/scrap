@@ -55,6 +55,13 @@ target_include_directories(scrap_xz PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(scrap_xz PRIVATE scrap_liblzma)
 scrap_apply_compile_settings(scrap_xz WARNINGS_AS_ERRORS)
 
+# Reading tar archives and extracting them, depending on nothing else in scrap
+add_library(scrap_tar STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/tar/TarReader.cpp
+)
+target_include_directories(scrap_tar PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+scrap_apply_compile_settings(scrap_tar WARNINGS_AS_ERRORS)
+
 # Fetching URLs into files
 add_library(scrap_fetch STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/fetch/CertificateBundle.cpp

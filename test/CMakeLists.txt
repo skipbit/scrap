@@ -97,6 +97,11 @@ scrap_add_unit_test(digest SOURCES
     unit/digest/Sha256Test.cpp
 )
 
+scrap_add_unit_test(tar SOURCES
+    unit/tar/TarArchiveBuilder.cpp
+    unit/tar/TarReaderTest.cpp
+)
+
 scrap_add_unit_test(xz SOURCES
     unit/xz/XzFileTest.cpp
 )

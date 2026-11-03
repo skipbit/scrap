@@ -32,7 +32,7 @@ formatted_sources() {
 # stay clean from its first commit. Findings in any src/ header pulled in by
 # these TUs (see HeaderFilterRegex) also fail the check.
 linted_sources() {
-  find src/build src/command src/compile src/digest src/fetch src/file src/process src/project src/toolchain src/xz -type f -name '*.cpp' -print0
+  find src/build src/command src/compile src/digest src/fetch src/file src/process src/project src/tar src/toolchain src/xz -type f -name '*.cpp' -print0
 }
 
 case "${1:-}" in
