@@ -1,10 +1,12 @@
 #pragma once
 
+#include "tar/Descriptor.h"
 #include "tar/TarReader.h"
 
 #include <cstdint>
 #include <expected>  // IWYU pragma: keep
 #include <filesystem>
+#include <span>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -80,35 +82,14 @@ public:
     [[nodiscard]] std::expected<void, ExtractError> finish();
 
 private:
-    /// Closes the descriptor it holds.
-    class Descriptor {
-    public:
-        Descriptor() = default;
-        explicit Descriptor(int value);
-        Descriptor(Descriptor&& other) noexcept;
-        Descriptor& operator=(Descriptor&& other) noexcept;
-        Descriptor(const Descriptor&) = delete;
-        Descriptor& operator=(const Descriptor&) = delete;
-        ~Descriptor();
-
-        [[nodiscard]] int get() const
-        {
-            return _value;
-        }
-        [[nodiscard]] std::error_code close();
-
-    private:
-        void discard() noexcept;
-
-        int _value = -1;
-    };
-
     explicit Extractor(Descriptor root);
 
     [[nodiscard]] std::expected<void, ExtractError> drain();
     [[nodiscard]] std::expected<void, ExtractError> begin(const Entry& entry);
-    [[nodiscard]] std::expected<void, ExtractError> beginFile(const Entry& entry, const Descriptor& parent, std::string_view name);
-    [[nodiscard]] std::expected<void, ExtractError> makeHardLink(const Entry& entry, const Descriptor& parent, std::string_view name) const;
+    [[nodiscard]] std::expected<void, ExtractError> makeDirectory(const Entry& entry, std::span<const std::string_view> components) const;
+    [[nodiscard]] std::expected<void, ExtractError> makeSymbolicLink(const Entry& entry, std::span<const std::string_view> components) const;
+    [[nodiscard]] std::expected<void, ExtractError> makeHardLink(const Entry& entry, std::span<const std::string_view> components) const;
+    [[nodiscard]] std::expected<void, ExtractError> beginFile(const Entry& entry, std::span<const std::string_view> components);
     [[nodiscard]] std::expected<void, ExtractError> writeContent(std::string_view bytes);
     [[nodiscard]] std::expected<void, ExtractError> endFile();
 

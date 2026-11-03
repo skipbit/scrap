@@ -239,7 +239,19 @@ TEST_F(TarExtractorTest, RefusesASymbolicLinkGoingAboveTheRoot)
 {
     expectRefusedWith<UnsafeLinkTarget>(symbolicLinkEntry("dir/link", "../../outside") + endMarker());
 
-    EXPECT_FALSE(fs::is_symlink(at("dir/link")));
+    EXPECT_FALSE(fs::exists(at("dir")));
+}
+
+TEST_F(TarExtractorTest, LeavesNoParentDirectoryForARefusedHardLink)
+{
+    expectRefusedWith<UnsafeLinkTarget>(hardLinkEntry("dir/hard", "../outside") + endMarker());
+
+    EXPECT_FALSE(fs::exists(at("dir")));
+}
+
+TEST_F(TarExtractorTest, JudgesTheLinkTargetBeforeWalkingThroughAFile)
+{
+    expectRefusedWith<UnsafeLinkTarget>(fileEntry("file", "a") + symbolicLinkEntry("file/link", "/absolute") + endMarker());
 }
 
 TEST_F(TarExtractorTest, RefusesALinkChainThatWouldLeadOutside)
