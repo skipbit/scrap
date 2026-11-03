@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <string>
 #include <system_error>
+#include <vector>
 
 using namespace scrap::File;
 using scrap::TestSupport::TempDirectory;
@@ -48,11 +49,7 @@ TEST(WholeFileTest, ReplacesAFileWhole)
     EXPECT_FALSE(replaceFile(temp.path() / "out", "new"));
 
     EXPECT_EQ(temp.readFile("out"), "new");
-    std::size_t entries = 0;
-    for ([[maybe_unused]] const auto& entry : std::filesystem::directory_iterator{ temp.path() }) {
-        ++entries;
-    }
-    EXPECT_EQ(entries, 1);
+    EXPECT_EQ(temp.entries(), (std::vector<std::string>{ "out" }));
 }
 
 /**

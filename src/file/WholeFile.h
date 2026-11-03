@@ -33,14 +33,8 @@ enum class ReadFailure : std::uint8_t {
 /**
  * @brief Put @p content at @p file, whole.
  *
- * The content is written beside the file under a name no other file holds
- * and then renamed over it, so a reader sees either the previous file or the
- * new one whole, and two processes writing at once each write a file of
- * their own. The name carries this process's id and a count; creating it
- * exclusively moves on to the next count when another process, one in
- * another container with the same id among them, already holds it. The
- * staged file is removed when a later step fails. The file is created
- * readable by everyone and writable by its owner, before the process umask.
+ * The content is staged beside the file (see StagedFile) and then renamed over
+ * it, so a reader sees either the previous file or the new one whole.
  *
  * @return Nothing on success, or what the operating system reported.
  */
