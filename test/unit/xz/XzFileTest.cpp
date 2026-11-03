@@ -1,5 +1,6 @@
 #include "xz/XzFile.h"
 
+#include "support/StoredXz.h"
 #include "support/TempDirectory.h"
 
 #include <gtest/gtest.h>
@@ -246,4 +247,22 @@ TEST_F(XzFileTest, StopsWhenTheConsumerAsks)
     ASSERT_FALSE(result.has_value());
     EXPECT_TRUE(std::holds_alternative<ConsumerStopped>(result.error()));
     EXPECT_EQ(pieces, 1U);
+}
+
+TEST(StoredXzTest, DecodesToWhatItWasGiven)
+{
+    const TempDirectory directory;
+    for (const std::size_t size : { std::size_t{ 0 }, std::size_t{ 1 }, std::size_t{ 3 }, std::size_t{ 65536 }, std::size_t{ 65537 }, std::size_t{ 200000 } }) {
+        const std::string content(size, 'x');
+        const auto file = directory.writeFile("stored.xz", scrap::TestSupport::storedXz(content));
+
+        std::string decoded;
+        const auto result = decodeFile(file, [&decoded](const std::string_view piece) {
+            decoded += piece;
+            return true;
+        });
+
+        ASSERT_TRUE(result.has_value()) << size;
+        EXPECT_EQ(decoded, content) << size;
+    }
 }

@@ -8,6 +8,8 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/test)
 add_library(scrap_test_support STATIC
     support/Fifo.cpp
     support/HttpTestServer.cpp
+    support/StoredXz.cpp
+    support/TarArchiveBuilder.cpp
     support/TempDirectory.cpp
 )
 target_include_directories(scrap_test_support PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
@@ -100,7 +102,6 @@ scrap_add_unit_test(digest SOURCES
 )
 
 scrap_add_unit_test(tar SOURCES
-    unit/tar/TarArchiveBuilder.cpp
     unit/tar/TarExtractorTest.cpp
     unit/tar/TarPathTest.cpp
     unit/tar/TarReaderTest.cpp

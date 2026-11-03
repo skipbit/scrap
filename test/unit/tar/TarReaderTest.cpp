@@ -1,6 +1,6 @@
 #include "tar/TarReader.h"
 
-#include "unit/tar/TarArchiveBuilder.h"
+#include "support/TarArchiveBuilder.h"
 
 #include <gtest/gtest.h>
 
