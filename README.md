@@ -229,7 +229,7 @@ The archives, their checksums and build provenance attestations are on the
   - Clang 20-22 with libstdc++ 13, 14 or 15, or with libc++ 20 or 22
 
   On macOS, the Apple Clang shipped with macOS 15 or 26.
-- On Linux, a C compiler as well: the build fetches libcurl and Mbed TLS and links them in. macOS uses the libcurl it ships with.
+- A C compiler as well: the build fetches liblzma and links it in, and on Linux libcurl and Mbed TLS too. macOS uses the libcurl it ships with.
 - CMake 3.20 or higher (3.25 or higher for the presets used below)
 - Git
 
