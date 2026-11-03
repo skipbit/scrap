@@ -104,6 +104,7 @@ jobs:
       - name: Build
         env:
           CCACHE_BASEDIR: ${{ github.workspace }}
+          CMAKE_C_COMPILER_LAUNCHER: ccache
           CMAKE_CXX_COMPILER_LAUNCHER: ccache
         run: |
           export CCACHE_DIR="$HOME/.ccache"

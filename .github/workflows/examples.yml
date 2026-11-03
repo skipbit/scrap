@@ -46,6 +46,7 @@ jobs:
       CXX: ${{ matrix.toolchain.cxx }}
       CXXFLAGS: ${{ matrix.toolchain.flags }}
       LDFLAGS: ${{ matrix.toolchain.flags }}
+      CMAKE_C_COMPILER_LAUNCHER: ccache
       CMAKE_CXX_COMPILER_LAUNCHER: ccache
       CCACHE_BASEDIR: ${{ github.workspace }}
       DROSS_REF: v0.1.0
