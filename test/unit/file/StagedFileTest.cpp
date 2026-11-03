@@ -6,23 +6,14 @@
 #include <gtest/gtest.h>
 
 #include <filesystem>
-#include <iterator>
 #include <optional>
 #include <string>
 #include <system_error>
 #include <utility>
+#include <vector>
 
 using namespace scrap::File;
 using scrap::TestSupport::TempDirectory;
-
-namespace {
-
-std::ptrdiff_t entriesIn(const std::filesystem::path& directory)
-{
-    return std::distance(std::filesystem::directory_iterator{ directory }, std::filesystem::directory_iterator{});
-}
-
-}  // anonymous namespace
 
 TEST(StagedFileTest, PutsWhatWasAppendedAtTheDestinationOnCommit)
 {
@@ -37,7 +28,7 @@ TEST(StagedFileTest, PutsWhatWasAppendedAtTheDestinationOnCommit)
 
     EXPECT_FALSE(staged->commit().operator bool());
     EXPECT_EQ(readWholeFile(destination), "one two");
-    EXPECT_EQ(entriesIn(temp.path()), 1);
+    EXPECT_EQ(temp.entries(), (std::vector<std::string>{ "file" }));
 }
 
 TEST(StagedFileTest, ReplacesAFileAlreadyAtTheDestination)
@@ -65,11 +56,11 @@ TEST(StagedFileTest, LeavesNothingBehindUnlessCommitted)
         auto staged = StagedFile::begin(destination);
         ASSERT_TRUE(staged.has_value());
         ASSERT_FALSE(staged->append("new").operator bool());
-        EXPECT_EQ(entriesIn(temp.path()), 2);
+        EXPECT_EQ(temp.entries().size(), 2U);
     }
 
     EXPECT_EQ(readWholeFile(destination), "old");
-    EXPECT_EQ(entriesIn(temp.path()), 1);
+    EXPECT_EQ(temp.entries(), (std::vector<std::string>{ "file" }));
 }
 
 TEST(StagedFileTest, TakesTheNextNameWhenOneIsHeld)
@@ -81,7 +72,7 @@ TEST(StagedFileTest, TakesTheNextNameWhenOneIsHeld)
     auto second = StagedFile::begin(destination);
     ASSERT_TRUE(first.has_value());
     ASSERT_TRUE(second.has_value());
-    EXPECT_EQ(entriesIn(temp.path()), 2);
+    EXPECT_EQ(temp.entries().size(), 2U);
 
     ASSERT_FALSE(first->append("first").operator bool());
     ASSERT_FALSE(second->append("second").operator bool());
@@ -128,5 +119,5 @@ TEST(StagedFileTest, ReportsADestinationItCannotReplace)
 
     EXPECT_TRUE(staged->commit().operator bool());
     EXPECT_TRUE(std::filesystem::is_directory(destination));
-    EXPECT_EQ(entriesIn(temp.path()), 1);
+    EXPECT_EQ(temp.entries(), (std::vector<std::string>{ "directory" }));
 }

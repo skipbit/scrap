@@ -7,10 +7,8 @@
 #include <gtest/gtest.h>
 
 #include <chrono>
-#include <cstddef>
 #include <cstdlib>
 #include <filesystem>
-#include <iterator>
 #include <map>
 #include <optional>
 #include <string>
@@ -41,11 +39,6 @@ HttpTestResponse redirectTo(const std::string& location, const int status = 302)
 FetchRequest requestFor(std::string url, std::filesystem::path destination)
 {
     return { .url = std::move(url), .destination = std::move(destination), .certificateBundle = std::nullopt };
-}
-
-std::ptrdiff_t entriesIn(const std::filesystem::path& directory)
-{
-    return std::distance(std::filesystem::directory_iterator{ directory }, std::filesystem::directory_iterator{});
 }
 
 /**
@@ -93,7 +86,7 @@ TEST(UrlFetchTest, PutsTheBytesOfTheResponseAtTheDestination)
 
     ASSERT_TRUE(fetched.has_value());
     EXPECT_EQ(readWholeFile(temp.path() / "out"), body);
-    EXPECT_EQ(entriesIn(temp.path()), 1);
+    EXPECT_EQ(temp.entries(), (std::vector<std::string>{ "out" }));
 }
 
 TEST(UrlFetchTest, PutsAnEmptyFileForAnEmptyResponse)
@@ -211,7 +204,7 @@ TEST(UrlFetchTest, ReportsAnErrorStatusAndLeavesTheDestinationAsItWas)
     EXPECT_EQ(status->status, 404);
     EXPECT_EQ(status->url, server.url("/nothing"));
     EXPECT_EQ(readWholeFile(temp.path() / "out"), "previous");
-    EXPECT_EQ(entriesIn(temp.path()), 1);
+    EXPECT_EQ(temp.entries(), (std::vector<std::string>{ "out" }));
 }
 
 TEST(UrlFetchTest, ReportsAStatusThatIsNotTheContent)

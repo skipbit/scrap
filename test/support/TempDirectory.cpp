@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
@@ -12,6 +13,7 @@
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <vector>
 
 namespace scrap::TestSupport {
 
@@ -97,6 +99,20 @@ std::filesystem::path TempDirectory::makeDirectory(std::string_view relative) co
         ADD_FAILURE() << "cannot create " << target << ": " << ec.message();
     }
     return target;
+}
+
+std::vector<std::string> TempDirectory::entries() const
+{
+    std::vector<std::string> names;
+    std::error_code ec;
+    for (const auto& entry : std::filesystem::directory_iterator{ _path, ec }) {
+        names.push_back(entry.path().filename().string());
+    }
+    if (ec) {
+        ADD_FAILURE() << "cannot list " << _path << ": " << ec.message();
+    }
+    std::ranges::sort(names);
+    return names;
 }
 
 }  // namespace scrap::TestSupport

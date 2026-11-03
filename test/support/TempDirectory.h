@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace scrap::TestSupport {
 
@@ -60,6 +61,11 @@ public:
      * @return The bytes of the file, empty when it cannot be read.
      */
     std::string readFile(const std::filesystem::path& file) const;
+
+    /**
+     * @brief The names of what lies directly in the directory, sorted.
+     */
+    [[nodiscard]] std::vector<std::string> entries() const;
 
 private:
     std::filesystem::path _path;
