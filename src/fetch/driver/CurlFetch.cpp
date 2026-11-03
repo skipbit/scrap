@@ -166,9 +166,17 @@ std::optional<std::string> redirectTarget(CURL* easy, const long status)
  * Redirects are followed here rather than by libcurl, which can limit their
  * schemes but not the hosts a scheme may lead to.
  */
-std::expected<void, FetchError> transfer(CURL* easy, const FetchRequest& request, File::StagedFile& file)
+std::expected<void, FetchError> transfer(const FetchRequest& request, File::StagedFile& file)
 {
-    BodySink sink{ .easy = easy, .file = &file, .failure = {} };
+    // These come before the handle, which holds on to them until it is cleaned up.
+    std::array<char, CURL_ERROR_SIZE> errorText{};
+    BodySink sink{ .easy = nullptr, .file = &file, .failure = {} };
+    const EasyHandle easy{ curl_easy_init() };
+    if (easy == nullptr) {
+        return std::unexpected(TransferFailure{ .url = request.url, .message = "cannot set up a transfer" });
+    }
+    sink.easy = easy.get();
+
     std::string url = request.url;
     std::optional<UrlTarget> previous;
     for (int hop = 0; hop <= RedirectLimit; ++hop) {
@@ -180,9 +188,9 @@ std::expected<void, FetchError> transfer(CURL* easy, const FetchRequest& request
             return std::unexpected(NoCertificateBundle{ .url = url });
         }
 
-        std::array<char, CURL_ERROR_SIZE> errorText{};
-        applyOptions(easy, request, url, *target, sink, errorText.data());
-        const CURLcode code = curl_easy_perform(easy);
+        errorText.fill('\0');
+        applyOptions(easy.get(), request, url, *target, sink, errorText.data());
+        const CURLcode code = curl_easy_perform(easy.get());
         if (sink.failure) {
             return std::unexpected(CannotWriteDestination{ .path = request.destination, .code = sink.failure });
         }
@@ -191,11 +199,11 @@ std::expected<void, FetchError> transfer(CURL* easy, const FetchRequest& request
         }
 
         long status = 0;
-        curl_easy_getinfo(easy, CURLINFO_RESPONSE_CODE, &status);
+        curl_easy_getinfo(easy.get(), CURLINFO_RESPONSE_CODE, &status);
         if (status == HttpOk) {
             return {};
         }
-        auto next = redirectTarget(easy, status);
+        auto next = redirectTarget(easy.get(), status);
         if (! next.has_value()) {
             return std::unexpected(UnexpectedStatus{ .url = url, .status = status });
         }
@@ -209,16 +217,11 @@ std::expected<void, FetchError> transfer(CURL* easy, const FetchRequest& request
 
 std::expected<void, FetchError> fetchToFile(const FetchRequest& request)
 {
-    const EasyHandle easy{ curl_easy_init() };
-    if (easy == nullptr) {
-        return std::unexpected(TransferFailure{ .url = request.url, .message = "cannot set up a transfer" });
-    }
-
     auto file = File::StagedFile::begin(request.destination);
     if (! file.has_value()) {
         return std::unexpected(CannotWriteDestination{ .path = request.destination, .code = file.error() });
     }
-    if (auto done = transfer(easy.get(), request, *file); ! done.has_value()) {
+    if (auto done = transfer(request, *file); ! done.has_value()) {
         return std::unexpected(std::move(done.error()));
     }
     if (const std::error_code failure = file->commit()) {
