@@ -229,3 +229,12 @@ TEST(IngotSelectionTest, ReportsWhatStopsTheNewestWhenNoneCanBeInstalled)
     const auto& fault = std::get<NoLongerOffered>(selected.error());
     EXPECT_FALSE(fault.alternative.has_value());
 }
+
+TEST(IngotSelectionTest, GivesTheValueThatChecksAnIngot)
+{
+    Ingot ingot = hostIngot();
+    EXPECT_EQ(integrityOf(ingot), "abc");
+
+    ingot.source = RegistrySource{ .registry = "ghcr.io/example", .tag = "gcc:15.2.0", .digest = "sha256:def" };
+    EXPECT_EQ(integrityOf(ingot), "sha256:def");
+}

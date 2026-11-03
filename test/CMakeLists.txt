@@ -121,6 +121,12 @@ scrap_add_unit_test(fetch SOURCES
     PROPERTIES TIMEOUT 120
 )
 
+scrap_add_unit_test(install SOURCES
+    unit/install/IndexCopyTest.cpp
+    unit/install/IngotInstallerTest.cpp
+    PROPERTIES TIMEOUT 120
+)
+
 scrap_add_unit_test(project SOURCES
     unit/project/DiskProjectFileSystemTest.cpp
     unit/project/ManifestParserTest.cpp

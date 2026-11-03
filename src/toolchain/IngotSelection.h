@@ -73,6 +73,11 @@ struct NeedsNewerScrap {
 using IngotSelectionFault = std::variant<NoMatchInIndex, NoIngotForHost, NoLongerOffered, NeedsNewerGlibc, NeedsNewerScrap>;
 
 /**
+ * @brief The value the index gives to check @p ingot by: its digest or SHA-256.
+ */
+[[nodiscard]] std::string integrityOf(const Ingot& ingot);
+
+/**
  * @brief Choose what to install for @p specifier: the newest version it names
  *        that can be installed on @p host.
  *

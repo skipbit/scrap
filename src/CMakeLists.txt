@@ -68,6 +68,7 @@ scrap_apply_compile_settings(scrap_tar WARNINGS_AS_ERRORS)
 # Fetching URLs into files
 add_library(scrap_fetch STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/fetch/CertificateBundle.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/fetch/FetchErrorText.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/fetch/UrlPolicy.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/fetch/driver/CurlFetch.cpp
 )
@@ -126,6 +127,19 @@ add_library(scrap_toolchain STATIC
 target_include_directories(scrap_toolchain PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(scrap_toolchain PRIVATE scrap_file scrap_process tomlplusplus::tomlplusplus)
 scrap_apply_compile_settings(scrap_toolchain WARNINGS_AS_ERRORS)
+
+# Installing toolchains: obtaining the index, and fetching, checking and placing
+# what it offers
+add_library(scrap_install STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/install/IndexCopy.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/install/IngotInstaller.cpp
+)
+target_include_directories(scrap_install PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(scrap_install
+    PUBLIC scrap_toolchain scrap_fetch
+    PRIVATE scrap_digest scrap_file scrap_tar scrap_xz
+)
+scrap_apply_compile_settings(scrap_install WARNINGS_AS_ERRORS)
 
 # Compile commands
 add_library(scrap_compile STATIC

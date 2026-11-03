@@ -11,6 +11,7 @@
 #include <ranges>
 #include <string>
 #include <utility>
+#include <variant>
 #include <vector>
 
 namespace scrap::Toolchain {
@@ -115,6 +116,14 @@ IngotSelectionFault faultOf(const IndexedToolchain& toolchain, const ToolchainIn
 }
 
 }  // anonymous namespace
+
+std::string integrityOf(const Ingot& ingot)
+{
+    if (const auto* registry = std::get_if<RegistrySource>(&ingot.source)) {
+        return registry->digest;
+    }
+    return std::get<UrlSource>(ingot.source).sha256;
+}
 
 std::expected<SelectedIngot, IngotSelectionFault> selectIngot(const ToolchainIndex& index, const ToolchainSpecifier& specifier, const InstallingHost& host)
 {

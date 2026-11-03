@@ -16,6 +16,23 @@ namespace scrap::Toolchain {
 [[nodiscard]] std::filesystem::path familyDirectory(const std::filesystem::path& scrapHome, std::string_view family);
 
 /**
+ * @brief Where the toolchain @p family @p version for the environment named
+ *        @p environment is kept below @p scrapHome.
+ */
+[[nodiscard]] std::filesystem::path toolchainDirectory(const std::filesystem::path& scrapHome, std::string_view family, std::string_view version, std::string_view environment);
+
+/**
+ * @brief Where the copy of the toolchain index is kept below @p scrapHome.
+ */
+[[nodiscard]] std::filesystem::path indexCopyFile(const std::filesystem::path& scrapHome);
+
+/**
+ * @brief Where work under way is kept below @p scrapHome. Nothing there lasts,
+ *        and it shares a filesystem with what is kept.
+ */
+[[nodiscard]] std::filesystem::path temporaryDirectory(const std::filesystem::path& scrapHome);
+
+/**
  * @brief Where the global default toolchain is kept below @p scrapHome.
  */
 [[nodiscard]] std::filesystem::path globalConfigFile(const std::filesystem::path& scrapHome);
