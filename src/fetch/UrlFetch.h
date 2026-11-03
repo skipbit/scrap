@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <cstdint>
 #include <expected>  // IWYU pragma: keep
 #include <filesystem>
 #include <optional>
@@ -24,6 +25,9 @@ struct FetchRequest {
 
     /// How long nothing may arrive before the transfer is given up.
     std::chrono::seconds stallLimit = std::chrono::seconds{ 60 };
+
+    /// How many bytes the content may hold. Nothing limits it when this is empty.
+    std::optional<std::uint64_t> sizeLimit = std::nullopt;
 };
 
 /**
@@ -74,6 +78,14 @@ struct TooManyRedirects {
 };
 
 /**
+ * @brief The content went past the size limit.
+ */
+struct ContentTooLarge {
+    std::string url;
+    std::uint64_t limit = 0;
+};
+
+/**
  * @brief The destination could not be written.
  */
 struct CannotWriteDestination {
@@ -81,7 +93,7 @@ struct CannotWriteDestination {
     std::error_code code;
 };
 
-using FetchError = std::variant<UrlRefused, NoCertificateBundle, CertificateFailure, TransferFailure, UnexpectedStatus, TooManyRedirects, CannotWriteDestination>;
+using FetchError = std::variant<UrlRefused, NoCertificateBundle, CertificateFailure, TransferFailure, UnexpectedStatus, TooManyRedirects, ContentTooLarge, CannotWriteDestination>;
 
 /**
  * @brief Fetch a URL into a file, following redirects.
