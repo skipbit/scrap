@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 
 #include <cstddef>
+#include <expected>
 #include <filesystem>
 #include <string>
 #include <string_view>
@@ -152,7 +153,11 @@ TEST_F(TarExtractorTest, GivesAnImpliedDirectoryWhatUmaskLeaves)
 
 TEST_F(TarExtractorTest, TakesADirectoryEntryForOneAlreadyThere)
 {
-    EXPECT_TRUE(extract(fileEntry("dir/file", "a") + directoryEntry("dir/") + endMarker()).has_value());
+    const fs::path plain = _outer.makeDirectory("plain");
+
+    ASSERT_TRUE(extract(fileEntry("dir/file", "a") + directoryEntry("dir/", 0700) + endMarker()).has_value());
+
+    EXPECT_EQ(permissionsOf(at("dir")), permissionsOf(plain));
 }
 
 TEST_F(TarExtractorTest, KeepsAReadOnlyDirectoryUsableByItsOwner)
@@ -380,5 +385,8 @@ TEST_F(TarExtractorTest, ReportsADirectoryThatDoesNotExist)
     const auto extractor = Extractor::into(at("missing"));
 
     ASSERT_FALSE(extractor.has_value());
-    EXPECT_TRUE(std::holds_alternative<CannotWriteMember>(extractor.error()));
+    ASSERT_TRUE(std::holds_alternative<CannotOpenDirectory>(extractor.error()));
+    const auto& failure = std::get<CannotOpenDirectory>(extractor.error());
+    EXPECT_EQ(failure.path, at("missing"));
+    EXPECT_EQ(failure.code, std::make_error_code(std::errc::no_such_file_or_directory));
 }

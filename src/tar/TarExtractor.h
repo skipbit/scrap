@@ -15,6 +15,14 @@
 namespace scrap::Tar {
 
 /**
+ * @brief The directory to extract into could not be opened.
+ */
+struct CannotOpenDirectory {
+    std::filesystem::path path;
+    std::error_code code;
+};
+
+/**
  * @brief A member's path is empty or absolute, holds "..", or goes through
  *        something that is not a directory, a symbolic link among them.
  */
@@ -40,7 +48,7 @@ struct CannotWriteMember {
     std::error_code code;
 };
 
-using ExtractError = std::variant<ReadError, UnsafeMemberPath, UnsafeLinkTarget, CannotWriteMember>;
+using ExtractError = std::variant<ReadError, CannotOpenDirectory, UnsafeMemberPath, UnsafeLinkTarget, CannotWriteMember>;
 
 /**
  * @brief Extracts a tar archive given piece by piece into a directory, and keeps
@@ -54,7 +62,8 @@ using ExtractError = std::variant<ReadError, UnsafeMemberPath, UnsafeLinkTarget,
  * Files keep their permission bits and modification time, under the process
  * umask. Set-user-ID, set-group-ID and sticky bits are dropped. Directories
  * always stay usable by their owner, so that what was extracted can be removed
- * again. A directory the archive only implies takes what umask leaves of 0777.
+ * again. A directory the archive only implies takes what umask leaves of 0777,
+ * and one already there keeps its permissions when its entry comes later.
  *
  * After an error what was extracted so far stays in place, for the caller to
  * discard; the extractor is not used again.

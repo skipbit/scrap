@@ -71,7 +71,7 @@ std::expected<Extractor, ExtractError> Extractor::into(const std::filesystem::pa
 {
     const int descriptor = ::open(directory.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
     if (descriptor < 0) {
-        return std::unexpected(CannotWriteMember{ directory.string(), lastFailure() });
+        return std::unexpected(CannotOpenDirectory{ directory, lastFailure() });
     }
     return Extractor{ Descriptor{ descriptor } };
 }
@@ -270,6 +270,11 @@ std::expected<void, ExtractError> Extractor::writeContent(std::string_view bytes
                 continue;
             }
             return std::unexpected(CannotWriteMember{ _filePath, lastFailure() });
+        }
+        if (written == 0) {
+            // POSIX allows a write of zero bytes to report nothing written,
+            // which would leave the loop where it started.
+            return std::unexpected(CannotWriteMember{ _filePath, std::make_error_code(std::errc::io_error) });
         }
         bytes.remove_prefix(static_cast<std::size_t>(written));
     }
