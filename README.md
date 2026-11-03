@@ -383,7 +383,7 @@ scrap follows these core principles:
 
 ## 📜 License
 
-scrap is MIT licensed. See [LICENSE](LICENSE) for details.
+scrap is MIT licensed. See [LICENSE](LICENSE) for details. A release archive also holds THIRD_PARTY_LICENSES, with the licenses of the libraries built into the binary.
 
 ## 🙏 Acknowledgments
 
