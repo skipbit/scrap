@@ -119,11 +119,13 @@ void applyOptions(CURL* easy, const FetchRequest& request, const std::string& ur
     curl_easy_setopt(easy, CURLOPT_LOW_SPEED_LIMIT, 1L);
     curl_easy_setopt(easy, CURLOPT_LOW_SPEED_TIME, static_cast<long>(request.stallLimit.count()));
 
-    // Only the given file vouches for a host, whatever default this libcurl
-    // was built with.
+    // The given file replaces any default this libcurl was built with, for the
+    // host and for a proxy reached over https.
     curl_easy_setopt(easy, CURLOPT_CAPATH, nullptr);
+    curl_easy_setopt(easy, CURLOPT_PROXY_CAPATH, nullptr);
     if (request.certificateBundle.has_value()) {
         curl_easy_setopt(easy, CURLOPT_CAINFO, request.certificateBundle->c_str());
+        curl_easy_setopt(easy, CURLOPT_PROXY_CAINFO, request.certificateBundle->c_str());
     }
 
     if (isThisMachine(target.host)) {

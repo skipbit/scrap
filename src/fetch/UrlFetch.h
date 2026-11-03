@@ -17,7 +17,9 @@ struct FetchRequest {
     std::string url;
     std::filesystem::path destination;
 
-    /// Root certificates to verify the host against. An https URL needs them.
+    /// Root certificates to verify the host against, and a proxy reached over
+    /// https. An https URL needs them. On Linux they are all that is trusted; the
+    /// libcurl of macOS adds them to what the OS trusts.
     std::optional<std::filesystem::path> certificateBundle;
 
     /// How long nothing may arrive before the transfer is given up.
