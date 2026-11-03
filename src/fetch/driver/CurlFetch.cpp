@@ -1,4 +1,5 @@
 #include "fetch/UrlFetch.h"
+#include "fetch/UrlPolicy.h"
 #include "file/StagedFile.h"
 
 #include <array>
@@ -49,15 +50,6 @@ struct UrlPartDeleter {
 using UrlPart = std::unique_ptr<char, UrlPartDeleter>;
 
 /**
- * @brief What a URL says about where it leads, as libcurl itself reads it, so
- *        the rule below and the transfer cannot disagree.
- */
-struct UrlTarget {
-    std::string scheme;
-    std::string host;
-};
-
-/**
  * @brief Where the body of a response goes, and what went wrong putting it there.
  */
 struct BodySink {
@@ -76,6 +68,10 @@ std::optional<std::string> urlPart(CURLU* url, const CURLUPart part)
     return std::string{ text };
 }
 
+/**
+ * Read what a URL says about where it leads as libcurl itself reads it, so
+ * the rule in UrlPolicy and the transfer cannot disagree.
+ */
 std::optional<UrlTarget> readTarget(const std::string& text)
 {
     const UrlHandle url{ curl_url() };
@@ -88,16 +84,6 @@ std::optional<UrlTarget> readTarget(const std::string& text)
         return std::nullopt;
     }
     return UrlTarget{ .scheme = std::move(*scheme), .host = std::move(*host) };
-}
-
-bool isThisMachine(const std::string_view host)
-{
-    return (host == "127.0.0.1") || (host == "[::1]") || (host == "localhost");
-}
-
-bool isAccepted(const UrlTarget& target)
-{
-    return (target.scheme == "https") || ((target.scheme == "http") && isThisMachine(target.host));
 }
 
 /**
@@ -189,7 +175,7 @@ std::expected<void, FetchError> transfer(CURL* easy, const FetchRequest& request
         if ((! target.has_value()) || (! isAccepted(*target))) {
             return std::unexpected(UrlRefused{ .url = url });
         }
-        if ((target->scheme == "https") && (! request.certificateBundle.has_value())) {
+        if (needsCertificates(*target) && (! request.certificateBundle.has_value())) {
             return std::unexpected(NoCertificateBundle{ .url = url });
         }
 

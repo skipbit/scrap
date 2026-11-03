@@ -41,6 +41,7 @@ scrap_apply_compile_settings(scrap_file WARNINGS_AS_ERRORS)
 # Fetching URLs into files
 add_library(scrap_fetch STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/fetch/CertificateBundle.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/fetch/UrlPolicy.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/fetch/driver/CurlFetch.cpp
 )
 target_include_directories(scrap_fetch PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

@@ -98,6 +98,7 @@ scrap_add_unit_test(fetch SOURCES
     unit/fetch/CertificateBundleTest.cpp
     unit/fetch/UrlFetchTest.cpp
     unit/fetch/UrlFetchOverTheNetworkTest.cpp
+    unit/fetch/UrlPolicyTest.cpp
     PROPERTIES TIMEOUT 120
 )
 
