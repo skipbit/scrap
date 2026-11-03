@@ -21,17 +21,24 @@ function(scrap_fetch_libcurl)
     set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
     set(CMAKE_POLICY_DEFAULT_CMP0126 NEW)
 
+    # CMake before 3.24 takes this option as part of the hash, and keeps the
+    # timestamps of an archive without being asked.
+    set(keep_archive_timestamps "")
+    if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.24)
+        set(keep_archive_timestamps DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
+    endif()
+
     # The archives are used rather than the repositories: they carry the files
     # the repositories leave to be generated, and Mbed TLS's submodules.
     FetchContent_Declare(mbedtls
         URL https://github.com/Mbed-TLS/mbedtls/releases/download/mbedtls-4.1.1/mbedtls-4.1.1.tar.bz2
         URL_HASH SHA256=3359a349e23db3d5536fcee032ae7b2ecbfc08972fab643089b5cbf2a375c98c
-        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+        ${keep_archive_timestamps}
     )
     FetchContent_Declare(curl
         URL https://github.com/curl/curl/releases/download/curl-8_23_0/curl-8.23.0.tar.xz
         URL_HASH SHA256=8dadd7d2536a314f982ad05a651b713f426bf7d02cc2c76cffb9796f2218e6c5
-        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+        ${keep_archive_timestamps}
     )
 
     set(BUILD_SHARED_LIBS OFF)
