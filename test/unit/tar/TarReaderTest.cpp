@@ -188,6 +188,7 @@ TEST(TarReaderTest, SkipsAGlobalPaxHeader)
     ASSERT_FALSE(result.error);
     ASSERT_EQ(result.entries.size(), 1U);
     EXPECT_EQ(result.entries[0].path, "file");
+    EXPECT_TRUE(result.entries[0].linkTarget.empty());
 }
 
 TEST(TarReaderTest, ReadsASizeInBaseTwoFiftySix)
@@ -208,8 +209,9 @@ TEST(TarReaderTest, ReadsASizeInBaseTwoFiftySix)
 
 TEST(TarReaderTest, ReportsANegativeBaseTwoFiftySixNumber)
 {
+    // Minus one in the mode, a field short enough for the bytes to fit a number.
     std::string block = headerBlock({ .name = "negative" });
-    std::fill(block.begin() + 124, block.begin() + 136, static_cast<char>(0xff));
+    std::fill(block.begin() + 100, block.begin() + 108, static_cast<char>(0xff));
 
     EXPECT_TRUE(failedWith<InvalidHeader>(readAll(withChecksum(block) + endMarker())));
 }

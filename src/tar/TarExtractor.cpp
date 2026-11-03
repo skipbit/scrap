@@ -27,7 +27,7 @@ namespace {
 
 constexpr mode_t PermissionBits = 0777;
 constexpr mode_t OwnerCanUse = 0700;
-constexpr mode_t ImpliedDirectoryMode = 0755;
+constexpr mode_t ImpliedDirectoryMode = 0777;
 
 constexpr int DirectoryFlags = O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC;
 constexpr int NewFileFlags = O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC;

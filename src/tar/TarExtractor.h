@@ -52,7 +52,7 @@ using ExtractError = std::variant<ReadError, UnsafeMemberPath, UnsafeLinkTarget,
  * Files keep their permission bits and modification time, under the process
  * umask. Set-user-ID, set-group-ID and sticky bits are dropped. Directories
  * always stay usable by their owner, so that what was extracted can be removed
- * again.
+ * again. A directory the archive only implies takes what umask leaves of 0777.
  *
  * After an error what was extracted so far stays in place, for the caller to
  * discard; the extractor is not used again.

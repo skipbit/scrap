@@ -131,6 +131,14 @@ TEST_F(TarExtractorTest, CreatesDirectoriesWithAndWithoutEntries)
     EXPECT_EQ(_outer.readFile(at("implied/deep/file")), "b");
 }
 
+TEST_F(TarExtractorTest, GivesAnImpliedDirectoryWhatUmaskLeaves)
+{
+    const fs::path plain = _outer.makeDirectory("plain");
+    ASSERT_TRUE(extract(fileEntry("implied/file", "a") + endMarker()).has_value());
+
+    EXPECT_EQ(permissionsOf(at("implied")), permissionsOf(plain));
+}
+
 TEST_F(TarExtractorTest, TakesADirectoryEntryForOneAlreadyThere)
 {
     EXPECT_TRUE(extract(fileEntry("dir/file", "a") + directoryEntry("dir/") + endMarker()).has_value());
