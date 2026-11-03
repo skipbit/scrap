@@ -75,6 +75,7 @@ scrap_add_unit_test(toolchain SOURCES
     unit/toolchain/GlobalConfigFileTest.cpp
     unit/toolchain/GlobalConfigTest.cpp
     unit/toolchain/HostEnvironmentTest.cpp
+    unit/toolchain/HostGlibcTest.cpp
     unit/toolchain/IngotSelectionTest.cpp
     unit/toolchain/InstallRecordTest.cpp
     unit/toolchain/InstalledToolchainTest.cpp
