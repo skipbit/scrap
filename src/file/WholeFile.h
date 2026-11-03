@@ -41,25 +41,6 @@ enum class ReadFailure : std::uint8_t {
 [[nodiscard]] std::error_code replaceFile(const std::filesystem::path& file, std::string_view content);
 
 /**
- * @brief Create @p file for writing, failing when anything is at the path.
- *
- * A symbolic link at the path is neither followed nor truncated. The file is
- * created readable by everyone and writable by its owner, before the process
- * umask.
- *
- * @return A descriptor the caller closes, file_exists when something is at the
- *         path, or what the operating system reported.
- */
-[[nodiscard]] std::expected<int, std::error_code> openNewFile(const std::filesystem::path& file);
-
-/**
- * @brief Write the whole of @p content to @p descriptor.
- *
- * @return Nothing on success, or what the operating system reported.
- */
-[[nodiscard]] std::error_code writeAll(int descriptor, std::string_view content);
-
-/**
  * @brief Create @p file and put @p content in it, whole.
  *
  * The call fails when anything is at the path, a symbolic link included,

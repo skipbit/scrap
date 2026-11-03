@@ -31,6 +31,7 @@ find_package(LibCurl REQUIRED)
 
 # Reading and writing whole files
 add_library(scrap_file STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/file/PosixFile.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/file/StagedFile.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/file/WholeFile.cpp
 )

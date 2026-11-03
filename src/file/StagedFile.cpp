@@ -1,8 +1,7 @@
 #include "file/StagedFile.h"
 
-#include "file/WholeFile.h"
+#include "file/PosixFile.h"
 
-#include <cerrno>
 #include <cstdio>
 #include <expected>  // IWYU pragma: keep
 #include <filesystem>
@@ -18,14 +17,6 @@ namespace {
 
 /// How many staged names are tried when others are already taken.
 constexpr int StagingAttempts = 16;
-
-/**
- * The failure the last system call reported.
- */
-std::error_code lastFailure()
-{
-    return { errno, std::generic_category() };
-}
 
 }  // anonymous namespace
 
