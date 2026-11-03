@@ -121,3 +121,20 @@ TEST(StagedFileTest, ReportsADestinationItCannotReplace)
     EXPECT_TRUE(std::filesystem::is_directory(destination));
     EXPECT_EQ(temp.entries(), (std::vector<std::string>{ "directory" }));
 }
+
+TEST(StagedFileTest, ACommitAfterTheFirstLeavesTheNextStagedFileAlone)
+{
+    const TempDirectory temp;
+    const auto destination = temp.path() / "file";
+    auto first = StagedFile::begin(destination);
+    ASSERT_TRUE(first.has_value());
+    ASSERT_FALSE(first->commit().operator bool());
+    auto second = StagedFile::begin(destination);
+    ASSERT_TRUE(second.has_value());
+    ASSERT_FALSE(second->append("second").operator bool());
+
+    EXPECT_EQ(first->commit(), std::errc::bad_file_descriptor);
+
+    EXPECT_FALSE(second->commit().operator bool());
+    EXPECT_EQ(readWholeFile(destination), "second");
+}

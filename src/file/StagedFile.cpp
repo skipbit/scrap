@@ -73,6 +73,10 @@ std::error_code StagedFile::append(std::string_view content) const
 
 std::error_code StagedFile::commit()
 {
+    if (_descriptor < 0) {
+        // The staged name is no longer this object's to remove.
+        return std::make_error_code(std::errc::bad_file_descriptor);
+    }
     if (::close(std::exchange(_descriptor, -1)) != 0) {
         const std::error_code failure = lastFailure();
         ::unlink(_staged.c_str());

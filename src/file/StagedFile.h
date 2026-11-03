@@ -43,7 +43,8 @@ public:
     /**
      * @brief Rename the file over its destination.
      *
-     * @return Nothing on success, or what the operating system reported.
+     * @return Nothing on success, bad_file_descriptor when already committed or
+     *         moved from, or what the operating system reported.
      */
     [[nodiscard]] std::error_code commit();
 
