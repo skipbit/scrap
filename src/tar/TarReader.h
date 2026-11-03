@@ -145,6 +145,9 @@ private:
     [[nodiscard]] bool needsInput() const;
     void beginBody(std::uint64_t size, State state);
 
+    [[nodiscard]] std::expected<std::optional<ReadEvent>, ReadError> step();
+    void skipPadding();
+    [[nodiscard]] std::optional<ReadEvent> readData();
     [[nodiscard]] std::expected<std::optional<ReadEvent>, ReadError> readHeader();
     [[nodiscard]] std::expected<std::optional<ReadEvent>, ReadError> interpretBlock();
     [[nodiscard]] std::expected<std::optional<ReadEvent>, ReadError> readZeroBlock();
@@ -154,10 +157,7 @@ private:
     [[nodiscard]] std::expected<void, ReadError> applyMetadata();
     [[nodiscard]] std::expected<void, ReadError> applyExtendedHeader();
 
-    [[nodiscard]] InvalidHeader invalidHere() const
-    {
-        return InvalidHeader{ _headerOffset };
-    }
+    [[nodiscard]] InvalidHeader invalidHere() const;
 
     std::string_view _input;
     bool _inputEnded = false;

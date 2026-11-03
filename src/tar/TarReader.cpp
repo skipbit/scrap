@@ -225,33 +225,61 @@ std::expected<ReadEvent, ReadError> Reader::next()
             return NeedInput{};
         }
 
-        if (_state == State::Header) {
-            auto event = readHeader();
-            if (! event) {
-                return std::unexpected(event.error());
-            }
-            if (*event) {
-                return std::move(**event);
-            }
-        } else if (_state == State::Metadata) {
-            if (auto done = readMetadata(); ! done) {
-                return std::unexpected(done.error());
-            }
-        } else if (_state == State::Padding) {
-            _paddingRemaining -= take(_paddingRemaining).size();
-            if (_paddingRemaining == 0) {
-                _state = State::Header;
-            }
-        } else if (_bodyRemaining == 0) {
-            _state = State::Padding;
-        } else {
-            const std::string_view bytes = take(_bodyRemaining);
-            _bodyRemaining -= bytes.size();
-            return EntryData{ bytes };
+        auto event = step();
+        if (! event) {
+            return std::unexpected(event.error());
+        }
+        if (*event) {
+            return std::move(**event);
         }
     }
     take(_input.size());
     return EndOfArchive{};
+}
+
+std::expected<std::optional<ReadEvent>, ReadError> Reader::step()
+{
+    switch (_state) {
+    case State::Header:
+        return readHeader();
+    case State::Metadata:
+        if (auto done = readMetadata(); ! done) {
+            return std::unexpected(done.error());
+        }
+        return std::nullopt;
+    case State::Padding:
+        skipPadding();
+        return std::nullopt;
+    case State::Data:
+        return readData();
+    case State::Ended:
+        break;
+    }
+    return std::nullopt;
+}
+
+void Reader::skipPadding()
+{
+    _paddingRemaining -= take(_paddingRemaining).size();
+    if (_paddingRemaining == 0) {
+        _state = State::Header;
+    }
+}
+
+std::optional<ReadEvent> Reader::readData()
+{
+    if (_bodyRemaining == 0) {
+        _state = State::Padding;
+        return std::nullopt;
+    }
+    const std::string_view bytes = take(_bodyRemaining);
+    _bodyRemaining -= bytes.size();
+    return EntryData{ bytes };
+}
+
+InvalidHeader Reader::invalidHere() const
+{
+    return InvalidHeader{ _headerOffset };
 }
 
 std::expected<std::optional<ReadEvent>, ReadError> Reader::readHeader()
