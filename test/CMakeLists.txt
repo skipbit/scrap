@@ -99,6 +99,8 @@ scrap_add_unit_test(digest SOURCES
 
 scrap_add_unit_test(tar SOURCES
     unit/tar/TarArchiveBuilder.cpp
+    unit/tar/TarExtractorTest.cpp
+    unit/tar/TarPathTest.cpp
     unit/tar/TarReaderTest.cpp
 )
 

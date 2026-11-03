@@ -57,6 +57,8 @@ scrap_apply_compile_settings(scrap_xz WARNINGS_AS_ERRORS)
 
 # Reading tar archives and extracting them, depending on nothing else in scrap
 add_library(scrap_tar STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/tar/TarExtractor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tar/TarPath.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tar/TarReader.cpp
 )
 target_include_directories(scrap_tar PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
