@@ -38,6 +38,14 @@ add_library(scrap_file STATIC
 target_include_directories(scrap_file PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 scrap_apply_compile_settings(scrap_file WARNINGS_AS_ERRORS)
 
+# Digests of bytes and files, depending on nothing else in scrap
+add_library(scrap_digest STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/digest/Sha256.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/digest/Sha256File.cpp
+)
+target_include_directories(scrap_digest PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+scrap_apply_compile_settings(scrap_digest WARNINGS_AS_ERRORS)
+
 # Fetching URLs into files
 add_library(scrap_fetch STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/fetch/CertificateBundle.cpp
