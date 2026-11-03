@@ -25,6 +25,7 @@ find_package(CLI11 REQUIRED)
 find_package(TomlPlusPlus REQUIRED)
 find_package(Threads REQUIRED)
 find_package(LibCurl REQUIRED)
+find_package(Xz REQUIRED)
 
 # Each module is built once as a library, and the binary and the tests link
 # against it.
@@ -45,6 +46,14 @@ add_library(scrap_digest STATIC
 )
 target_include_directories(scrap_digest PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 scrap_apply_compile_settings(scrap_digest WARNINGS_AS_ERRORS)
+
+# Reading xz files, depending on nothing else in scrap
+add_library(scrap_xz STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/xz/XzFile.cpp
+)
+target_include_directories(scrap_xz PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(scrap_xz PRIVATE scrap_liblzma)
+scrap_apply_compile_settings(scrap_xz WARNINGS_AS_ERRORS)
 
 # Fetching URLs into files
 add_library(scrap_fetch STATIC
