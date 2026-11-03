@@ -14,13 +14,16 @@
 
 using namespace scrap::Fetch;
 using scrap::File::readWholeFile;
-using scrap::File::writeNewFile;
 using scrap::TestSupport::TempDirectory;
 
 namespace {
 
 constexpr std::string_view RealUrl = "https://raw.githubusercontent.com/skipbit/scrap-toolchain/main/index.toml";
 
+#if defined(__APPLE__)
+/// A host whose certificate leads to no root the OS trusts.
+constexpr std::string_view UntrustedUrl = "https://self-signed.badssl.com/";
+#else
 /// A self-signed root no public host's certificate leads to.
 constexpr std::string_view UnrelatedRoot = "-----BEGIN CERTIFICATE-----\n"
                                            "MIIDCDCCAfCgAwIBAgIUesdGngo2tHGmkekZMTw2YsqmBUowDQYJKoZIhvcNAQEL\n"
@@ -41,6 +44,7 @@ constexpr std::string_view UnrelatedRoot = "-----BEGIN CERTIFICATE-----\n"
                                            "vvdoRNvZgEW3PQwAMeE8NJV/kmDlAkwfBZfsCSHskObCc74PoHaJ5gByYl0VgEoV\n"
                                            "wi82xEDzN/cI8Om/\n"
                                            "-----END CERTIFICATE-----\n";
+#endif
 
 /**
  * Tests that reach a real host run only when asked: most runs have no need of
@@ -71,6 +75,27 @@ TEST(UrlFetchOverTheNetworkTest, VerifiesARealHostWithTheCertificatesOfThisMachi
     EXPECT_NE(text->find("schema_version"), std::string::npos);
 }
 
+#if defined(__APPLE__)
+/**
+ * The libcurl of the OS adds a given file to what the OS trusts, so a host is
+ * refused by being one the OS does not trust.
+ */
+TEST(UrlFetchOverTheNetworkTest, RefusesARealHostTheCertificatesOfThisMachineDoNotVouchFor)
+{
+    if (! networkTestsAreOn()) {
+        GTEST_SKIP() << "set SCRAP_TEST_NETWORK=1 to run";
+    }
+    const TempDirectory temp;
+    const std::optional<std::filesystem::path> bundle = findCertificateBundle("", knownCertificateBundles());
+    ASSERT_TRUE(bundle.has_value());
+
+    const auto fetched = fetchToFile({ .url = std::string{ UntrustedUrl }, .destination = temp.path() / "out", .certificateBundle = bundle });
+
+    ASSERT_FALSE(fetched.has_value());
+    EXPECT_TRUE(std::holds_alternative<CertificateFailure>(fetched.error()));
+    EXPECT_FALSE(std::filesystem::exists(temp.path() / "out"));
+}
+#else
 /**
  * The same host fails with a root it does not lead to, which shows the
  * certificates are what let the test above pass.
@@ -82,7 +107,7 @@ TEST(UrlFetchOverTheNetworkTest, RefusesARealHostItsCertificatesDoNotVouchFor)
     }
     const TempDirectory temp;
     const auto unrelated = temp.path() / "unrelated.pem";
-    ASSERT_FALSE(writeNewFile(unrelated, UnrelatedRoot).operator bool());
+    ASSERT_FALSE(scrap::File::writeNewFile(unrelated, UnrelatedRoot).operator bool());
 
     const auto fetched = fetchToFile({ .url = std::string{ RealUrl }, .destination = temp.path() / "index.toml", .certificateBundle = unrelated });
 
@@ -90,3 +115,4 @@ TEST(UrlFetchOverTheNetworkTest, RefusesARealHostItsCertificatesDoNotVouchFor)
     EXPECT_TRUE(std::holds_alternative<CertificateFailure>(fetched.error()));
     EXPECT_FALSE(std::filesystem::exists(temp.path() / "index.toml"));
 }
+#endif
