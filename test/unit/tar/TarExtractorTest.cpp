@@ -88,6 +88,17 @@ TEST_F(TarExtractorTest, ExtractsAFileWithItsContentModeAndTime)
     EXPECT_EQ(status.st_mtime, 1700000000);
 }
 
+TEST_F(TarExtractorTest, GivesEachFileItsOwnTime)
+{
+    ASSERT_TRUE(extract(fileEntry("first", "a", 0644, 1600000000) + fileEntry("second", "b", 0644, 1700000000) + endMarker()).has_value());
+
+    struct stat status { };
+    ASSERT_EQ(::stat(at("first").c_str(), &status), 0);
+    EXPECT_EQ(status.st_mtime, 1600000000);
+    ASSERT_EQ(::stat(at("second").c_str(), &status), 0);
+    EXPECT_EQ(status.st_mtime, 1700000000);
+}
+
 TEST_F(TarExtractorTest, ExtractsAnEmptyFile)
 {
     ASSERT_TRUE(extract(fileEntry("empty", "") + endMarker()).has_value());
