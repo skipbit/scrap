@@ -44,6 +44,7 @@ struct NoMatchInIndex {
  * @brief What the specifier names has no ingot for the host.
  */
 struct NoIngotForHost {
+    std::string environment;            ///< The host, as <platform>-<arch>.
     std::vector<std::string> versions;  ///< Versions of the family that have one, newest first.
 };
 

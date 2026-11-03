@@ -38,6 +38,18 @@ struct RuntimeEnvironment {
      * written in SCRAP_TOOLCHAIN, or empty when it chooses none.
      */
     std::string requestedToolchain;
+
+    /**
+     * The URL of the toolchain index, from SCRAP_TOOLCHAIN_INDEX, or empty for
+     * the official one.
+     */
+    std::string toolchainIndexUrl;
+
+    /**
+     * The file of root certificates to verify hosts against, from
+     * SSL_CERT_FILE, or empty to look in the usual places.
+     */
+    std::string certificateFile;
 };
 
 }  // namespace scrap::Command

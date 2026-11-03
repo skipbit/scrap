@@ -61,6 +61,7 @@ scrap_add_unit_test(command SOURCES
     unit/command/ProjectDiagnosticTest.cpp
     unit/command/RuntimeEnvironmentFactoryTest.cpp
     unit/command/ToolchainDiagnosticTest.cpp
+    unit/command/ToolchainInstallDiagnosticTest.cpp
     unit/command/ApplicationTest.cpp
     PROPERTIES TIMEOUT 60
 )
@@ -173,6 +174,7 @@ target_compile_definitions(scrap_e2e PRIVATE
 )
 
 target_link_libraries(scrap_e2e PRIVATE
+    scrap_digest
     scrap_test_support
     GTest::gtest_main
 )

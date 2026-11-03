@@ -14,11 +14,13 @@ namespace scrap::Command {
  */
 struct ProcessInputs {
     std::filesystem::path workingDirectory;
-    std::string scrapHome;  ///< SCRAP_HOME
-    std::string home;       ///< HOME
-    std::string path;       ///< PATH, colon-separated.
-    std::string compiler;   ///< CXX
-    std::string toolchain;  ///< SCRAP_TOOLCHAIN
+    std::string scrapHome;        ///< SCRAP_HOME
+    std::string home;             ///< HOME
+    std::string path;             ///< PATH, colon-separated.
+    std::string compiler;         ///< CXX
+    std::string toolchain;        ///< SCRAP_TOOLCHAIN
+    std::string toolchainIndex;   ///< SCRAP_TOOLCHAIN_INDEX
+    std::string certificateFile;  ///< SSL_CERT_FILE
 };
 
 /**

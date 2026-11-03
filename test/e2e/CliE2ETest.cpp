@@ -2,6 +2,10 @@
 // and assert on its externally observable behavior (exit code, stdout,
 // stderr). These are black-box tests: no headers from src/ are used here.
 
+#include "digest/Sha256.h"
+#include "support/HttpTestServer.h"
+#include "support/StoredXz.h"
+#include "support/TarArchiveBuilder.h"
 #include "support/TempDirectory.h"
 
 #include <gtest/gtest.h>
@@ -18,6 +22,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <map>
 #include <optional>
 #include <poll.h>
 #include <regex>
@@ -29,6 +34,7 @@
 #include <system_error>
 #include <thread>
 #include <unistd.h>
+#include <utility>
 #include <vector>
 
 #if defined(__linux__)
@@ -1021,12 +1027,12 @@ TEST_F(CliE2ETest, UsageErrorsInTheCommandLineEndWithStatus2)
 
 TEST_F(CliE2ETest, RealCli11Nested)
 {
-    auto result = runScrap({ "toolchain", "install" }, {}, _root);
+    auto result = runScrap({ "toolchain", "list" }, {}, _root);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
     EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
-    EXPECT_NE(result.stderrText.find("install: not yet implemented"), std::string::npos) << result.stderrText;
+    EXPECT_NE(result.stderrText.find("list: not yet implemented"), std::string::npos) << result.stderrText;
 }
 
 // --- TS-08: metadata actually fetched via --scrap-metadata ----------------------
@@ -3025,4 +3031,515 @@ TEST_F(CliE2ETest, BuildReadsTheGlobalDefaultOnlyWhenItNeedsIt)
 
     auto passedOver = runScrap({ "build" }, { realCompiler(), "SCRAP_TOOLCHAIN=system" }, _root / "hello", BuildTimeout);
     EXPECT_EQ(passedOver.exitCode, 0) << passedOver.stderrText;
+}
+
+namespace {
+
+/**
+ * What toolchain install reads and fetches: an index, and the ingots it
+ * offers, served from a server on this machine.
+ */
+struct ToolchainOffer {
+    std::string version = {};
+    std::string status = "active";
+    std::string ingot = {};               ///< What the server sends.
+    std::string declaredSha256 = {};      ///< The index's value; that of the ingot when empty.
+    std::string extraToolchainKeys = {};  ///< Lines for the toolchain, such as min_scrap_version.
+    std::string extraIngotKeys = {};      ///< Lines for the ingot, such as glibc_version.
+    bool hasIngot = true;
+};
+
+constexpr std::string_view IndexPath = "/index.toml";
+
+std::string hostPlatform()
+{
+#if defined(__APPLE__)
+    return "darwin";
+#else
+    return "linux";
+#endif
+}
+
+std::string hostArch()
+{
+#if defined(__aarch64__)
+    return "aarch64";
+#else
+    return "x86_64";
+#endif
+}
+
+std::string hostDirectoryName()
+{
+    return hostPlatform() + "-" + hostArch();
+}
+
+std::string sha256Of(const std::string_view bytes)
+{
+    scrap::Digest::Sha256 digest;
+    digest.update(bytes);
+    return digest.hexDigest();
+}
+
+/** An ingot that holds a compiler whose content tells it apart. */
+std::string compilerIngot(const std::string_view content = "compiler")
+{
+    return scrap::TestSupport::storedXz(scrap::TestTar::fileEntry("bin/g++", content, 0755) + scrap::TestTar::endMarker());
+}
+
+/**
+ * A server for one family of toolchains: the index, and the ingots at the URLs
+ * it gives.
+ */
+class ToolchainServer {
+public:
+    ToolchainServer(const std::string_view family, const std::vector<ToolchainOffer>& offers)
+        : _server(std::map<std::string, scrap::TestSupport::HttpTestResponse>{})
+    {
+        offer(family, offers);
+    }
+
+    /** Offer @p offers in place of what the index listed. */
+    void offer(const std::string_view family, const std::vector<ToolchainOffer>& offers)
+    {
+        std::string index = "[index]\nschema_version = 1\n";
+        for (const ToolchainOffer& offered : offers) {
+            index += "\n[[toolchains]]\nfamily = '" + std::string{ family } + "'\nversion = '" + offered.version + "'\nstatus = '" + offered.status
+                     + "'\ncompiler = 'g++'\nlicense = 'MIT'\n" + offered.extraToolchainKeys;
+            if (offered.hasIngot) {
+                const std::string path = ingotPath(offered.version);
+                const std::string sha256 = offered.declaredSha256.empty() ? sha256Of(offered.ingot) : offered.declaredSha256;
+                index += "\n[[toolchains.ingots]]\nplatform = '" + hostPlatform() + "'\narch = '" + hostArch() + "'\nurl = '" + _server.url(path) + "'\nsha256 = '" + sha256
+                         + "'\n" + offered.extraIngotKeys;
+                _server.respond(path, { .status = 200, .headers = {}, .body = offered.ingot, .stalls = false });
+            }
+        }
+        _server.respond(std::string{ IndexPath }, { .status = 200, .headers = {}, .body = std::move(index), .stalls = false });
+    }
+
+    /** Make the index unreachable: it answers with a failure. */
+    void failIndex()
+    {
+        _server.respond(std::string{ IndexPath }, { .status = 500, .headers = {}, .body = {}, .stalls = false });
+    }
+
+    [[nodiscard]] std::string indexVariable() const
+    {
+        return "SCRAP_TOOLCHAIN_INDEX=" + _server.url(std::string{ IndexPath });
+    }
+
+    /** How many requests have reached the server. */
+    [[nodiscard]] std::size_t requests() const
+    {
+        return _server.requestLines().size();
+    }
+
+    /** How many times the ingot of @p version was fetched. */
+    [[nodiscard]] std::size_t timesFetched(const std::string_view version) const
+    {
+        const std::string wanted = " " + ingotPath(version) + " ";
+        const std::vector<std::string> lines = _server.requestLines();
+        return static_cast<std::size_t>(std::ranges::count_if(lines, [&wanted](const std::string& line) {
+            return line.find(wanted) != std::string::npos;
+        }));
+    }
+
+private:
+    [[nodiscard]] static std::string ingotPath(const std::string_view version)
+    {
+        return "/ingot-" + std::string{ version };
+    }
+
+    scrap::TestSupport::HttpTestServer _server;
+};
+
+std::string lastLineOf(const std::string& text)
+{
+    const std::size_t end = text.find_last_not_of('\n');
+    return text.substr(text.rfind('\n', end) + 1, end - text.rfind('\n', end));
+}
+
+}  // anonymous namespace
+
+/**
+ * Text that is no specifier is refused before anything is fetched or kept.
+ */
+TEST_F(CliE2ETest, InstallRefusesTextThatIsNotASpecifier)
+{
+    const ToolchainServer server("gcc", { { .version = "15.2.0", .ingot = compilerIngot() } });
+
+    for (const char* text : { "", "@15.2.0", "gcc@", "gcc@15@2", "gcc@15.x" }) {
+        auto result = runScrap({ "toolchain", "install", text }, { server.indexVariable() }, _root);
+
+        ASSERT_TRUE(result.exitedNormally) << text;
+        EXPECT_EQ(result.exitCode, 1) << text;
+        EXPECT_NE(result.stderrText.find("is not a toolchain specifier"), std::string::npos) << result.stderrText;
+        EXPECT_NE(result.stderrText.find("hint: write it as <family>[@<version>], such as 'gcc@15'\n"), std::string::npos) << result.stderrText;
+    }
+    EXPECT_EQ(server.requests(), 0U);
+    EXPECT_FALSE(std::filesystem::exists(_root / "toolchains"));
+}
+
+/**
+ * The word system names no toolchain to install.
+ */
+TEST_F(CliE2ETest, InstallRefusesTheWordSystem)
+{
+    const ToolchainServer server("gcc", {});
+
+    auto result = runScrap({ "toolchain", "install", "system" }, { server.indexVariable() }, _root);
+
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_EQ(result.stderrText,
+              "error: 'system' is not a toolchain specifier: it names the compiler found on the system\n"
+              "hint: write it as <family>[@<version>], such as 'gcc@15'\n");
+    EXPECT_EQ(server.requests(), 0U);
+}
+
+/**
+ * The index is fetched and saved, the ingot checked against it, and the
+ * toolchain kept below SCRAP_HOME.
+ */
+TEST_F(CliE2ETest, InstallsAToolchainFromTheIndex)
+{
+    makeDummy("c++", "exit 0");
+    const std::string compilerBefore = readFile("bin/c++");
+    const ToolchainServer server("gcc", { { .version = "15.2.0", .ingot = compilerIngot("the installed compiler") } });
+
+    auto result = runScrap({ "toolchain", "install", "gcc@15.2.0" }, { server.indexVariable() }, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    const std::string directory = "toolchains/gcc/15.2.0/" + hostDirectoryName();
+    EXPECT_EQ(readFile(directory + "/bin/g++"), "the installed compiler");
+    EXPECT_NE(result.stderrText.find("Installed 'gcc@15.2.0' at '" + (_root / directory).string() + "'\n"), std::string::npos) << result.stderrText;
+    EXPECT_FALSE(readFile("index/toolchain.toml").empty());
+    EXPECT_EQ(readFile("bin/c++"), compilerBefore);
+    EXPECT_EQ(server.timesFetched("15.2.0"), 1U);
+}
+
+/**
+ * A shortened specifier takes the newest version it names that is offered.
+ */
+TEST_F(CliE2ETest, InstallsTheNewestVersionAShortenedSpecifierNames)
+{
+    const std::string ingot = compilerIngot();
+    const std::vector<ToolchainOffer> offers{
+        { .version = "15.1.0", .ingot = ingot },
+        { .version = "15.2.0", .ingot = ingot },
+        { .version = "15.3.0", .status = "disabled", .ingot = ingot },
+        { .version = "150.1.0", .ingot = ingot },
+    };
+    const ToolchainServer server("gcc", offers);
+
+    const std::vector<std::pair<std::string, std::string>> cases{ { "gcc@15", "15.2.0" }, { "gcc@15.1", "15.1.0" }, { "gcc", "150.1.0" } };
+    for (const auto& [specifier, version] : cases) {
+        auto result = runScrap({ "toolchain", "install", specifier }, { server.indexVariable() }, _root);
+
+        EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+        EXPECT_NE(result.stderrText.find("Installed 'gcc@" + version + "' at"), std::string::npos) << result.stderrText;
+        EXPECT_TRUE(std::filesystem::exists(_root / "toolchains/gcc" / version / hostDirectoryName() / "bin/g++")) << specifier;
+    }
+    EXPECT_FALSE(std::filesystem::exists(_root / "toolchains/gcc/15.3.0"));
+}
+
+/**
+ * When nothing matches, the report lists what the index has.
+ */
+TEST_F(CliE2ETest, InstallListsTheVersionsInTheIndexWhenNoneMatches)
+{
+    const ToolchainServer server("gcc", { { .version = "15.1.0", .ingot = compilerIngot() }, { .version = "15.2.0", .ingot = compilerIngot() } });
+
+    auto result = runScrap({ "toolchain", "install", "gcc@99" }, { server.indexVariable() }, _root);
+
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_EQ(result.stderrText, "error: no toolchain matches 'gcc@99'\nhint: available versions include 15.2.0, 15.1.0\n");
+    EXPECT_FALSE(std::filesystem::exists(_root / "toolchains"));
+}
+
+/**
+ * A download unlike what the index promised is not installed.
+ */
+TEST_F(CliE2ETest, InstallRefusesADownloadThatDoesNotMatchTheIndex)
+{
+    const ToolchainServer server("gcc", { { .version = "15.2.0", .ingot = compilerIngot(), .declaredSha256 = sha256Of("something else") } });
+
+    auto result = runScrap({ "toolchain", "install", "gcc@15.2.0" }, { server.indexVariable() }, _root);
+
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_NE(result.stderrText.find("error: the download of 'gcc@15.2.0' does not match the index\n"
+                                     "hint: run the command again; if it keeps failing, report it\n"),
+              std::string::npos)
+        << result.stderrText;
+    EXPECT_FALSE(std::filesystem::exists(_root / "toolchains"));
+    EXPECT_FALSE(std::filesystem::exists(_root / "config.toml"));
+}
+
+/**
+ * A failure part way through extracting does not look installed afterwards,
+ * though members were written before it.
+ */
+TEST_F(CliE2ETest, InstallLeavesNothingThatLooksInstalledWhenExtractingFails)
+{
+    const std::string whole = compilerIngot().substr(0, 100);
+    const ToolchainServer server("gcc", { { .version = "15.2.0", .ingot = whole } });
+
+    auto result = runScrap({ "toolchain", "install", "gcc@15.2.0" }, { server.indexVariable() }, _root);
+
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_NE(result.stderrText.find("error: cannot install 'gcc@15.2.0': "), std::string::npos) << result.stderrText;
+    EXPECT_FALSE(std::filesystem::exists(_root / "toolchains"));
+    EXPECT_FALSE(std::filesystem::exists(_root / "config.toml"));
+
+    auto selecting = runScrap({ "toolchain", "select", "gcc@15.2.0" }, {}, _root);
+    EXPECT_EQ(selecting.exitCode, 1);
+    EXPECT_NE(selecting.stderrText.find("is not installed"), std::string::npos) << selecting.stderrText;
+}
+
+/**
+ * What is installed stays until --force replaces it.
+ */
+TEST_F(CliE2ETest, InstallLeavesAnInstalledToolchainAloneUnlessForced)
+{
+    const ToolchainServer server("gcc", { { .version = "15.2.0", .ingot = compilerIngot() } });
+    ASSERT_EQ(runScrap({ "toolchain", "install", "gcc@15.2.0" }, { server.indexVariable() }, _root).exitCode, 0);
+    const std::string compiler = "toolchains/gcc/15.2.0/" + hostDirectoryName() + "/bin/g++";
+    _temp->writeFile(compiler, "changed since");
+
+    auto again = runScrap({ "toolchain", "install", "gcc@15.2.0" }, { server.indexVariable() }, _root);
+
+    EXPECT_EQ(again.exitCode, 0) << again.stderrText;
+    EXPECT_EQ(again.stderrText, "'gcc@15.2.0' is already installed at '" + (_root / "toolchains/gcc/15.2.0" / hostDirectoryName()).string() + "'\n");
+    EXPECT_EQ(server.timesFetched("15.2.0"), 1U);
+    EXPECT_EQ(readFile(compiler), "changed since");
+
+    auto forced = runScrap({ "toolchain", "install", "--force", "gcc@15.2.0" }, { server.indexVariable() }, _root);
+
+    EXPECT_EQ(forced.exitCode, 0) << forced.stderrText;
+    EXPECT_EQ(server.timesFetched("15.2.0"), 2U);
+    EXPECT_EQ(readFile(compiler), "compiler");
+}
+
+/**
+ * A build of the same version made again is told of, not fetched.
+ */
+TEST_F(CliE2ETest, InstallTellsOfABuildMadeAgainWithoutFetchingIt)
+{
+    ToolchainServer server("gcc", { { .version = "15.2.0", .ingot = compilerIngot("first build") } });
+    ASSERT_EQ(runScrap({ "toolchain", "install", "gcc@15.2.0" }, { server.indexVariable() }, _root).exitCode, 0);
+    server.offer("gcc", { { .version = "15.2.0", .ingot = compilerIngot("second build") } });
+
+    auto again = runScrap({ "toolchain", "install", "gcc@15.2.0" }, { server.indexVariable() }, _root);
+
+    EXPECT_EQ(again.exitCode, 0) << again.stderrText;
+    EXPECT_EQ(again.stderrText,
+              "'gcc@15.2.0' is already installed at '" + (_root / "toolchains/gcc/15.2.0" / hostDirectoryName()).string()
+                  + "'\n"
+                    "warning: the index now lists a different build of 'gcc@15.2.0'\n"
+                    "hint: run 'scrap toolchain install --force gcc@15.2.0' to replace it\n");
+    EXPECT_EQ(server.timesFetched("15.2.0"), 1U);
+}
+
+/**
+ * An install whose record has no value to compare says only that it is
+ * installed.
+ */
+TEST_F(CliE2ETest, InstallComparesNothingWhenTheRecordHoldsNoValue)
+{
+    const ToolchainServer server("gcc", { { .version = "15.2.0", .ingot = compilerIngot() } });
+    installToolchain("gcc", "15.2.0");
+
+    auto again = runScrap({ "toolchain", "install", "gcc@15.2.0" }, { server.indexVariable() }, _root);
+
+    EXPECT_EQ(again.exitCode, 0) << again.stderrText;
+    EXPECT_EQ(again.stderrText.find("warning:"), std::string::npos) << again.stderrText;
+    EXPECT_NE(again.stderrText.find("is already installed at"), std::string::npos) << again.stderrText;
+    EXPECT_EQ(server.timesFetched("15.2.0"), 0U);
+}
+
+/**
+ * An install whose record cannot be read is reported, and --force mends it.
+ */
+TEST_F(CliE2ETest, InstallReportsARecordItCannotReadAndForceReplacesIt)
+{
+    const ToolchainServer server("gcc", { { .version = "15.2.0", .ingot = compilerIngot() } });
+    installToolchain("gcc", "15.2.0");
+    const std::string record = "toolchains/gcc/15.2.0/" + hostDirectoryName() + "/.scrap-toolchain.toml";
+    _temp->writeFile(record, "not a record");
+
+    auto again = runScrap({ "toolchain", "install", "gcc@15.2.0" }, { server.indexVariable() }, _root);
+
+    EXPECT_EQ(again.exitCode, 1);
+    EXPECT_NE(again.stderrText.find("error: cannot use the installed toolchain: "), std::string::npos) << again.stderrText;
+    EXPECT_NE(again.stderrText.find("hint: run 'scrap toolchain install --force gcc@15.2.0'\n"), std::string::npos) << again.stderrText;
+
+    auto forced = runScrap({ "toolchain", "install", "--force", "gcc@15.2.0" }, { server.indexVariable() }, _root);
+    EXPECT_EQ(forced.exitCode, 0) << forced.stderrText;
+}
+
+/**
+ * A version no longer offered is not installed, and the report names one that
+ * is.
+ */
+TEST_F(CliE2ETest, InstallRefusesAToolchainNoLongerProvided)
+{
+    const ToolchainServer server("gcc", { { .version = "15.2.0", .ingot = compilerIngot() }, { .version = "15.3.0", .status = "disabled", .ingot = compilerIngot() } });
+
+    auto result = runScrap({ "toolchain", "install", "gcc@15.3.0" }, { server.indexVariable() }, _root);
+
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_EQ(result.stderrText, "error: 'gcc@15.3.0' is no longer provided\nhint: install another version, such as 'gcc@15.2.0'\n");
+    EXPECT_FALSE(std::filesystem::exists(_root / "toolchains"));
+}
+
+/**
+ * A version without an ingot for the host is not installed, and the report
+ * names the host.
+ */
+TEST_F(CliE2ETest, InstallRefusesAToolchainWithoutABuildForTheHost)
+{
+    const ToolchainServer server("gcc", { { .version = "15.1.0", .ingot = compilerIngot() }, { .version = "15.2.0", .hasIngot = false } });
+
+    auto result = runScrap({ "toolchain", "install", "gcc@15.2.0" }, { server.indexVariable() }, _root);
+
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_EQ(result.stderrText, "error: 'gcc@15.2.0' has no build for " + hostDirectoryName() + "\nhint: available versions for this host include 15.1.0\n");
+    EXPECT_FALSE(std::filesystem::exists(_root / "toolchains"));
+}
+
+/**
+ * A toolchain that needs a newer scrap is not installed.
+ */
+TEST_F(CliE2ETest, InstallRefusesAToolchainThatNeedsANewerScrap)
+{
+    const ToolchainServer server("gcc", { { .version = "15.2.0", .ingot = compilerIngot(), .extraToolchainKeys = "min_scrap_version = '999.0.0'\n" } });
+
+    auto result = runScrap({ "toolchain", "install", "gcc@15.2.0" }, { server.indexVariable() }, _root);
+
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_EQ(result.stderrText, "error: 'gcc@15.2.0' needs scrap 999.0.0 or later\nhint: update scrap and run the command again\n");
+    EXPECT_FALSE(std::filesystem::exists(_root / "toolchains"));
+}
+
+#if defined(__linux__)
+/**
+ * An ingot that needs a newer glibc than the host has is not installed.
+ */
+TEST_F(CliE2ETest, InstallRefusesAToolchainThatNeedsANewerGlibc)
+{
+    const ToolchainServer server("gcc", { { .version = "15.2.0", .ingot = compilerIngot(), .extraIngotKeys = "glibc_version = '999.0'\n" } });
+
+    auto result = runScrap({ "toolchain", "install", "gcc@15.2.0" }, { server.indexVariable() }, _root);
+
+    EXPECT_EQ(result.exitCode, 1);
+    const std::string prefix = "error: 'gcc@15.2.0' needs glibc 999.0 or later; this host has ";
+    EXPECT_EQ(result.stderrText.substr(0, prefix.size()), prefix) << result.stderrText;
+    EXPECT_NE(result.stderrText.find("hint: install an older version, or use a newer host\n"), std::string::npos) << result.stderrText;
+    EXPECT_FALSE(std::filesystem::exists(_root / "toolchains"));
+}
+#endif
+
+/**
+ * An index that cannot be fetched gives way to the saved copy, with a warning,
+ * and without one the install fails.
+ */
+TEST_F(CliE2ETest, InstallFallsBackOnTheSavedIndex)
+{
+    ToolchainServer server("gcc", { { .version = "15.1.0", .ingot = compilerIngot() }, { .version = "15.2.0", .ingot = compilerIngot() } });
+    ASSERT_EQ(runScrap({ "toolchain", "install", "gcc@15.1.0" }, { server.indexVariable() }, _root).exitCode, 0);
+    server.failIndex();
+
+    auto result = runScrap({ "toolchain", "install", "gcc@15.2.0" }, { server.indexVariable() }, _root);
+
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    const std::regex warning{ "^warning: cannot fetch the toolchain index; using the copy fetched at [0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z\n" };
+    EXPECT_TRUE(std::regex_search(result.stderrText, warning)) << result.stderrText;
+    EXPECT_TRUE(std::filesystem::exists(_root / "toolchains/gcc/15.2.0"));
+}
+
+TEST_F(CliE2ETest, InstallFailsWhenNoIndexCanBeHad)
+{
+    ToolchainServer server("gcc", {});
+    server.failIndex();
+
+    auto result = runScrap({ "toolchain", "install", "gcc@15.2.0" }, { server.indexVariable() }, _root);
+
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_NE(result.stderrText.find("error: cannot fetch the toolchain index: "), std::string::npos) << result.stderrText;
+    EXPECT_NE(result.stderrText.find("hint: check the network connection and run the command again\n"), std::string::npos) << result.stderrText;
+    EXPECT_FALSE(std::filesystem::exists(_root / "toolchains"));
+}
+
+/**
+ * The first toolchain installed becomes the default and stays it, while
+ * versions of a family are kept side by side.
+ */
+TEST_F(CliE2ETest, InstallMakesTheFirstTheDefaultAndKeepsVersionsSideBySide)
+{
+    const ToolchainServer server("gcc", { { .version = "15.1.0", .ingot = compilerIngot() }, { .version = "15.2.0", .ingot = compilerIngot() } });
+
+    auto first = runScrap({ "toolchain", "install", "gcc@15.2.0" }, { server.indexVariable() }, _root);
+
+    EXPECT_EQ(first.exitCode, 0) << first.stderrText;
+    EXPECT_EQ(lastLineOf(first.stderrText), "Selected 'gcc@15.2.0' as the global default, since no toolchain was selected");
+    EXPECT_NE(readFile("config.toml").find("toolchain = 'gcc@15.2.0'"), std::string::npos) << readFile("config.toml");
+
+    auto second = runScrap({ "toolchain", "install", "gcc@15.1.0" }, { server.indexVariable() }, _root);
+
+    EXPECT_EQ(second.exitCode, 0) << second.stderrText;
+    EXPECT_EQ(second.stderrText.find("Selected"), std::string::npos) << second.stderrText;
+    EXPECT_NE(readFile("config.toml").find("toolchain = 'gcc@15.2.0'"), std::string::npos) << readFile("config.toml");
+    EXPECT_TRUE(std::filesystem::exists(_root / "toolchains/gcc/15.1.0" / hostDirectoryName() / "bin/g++"));
+    EXPECT_TRUE(std::filesystem::exists(_root / "toolchains/gcc/15.2.0" / hostDirectoryName() / "bin/g++"));
+}
+
+/**
+ * A toolchain already installed becomes the default when none is set, without
+ * being fetched.
+ */
+TEST_F(CliE2ETest, InstallSelectsAToolchainAlreadyInstalledWhenNoDefaultIsSet)
+{
+    const ToolchainServer server("gcc", { { .version = "15.2.0", .ingot = compilerIngot() } });
+    ASSERT_EQ(runScrap({ "toolchain", "install", "gcc@15.2.0" }, { server.indexVariable() }, _root).exitCode, 0);
+    ASSERT_EQ(runScrap({ "toolchain", "unselect" }, {}, _root).exitCode, 0);
+
+    auto again = runScrap({ "toolchain", "install", "gcc@15.2.0" }, { server.indexVariable() }, _root);
+
+    EXPECT_EQ(again.exitCode, 0) << again.stderrText;
+    EXPECT_EQ(lastLineOf(again.stderrText), "Selected 'gcc@15.2.0' as the global default, since no toolchain was selected");
+    EXPECT_EQ(server.timesFetched("15.2.0"), 1U);
+}
+
+/**
+ * A config.toml that cannot be read stops the install before anything is
+ * fetched, and is left as it is.
+ */
+TEST_F(CliE2ETest, InstallStopsAtAConfigItCannotRead)
+{
+    const ToolchainServer server("gcc", { { .version = "15.2.0", .ingot = compilerIngot() } });
+    _temp->writeFile("config.toml", "not = toml =");
+
+    auto result = runScrap({ "toolchain", "install", "gcc@15.2.0" }, { server.indexVariable() }, _root);
+
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_NE(result.stderrText.find("hint: fix the file, or remove it to clear the settings it holds\n"), std::string::npos) << result.stderrText;
+    EXPECT_EQ(server.requests(), 0U);
+    EXPECT_EQ(readFile("config.toml"), "not = toml =");
+}
+
+/**
+ * What install keeps is what a build then uses.
+ */
+TEST_F(CliE2ETest, BuildsWithAToolchainItInstalled)
+{
+    const std::string compiler = "#!/bin/sh\nexec '" + std::string{ SCRAP_TEST_CXX } + "' \"$@\"\n";
+    const ToolchainServer server("gcc", { { .version = "15.2.0", .ingot = compilerIngot(compiler) } });
+    ASSERT_EQ(runScrap({ "toolchain", "install", "gcc@15.2.0" }, { server.indexVariable() }, _root).exitCode, 0);
+    ASSERT_EQ(runScrap({ "new", "hello" }, {}, _root).exitCode, 0);
+
+    auto built = runScrap({ "build" }, { realCompiler() }, _root / "hello", BuildTimeout);
+
+    EXPECT_EQ(built.exitCode, 0) << built.stderrText;
+    EXPECT_NE(built.stderrText.find("Using the toolchain 'gcc@15.2.0'"), std::string::npos) << built.stderrText;
 }

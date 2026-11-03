@@ -108,7 +108,7 @@ IngotSelectionFault faultOf(const IndexedToolchain& toolchain, const ToolchainIn
     }
     const Ingot* ingot = ingotFor(toolchain, host.environment);
     if (ingot == nullptr) {
-        return NoIngotForHost{ .versions = versionTexts(newestFirst(index, toolchain.family, [&host](const IndexedToolchain& other) {
+        return NoIngotForHost{ .environment = host.environment.directoryName(), .versions = versionTexts(newestFirst(index, toolchain.family, [&host](const IndexedToolchain& other) {
             return isOffered(other) && (! needsNewerScrap(other, host)) && (ingotFor(other, host.environment) != nullptr);
         })) };
     }

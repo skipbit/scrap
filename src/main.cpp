@@ -58,6 +58,8 @@ int main(int argc, char* argv[])
             .path = environmentVariable("PATH"),
             .compiler = environmentVariable("CXX"),
             .toolchain = environmentVariable("SCRAP_TOOLCHAIN"),
+            .toolchainIndex = environmentVariable("SCRAP_TOOLCHAIN_INDEX"),
+            .certificateFile = environmentVariable("SSL_CERT_FILE"),
         });
 
         auto helpRenderer = std::make_unique<DefaultHelpRenderer>();

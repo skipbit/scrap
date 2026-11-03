@@ -19,6 +19,8 @@ struct GivenInputs {
     std::string path{};
     std::string compiler{};
     std::string toolchain{};
+    std::string toolchainIndex{};
+    std::string certificateFile{};
 };
 
 /**
@@ -33,6 +35,8 @@ RuntimeEnvironment environmentOf(const GivenInputs& given)
         .path = given.path,
         .compiler = given.compiler,
         .toolchain = given.toolchain,
+        .toolchainIndex = given.toolchainIndex,
+        .certificateFile = given.certificateFile,
     });
 }
 
@@ -178,4 +182,12 @@ TEST(RuntimeEnvironmentFactoryTest, RequestedToolchainCarriesTheToolchainVariabl
 TEST(RuntimeEnvironmentFactoryTest, PreferredCompilerIsEmptyWhenUnset)
 {
     EXPECT_TRUE(environmentOf({ .workingDirectory = "/project", .path = "/usr/bin" }).preferredCompiler.empty());
+}
+
+TEST(RuntimeEnvironmentFactoryTest, CarriesWhereTheIndexAndCertificatesAre)
+{
+    const RuntimeEnvironment env = environmentOf({ .workingDirectory = "/project", .toolchainIndex = "https://example.com/index.toml", .certificateFile = "/etc/roots.pem" });
+
+    EXPECT_EQ(env.toolchainIndexUrl, "https://example.com/index.toml");
+    EXPECT_EQ(env.certificateFile, "/etc/roots.pem");
 }
