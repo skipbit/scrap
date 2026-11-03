@@ -92,6 +92,22 @@ scrap_add_unit_test(file SOURCES
     unit/file/WholeFileTest.cpp
 )
 
+scrap_add_unit_test(digest SOURCES
+    unit/digest/Sha256FileTest.cpp
+    unit/digest/Sha256Test.cpp
+)
+
+scrap_add_unit_test(tar SOURCES
+    unit/tar/TarArchiveBuilder.cpp
+    unit/tar/TarExtractorTest.cpp
+    unit/tar/TarPathTest.cpp
+    unit/tar/TarReaderTest.cpp
+)
+
+scrap_add_unit_test(xz SOURCES
+    unit/xz/XzFileTest.cpp
+)
+
 # The fetch tests wait on a server that stalls and on a real host; a transfer
 # whose limits no longer stop it would leave them waiting.
 scrap_add_unit_test(fetch SOURCES

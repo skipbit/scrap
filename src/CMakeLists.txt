@@ -25,6 +25,7 @@ find_package(CLI11 REQUIRED)
 find_package(TomlPlusPlus REQUIRED)
 find_package(Threads REQUIRED)
 find_package(LibCurl REQUIRED)
+find_package(Xz REQUIRED)
 
 # Each module is built once as a library, and the binary and the tests link
 # against it.
@@ -37,6 +38,32 @@ add_library(scrap_file STATIC
 )
 target_include_directories(scrap_file PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 scrap_apply_compile_settings(scrap_file WARNINGS_AS_ERRORS)
+
+# Digests of bytes and files, depending on nothing else in scrap
+add_library(scrap_digest STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/digest/Sha256.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/digest/Sha256File.cpp
+)
+target_include_directories(scrap_digest PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+scrap_apply_compile_settings(scrap_digest WARNINGS_AS_ERRORS)
+
+# Reading xz files, depending on nothing else in scrap
+add_library(scrap_xz STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/xz/XzFile.cpp
+)
+target_include_directories(scrap_xz PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(scrap_xz PRIVATE scrap_liblzma)
+scrap_apply_compile_settings(scrap_xz WARNINGS_AS_ERRORS)
+
+# Reading tar archives and extracting them, depending on nothing else in scrap
+add_library(scrap_tar STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/tar/Descriptor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tar/TarExtractor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tar/TarPath.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tar/TarReader.cpp
+)
+target_include_directories(scrap_tar PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+scrap_apply_compile_settings(scrap_tar WARNINGS_AS_ERRORS)
 
 # Fetching URLs into files
 add_library(scrap_fetch STATIC
