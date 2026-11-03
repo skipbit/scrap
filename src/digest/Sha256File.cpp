@@ -25,6 +25,31 @@ std::error_code lastFailure()
     return { errno, std::generic_category() };
 }
 
+/// Closes the descriptor it holds.
+class OpenFile {
+public:
+    explicit OpenFile(const int descriptor)
+        : _descriptor{ descriptor }
+    {
+    }
+    OpenFile(const OpenFile&) = delete;
+    OpenFile& operator=(const OpenFile&) = delete;
+    OpenFile(OpenFile&&) = delete;
+    OpenFile& operator=(OpenFile&&) = delete;
+    ~OpenFile()
+    {
+        ::close(_descriptor);
+    }
+
+    [[nodiscard]] int descriptor() const
+    {
+        return _descriptor;
+    }
+
+private:
+    int _descriptor;
+};
+
 }  // anonymous namespace
 
 std::expected<std::string, std::error_code> sha256OfFile(const std::filesystem::path& file)
@@ -33,28 +58,22 @@ std::expected<std::string, std::error_code> sha256OfFile(const std::filesystem::
     if (descriptor < 0) {
         return std::unexpected(lastFailure());
     }
+    const OpenFile opened{ descriptor };
 
     Sha256 sha256;
     std::vector<char> buffer(ReadSize);
-    std::error_code failure;
     while (true) {
-        const ssize_t received = ::read(descriptor, buffer.data(), buffer.size());
+        const ssize_t received = ::read(opened.descriptor(), buffer.data(), buffer.size());
         if (received < 0) {
             if (errno == EINTR) {
                 continue;
             }
-            failure = lastFailure();
-            break;
+            return std::unexpected(lastFailure());
         }
         if (received == 0) {
             break;
         }
         sha256.update(std::string_view{ buffer.data(), static_cast<std::size_t>(received) });
-    }
-    ::close(descriptor);
-
-    if (failure) {
-        return std::unexpected(failure);
     }
     return sha256.hexDigest();
 }
