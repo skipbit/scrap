@@ -194,14 +194,44 @@ TEST_F(XzFileTest, ReportsDataThatFailsItsIntegrityCheck)
     EXPECT_TRUE(std::holds_alternative<CorruptData>(result.error()));
 }
 
-TEST_F(XzFileTest, ReportsDataAfterTheEndOfTheFile)
+TEST_F(XzFileTest, ReportsTooLittleDataAfterTheEndOfTheFileAsTruncated)
 {
     std::string decoded;
 
     const auto result = decodeFile(fileWith(bytesFromHex(OneBlock) + "trailing"), collectInto(decoded));
 
     ASSERT_FALSE(result.has_value());
-    EXPECT_FALSE(std::holds_alternative<ConsumerStopped>(result.error()));
+    EXPECT_TRUE(std::holds_alternative<TruncatedData>(result.error()));
+}
+
+TEST_F(XzFileTest, ReportsMoreDataAfterTheEndOfTheFileAsCorrupt)
+{
+    std::string decoded;
+
+    const auto result = decodeFile(fileWith(bytesFromHex(OneBlock) + "trailing data longer than a header"), collectInto(decoded));
+
+    ASSERT_FALSE(result.has_value());
+    EXPECT_TRUE(std::holds_alternative<CorruptData>(result.error()));
+}
+
+TEST_F(XzFileTest, TakesThePaddingTheFormatAllows)
+{
+    std::string decoded;
+
+    const auto result = decodeFile(fileWith(bytesFromHex(OneBlock) + std::string(4, '\0')), collectInto(decoded));
+
+    EXPECT_TRUE(result.has_value());
+    EXPECT_EQ(decoded, "hello, xz\n");
+}
+
+TEST_F(XzFileTest, ReportsPaddingOfAnotherLengthAsCorrupt)
+{
+    std::string decoded;
+
+    const auto result = decodeFile(fileWith(bytesFromHex(OneBlock) + std::string(3, '\0')), collectInto(decoded));
+
+    ASSERT_FALSE(result.has_value());
+    EXPECT_TRUE(std::holds_alternative<CorruptData>(result.error()));
 }
 
 TEST_F(XzFileTest, StopsWhenTheConsumerAsks)
