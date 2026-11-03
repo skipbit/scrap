@@ -170,9 +170,10 @@ std::expected<void, FetchError> transfer(CURL* easy, const FetchRequest& request
 {
     BodySink sink{ .easy = easy, .file = &file, .failure = {} };
     std::string url = request.url;
+    std::optional<UrlTarget> previous;
     for (int hop = 0; hop <= RedirectLimit; ++hop) {
         const std::optional<UrlTarget> target = readTarget(url);
-        if ((! target.has_value()) || (! isAccepted(*target))) {
+        if ((! target.has_value()) || (! (previous.has_value() ? isAcceptedRedirect(*previous, *target) : isAccepted(*target)))) {
             return std::unexpected(UrlRefused{ .url = url });
         }
         if (needsCertificates(*target) && (! request.certificateBundle.has_value())) {
@@ -199,6 +200,7 @@ std::expected<void, FetchError> transfer(CURL* easy, const FetchRequest& request
             return std::unexpected(UnexpectedStatus{ .url = url, .status = status });
         }
         url = std::move(*next);
+        previous = target;
     }
     return std::unexpected(TooManyRedirects{ .url = url });
 }

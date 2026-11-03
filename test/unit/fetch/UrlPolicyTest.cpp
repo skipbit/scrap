@@ -22,6 +22,12 @@ struct TargetCase {
     bool verified;
 };
 
+struct RedirectCase {
+    UrlTarget from;
+    UrlTarget to;
+    bool accepted;
+};
+
 }  // anonymous namespace
 
 TEST(UrlPolicyTest, RecognisesTheNamesOfThisMachine)
@@ -61,5 +67,25 @@ TEST(UrlPolicyTest, AcceptsHttpsAnywhereAndHttpOnlyFromThisMachine)
         const UrlTarget target{ .scheme = scheme, .host = host };
         EXPECT_EQ(isAccepted(target), accepted) << scheme << "://" << host;
         EXPECT_EQ(needsCertificates(target), verified) << scheme << "://" << host;
+    }
+}
+
+TEST(UrlPolicyTest, LetsARedirectReachHttpOnlyFromThisMachine)
+{
+    const std::vector<RedirectCase> cases{
+        { { "http", "localhost" }, { "http", "127.0.0.1" }, true },
+        { { "https", "localhost" }, { "http", "localhost" }, true },
+        { { "http", "localhost" }, { "https", "example.com" }, true },
+        { { "https", "example.com" }, { "https", "example.org" }, true },
+        { { "https", "example.com" }, { "http", "127.0.0.1" }, false },
+        { { "https", "example.com" }, { "http", "localhost" }, false },
+        { { "https", "example.com" }, { "http", "[::1]" }, false },
+        { { "https", "example.com" }, { "http", "example.org" }, false },
+        { { "http", "localhost" }, { "http", "example.com" }, false },
+        { { "http", "localhost" }, { "ftp", "localhost" }, false },
+    };
+
+    for (const auto& [from, to, accepted] : cases) {
+        EXPECT_EQ(isAcceptedRedirect(from, to), accepted) << from.scheme << "://" << from.host << " to " << to.scheme << "://" << to.host;
     }
 }

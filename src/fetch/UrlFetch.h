@@ -26,7 +26,7 @@ struct FetchRequest {
 
 /**
  * @brief The URL, or one a redirect led to, is neither https nor http to this
- *        machine.
+ *        machine, or is http reached by a redirect from elsewhere.
  */
 struct UrlRefused {
     std::string url;
@@ -85,8 +85,9 @@ using FetchError = std::variant<UrlRefused, NoCertificateBundle, CertificateFail
  * @brief Fetch a URL into a file, following redirects.
  *
  * Only https is accepted, and http to this machine (127.0.0.1, ::1, localhost);
- * the same goes for each redirect. A proxy named by the usual environment
- * variables is used, except for this machine.
+ * the same goes for each redirect, which reaches http only from this machine. A
+ * proxy named by the usual environment variables is used, except for this
+ * machine.
  *
  * The destination changes only when the whole of the content has arrived.
  *

@@ -14,6 +14,11 @@ bool isAccepted(const UrlTarget& target)
     return (target.scheme == "https") || ((target.scheme == "http") && isThisMachine(target.host));
 }
 
+bool isAcceptedRedirect(const UrlTarget& from, const UrlTarget& to)
+{
+    return isAccepted(to) && ((to.scheme != "http") || isThisMachine(from.host));
+}
+
 bool needsCertificates(const UrlTarget& target)
 {
     return target.scheme == "https";

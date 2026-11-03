@@ -25,6 +25,13 @@ struct UrlTarget {
 [[nodiscard]] bool isAccepted(const UrlTarget& target);
 
 /**
+ * @brief Whether a redirect from @p from may lead to @p to: as isAccepted(), with
+ *        http only from this machine, so a host elsewhere cannot aim a fetch at a
+ *        service here.
+ */
+[[nodiscard]] bool isAcceptedRedirect(const UrlTarget& from, const UrlTarget& to);
+
+/**
  * @brief Whether fetching @p target needs root certificates to verify the host.
  */
 [[nodiscard]] bool needsCertificates(const UrlTarget& target);
