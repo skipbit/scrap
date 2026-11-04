@@ -107,17 +107,14 @@ scrap new my-project
 
 Choosing another template with `--template` is coming soon.
 
-### 🔧 Integrated Toolchain Management (Coming Soon)
+### 🔧 Integrated Toolchain Management
 
 ```bash
-# Install a specific toolchain
-scrap toolchain install llvm@18.0.0
+# Install the newest version of a series, which becomes the default if none is set
+scrap toolchain install llvm@18
 
-# List available toolchains
-scrap toolchain list
-
-# Select a toolchain for your project
-scrap toolchain select gcc@13.2.0
+# Select an installed toolchain as the global default
+scrap toolchain select llvm@18
 ```
 
 ### 📦 Modern Package Management (Planned)
@@ -186,8 +183,8 @@ scrap is in early alpha development. Currently implemented:
 🚧 **In Progress**
 - Template system with variable substitution
 - A chosen number of parallel jobs
-- Configuration file parsing (`scrap.toml`) - `[dependencies]` and
-  `[toolchain]` are accepted and not yet read
+- Configuration file parsing (`scrap.toml`) - `[dependencies]` is accepted and
+  not yet read
 - Git-based template repository integration
 - Toolchain management
 
