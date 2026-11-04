@@ -10,7 +10,6 @@
 #include <optional>
 #include <ranges>
 #include <string>
-#include <utility>
 #include <variant>
 #include <vector>
 
@@ -57,6 +56,7 @@ std::vector<std::string> versionTexts(const std::vector<const IndexedToolchain*>
 std::vector<std::string> familyNames(const ToolchainIndex& index)
 {
     std::vector<std::string> names;
+    names.reserve(index.toolchains.size());
     for (const IndexedToolchain& toolchain : index.toolchains) {
         names.push_back(toolchain.family);
     }
@@ -64,6 +64,11 @@ std::vector<std::string> familyNames(const ToolchainIndex& index)
     const auto repeated = std::ranges::unique(names);
     names.erase(repeated.begin(), repeated.end());
     return names;
+}
+
+std::string textOf(const std::optional<ToolchainVersion>& version)
+{
+    return version.has_value() ? version->text() : std::string{};
 }
 
 bool needsNewerScrap(const IndexedToolchain& toolchain, const InstallingHost& host)
@@ -97,7 +102,7 @@ bool canBeInstalled(const IndexedToolchain& toolchain, const InstallingHost& hos
 IngotSelectionFault faultOf(const IndexedToolchain& toolchain, const ToolchainIndex& index, const InstallingHost& host)
 {
     if (needsNewerScrap(toolchain, host)) {
-        return NeedsNewerScrap{ .required = toolchain.minScrapVersion->text() };
+        return NeedsNewerScrap{ .required = textOf(toolchain.minScrapVersion) };
     }
     if (! isOffered(toolchain)) {
         const auto installable = newestFirst(index, toolchain.family, [&host](const IndexedToolchain& other) {
@@ -112,7 +117,7 @@ IngotSelectionFault faultOf(const IndexedToolchain& toolchain, const ToolchainIn
             return isOffered(other) && (! needsNewerScrap(other, host)) && (ingotFor(other, host.environment) != nullptr);
         })) };
     }
-    return NeedsNewerGlibc{ .required = ingot->glibcVersion->text(), .host = host.glibcVersion->text() };
+    return NeedsNewerGlibc{ .required = textOf(ingot->glibcVersion), .host = textOf(host.glibcVersion) };
 }
 
 }  // anonymous namespace

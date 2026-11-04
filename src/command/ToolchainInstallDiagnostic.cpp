@@ -69,7 +69,7 @@ std::string errorLine(const std::string_view specifier, const std::string_view r
 
 std::string render(const std::string_view specifier, const Toolchain::NoMatchInIndex& fault)
 {
-    std::string text = "error: no toolchain matches '" + printableTypedEcho(specifier) + "'\n";
+    const std::string text = "error: no toolchain matches '" + printableTypedEcho(specifier) + "'\n";
     if (! fault.versions.empty()) {
         return text + "hint: available versions include " + firstFew(fault.versions) + "\n";
     }
@@ -81,7 +81,7 @@ std::string render(const std::string_view specifier, const Toolchain::NoMatchInI
 
 std::string render(const std::string_view specifier, const Toolchain::NoIngotForHost& fault)
 {
-    std::string text = errorLine(specifier, "has no build for " + fault.environment);
+    const std::string text = errorLine(specifier, "has no build for " + fault.environment);
     if (fault.versions.empty()) {
         return text + "hint: no version of it is built for this host\n";
     }
@@ -90,7 +90,7 @@ std::string render(const std::string_view specifier, const Toolchain::NoIngotFor
 
 std::string render(const std::string_view specifier, const Toolchain::NoLongerOffered& fault)
 {
-    std::string text = errorLine(specifier, "is no longer provided");
+    const std::string text = errorLine(specifier, "is no longer provided");
     if (! fault.alternative.has_value()) {
         return text + "hint: no other version of it can be installed on this host\n";
     }
@@ -163,7 +163,7 @@ std::string renderIndexFault(const Install::IndexFault& fault)
         return "error: the toolchain index has the format " + printableText(unsupported->format) + ", which this scrap cannot read\nhint: update scrap and run the command again\n";
     }
     const auto& unavailable = std::get<Install::IndexUnavailable>(fault);
-    std::string text = "error: cannot fetch the toolchain index: " + printableText(unavailable.reason) + "\n";
+    const std::string text = "error: cannot fetch the toolchain index: " + printableText(unavailable.reason) + "\n";
     if (unavailable.fetchError.has_value()) {
         return text + hintFor(*unavailable.fetchError);
     }

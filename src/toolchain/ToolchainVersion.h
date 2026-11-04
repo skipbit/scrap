@@ -24,6 +24,9 @@ public:
      */
     [[nodiscard]] static std::optional<ToolchainVersion> parse(std::string_view text);
 
+    /** The version 0, which no other version comes before. */
+    [[nodiscard]] static ToolchainVersion lowest();
+
     /** The version as it was written. */
     [[nodiscard]] const std::string& text() const;
 

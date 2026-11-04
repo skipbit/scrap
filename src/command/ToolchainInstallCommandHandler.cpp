@@ -30,6 +30,7 @@
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <utility>
 #include <variant>
 
 namespace scrap::Command {
@@ -48,7 +49,7 @@ Toolchain::ToolchainVersion runningVersion()
     const std::string banner = version();
     const std::size_t start = banner.find(' ') + 1;
     const std::string text = banner.substr(start, banner.find(' ', start) - start);
-    return Toolchain::ToolchainVersion::parse(text).value_or(*Toolchain::ToolchainVersion::parse("0"));
+    return Toolchain::ToolchainVersion::parse(text).value_or(Toolchain::ToolchainVersion::lowest());
 }
 
 bool asksToReplace(const ParsedOptions& options)
@@ -100,11 +101,57 @@ bool reportInstalled(const std::string& specifier, const std::string& name, cons
         return false;
     }
     std::cerr << "'" << name << "' is already installed at '" << printablePath(directory) << "'\n";
-    if (record->ingotIntegrity.has_value() && (*record->ingotIntegrity != integrity)) {
+    const std::optional<std::string>& recorded = record->ingotIntegrity;
+    if (recorded.has_value() && (*recorded != integrity)) {
         std::cerr << "warning: the index now lists a different build of '" << name << "'\n"
                   << "hint: run 'scrap toolchain install --force " << name << "' to replace it\n";
     }
     return true;
+}
+
+/**
+ * The specifier @p text holds, or the report that it names nothing to install.
+ */
+std::expected<Toolchain::ToolchainSpecifier, std::string> specifierToInstall(const std::string& text)
+{
+    const auto choice = Toolchain::parseToolchainChoice(text);
+    if (! choice.has_value()) {
+        return std::unexpected(renderNotInstallable(text, choice.error()));
+    }
+    const auto* specifier = std::get_if<Toolchain::ToolchainSpecifier>(&*choice);
+    if (specifier == nullptr) {
+        return std::unexpected(renderNotInstallable(text, "it names the compiler found on the system"));
+    }
+    return *specifier;
+}
+
+/**
+ * What the index offers for @p specifier on @p environment, or the report of
+ * why it offers nothing.
+ */
+std::expected<Toolchain::SelectedIngot, std::string> chooseIngot(const RuntimeEnvironment& env,
+                                                                 const std::filesystem::path& scrapHome,
+                                                                 const Toolchain::HostEnvironment& environment,
+                                                                 const std::optional<std::filesystem::path>& bundle,
+                                                                 const std::string& text,
+                                                                 const Toolchain::ToolchainSpecifier& specifier)
+{
+    const std::string indexUrl = env.toolchainIndexUrl.empty() ? std::string{ OfficialIndexUrl } : env.toolchainIndexUrl;
+    const Toolchain::ToolchainVersion scrapVersion = runningVersion();
+    const auto obtained = Install::obtainIndex(scrapHome, Install::IndexSource{ .url = indexUrl, .certificateBundle = bundle }, scrapVersion);
+    if (! obtained.has_value()) {
+        return std::unexpected(renderIndexFault(obtained.error()));
+    }
+    const std::optional<std::string>& copyFetchedAt = obtained->copyFetchedAt;
+    if (copyFetchedAt.has_value()) {
+        std::cerr << "warning: cannot fetch the toolchain index; using the copy fetched at " << *copyFetchedAt << "\n";
+    }
+    const Toolchain::InstallingHost host{ .environment = environment, .scrapVersion = scrapVersion, .glibcVersion = Toolchain::hostGlibcVersion() };
+    auto selected = Toolchain::selectIngot(obtained->index, specifier, host);
+    if (! selected.has_value()) {
+        return std::unexpected(renderSelectionFault(text, selected.error()));
+    }
+    return std::move(*selected);
 }
 
 }  // anonymous namespace
@@ -113,14 +160,9 @@ int ToolchainInstallCommandHandler::execute(const InvocationContext& ctx)
 {
     // The parser requires the specifier, so the first positional is there.
     const std::string text = ctx.options.positional.empty() ? std::string{} : ctx.options.positional.front();
-    const auto choice = Toolchain::parseToolchainChoice(text);
-    if (! choice.has_value()) {
-        std::cerr << renderNotInstallable(text, choice.error());
-        return 1;
-    }
-    const auto* specifier = std::get_if<Toolchain::ToolchainSpecifier>(&*choice);
-    if (specifier == nullptr) {
-        std::cerr << renderNotInstallable(text, "it names the compiler found on the system");
+    const auto specifier = specifierToInstall(text);
+    if (! specifier.has_value()) {
+        std::cerr << specifier.error();
         return 1;
     }
 
@@ -142,29 +184,16 @@ int ToolchainInstallCommandHandler::execute(const InvocationContext& ctx)
     }
 
     const auto bundle = Fetch::findCertificateBundle(ctx.env->certificateFile, Fetch::knownCertificateBundles());
-    const std::string indexUrl = ctx.env->toolchainIndexUrl.empty() ? std::string{ OfficialIndexUrl } : ctx.env->toolchainIndexUrl;
-    const Toolchain::ToolchainVersion scrapVersion = runningVersion();
-    const auto obtained = Install::obtainIndex(*scrapHome, Install::IndexSource{ .url = indexUrl, .certificateBundle = bundle }, scrapVersion);
-    if (! obtained.has_value()) {
-        std::cerr << renderIndexFault(obtained.error());
-        return 1;
-    }
-    if (obtained->copyFetchedAt.has_value()) {
-        std::cerr << "warning: cannot fetch the toolchain index; using the copy fetched at " << *obtained->copyFetchedAt << "\n";
-    }
-
-    const Toolchain::InstallingHost host{ .environment = *environment, .scrapVersion = scrapVersion, .glibcVersion = Toolchain::hostGlibcVersion() };
-    const auto selected = Toolchain::selectIngot(obtained->index, *specifier, host);
+    const auto selected = chooseIngot(*ctx.env, *scrapHome, *environment, bundle, text, *specifier);
     if (! selected.has_value()) {
-        std::cerr << renderSelectionFault(text, selected.error());
+        std::cerr << selected.error();
         return 1;
     }
 
     const std::string name = selected->family + "@" + selected->version.text();
     const std::filesystem::path directory = Toolchain::toolchainDirectory(*scrapHome, selected->family, selected->version.text(), environment->directoryName());
     std::error_code ec;
-    const bool installed = std::filesystem::exists(directory / Toolchain::InstallRecordName, ec);
-    if (installed && (! asksToReplace(ctx.options))) {
+    if (std::filesystem::exists(directory / Toolchain::InstallRecordName, ec) && (! asksToReplace(ctx.options))) {
         if (! reportInstalled(text, name, directory, Toolchain::integrityOf(selected->ingot))) {
             return 1;
         }

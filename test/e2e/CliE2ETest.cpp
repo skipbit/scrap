@@ -3422,6 +3422,19 @@ TEST_F(CliE2ETest, InstallRefusesAToolchainThatNeedsANewerScrap)
     EXPECT_FALSE(std::filesystem::exists(_root / "toolchains"));
 }
 
+/**
+ * A toolchain this scrap is new enough for is installed, which shows the
+ * version of the running scrap was read.
+ */
+TEST_F(CliE2ETest, InstallTakesAToolchainThisScrapIsNewEnoughFor)
+{
+    const ToolchainServer server("gcc", { { .version = "15.2.0", .ingot = compilerIngot(), .extraToolchainKeys = "min_scrap_version = '0.1.0'\n" } });
+
+    auto result = runScrap({ "toolchain", "install", "gcc@15.2.0" }, { server.indexVariable() }, _root);
+
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+}
+
 #if defined(__linux__)
 /**
  * An ingot that needs a newer glibc than the host has is not installed.

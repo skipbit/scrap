@@ -12,10 +12,8 @@
 #include "xz/XzFile.h"
 
 #include <algorithm>
-#include <cerrno>
 #include <chrono>
 #include <cstdint>
-#include <cstdlib>
 #include <expected>  // IWYU pragma: keep
 #include <filesystem>
 #include <optional>
@@ -23,6 +21,7 @@
 #include <string_view>
 #include <system_error>
 #include <type_traits>
+#include <unistd.h>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -39,6 +38,11 @@ constexpr std::chrono::hours AbandonedAfter{ 24 };
  */
 class WorkDirectory {
 public:
+    /**
+     * A new directory below @p parent. Its name holds this process's id and a
+     * count that moves on when another process, one in another container with
+     * the same id among them, holds the name.
+     */
     [[nodiscard]] static std::expected<WorkDirectory, IngotNotPlaced> below(const std::filesystem::path& parent)
     {
         std::error_code ec;
@@ -46,11 +50,16 @@ public:
         if (ec) {
             return std::unexpected(IngotNotPlaced{ .path = parent, .code = ec });
         }
-        std::string pattern = (parent / "install-XXXXXX").string();
-        if (::mkdtemp(pattern.data()) == nullptr) {
-            return std::unexpected(IngotNotPlaced{ .path = parent, .code = std::error_code{ errno, std::generic_category() } });
+        const std::string prefix = "install-" + std::to_string(::getpid()) + "-";
+        for (unsigned count = 0;; ++count) {
+            std::filesystem::path candidate = parent / (prefix + std::to_string(count));
+            if (std::filesystem::create_directory(candidate, ec)) {
+                return WorkDirectory{ std::move(candidate) };
+            }
+            if (ec) {
+                return std::unexpected(IngotNotPlaced{ .path = candidate, .code = ec });
+            }
         }
-        return WorkDirectory{ std::filesystem::path{ pattern } };
     }
 
     WorkDirectory(const WorkDirectory&) = delete;
@@ -169,7 +178,7 @@ std::filesystem::path contentRoot(const std::filesystem::path& directory)
     if (ec || (entries == std::filesystem::directory_iterator{})) {
         return directory;
     }
-    const std::filesystem::path only = entries->path();
+    std::filesystem::path only = entries->path();
     entries.increment(ec);
     if (ec || (entries != std::filesystem::directory_iterator{}) || (only.filename() == "bin")
         || (! std::filesystem::is_directory(std::filesystem::symlink_status(only, ec)))) {
@@ -232,6 +241,57 @@ std::expected<void, IngotNotPlaced> place(const std::filesystem::path& finished,
     return {};
 }
 
+/**
+ * Fetch the ingot @p source names to @p ingot, and check it against the index.
+ */
+std::expected<void, IngotInstallFailure> fetchChecked(const Toolchain::UrlSource& source, const std::filesystem::path& ingot, const std::optional<std::filesystem::path>& certificateBundle)
+{
+    const auto fetched = Fetch::fetchToFile({ .url = source.url, .destination = ingot, .certificateBundle = certificateBundle, .sizeLimit = IngotSizeLimit });
+    if (! fetched.has_value()) {
+        return std::unexpected(IngotNotFetched{ .error = fetched.error() });
+    }
+    const auto digest = Digest::sha256OfFile(ingot);
+    if (! digest.has_value()) {
+        return std::unexpected(IngotNotUnpacked{ .reason = "cannot read the ingot: " + digest.error().message(), .code = digest.error() });
+    }
+    if (*digest != source.sha256) {
+        return std::unexpected(IngotDoesNotMatch{});
+    }
+    return {};
+}
+
+/**
+ * Unpack @p ingot in the new directory @p stage and record what it holds.
+ *
+ * @return Where the finished toolchain starts, or what went wrong.
+ */
+std::expected<std::filesystem::path, IngotInstallFailure> prepareToolchain(const Toolchain::SelectedIngot& selected, const std::filesystem::path& ingot, const std::filesystem::path& stage)
+{
+    std::error_code ec;
+    std::filesystem::create_directory(stage, ec);
+    if (ec) {
+        return std::unexpected(IngotNotPlaced{ .path = stage, .code = ec });
+    }
+    if (auto unpacked = unpack(ingot, stage); ! unpacked.has_value()) {
+        return std::unexpected(std::move(unpacked.error()));
+    }
+
+    std::filesystem::path root = contentRoot(stage);
+    const std::filesystem::path compiler = std::filesystem::path{ "bin" } / selected.compiler;
+    if (! std::filesystem::exists(root / compiler, ec)) {
+        return std::unexpected(IngotNotUnpacked{ .reason = "the ingot holds no '" + compiler.string() + "'", .code = {} });
+    }
+    const Toolchain::InstallRecord record{ .compiler = compiler,
+                                           .runtimeLibraryDirectories = findRuntimeLibraryDirectories(root),
+                                           .ingotIntegrity = Toolchain::integrityOf(selected.ingot) };
+    const std::filesystem::path recordFile = root / Toolchain::InstallRecordName;
+    ec = File::writeNewFile(recordFile, Toolchain::renderInstallRecord(record));
+    if (ec) {
+        return std::unexpected(IngotNotPlaced{ .path = recordFile, .code = ec });
+    }
+    return root;
+}
+
 }  // anonymous namespace
 
 void discardAbandonedWork(const std::filesystem::path& workDirectory, const std::filesystem::file_time_type now)
@@ -264,46 +324,18 @@ std::expected<std::filesystem::path, IngotInstallFailure> installIngot(const Ing
     const std::string name = selected.family + "@" + selected.version.text();
     const std::filesystem::path ingot = work->path() / "ingot";
     request.announce("Downloading '" + name + "'");
-    const auto fetched = Fetch::fetchToFile({ .url = source->url, .destination = ingot, .certificateBundle = request.certificateBundle, .sizeLimit = IngotSizeLimit });
-    if (! fetched.has_value()) {
-        return std::unexpected(IngotNotFetched{ .error = fetched.error() });
-    }
-
-    const auto digest = Digest::sha256OfFile(ingot);
-    if (! digest.has_value()) {
-        return std::unexpected(IngotNotUnpacked{ .reason = "cannot read the ingot: " + digest.error().message(), .code = digest.error() });
-    }
-    if (*digest != source->sha256) {
-        return std::unexpected(IngotDoesNotMatch{});
+    if (auto fetched = fetchChecked(*source, ingot, request.certificateBundle); ! fetched.has_value()) {
+        return std::unexpected(std::move(fetched.error()));
     }
 
     request.announce("Extracting '" + name + "'");
-    const std::filesystem::path stage = work->path() / "stage";
-    std::error_code ec;
-    std::filesystem::create_directory(stage, ec);
-    if (ec) {
-        return std::unexpected(IngotNotPlaced{ .path = stage, .code = ec });
-    }
-    if (auto unpacked = unpack(ingot, stage); ! unpacked.has_value()) {
-        return std::unexpected(std::move(unpacked.error()));
+    auto root = prepareToolchain(selected, ingot, work->path() / "stage");
+    if (! root.has_value()) {
+        return std::unexpected(std::move(root.error()));
     }
 
-    const std::filesystem::path root = contentRoot(stage);
-    const std::filesystem::path compiler = std::filesystem::path{ "bin" } / selected.compiler;
-    if (! std::filesystem::exists(root / compiler, ec)) {
-        return std::unexpected(IngotNotUnpacked{ .reason = "the ingot holds no '" + compiler.string() + "'", .code = {} });
-    }
-    const Toolchain::InstallRecord record{ .compiler = compiler,
-                                           .runtimeLibraryDirectories = findRuntimeLibraryDirectories(root),
-                                           .ingotIntegrity = Toolchain::integrityOf(selected.ingot) };
-    const std::filesystem::path recordFile = root / Toolchain::InstallRecordName;
-    ec = File::writeNewFile(recordFile, Toolchain::renderInstallRecord(record));
-    if (ec) {
-        return std::unexpected(IngotNotPlaced{ .path = recordFile, .code = ec });
-    }
-
-    const std::filesystem::path destination = Toolchain::toolchainDirectory(request.scrapHome, selected.family, selected.version.text(), request.environment.directoryName());
-    if (auto placed = place(root, destination, work->path() / "replaced"); ! placed.has_value()) {
+    std::filesystem::path destination = Toolchain::toolchainDirectory(request.scrapHome, selected.family, selected.version.text(), request.environment.directoryName());
+    if (auto placed = place(*root, destination, work->path() / "replaced"); ! placed.has_value()) {
         return std::unexpected(std::move(placed.error()));
     }
     return destination;

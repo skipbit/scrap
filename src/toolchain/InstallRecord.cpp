@@ -1,12 +1,13 @@
 #include "toolchain/InstallRecord.h"
 
+#include "toolchain/driver/TomlText.h"
+
 #include <toml++/toml.hpp>
 
 #include <algorithm>
 #include <expected>  // IWYU pragma: keep
 #include <filesystem>
 #include <optional>
-#include <sstream>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -142,9 +143,7 @@ std::string renderInstallRecord(const InstallRecord& record)
     if (record.ingotIntegrity.has_value()) {
         table.insert(IngotIntegrityKey, *record.ingotIntegrity);
     }
-    std::ostringstream text;
-    text << table << '\n';
-    return std::move(text).str();
+    return tomlText(table);
 }
 
 }  // namespace scrap::Toolchain
