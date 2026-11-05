@@ -9,6 +9,7 @@
 #include "toolchain/IngotSelection.h"
 #include "toolchain/InstallRecord.h"
 #include "toolchain/InstalledToolchain.h"
+#include "toolchain/ScrapHomeLayout.h"
 #include "toolchain/ToolchainIndex.h"
 #include "toolchain/ToolchainSpecifier.h"
 #include "toolchain/ToolchainVersion.h"
@@ -39,6 +40,7 @@ using scrap::Toolchain::InstallRecordName;
 using scrap::Toolchain::parseInstallRecord;
 using scrap::Toolchain::RegistrySource;
 using scrap::Toolchain::SelectedIngot;
+using scrap::Toolchain::temporaryDirectory;
 using scrap::Toolchain::ToolchainVersion;
 using scrap::Toolchain::UrlSource;
 
@@ -107,8 +109,8 @@ protected:
     /** What was left to see of a failed install. */
     void expectNothingLeftBehind() const
     {
-        EXPECT_FALSE(std::filesystem::exists(_home.path() / "toolchains"));
-        EXPECT_TRUE(std::filesystem::is_empty(_home.path() / "tmp"));
+        EXPECT_FALSE(std::filesystem::exists(_home.path() / "toolchains/gcc"));
+        EXPECT_TRUE(std::filesystem::is_empty(temporaryDirectory(_home.path())));
     }
 
     TempDirectory _home;
@@ -124,7 +126,7 @@ TEST_F(IngotInstallerTest, PutsTheToolchainInItsPlace)
     ASSERT_TRUE(installed.has_value());
     EXPECT_EQ(*installed, destination());
     EXPECT_EQ(_home.readFile(destination() / "bin" / "g++"), "new compiler");
-    EXPECT_TRUE(std::filesystem::is_empty(_home.path() / "tmp"));
+    EXPECT_TRUE(std::filesystem::is_empty(temporaryDirectory(_home.path())));
 }
 
 TEST_F(IngotInstallerTest, InstallsWhatScrapThenFindsAndCanUse)
@@ -262,7 +264,7 @@ TEST_F(IngotInstallerTest, RefusesAnIngotThatBringsItsOwnInstallRecord)
     const auto installed = install(ingotOf(fileEntry("bin/g++", "compiler", 0755) + fileEntry(InstallRecordName, "compiler = 'bin/g++'\n")));
 
     ASSERT_FALSE(installed.has_value());
-    EXPECT_FALSE(std::filesystem::exists(_home.path() / "toolchains"));
+    expectNothingLeftBehind();
 }
 
 TEST_F(IngotInstallerTest, ReportsAFailedFetchAndLeavesNothing)
@@ -292,7 +294,7 @@ TEST_F(IngotInstallerTest, ReplacesWhatIsInstalled)
 
     EXPECT_EQ(_home.readFile(destination() / "bin" / "g++"), "new compiler");
     EXPECT_FALSE(std::filesystem::exists(destination() / "only-in-old"));
-    EXPECT_TRUE(std::filesystem::is_empty(_home.path() / "tmp"));
+    EXPECT_TRUE(std::filesystem::is_empty(temporaryDirectory(_home.path())));
 }
 
 TEST_F(IngotInstallerTest, KeepsWhatIsInstalledWhenReplacingItFails)
@@ -315,9 +317,24 @@ TEST_F(IngotInstallerTest, DoesNotYetFetchFromARegistry)
     EXPECT_FALSE(std::filesystem::exists(_home.path() / "toolchains"));
 }
 
+/**
+ * With the toolchains directory on another disk, work kept beside it could not
+ * be renamed into place.
+ */
+TEST_F(IngotInstallerTest, WorksInsideWhereTheToolchainsDirectoryLeads)
+{
+    const TempDirectory elsewhere;
+    std::filesystem::create_directory_symlink(elsewhere.path(), _home.path() / "toolchains");
+
+    ASSERT_TRUE(install(gccIngot()).has_value());
+
+    EXPECT_TRUE(std::filesystem::is_directory(elsewhere.path() / ".work"));
+    EXPECT_FALSE(std::filesystem::exists(_home.path() / "tmp"));
+}
+
 TEST_F(IngotInstallerTest, ClearsWorkAbandonedByAnEarlierRun)
 {
-    const std::filesystem::path abandoned = _home.makeDirectory("tmp/install-old");
+    const std::filesystem::path abandoned = _home.makeDirectory("toolchains/.work/install-old");
     std::filesystem::last_write_time(abandoned, std::filesystem::file_time_type::clock::now() - std::chrono::hours{ 25 });
 
     ASSERT_TRUE(install(gccIngot()).has_value());

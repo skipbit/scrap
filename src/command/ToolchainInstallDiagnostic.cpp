@@ -25,6 +25,7 @@ constexpr std::size_t ExamplesShown = 3;
 constexpr std::string_view NetworkHint = "hint: check the network connection and run the command again\n";
 constexpr std::string_view CertificateHint = "hint: install the root certificates of the system, such as the ca-certificates package, or set SSL_CERT_FILE to a file holding them\n";
 constexpr std::string_view RetryHint = "hint: run the command again; if it keeps failing, report it\n";
+constexpr std::string_view OneFileSystemHint = "hint: keep everything below the toolchains directory on one file system\n";
 
 std::string firstFew(const std::vector<std::string>& names)
 {
@@ -43,6 +44,9 @@ std::string firstFew(const std::vector<std::string>& names)
  */
 std::string hintFor(const std::error_code& code)
 {
+    if (code == std::errc::cross_device_link) {
+        return std::string{ OneFileSystemHint };
+    }
     return std::string{ sharedWriteHint(code).value_or(RetryHint) };
 }
 

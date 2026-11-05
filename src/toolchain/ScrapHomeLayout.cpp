@@ -27,7 +27,7 @@ std::filesystem::path indexCopyFile(const std::filesystem::path& scrapHome)
 
 std::filesystem::path temporaryDirectory(const std::filesystem::path& scrapHome)
 {
-    return scrapHome / "tmp";
+    return toolchainsDirectory(scrapHome) / ".work";
 }
 
 std::filesystem::path globalConfigFile(const std::filesystem::path& scrapHome)

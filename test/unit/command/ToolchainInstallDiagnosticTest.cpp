@@ -127,6 +127,13 @@ TEST(ToolchainInstallDiagnosticTest, SaysWhereTheToolchainThatCouldNotBeBroughtB
     EXPECT_NE(text.find("hint: the toolchain that was installed is at '/home/me/tmp/replaced'; move it back to '/home/me/gcc', since a later install removes it once it is a day old\n"), std::string::npos) << text;
 }
 
+TEST(ToolchainInstallDiagnosticTest, DoesNotAskToRetryWhatCannotCrossAFileSystem)
+{
+    const std::string text = renderInstallFailure("gcc", IngotNotPlaced{ .path = "/home/me/gcc", .code = std::make_error_code(std::errc::cross_device_link) });
+
+    EXPECT_NE(text.find("hint: keep everything below the toolchains directory on one file system\n"), std::string::npos) << text;
+}
+
 TEST(ToolchainInstallDiagnosticTest, ChoosesTheHintForAPathRefusedByWhatTheSystemSaid)
 {
     const std::error_code refused = std::make_error_code(std::errc::permission_denied);

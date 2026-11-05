@@ -3272,7 +3272,8 @@ TEST_F(CliE2ETest, InstallRefusesADownloadThatDoesNotMatchTheIndex)
                                      "hint: run the command again; if it keeps failing, report it\n"),
               std::string::npos)
         << result.stderrText;
-    EXPECT_FALSE(std::filesystem::exists(_root / "toolchains"));
+    EXPECT_FALSE(std::filesystem::exists(_root / "toolchains/gcc"));
+    EXPECT_TRUE(std::filesystem::is_empty(_root / "toolchains/.work"));
     EXPECT_FALSE(std::filesystem::exists(_root / "config.toml"));
 }
 
@@ -3289,7 +3290,8 @@ TEST_F(CliE2ETest, InstallLeavesNothingThatLooksInstalledWhenExtractingFails)
 
     EXPECT_EQ(result.exitCode, 1);
     EXPECT_NE(result.stderrText.find("error: cannot install 'gcc@15.2.0': "), std::string::npos) << result.stderrText;
-    EXPECT_FALSE(std::filesystem::exists(_root / "toolchains"));
+    EXPECT_FALSE(std::filesystem::exists(_root / "toolchains/gcc"));
+    EXPECT_TRUE(std::filesystem::is_empty(_root / "toolchains/.work"));
     EXPECT_FALSE(std::filesystem::exists(_root / "config.toml"));
 
     auto selecting = runScrap({ "toolchain", "select", "gcc@15.2.0" }, {}, _root);
