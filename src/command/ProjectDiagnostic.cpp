@@ -37,8 +37,6 @@ static_assert(EchoedValueLimit == Project::MaxProjectNameLength, "a value cut fo
 /// Next step for a path argument that cannot be searched from.
 constexpr std::string_view PathHint = "hint: pass a directory inside a project, or omit the path to use the current directory\n";
 
-/// Next step for a disk or a quota that is full.
-
 /// Next step for a path taken by something else.
 constexpr std::string_view ExistingPathHint = "hint: check what is already at that path\n";
 

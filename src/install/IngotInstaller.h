@@ -52,7 +52,9 @@ struct IngotInstallRequest {
     Toolchain::SelectedIngot selected;
     Toolchain::HostEnvironment environment;
     std::optional<std::filesystem::path> certificateBundle;
-    std::function<void(std::string_view)> announce;  ///< Takes each step as it begins.
+    /// Takes each step as it begins.
+    std::function<void(std::string_view)> announce = [](std::string_view) {
+    };
 };
 
 /**
