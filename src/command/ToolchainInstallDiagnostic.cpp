@@ -46,18 +46,51 @@ std::string hintFor(const std::error_code& code)
     return std::string{ sharedWriteHint(code).value_or(RetryHint) };
 }
 
-std::string hintFor(const Fetch::FetchError& error)
+std::string hintFor(const Fetch::UrlRefused&)
 {
-    if (std::holds_alternative<Fetch::NoCertificateBundle>(error) || std::holds_alternative<Fetch::CertificateFailure>(error)) {
-        return std::string{ CertificateHint };
-    }
-    if (const auto* unwritable = std::get_if<Fetch::CannotWriteDestination>(&error)) {
-        return hintFor(unwritable->code);
-    }
-    if (std::holds_alternative<Fetch::ContentTooLarge>(error) || std::holds_alternative<Fetch::UrlRefused>(error)) {
-        return std::string{ RetryHint };
-    }
+    return std::string{ RetryHint };
+}
+
+std::string hintFor(const Fetch::NoCertificateBundle&)
+{
+    return std::string{ CertificateHint };
+}
+
+std::string hintFor(const Fetch::CertificateFailure&)
+{
+    return std::string{ CertificateHint };
+}
+
+std::string hintFor(const Fetch::TransferFailure&)
+{
     return std::string{ NetworkHint };
+}
+
+std::string hintFor(const Fetch::UnexpectedStatus&)
+{
+    return std::string{ NetworkHint };
+}
+
+std::string hintFor(const Fetch::TooManyRedirects&)
+{
+    return std::string{ NetworkHint };
+}
+
+std::string hintFor(const Fetch::ContentTooLarge&)
+{
+    return std::string{ RetryHint };
+}
+
+std::string hintFor(const Fetch::CannotWriteDestination& error)
+{
+    return hintFor(error.code);
+}
+
+std::string hintForFetchError(const Fetch::FetchError& error)
+{
+    return std::visit([](const auto& alternative) -> std::string {
+        return hintFor(alternative);
+    }, error);
 }
 
 std::string errorLine(const std::string_view specifier, const std::string_view rest)
@@ -118,7 +151,7 @@ std::string cannotInstall(const std::string_view specifier, const std::string_vi
 
 std::string render(const std::string_view specifier, const Install::IngotNotFetched& failure)
 {
-    return cannotInstall(specifier, Fetch::describeFetchError(failure.error), hintFor(failure.error));
+    return cannotInstall(specifier, Fetch::describeFetchError(failure.error), hintForFetchError(failure.error));
 }
 
 std::string render(const std::string_view specifier, const Install::IngotDoesNotMatch&)
@@ -141,6 +174,20 @@ std::string render(const std::string_view specifier, const Install::IngotNotPlac
     return cannotInstall(specifier, "cannot write '" + printablePath(failure.path) + "': " + failure.code.message(), hintFor(failure.code));
 }
 
+std::string render(const Install::IndexFormatUnsupported& fault)
+{
+    return "error: the toolchain index has the format " + printableText(fault.format) + ", which this scrap cannot read\nhint: update scrap and run the command again\n";
+}
+
+std::string render(const Install::IndexUnavailable& fault)
+{
+    const std::string text = "error: cannot fetch the toolchain index: " + printableText(fault.reason) + "\n";
+    if (fault.fetchError.has_value()) {
+        return text + hintForFetchError(*fault.fetchError);
+    }
+    return text + std::string{ RetryHint };
+}
+
 }  // anonymous namespace
 
 std::string renderNotInstallable(const std::string_view text, const std::string_view reason)
@@ -160,15 +207,9 @@ std::string renderSelectionFault(const std::string_view specifier, const Toolcha
 
 std::string renderIndexFault(const Install::IndexFault& fault)
 {
-    if (const auto* unsupported = std::get_if<Install::IndexFormatUnsupported>(&fault)) {
-        return "error: the toolchain index has the format " + printableText(unsupported->format) + ", which this scrap cannot read\nhint: update scrap and run the command again\n";
-    }
-    const auto& unavailable = std::get<Install::IndexUnavailable>(fault);
-    const std::string text = "error: cannot fetch the toolchain index: " + printableText(unavailable.reason) + "\n";
-    if (unavailable.fetchError.has_value()) {
-        return text + hintFor(*unavailable.fetchError);
-    }
-    return text + std::string{ RetryHint };
+    return std::visit([](const auto& alternative) -> std::string {
+        return render(alternative);
+    }, fault);
 }
 
 std::string renderInstallFailure(const std::string_view specifier, const Install::IngotInstallFailure& failure)

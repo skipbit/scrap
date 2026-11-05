@@ -17,7 +17,9 @@ using scrap::Fetch::CannotWriteDestination;
 using scrap::Fetch::CertificateFailure;
 using scrap::Fetch::ContentTooLarge;
 using scrap::Fetch::NoCertificateBundle;
+using scrap::Fetch::TooManyRedirects;
 using scrap::Fetch::TransferFailure;
+using scrap::Fetch::UrlRefused;
 using scrap::Toolchain::NoIngotForHost;
 using scrap::Toolchain::NoLongerOffered;
 using scrap::Toolchain::NoMatchInIndex;
@@ -93,6 +95,20 @@ TEST(ToolchainInstallDiagnosticTest, DoesNotBlameTheNetworkForContentThatIsTooLa
     const std::string text = renderInstallFailure("gcc", IngotNotFetched{ .error = ContentTooLarge{ .url = "https://example.com/a", .limit = 5 } });
 
     EXPECT_EQ(text, "error: cannot install 'gcc': 'https://example.com/a' sent more than 5 bytes\nhint: run the command again; if it keeps failing, report it\n");
+}
+
+TEST(ToolchainInstallDiagnosticTest, DoesNotBlameTheNetworkForAUrlItRefuses)
+{
+    const std::string text = renderInstallFailure("gcc", IngotNotFetched{ .error = UrlRefused{ .url = "http://example.com/a" } });
+
+    EXPECT_NE(text.find("hint: run the command again; if it keeps failing, report it\n"), std::string::npos) << text;
+}
+
+TEST(ToolchainInstallDiagnosticTest, SendsTooManyRedirectsToTheNetwork)
+{
+    const std::string text = renderInstallFailure("gcc", IngotNotFetched{ .error = TooManyRedirects{ .url = "https://example.com/a" } });
+
+    EXPECT_NE(text.find("hint: check the network connection and run the command again\n"), std::string::npos) << text;
 }
 
 TEST(ToolchainInstallDiagnosticTest, ChoosesTheHintForAFullDiskByWhatTheSystemSaid)
