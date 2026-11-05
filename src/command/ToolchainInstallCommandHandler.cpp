@@ -80,13 +80,18 @@ bool selectWhenNoneIs(const std::filesystem::path& scrapHome, const std::optiona
     return true;
 }
 
+void sayInstalled(const std::string& name, const std::filesystem::path& directory)
+{
+    std::cerr << "'" << name << "' is already installed at '" << printablePath(directory) << "'\n";
+}
+
 /**
  * Report that @p name is installed in @p directory, and whether the index now
  * lists another build of it than @p integrity.
  */
 void reportInstalled(const std::string& name, const std::filesystem::path& directory, const Toolchain::InstallRecord& record, const std::string& integrity)
 {
-    std::cerr << "'" << name << "' is already installed at '" << printablePath(directory) << "'\n";
+    sayInstalled(name, directory);
     const std::optional<std::string>& recorded = record.ingotIntegrity;
     if (recorded.has_value() && (*recorded != integrity)) {
         std::cerr << "warning: the index now lists a different build of '" << name << "'\n"
@@ -139,6 +144,26 @@ std::expected<Toolchain::SelectedIngot, std::string> chooseIngot(const RuntimeEn
     return std::move(*selected);
 }
 
+/**
+ * The name of the toolchain @p specifier names version and all, when that one is
+ * installed and can be used, so that what the index says of it does not matter.
+ */
+std::optional<std::string> reportExactlyInstalled(const std::filesystem::path& scrapHome, const Toolchain::HostEnvironment& environment, const Toolchain::ToolchainSpecifier& specifier)
+{
+    if (! specifier.version.has_value()) {
+        return std::nullopt;
+    }
+    const std::string version = specifier.version->text();
+    const std::filesystem::path directory = Toolchain::toolchainDirectory(scrapHome, specifier.family, version, environment.directoryName());
+    const auto record = Toolchain::usableInstallRecord(directory);
+    if ((! record.has_value()) || (! record->has_value())) {
+        return std::nullopt;
+    }
+    std::string name = specifier.family + "@" + version;
+    sayInstalled(name, directory);
+    return name;
+}
+
 }  // anonymous namespace
 
 int ToolchainInstallCommandHandler::execute(const InvocationContext& ctx)
@@ -171,6 +196,11 @@ int ToolchainInstallCommandHandler::execute(const InvocationContext& ctx)
     const auto bundle = Fetch::findCertificateBundle(ctx.env->certificateFile, Fetch::knownCertificateBundles());
     const auto selected = chooseIngot(*ctx.env, *scrapHome, *environment, bundle, text, *specifier);
     if (! selected.has_value()) {
+        if (! asksToReplace(ctx.options)) {
+            if (const auto name = reportExactlyInstalled(*scrapHome, *environment, *specifier); name.has_value()) {
+                return selectWhenNoneIs(*scrapHome, *current, *name) ? 0 : 1;
+            }
+        }
         std::cerr << selected.error();
         return 1;
     }

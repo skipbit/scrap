@@ -3404,6 +3404,66 @@ TEST_F(CliE2ETest, InstallReportsAToolchainWhoseCompilerIsGoneAndForceReplacesIt
 }
 
 /**
+ * What the index says of a version does not undo that it is installed.
+ */
+TEST_F(CliE2ETest, InstallSaysWhatIsInstalledWhateverTheIndexSaysOfIt)
+{
+    ToolchainServer server("gcc", { { .version = "15.2.0", .ingot = compilerIngot() } });
+    installToolchain("gcc", "15.2.0");
+    const std::string installed = "'gcc@15.2.0' is already installed at '";
+
+    const ToolchainServer disabled("gcc", { { .version = "15.2.0", .status = "disabled", .ingot = compilerIngot() } });
+    auto stopped = runScrap({ "toolchain", "install", "gcc@15.2.0" }, { disabled.indexVariable() }, _root);
+    EXPECT_EQ(stopped.exitCode, 0) << stopped.stderrText;
+    EXPECT_NE(stopped.stderrText.find(installed), std::string::npos) << stopped.stderrText;
+    EXPECT_EQ(stopped.stderrText.find("no longer provided"), std::string::npos) << stopped.stderrText;
+
+    const ToolchainServer dropped("gcc", { { .version = "16.1.0", .ingot = compilerIngot() } });
+    auto gone = runScrap({ "toolchain", "install", "gcc@15.2.0" }, { dropped.indexVariable() }, _root);
+    EXPECT_EQ(gone.exitCode, 0) << gone.stderrText;
+    EXPECT_NE(gone.stderrText.find(installed), std::string::npos) << gone.stderrText;
+
+    std::filesystem::remove_all(_root / "index");
+    server.failIndex();
+    auto offline = runScrap({ "toolchain", "install", "gcc@15.2.0" }, { server.indexVariable() }, _root);
+    EXPECT_EQ(offline.exitCode, 0) << offline.stderrText;
+    EXPECT_NE(offline.stderrText.find(installed), std::string::npos) << offline.stderrText;
+}
+
+/**
+ * Replacing is what the index has to allow, and a shortened specifier means what
+ * the index offers.
+ */
+TEST_F(CliE2ETest, InstallAsksTheIndexWhenForcedOrWhenTheVersionIsShortened)
+{
+    installToolchain("gcc", "15.2.0");
+    const ToolchainServer disabled("gcc", { { .version = "15.2.0", .status = "disabled", .ingot = compilerIngot() } });
+
+    auto forced = runScrap({ "toolchain", "install", "--force", "gcc@15.2.0" }, { disabled.indexVariable() }, _root);
+    EXPECT_EQ(forced.exitCode, 1);
+    EXPECT_NE(forced.stderrText.find("is no longer provided"), std::string::npos) << forced.stderrText;
+    EXPECT_TRUE(std::filesystem::exists(_root / "toolchains/gcc/15.2.0"));
+
+    auto shortened = runScrap({ "toolchain", "install", "gcc@15" }, { disabled.indexVariable() }, _root);
+    EXPECT_EQ(shortened.exitCode, 1);
+    EXPECT_NE(shortened.stderrText.find("is no longer provided"), std::string::npos) << shortened.stderrText;
+}
+
+/**
+ * Being installed still makes it the default, whatever the index says of it.
+ */
+TEST_F(CliE2ETest, InstallSelectsWhatIsInstalledWhenTheIndexNoLongerOffersIt)
+{
+    installToolchain("gcc", "15.2.0");
+    const ToolchainServer disabled("gcc", { { .version = "15.2.0", .status = "disabled", .ingot = compilerIngot() } });
+
+    auto result = runScrap({ "toolchain", "install", "gcc@15.2.0" }, { disabled.indexVariable() }, _root);
+
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_NE(result.stderrText.find("Selected 'gcc@15.2.0' as the global default"), std::string::npos) << result.stderrText;
+}
+
+/**
  * A version no longer offered is not installed, and the report names one that
  * is.
  */
