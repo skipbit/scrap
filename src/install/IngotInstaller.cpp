@@ -30,7 +30,7 @@ constexpr std::chrono::hours AbandonedAfter{ 24 };
 
 /**
  * A directory of its own for one run, removed however the run ends unless the
- * run asks to keep it.
+ * run asks to keep part of it.
  */
 class WorkDirectory {
 public:
@@ -78,8 +78,18 @@ public:
         return _path;
     }
 
-    void keep()
+    /**
+     * Leave @p kept behind when the run ends, and nothing else of the run.
+     */
+    void keepOnly(const std::filesystem::path& kept)
     {
+        std::error_code ec;
+        for (std::filesystem::directory_iterator it(_path, ec), end; (! ec) && (it != end); it.increment(ec)) {
+            if (it->path() != kept) {
+                std::error_code entryError;
+                std::filesystem::remove_all(it->path(), entryError);
+            }
+        }
         _path.clear();
     }
 
@@ -221,7 +231,7 @@ std::expected<std::filesystem::path, IngotInstallFailure> installIngot(const Ing
     std::filesystem::path destination = Toolchain::toolchainDirectory(request.scrapHome, selected.family, selected.version.text(), request.environment.directoryName());
     if (auto placed = place(*root, destination, work->path() / "replaced"); ! placed.has_value()) {
         if (placed.error().previousKeptAt.has_value()) {
-            work->keep();
+            work->keepOnly(*placed.error().previousKeptAt);
         }
         return std::unexpected(std::move(placed.error()));
     }
