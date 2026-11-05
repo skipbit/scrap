@@ -29,7 +29,8 @@ constexpr std::uint64_t IngotSizeLimit = std::uint64_t{ 8 } * 1024 * 1024 * 1024
 constexpr std::chrono::hours AbandonedAfter{ 24 };
 
 /**
- * A directory of its own for one run, removed however the run ends.
+ * A directory of its own for one run, removed however the run ends unless the
+ * run asks to keep it.
  */
 class WorkDirectory {
 public:
@@ -77,6 +78,11 @@ public:
         return _path;
     }
 
+    void keep()
+    {
+        _path.clear();
+    }
+
 private:
     explicit WorkDirectory(std::filesystem::path path)
         : _path(std::move(path))
@@ -88,7 +94,8 @@ private:
 
 /**
  * Put @p finished at @p destination, moving aside what is there to
- * @p setAside, and bringing it back when the move fails.
+ * @p setAside, and bringing it back when the move fails. What cannot be brought
+ * back is named in the failure.
  */
 std::expected<void, IngotNotPlaced> place(const std::filesystem::path& finished, const std::filesystem::path& destination, const std::filesystem::path& setAside)
 {
@@ -109,6 +116,9 @@ std::expected<void, IngotNotPlaced> place(const std::filesystem::path& finished,
         const std::error_code failure = ec;
         if (occupied) {
             std::filesystem::rename(setAside, destination, ec);
+            if (ec) {
+                return std::unexpected(IngotNotPlaced{ .path = destination, .code = failure, .previousKeptAt = setAside });
+            }
         }
         return std::unexpected(IngotNotPlaced{ .path = destination, .code = failure });
     }
@@ -210,6 +220,9 @@ std::expected<std::filesystem::path, IngotInstallFailure> installIngot(const Ing
 
     std::filesystem::path destination = Toolchain::toolchainDirectory(request.scrapHome, selected.family, selected.version.text(), request.environment.directoryName());
     if (auto placed = place(*root, destination, work->path() / "replaced"); ! placed.has_value()) {
+        if (placed.error().previousKeptAt.has_value()) {
+            work->keep();
+        }
         return std::unexpected(std::move(placed.error()));
     }
     return destination;

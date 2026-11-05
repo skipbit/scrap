@@ -120,6 +120,13 @@ TEST(ToolchainInstallDiagnosticTest, ChoosesTheHintForAFullDiskByWhatTheSystemSa
     EXPECT_NE(renderInstallFailure("gcc", IngotNotFetched{ .error = CannotWriteDestination{ .path = "/a", .code = full } }).find("hint: free some disk space and run the command again\n"), std::string::npos);
 }
 
+TEST(ToolchainInstallDiagnosticTest, SaysWhereTheToolchainThatCouldNotBeBroughtBackStayed)
+{
+    const std::string text = renderInstallFailure("gcc", IngotNotPlaced{ .path = "/home/me/gcc", .code = std::make_error_code(std::errc::io_error), .previousKeptAt = "/home/me/tmp/replaced" });
+
+    EXPECT_NE(text.find("hint: the toolchain that was installed is at '/home/me/tmp/replaced'; move it back to '/home/me/gcc', since a later install removes it once it is a day old\n"), std::string::npos) << text;
+}
+
 TEST(ToolchainInstallDiagnosticTest, ChoosesTheHintForAPathRefusedByWhatTheSystemSaid)
 {
     const std::error_code refused = std::make_error_code(std::errc::permission_denied);

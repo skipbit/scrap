@@ -171,7 +171,12 @@ std::string render(const std::string_view specifier, const Install::IngotNotUnpa
 
 std::string render(const std::string_view specifier, const Install::IngotNotPlaced& failure)
 {
-    return cannotInstall(specifier, "cannot write '" + printablePath(failure.path) + "': " + failure.code.message(), hintFor(failure.code));
+    std::string hint = hintFor(failure.code);
+    if (failure.previousKeptAt.has_value()) {
+        hint = "hint: the toolchain that was installed is at '" + printablePath(*failure.previousKeptAt) + "'; move it back to '" + printablePath(failure.path)
+               + "', since a later install removes it once it is a day old\n";
+    }
+    return cannotInstall(specifier, "cannot write '" + printablePath(failure.path) + "': " + failure.code.message(), hint);
 }
 
 std::string render(const Install::IndexFormatUnsupported& fault)

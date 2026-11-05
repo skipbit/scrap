@@ -40,6 +40,8 @@ struct RegistryNotSupported { };
 struct IngotNotPlaced {
     std::filesystem::path path;
     std::error_code code;
+    /// Where the toolchain it was to replace stayed, when it could not be brought back.
+    std::optional<std::filesystem::path> previousKeptAt = std::nullopt;
 };
 
 using IngotInstallFailure = std::variant<IngotNotFetched, IngotDoesNotMatch, RegistryNotSupported, IngotNotUnpacked, IngotNotPlaced>;
@@ -63,8 +65,10 @@ struct IngotInstallRequest {
  *
  * Everything happens in a directory of its own below SCRAP_HOME until the
  * finished toolchain is renamed into place, so a failure at any step leaves what
- * was installed before as it was and nothing new. A directory left there by a
- * run that was stopped is removed by a later run once it is a day old.
+ * was installed before as it was and nothing new. Should what was installed
+ * fail to return from where it was moved aside, it stays there and the failure
+ * says where. A directory left there by a run that was stopped or by such a
+ * failure is removed by a later run once it is a day old.
  *
  * @return The directory of the toolchain, or what went wrong.
  */
