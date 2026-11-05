@@ -36,10 +36,15 @@ HttpTestResponse answer(std::string body)
 
 class IndexCopyTest : public ::testing::Test {
 protected:
+    auto obtainFrom(HttpTestServer& server, HttpTestResponse response)
+    {
+        server.respond("/index.toml", std::move(response));
+        return obtainIndex(_home.path(), IndexSource{ .url = server.url("/index.toml"), .certificateBundle = std::nullopt }, ToolchainVersion::parse("1.0.0").value());
+    }
+
     auto obtain(HttpTestResponse response)
     {
-        const HttpTestServer server({ { "/index.toml", std::move(response) } });
-        return obtainIndex(_home.path(), IndexSource{ .url = server.url("/index.toml"), .certificateBundle = std::nullopt }, ToolchainVersion::parse("1.0.0").value());
+        return obtainFrom(_server, std::move(response));
     }
 
     static std::string versionIn(const ObtainedIndex& obtained)
@@ -47,6 +52,7 @@ protected:
         return obtained.index.toolchains.at(0).version.text();
     }
 
+    HttpTestServer _server{ {} };
     TempDirectory _home;
 };
 
@@ -87,6 +93,50 @@ TEST_F(IndexCopyTest, FallsBackOnTheSavedCopyAndSaysWhenItWasFetched)
     ASSERT_TRUE(obtained->standIn.has_value());
     EXPECT_EQ(obtained->standIn->fetchedAt, "2021-01-01T00:00:00Z");
     EXPECT_NE(obtained->standIn->reason.find("status 500"), std::string::npos) << obtained->standIn->reason;
+}
+
+TEST_F(IndexCopyTest, RecordsWhereTheSavedCopyCameFrom)
+{
+    ASSERT_TRUE(obtain(answer(indexOf("15.1.0"))).has_value());
+
+    EXPECT_EQ(_home.readFile(scrap::Toolchain::indexCopySourceFile(_home.path())), _server.url("/index.toml") + "\n");
+}
+
+/**
+ * One index must not answer for another, whose URLs and digests it would bring.
+ */
+TEST_F(IndexCopyTest, DoesNotStandInWithTheCopyOfAnotherIndex)
+{
+    ASSERT_TRUE(obtain(answer(indexOf("15.1.0"))).has_value());
+    HttpTestServer other{ {} };
+
+    const auto obtained = obtainFrom(other, HttpTestResponse{ .status = 500, .headers = {}, .body = {}, .stalls = false });
+
+    ASSERT_FALSE(obtained.has_value());
+    EXPECT_NE(std::get<IndexUnavailable>(obtained.error()).reason.find("status 500"), std::string::npos);
+    EXPECT_EQ(_home.readFile(scrap::Toolchain::indexCopyFile(_home.path())), indexOf("15.1.0"));
+}
+
+TEST_F(IndexCopyTest, DoesNotStandInWithACopyNothingSaysTheSourceOf)
+{
+    ASSERT_TRUE(obtain(answer(indexOf("15.1.0"))).has_value());
+    ASSERT_TRUE(std::filesystem::remove(scrap::Toolchain::indexCopySourceFile(_home.path())));
+
+    const auto obtained = obtain(HttpTestResponse{ .status = 500, .headers = {}, .body = {}, .stalls = false });
+
+    EXPECT_FALSE(obtained.has_value());
+}
+
+TEST_F(IndexCopyTest, TheLatestIndexFetchedIsTheOneThatStandsIn)
+{
+    ASSERT_TRUE(obtain(answer(indexOf("15.1.0"))).has_value());
+    HttpTestServer other{ {} };
+    ASSERT_TRUE(obtainFrom(other, answer(indexOf("15.2.0"))).has_value());
+
+    const auto obtained = obtainFrom(other, HttpTestResponse{ .status = 500, .headers = {}, .body = {}, .stalls = false });
+
+    ASSERT_TRUE(obtained.has_value());
+    EXPECT_EQ(versionIn(*obtained), "15.2.0");
 }
 
 TEST_F(IndexCopyTest, KeepsTheSavedCopyWhenATransferIsCutShort)

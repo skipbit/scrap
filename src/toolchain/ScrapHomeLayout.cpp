@@ -25,6 +25,11 @@ std::filesystem::path indexCopyFile(const std::filesystem::path& scrapHome)
     return scrapHome / "index" / "toolchain.toml";
 }
 
+std::filesystem::path indexCopySourceFile(const std::filesystem::path& scrapHome)
+{
+    return scrapHome / "index" / "toolchain.toml.source";
+}
+
 std::filesystem::path temporaryDirectory(const std::filesystem::path& scrapHome)
 {
     return toolchainsDirectory(scrapHome) / ".work";

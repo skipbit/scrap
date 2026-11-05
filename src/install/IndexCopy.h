@@ -60,7 +60,8 @@ using IndexFault = std::variant<IndexUnavailable, IndexFormatUnsupported>;
  * What was fetched replaces the saved copy only once it has been read in full,
  * so a transfer cut short or an index its maker got wrong leaves the previous
  * copy as it was. An index in a format this scrap does not read is not passed
- * over, since an older copy would hide that scrap needs updating.
+ * over, since an older copy would hide that scrap needs updating. Only a copy
+ * fetched from the same URL stands in, so one index never answers for another.
  *
  * @return The index, or why there is none.
  */

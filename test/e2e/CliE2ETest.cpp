@@ -3556,6 +3556,23 @@ TEST_F(CliE2ETest, InstallFallsBackOnTheSavedIndex)
     EXPECT_TRUE(std::filesystem::exists(_root / "toolchains/gcc/15.2.0"));
 }
 
+/**
+ * One index does not answer for another: it would bring its own URLs and digests.
+ */
+TEST_F(CliE2ETest, InstallDoesNotFallBackOnTheCopyOfAnotherIndex)
+{
+    const ToolchainServer first("gcc", { { .version = "15.1.0", .ingot = compilerIngot() } });
+    ASSERT_EQ(runScrap({ "toolchain", "install", "gcc@15.1.0" }, { first.indexVariable() }, _root).exitCode, 0);
+    ToolchainServer other("gcc", {});
+    other.failIndex();
+
+    auto result = runScrap({ "toolchain", "install", "gcc@16" }, { other.indexVariable() }, _root);
+
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_NE(result.stderrText.find("error: cannot fetch the toolchain index: "), std::string::npos) << result.stderrText;
+    EXPECT_EQ(result.stderrText.find("using the copy"), std::string::npos) << result.stderrText;
+}
+
 TEST_F(CliE2ETest, InstallFailsWhenNoIndexCanBeHad)
 {
     ToolchainServer server("gcc", {});

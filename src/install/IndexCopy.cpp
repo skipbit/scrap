@@ -55,13 +55,23 @@ std::expected<Toolchain::ToolchainIndex, Toolchain::ToolchainIndexError> readInd
 }
 
 /**
- * The index the saved copy holds, standing in for one that could not be
- * obtained for @p failure.
+ * Whether the saved copy came from @p url, as the record beside it says.
  */
-std::expected<ObtainedIndex, IndexFault> fallBackOnCopy(const std::filesystem::path& copy, const Toolchain::ToolchainVersion& scrapVersion, IndexUnavailable failure)
+bool isCopyFrom(const std::filesystem::path& scrapHome, const std::string& url)
 {
+    const auto recorded = File::readWholeFile(Toolchain::indexCopySourceFile(scrapHome));
+    return recorded.has_value() && (*recorded == (url + "\n"));
+}
+
+/**
+ * The index the saved copy of @p source holds, standing in for one that could
+ * not be obtained for @p failure.
+ */
+std::expected<ObtainedIndex, IndexFault> fallBackOnCopy(const std::filesystem::path& scrapHome, const IndexSource& source, const Toolchain::ToolchainVersion& scrapVersion, IndexUnavailable failure)
+{
+    const std::filesystem::path copy = Toolchain::indexCopyFile(scrapHome);
     std::error_code ec;
-    if (! std::filesystem::exists(copy, ec)) {
+    if ((! std::filesystem::exists(copy, ec)) || (! isCopyFrom(scrapHome, source.url))) {
         return std::unexpected(std::move(failure));
     }
     auto index = readIndexFile(copy, scrapVersion);
@@ -86,7 +96,7 @@ std::expected<ObtainedIndex, IndexFault> obtainIndex(const std::filesystem::path
     std::filesystem::create_directories(copy.parent_path(), ec);
     const auto transfer = Fetch::fetchToFile({ .url = source.url, .destination = fetched, .certificateBundle = source.certificateBundle, .sizeLimit = IndexSizeLimit });
     if (! transfer.has_value()) {
-        return fallBackOnCopy(copy, scrapVersion, IndexUnavailable{ .reason = Fetch::describeFetchError(transfer.error()), .fetchError = transfer.error() });
+        return fallBackOnCopy(scrapHome, source, scrapVersion, IndexUnavailable{ .reason = Fetch::describeFetchError(transfer.error()), .fetchError = transfer.error() });
     }
 
     auto index = readIndexFile(fetched, scrapVersion);
@@ -95,10 +105,16 @@ std::expected<ObtainedIndex, IndexFault> obtainIndex(const std::filesystem::path
         if (index.error().kind == Toolchain::ToolchainIndexErrorKind::UnsupportedFormat) {
             return std::unexpected(IndexFormatUnsupported{ .format = std::move(index.error().message) });
         }
-        return fallBackOnCopy(copy, scrapVersion, IndexUnavailable{ .reason = std::move(index.error().message), .fetchError = std::nullopt });
+        return fallBackOnCopy(scrapHome, source, scrapVersion, IndexUnavailable{ .reason = std::move(index.error().message), .fetchError = std::nullopt });
     }
-    // An index that cannot be saved still answers this install.
+    // An index that cannot be saved still answers this install. The record goes
+    // first, so a run stopped part way leaves a copy that stands in for nothing.
+    const std::filesystem::path sourceFile = Toolchain::indexCopySourceFile(scrapHome);
+    std::filesystem::remove(sourceFile, ec);
     std::filesystem::rename(fetched, copy, ec);
+    if (! ec) {
+        ec = File::replaceFile(sourceFile, source.url + "\n");
+    }
     return ObtainedIndex{ .index = std::move(*index), .standIn = std::nullopt };
 }
 
