@@ -58,7 +58,7 @@ TEST_F(IndexCopyTest, ReadsWhatItFetchesAndSavesIt)
 
     ASSERT_TRUE(obtained.has_value());
     EXPECT_EQ(versionIn(*obtained), "15.2.0");
-    EXPECT_FALSE(obtained->copyFetchedAt.has_value());
+    EXPECT_FALSE(obtained->standIn.has_value());
     EXPECT_EQ(_home.readFile(scrap::Toolchain::indexCopyFile(_home.path())), indexOf("15.2.0"));
 }
 
@@ -84,7 +84,9 @@ TEST_F(IndexCopyTest, FallsBackOnTheSavedCopyAndSaysWhenItWasFetched)
 
     ASSERT_TRUE(obtained.has_value());
     EXPECT_EQ(versionIn(*obtained), "15.1.0");
-    EXPECT_EQ(obtained->copyFetchedAt, "2021-01-01T00:00:00Z");
+    ASSERT_TRUE(obtained->standIn.has_value());
+    EXPECT_EQ(obtained->standIn->fetchedAt, "2021-01-01T00:00:00Z");
+    EXPECT_NE(obtained->standIn->reason.find("status 500"), std::string::npos) << obtained->standIn->reason;
 }
 
 TEST_F(IndexCopyTest, KeepsTheSavedCopyWhenATransferIsCutShort)
@@ -94,7 +96,7 @@ TEST_F(IndexCopyTest, KeepsTheSavedCopyWhenATransferIsCutShort)
     const auto obtained = obtain(HttpTestResponse{ .status = 200, .headers = {}, .body = "[index]\n", .stalls = false, .bytesCutOff = 1000 });
 
     ASSERT_TRUE(obtained.has_value());
-    EXPECT_TRUE(obtained->copyFetchedAt.has_value());
+    EXPECT_TRUE(obtained->standIn.has_value());
     EXPECT_EQ(_home.readFile(scrap::Toolchain::indexCopyFile(_home.path())), indexOf("15.1.0"));
 }
 
@@ -106,7 +108,7 @@ TEST_F(IndexCopyTest, KeepsTheSavedCopyWhenWhatIsFetchedCannotBeRead)
 
     ASSERT_TRUE(obtained.has_value());
     EXPECT_EQ(versionIn(*obtained), "15.1.0");
-    EXPECT_TRUE(obtained->copyFetchedAt.has_value());
+    EXPECT_TRUE(obtained->standIn.has_value());
     EXPECT_EQ(_home.readFile(scrap::Toolchain::indexCopyFile(_home.path())), indexOf("15.1.0"));
 }
 

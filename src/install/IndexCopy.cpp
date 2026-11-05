@@ -71,7 +71,7 @@ std::expected<ObtainedIndex, IndexFault> fallBackOnCopy(const std::filesystem::p
         }
         return std::unexpected(std::move(failure));
     }
-    return ObtainedIndex{ .index = std::move(*index), .copyFetchedAt = modificationTimeInUtc(copy) };
+    return ObtainedIndex{ .index = std::move(*index), .standIn = CopyStandingIn{ .fetchedAt = modificationTimeInUtc(copy), .reason = std::move(failure.reason) } };
 }
 
 }  // anonymous namespace
@@ -99,7 +99,7 @@ std::expected<ObtainedIndex, IndexFault> obtainIndex(const std::filesystem::path
     }
     // An index that cannot be saved still answers this install.
     std::filesystem::rename(fetched, copy, ec);
-    return ObtainedIndex{ .index = std::move(*index), .copyFetchedAt = std::nullopt };
+    return ObtainedIndex{ .index = std::move(*index), .standIn = std::nullopt };
 }
 
 }  // namespace scrap::Install

@@ -132,9 +132,10 @@ std::expected<Toolchain::SelectedIngot, std::string> chooseIngot(const RuntimeEn
     if (! obtained.has_value()) {
         return std::unexpected(renderIndexFault(obtained.error()));
     }
-    const std::optional<std::string>& copyFetchedAt = obtained->copyFetchedAt;
-    if (copyFetchedAt.has_value()) {
-        std::cerr << "warning: cannot fetch the toolchain index; using the copy fetched at " << *copyFetchedAt << "\n";
+    const std::optional<Install::CopyStandingIn>& standIn = obtained->standIn;
+    if (standIn.has_value()) {
+        std::cerr << "warning: " << printableText(standIn->reason) << "\n"
+                  << "warning: cannot fetch the toolchain index; using the copy fetched at " << standIn->fetchedAt << "\n";
     }
     const Toolchain::InstallingHost host{ .environment = environment, .scrapVersion = scrapVersion, .glibcVersion = Toolchain::hostGlibcVersion() };
     auto selected = Toolchain::selectIngot(obtained->index, specifier, host);

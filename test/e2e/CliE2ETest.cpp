@@ -3551,7 +3551,7 @@ TEST_F(CliE2ETest, InstallFallsBackOnTheSavedIndex)
     auto result = runScrap({ "toolchain", "install", "gcc@15.2.0" }, { server.indexVariable() }, _root);
 
     EXPECT_EQ(result.exitCode, 0) << result.stderrText;
-    const std::regex warning{ "^warning: cannot fetch the toolchain index; using the copy fetched at [0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z\n" };
+    const std::regex warning{ "^warning: [^\n]*status 500[^\n]*\nwarning: cannot fetch the toolchain index; using the copy fetched at [0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z\n" };
     EXPECT_TRUE(std::regex_search(result.stderrText, warning)) << result.stderrText;
     EXPECT_TRUE(std::filesystem::exists(_root / "toolchains/gcc/15.2.0"));
 }

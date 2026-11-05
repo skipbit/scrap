@@ -21,11 +21,19 @@ struct IndexSource {
 };
 
 /**
+ * @brief The saved copy in use, in place of an index that could not be had.
+ */
+struct CopyStandingIn {
+    std::string fetchedAt;  ///< When it was fetched, in UTC.
+    std::string reason;     ///< Why the index could not be had.
+};
+
+/**
  * @brief The index to choose from.
  */
 struct ObtainedIndex {
     Toolchain::ToolchainIndex index;
-    std::optional<std::string> copyFetchedAt;  ///< When the saved copy in use was fetched, in UTC; nothing when the index is fresh.
+    std::optional<CopyStandingIn> standIn;  ///< Nothing when the index is fresh.
 };
 
 /**
