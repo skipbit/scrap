@@ -125,6 +125,7 @@ scrap_add_unit_test(fetch SOURCES
 scrap_add_unit_test(install SOURCES
     unit/install/IndexCopyTest.cpp
     unit/install/IngotInstallerTest.cpp
+    unit/install/UnpackedToolchainTest.cpp
     PROPERTIES TIMEOUT 120
 )
 

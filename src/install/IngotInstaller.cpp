@@ -3,28 +3,23 @@
 #include "digest/Sha256File.h"
 #include "fetch/UrlFetch.h"
 #include "file/WholeFile.h"
-#include "tar/TarExtractor.h"
-#include "tar/TarReader.h"
+#include "install/IngotUnpack.h"
+#include "install/UnpackedToolchain.h"
 #include "toolchain/IngotSelection.h"
 #include "toolchain/InstallRecord.h"
 #include "toolchain/ScrapHomeLayout.h"
 #include "toolchain/ToolchainIndex.h"
-#include "xz/XzFile.h"
 
-#include <algorithm>
 #include <chrono>
 #include <cstdint>
 #include <expected>  // IWYU pragma: keep
 #include <filesystem>
 #include <optional>
 #include <string>
-#include <string_view>
 #include <system_error>
-#include <type_traits>
 #include <unistd.h>
 #include <utility>
 #include <variant>
-#include <vector>
 
 namespace scrap::Install {
 
@@ -90,127 +85,6 @@ private:
 
     std::filesystem::path _path;
 };
-
-std::string describe(const Tar::ReadError& error)
-{
-    return std::visit([]<typename Alternative>(const Alternative& alternative) -> std::string {
-        if constexpr (std::is_same_v<Alternative, Tar::TruncatedArchive>) {
-            return "the archive ends too soon";
-        } else if constexpr (std::is_same_v<Alternative, Tar::InvalidHeader>) {
-            return "the archive has an invalid header at offset " + std::to_string(alternative.offset);
-        } else {
-            return "the archive holds '" + alternative.path + "', a kind of entry that is not supported";
-        }
-    }, error);
-}
-
-IngotNotUnpacked unpackFailure(const Tar::ExtractError& error)
-{
-    return std::visit([]<typename Alternative>(const Alternative& alternative) -> IngotNotUnpacked {
-        if constexpr (std::is_same_v<Alternative, Tar::ReadError>) {
-            return { .reason = describe(alternative), .code = {} };
-        } else if constexpr (std::is_same_v<Alternative, Tar::CannotOpenDirectory>) {
-            return { .reason = "cannot open '" + alternative.path.string() + "': " + alternative.code.message(), .code = alternative.code };
-        } else if constexpr (std::is_same_v<Alternative, Tar::UnsafeMemberPath>) {
-            return { .reason = "the archive holds the unsafe path '" + alternative.path + "'", .code = {} };
-        } else if constexpr (std::is_same_v<Alternative, Tar::UnsafeLinkTarget>) {
-            return { .reason = "the archive links '" + alternative.path + "' to '" + alternative.target + "', which is not allowed", .code = {} };
-        } else {
-            return { .reason = "cannot write '" + alternative.path + "': " + alternative.code.message(), .code = alternative.code };
-        }
-    }, error);
-}
-
-IngotNotUnpacked unpackFailure(const Xz::DecodeError& error)
-{
-    return std::visit([]<typename Alternative>(const Alternative& alternative) -> IngotNotUnpacked {
-        if constexpr (std::is_same_v<Alternative, Xz::CannotReadFile>) {
-            return { .reason = "cannot read the ingot: " + alternative.code.message(), .code = alternative.code };
-        } else if constexpr (std::is_same_v<Alternative, Xz::NotAnXzFile>) {
-            return { .reason = "the ingot is not an xz file", .code = {} };
-        } else if constexpr (std::is_same_v<Alternative, Xz::CorruptData>) {
-            return { .reason = "the ingot is corrupt", .code = {} };
-        } else if constexpr (std::is_same_v<Alternative, Xz::TruncatedData>) {
-            return { .reason = "the ingot ends too soon", .code = {} };
-        } else if constexpr (std::is_same_v<Alternative, Xz::OutOfMemory>) {
-            return { .reason = "not enough memory to decode the ingot", .code = std::make_error_code(std::errc::not_enough_memory) };
-        } else {
-            return { .reason = "decoding the ingot stopped", .code = {} };
-        }
-    }, error);
-}
-
-std::expected<void, IngotNotUnpacked> unpack(const std::filesystem::path& ingot, const std::filesystem::path& directory)
-{
-    auto extractor = Tar::Extractor::into(directory);
-    if (! extractor.has_value()) {
-        return std::unexpected(unpackFailure(extractor.error()));
-    }
-    std::optional<Tar::ExtractError> extractFailure;
-    const auto decoded = Xz::decodeFile(ingot, [&extractor, &extractFailure](const std::string_view piece) {
-        auto fed = extractor->feed(piece);
-        if (! fed.has_value()) {
-            extractFailure = std::move(fed.error());
-            return false;
-        }
-        return true;
-    });
-    if (extractFailure.has_value()) {
-        return std::unexpected(unpackFailure(*extractFailure));
-    }
-    if (! decoded.has_value()) {
-        return std::unexpected(unpackFailure(decoded.error()));
-    }
-    if (auto finished = extractor->finish(); ! finished.has_value()) {
-        return std::unexpected(unpackFailure(finished.error()));
-    }
-    return {};
-}
-
-/**
- * Where the toolchain starts in what was unpacked into @p directory: an archive
- * may hold it all in one directory of its own.
- */
-std::filesystem::path contentRoot(const std::filesystem::path& directory)
-{
-    std::error_code ec;
-    std::filesystem::directory_iterator entries(directory, ec);
-    if (ec || (entries == std::filesystem::directory_iterator{})) {
-        return directory;
-    }
-    std::filesystem::path only = entries->path();
-    entries.increment(ec);
-    if (ec || (entries != std::filesystem::directory_iterator{}) || (only.filename() == "bin")
-        || (! std::filesystem::is_directory(std::filesystem::symlink_status(only, ec)))) {
-        return directory;
-    }
-    return only;
-}
-
-bool isRuntimeLibraryName(const std::string& name)
-{
-    return name.starts_with("libstdc++.so") || name.starts_with("libc++.so") || (name.starts_with("libc++.") && name.ends_with(".dylib"));
-}
-
-/**
- * The directories below @p root, relative to it, that hold a C++ runtime library.
- */
-std::vector<std::filesystem::path> findRuntimeLibraryDirectories(const std::filesystem::path& root)
-{
-    std::vector<std::filesystem::path> found;
-    for (const std::string_view top : { "lib", "lib64" }) {
-        std::error_code ec;
-        for (std::filesystem::recursive_directory_iterator it(root / top, ec), end; (! ec) && (it != end); it.increment(ec)) {
-            if (isRuntimeLibraryName(it->path().filename().string())) {
-                found.push_back(it->path().parent_path().lexically_relative(root));
-            }
-        }
-    }
-    std::ranges::sort(found);
-    const auto repeated = std::ranges::unique(found);
-    found.erase(repeated.begin(), repeated.end());
-    return found;
-}
 
 /**
  * Put @p finished at @p destination, moving aside what is there to

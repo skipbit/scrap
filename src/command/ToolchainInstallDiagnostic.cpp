@@ -6,6 +6,7 @@
 #include "fetch/UrlFetch.h"
 #include "install/IndexCopy.h"
 #include "install/IngotInstaller.h"
+#include "install/IngotUnpack.h"
 #include "toolchain/IngotSelection.h"
 
 #include <algorithm>

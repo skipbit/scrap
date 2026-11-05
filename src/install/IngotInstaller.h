@@ -1,6 +1,7 @@
 #pragma once
 
 #include "fetch/UrlFetch.h"
+#include "install/IngotUnpack.h"
 #include "toolchain/HostEnvironment.h"
 #include "toolchain/IngotSelection.h"
 
@@ -32,14 +33,6 @@ struct IngotDoesNotMatch { };
  * @brief The ingot is kept in a registry, which this version cannot fetch from.
  */
 struct RegistryNotSupported { };
-
-/**
- * @brief The ingot could not be unpacked, or holds no usable toolchain.
- */
-struct IngotNotUnpacked {
-    std::string reason;
-    std::error_code code;  ///< What the operating system reported, when it reported anything.
-};
 
 /**
  * @brief The toolchain could not be put where it belongs.
