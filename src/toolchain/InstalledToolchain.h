@@ -1,6 +1,7 @@
 #pragma once
 
 #include "toolchain/HostEnvironment.h"
+#include "toolchain/InstallRecord.h"
 #include "toolchain/ToolchainSpecifier.h"
 #include "toolchain/ToolchainVersion.h"
 
@@ -95,5 +96,15 @@ using InstalledToolchainFault = std::variant<NoToolchainForHost, UnusableInstall
  * @return The toolchain, or nothing when none is installed.
  */
 [[nodiscard]] std::optional<InstalledToolchain> anyInstalledToolchain(const std::filesystem::path& scrapHome, const HostEnvironment& host);
+
+/**
+ * @brief The install record in @p directory, when what it names is there.
+ *
+ * A directory whose record cannot be looked up counts as holding none.
+ *
+ * @return The record, nothing when @p directory holds none, or why the
+ *         toolchain there cannot be used.
+ */
+[[nodiscard]] std::expected<std::optional<InstallRecord>, std::string> usableInstallRecord(const std::filesystem::path& directory);
 
 }  // namespace scrap::Toolchain

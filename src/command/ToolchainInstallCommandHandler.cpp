@@ -8,7 +8,6 @@
 #include "command/ToolchainDiagnostic.h"
 #include "command/ToolchainInstallDiagnostic.h"
 #include "fetch/CertificateBundle.h"
-#include "file/WholeFile.h"
 #include "install/IndexCopy.h"
 #include "install/IngotInstaller.h"
 #include "shared/constants/version.h"
@@ -17,6 +16,7 @@
 #include "toolchain/HostGlibc.h"
 #include "toolchain/IngotSelection.h"
 #include "toolchain/InstallRecord.h"
+#include "toolchain/InstalledToolchain.h"
 #include "toolchain/ScrapHomeLayout.h"
 #include "toolchain/ToolchainChoice.h"
 #include "toolchain/ToolchainSpecifier.h"
@@ -29,7 +29,6 @@
 #include <optional>
 #include <string>
 #include <string_view>
-#include <system_error>
 #include <utility>
 #include <variant>
 
@@ -84,29 +83,15 @@ bool selectWhenNoneIs(const std::filesystem::path& scrapHome, const std::optiona
 /**
  * Report that @p name is installed in @p directory, and whether the index now
  * lists another build of it than @p integrity.
- *
- * @return Whether the record could be read, which was otherwise reported.
  */
-bool reportInstalled(const std::string& specifier, const std::string& name, const std::filesystem::path& directory, const std::string& integrity)
+void reportInstalled(const std::string& name, const std::filesystem::path& directory, const Toolchain::InstallRecord& record, const std::string& integrity)
 {
-    const std::filesystem::path recordFile = directory / Toolchain::InstallRecordName;
-    const auto text = File::readWholeFile(recordFile);
-    if (! text.has_value()) {
-        std::cerr << renderUnusableInstalled(specifier, "cannot read '" + recordFile.string() + "'");
-        return false;
-    }
-    const auto record = Toolchain::parseInstallRecord(*text);
-    if (! record.has_value()) {
-        std::cerr << renderUnusableInstalled(specifier, "'" + recordFile.string() + "': " + record.error());
-        return false;
-    }
     std::cerr << "'" << name << "' is already installed at '" << printablePath(directory) << "'\n";
-    const std::optional<std::string>& recorded = record->ingotIntegrity;
+    const std::optional<std::string>& recorded = record.ingotIntegrity;
     if (recorded.has_value() && (*recorded != integrity)) {
         std::cerr << "warning: the index now lists a different build of '" << name << "'\n"
                   << "hint: run 'scrap toolchain install --force " << name << "' to replace it\n";
     }
-    return true;
 }
 
 /**
@@ -192,11 +177,17 @@ int ToolchainInstallCommandHandler::execute(const InvocationContext& ctx)
 
     const std::string name = selected->family + "@" + selected->version.text();
     const std::filesystem::path directory = Toolchain::toolchainDirectory(*scrapHome, selected->family, selected->version.text(), environment->directoryName());
-    std::error_code ec;
-    if (std::filesystem::exists(directory / Toolchain::InstallRecordName, ec) && (! asksToReplace(ctx.options))) {
-        if (! reportInstalled(text, name, directory, Toolchain::integrityOf(selected->ingot))) {
+    std::optional<Toolchain::InstallRecord> installed;
+    if (! asksToReplace(ctx.options)) {
+        auto read = Toolchain::usableInstallRecord(directory);
+        if (! read.has_value()) {
+            std::cerr << renderUnusableInstalled(text, read.error());
             return 1;
         }
+        installed = std::move(*read);
+    }
+    if (installed.has_value()) {
+        reportInstalled(name, directory, *installed, Toolchain::integrityOf(selected->ingot));
     } else {
         const auto done = Install::installIngot({ .scrapHome = *scrapHome,
                                                   .selected = *selected,

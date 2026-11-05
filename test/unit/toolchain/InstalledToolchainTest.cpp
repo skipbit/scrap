@@ -241,3 +241,63 @@ TEST(InstalledToolchainTest, ReportsAFamilyThatCannotBeListed)
     EXPECT_EQ(unlisted->directory, home.path() / "toolchains" / "gcc");
     EXPECT_TRUE(unlisted->code) << unlisted->code.message();
 }
+
+TEST(InstalledToolchainTest, ReadsNoInstallRecordWhereThereIsNone)
+{
+    const TempDirectory directory;
+
+    const auto read = usableInstallRecord(directory.path());
+
+    ASSERT_TRUE(read.has_value()) << read.error();
+    EXPECT_FALSE(read->has_value());
+}
+
+TEST(InstalledToolchainTest, ReadsTheInstallRecordWithItsIngotIntegrity)
+{
+    const TempDirectory directory;
+    directory.writeFile("bin/g++", "");
+    directory.writeFile(InstallRecordName, "compiler = \"bin/g++\"\ningot-integrity = \"sha256:abc\"\n");
+
+    const auto read = usableInstallRecord(directory.path());
+
+    ASSERT_TRUE(read.has_value()) << read.error();
+    ASSERT_TRUE(read->has_value());
+    EXPECT_EQ((*read)->ingotIntegrity, "sha256:abc");
+}
+
+TEST(InstalledToolchainTest, ReportsAnInstallRecordThatCannotBeParsedWithItsFile)
+{
+    const TempDirectory directory;
+    directory.writeFile(InstallRecordName, "compiler = 1\n");
+
+    const auto read = usableInstallRecord(directory.path());
+
+    ASSERT_FALSE(read.has_value());
+    EXPECT_TRUE(read.error().starts_with("'" + (directory.path() / InstallRecordName).string() + "': ")) << read.error();
+}
+
+/**
+ * Only the record is read, so a compiler that is not there does not matter.
+ */
+TEST(InstalledToolchainTest, RefusesAnInstallRecordWhoseCompilerIsMissing)
+{
+    const TempDirectory directory;
+    directory.writeFile(InstallRecordName, "compiler = \"bin/missing\"\n");
+
+    const auto read = usableInstallRecord(directory.path());
+
+    ASSERT_FALSE(read.has_value());
+    EXPECT_NE(read.error().find("names the compiler"), std::string::npos) << read.error();
+}
+
+TEST(InstalledToolchainTest, RefusesAnInstallRecordWhoseRuntimeLibraryDirectoryIsMissing)
+{
+    const TempDirectory directory;
+    directory.writeFile("bin/g++", "");
+    directory.writeFile(InstallRecordName, "compiler = \"bin/g++\"\nruntime-library-dirs = [\"lib\"]\n");
+
+    const auto read = usableInstallRecord(directory.path());
+
+    ASSERT_FALSE(read.has_value());
+    EXPECT_NE(read.error().find("names the runtime library directory"), std::string::npos) << read.error();
+}

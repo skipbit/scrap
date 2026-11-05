@@ -3379,6 +3379,29 @@ TEST_F(CliE2ETest, InstallReportsARecordItCannotReadAndForceReplacesIt)
 }
 
 /**
+ * What build cannot use is not installed, whatever its record says, and install
+ * says so as build does.
+ */
+TEST_F(CliE2ETest, InstallReportsAToolchainWhoseCompilerIsGoneAndForceReplacesIt)
+{
+    const ToolchainServer server("gcc", { { .version = "15.2.0", .ingot = compilerIngot() } });
+    installToolchain("gcc", "15.2.0");
+    const std::filesystem::path compiler = _temp->path() / "toolchains/gcc/15.2.0" / hostDirectoryName() / "bin/g++";
+    ASSERT_TRUE(std::filesystem::remove(compiler));
+
+    auto again = runScrap({ "toolchain", "install", "gcc@15.2.0" }, { server.indexVariable() }, _root);
+
+    EXPECT_EQ(again.exitCode, 1);
+    EXPECT_NE(again.stderrText.find("error: cannot use the installed toolchain: "), std::string::npos) << again.stderrText;
+    EXPECT_NE(again.stderrText.find("hint: run 'scrap toolchain install --force gcc@15.2.0'\n"), std::string::npos) << again.stderrText;
+    EXPECT_FALSE(std::filesystem::exists(compiler));
+
+    auto forced = runScrap({ "toolchain", "install", "--force", "gcc@15.2.0" }, { server.indexVariable() }, _root);
+    EXPECT_EQ(forced.exitCode, 0) << forced.stderrText;
+    EXPECT_TRUE(std::filesystem::exists(compiler));
+}
+
+/**
  * A version no longer offered is not installed, and the report names one that
  * is.
  */
