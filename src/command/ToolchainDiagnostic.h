@@ -17,6 +17,11 @@ namespace scrap::Command {
 [[nodiscard]] std::string renderNotASpecifier(std::string_view text, std::string_view reason);
 
 /**
+ * @brief Report @p text, given to install, as no specifier, for @p reason.
+ */
+[[nodiscard]] std::string renderNotInstallable(std::string_view text, std::string_view reason);
+
+/**
  * @brief Report SCRAP_TOOLCHAIN, holding @p value, as no specifier, for
  *        @p reason.
  */

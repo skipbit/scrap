@@ -190,14 +190,6 @@ std::string render(const Install::IndexUnavailable& fault)
 
 }  // anonymous namespace
 
-std::string renderNotInstallable(const std::string_view text, const std::string_view reason)
-{
-    std::string rendered = "error: '" + printableTypedEcho(text) + "' is not a toolchain specifier: ";
-    rendered += reason;
-    rendered += "\nhint: write it as <family>[@<version>], such as 'gcc@15'\n";
-    return rendered;
-}
-
 std::string renderSelectionFault(const std::string_view specifier, const Toolchain::IngotSelectionFault& fault)
 {
     return std::visit([specifier](const auto& alternative) -> std::string {
