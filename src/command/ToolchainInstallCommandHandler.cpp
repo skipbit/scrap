@@ -165,6 +165,48 @@ std::optional<std::string> reportExactlyInstalled(const std::filesystem::path& s
     return name;
 }
 
+/**
+ * Install @p selected, unless it is there and @p replace does not ask for that.
+ *
+ * @return Whether that went without a failure, which was then reported.
+ */
+bool bringIn(const std::filesystem::path& scrapHome,
+             const Toolchain::HostEnvironment& environment,
+             const std::optional<std::filesystem::path>& bundle,
+             const std::string& text,
+             const Toolchain::SelectedIngot& selected,
+             const bool replace)
+{
+    const std::string name = selected.family + "@" + selected.version.text();
+    const std::filesystem::path directory = Toolchain::toolchainDirectory(scrapHome, selected.family, selected.version.text(), environment.directoryName());
+    std::optional<Toolchain::InstallRecord> installed;
+    if (! replace) {
+        auto read = Toolchain::usableInstallRecord(directory);
+        if (! read.has_value()) {
+            std::cerr << renderUnusableInstalled(text, read.error());
+            return false;
+        }
+        installed = std::move(*read);
+    }
+    if (installed.has_value()) {
+        reportInstalled(name, directory, *installed, Toolchain::integrityOf(selected.ingot));
+        return true;
+    }
+    const auto done = Install::installIngot({ .scrapHome = scrapHome,
+                                              .selected = selected,
+                                              .environment = environment,
+                                              .certificateBundle = bundle,
+                                              .announce = [](const std::string_view step) {
+        std::cerr << step << "\n";
+    } });
+    if (! done.has_value()) {
+        std::cerr << renderInstallFailure(text, done.error());
+        return false;
+    }
+    std::cerr << "Installed '" << name << "' at '" << printablePath(*done) << "'\n";
+    return true;
+}
+
 }  // anonymous namespace
 
 int ToolchainInstallCommandHandler::execute(const InvocationContext& ctx)
@@ -206,34 +248,10 @@ int ToolchainInstallCommandHandler::execute(const InvocationContext& ctx)
         return 1;
     }
 
-    const std::string name = selected->family + "@" + selected->version.text();
-    const std::filesystem::path directory = Toolchain::toolchainDirectory(*scrapHome, selected->family, selected->version.text(), environment->directoryName());
-    std::optional<Toolchain::InstallRecord> installed;
-    if (! asksToReplace(ctx.options)) {
-        auto read = Toolchain::usableInstallRecord(directory);
-        if (! read.has_value()) {
-            std::cerr << renderUnusableInstalled(text, read.error());
-            return 1;
-        }
-        installed = std::move(*read);
+    if (! bringIn(*scrapHome, *environment, bundle, text, *selected, asksToReplace(ctx.options))) {
+        return 1;
     }
-    if (installed.has_value()) {
-        reportInstalled(name, directory, *installed, Toolchain::integrityOf(selected->ingot));
-    } else {
-        const auto done = Install::installIngot({ .scrapHome = *scrapHome,
-                                                  .selected = *selected,
-                                                  .environment = *environment,
-                                                  .certificateBundle = bundle,
-                                                  .announce = [](const std::string_view step) {
-            std::cerr << step << "\n";
-        } });
-        if (! done.has_value()) {
-            std::cerr << renderInstallFailure(text, done.error());
-            return 1;
-        }
-        std::cerr << "Installed '" << name << "' at '" << printablePath(*done) << "'\n";
-    }
-    return selectWhenNoneIs(*scrapHome, *current, name) ? 0 : 1;
+    return selectWhenNoneIs(*scrapHome, *current, selected->family + "@" + selected->version.text()) ? 0 : 1;
 }
 
 }  // namespace scrap::Command

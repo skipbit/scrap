@@ -230,8 +230,9 @@ std::expected<std::filesystem::path, IngotInstallFailure> installIngot(const Ing
 
     std::filesystem::path destination = Toolchain::toolchainDirectory(request.scrapHome, selected.family, selected.version.text(), request.environment.directoryName());
     if (auto placed = place(*root, destination, work->path() / "replaced"); ! placed.has_value()) {
-        if (placed.error().previousKeptAt.has_value()) {
-            work->keepOnly(*placed.error().previousKeptAt);
+        const std::optional<std::filesystem::path>& kept = placed.error().previousKeptAt;
+        if (kept.has_value()) {
+            work->keepOnly(*kept);
         }
         return std::unexpected(std::move(placed.error()));
     }
