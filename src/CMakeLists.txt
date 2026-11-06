@@ -68,6 +68,7 @@ scrap_apply_compile_settings(scrap_tar WARNINGS_AS_ERRORS)
 # Fetching URLs into files
 add_library(scrap_fetch STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/fetch/CertificateBundle.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/fetch/FetchErrorText.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/fetch/UrlPolicy.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/fetch/driver/CurlFetch.cpp
 )
@@ -108,6 +109,8 @@ add_library(scrap_toolchain STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/GlobalConfig.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/GlobalConfigFile.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/HostEnvironment.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/HostGlibc.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/IngotSelection.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/InstallRecord.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/InstalledToolchain.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/ProgramSearch.cpp
@@ -124,6 +127,21 @@ add_library(scrap_toolchain STATIC
 target_include_directories(scrap_toolchain PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(scrap_toolchain PRIVATE scrap_file scrap_process tomlplusplus::tomlplusplus)
 scrap_apply_compile_settings(scrap_toolchain WARNINGS_AS_ERRORS)
+
+# Installing toolchains: obtaining the index, and fetching, checking and placing
+# what it offers
+add_library(scrap_install STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/install/IndexCopy.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/install/IngotInstaller.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/install/IngotUnpack.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/install/UnpackedToolchain.cpp
+)
+target_include_directories(scrap_install PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(scrap_install
+    PUBLIC scrap_toolchain scrap_fetch
+    PRIVATE scrap_digest scrap_file scrap_tar scrap_xz
+)
+scrap_apply_compile_settings(scrap_install WARNINGS_AS_ERRORS)
 
 # Compile commands
 add_library(scrap_compile STATIC
@@ -189,9 +207,12 @@ add_library(scrap_command STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ScriptsReader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/StubScriptsReader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainDiagnostic.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainInstallCommandHandler.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainInstallDiagnostic.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainSelectCommandHandler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainUnselectCommandHandler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/VersionRenderer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/WriteFailureHint.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/driver/CLI11ParserAdapter.cpp
 )
 target_include_directories(scrap_command PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
@@ -200,7 +221,7 @@ target_include_directories(scrap_command PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 # only headers used within the command library may name them.
 target_link_libraries(scrap_command
     PUBLIC scrap_project scrap_compile scrap_build
-    PRIVATE scrap_toolchain scrap_process CLI11::CLI11
+    PRIVATE scrap_toolchain scrap_process scrap_install scrap_fetch CLI11::CLI11
 )
 add_dependencies(scrap_command scrap_version_source)
 scrap_apply_compile_settings(scrap_command WARNINGS_AS_ERRORS)

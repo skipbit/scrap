@@ -14,6 +14,7 @@
 #include "command/ProjectBuild.h"
 #include "command/RunCommandHandler.h"
 #include "command/RuntimeEnvironment.h"
+#include "command/ToolchainInstallCommandHandler.h"
 #include "command/ToolchainSelectCommandHandler.h"
 #include "command/ToolchainUnselectCommandHandler.h"
 #include "command/VersionRenderer.h"
@@ -246,6 +247,33 @@ CommandEntry makeRunEntry()
 }
 
 /**
+ * Create the entry for "toolchain install", which takes the specifier of the
+ * toolchain to install.
+ */
+CommandEntry makeToolchainInstallEntry()
+{
+    CommandEntry entry;
+    entry.spec.name = "install";
+    entry.spec.description = "Install a toolchain";
+    entry.spec.category = "Toolchain Commands";
+    entry.spec.options.positional.push_back(
+        PositionalDef{ .name = "specifier", .description = "Toolchain to install, as <family>[@<version>]", .required = true });
+    entry.spec.options.named.push_back(OptionDef{
+        .longName = std::string{ ForceOption },
+        .shortName = std::nullopt,
+        .type = OptionValueType::Bool,
+        .required = false,
+        .description = "Replace the toolchain when it is already installed",
+        .defaultValue = std::nullopt,
+        .choices = {} });
+    entry.source = CommandSource::Builtin;
+    entry.createHandler = [](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
+        return std::make_unique<ToolchainInstallCommandHandler>();
+    };
+    return entry;
+}
+
+/**
  * Create the entry for "toolchain select", which takes the specifier of the
  * toolchain to keep as the global default.
  */
@@ -342,7 +370,7 @@ std::vector<CommandEntry> BuiltinCommandResolver::resolve([[maybe_unused]] const
     {
         auto toolchain = makePlaceholder("toolchain", "Manage toolchains", "Toolchain Commands");
         toolchain.subcommands.push_back(makePlaceholder("list", "Display installed toolchains", "Toolchain Commands"));
-        toolchain.subcommands.push_back(makePlaceholder("install", "Install a new toolchain", "Toolchain Commands"));
+        toolchain.subcommands.push_back(makeToolchainInstallEntry());
         toolchain.subcommands.push_back(makeToolchainSelectEntry());
         toolchain.subcommands.push_back(makeToolchainUnselectEntry());
         entries.push_back(std::move(toolchain));

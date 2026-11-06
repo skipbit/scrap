@@ -62,6 +62,12 @@ HttpTestServer::HttpTestServer(std::map<std::string, HttpTestResponse> responses
     start();
 }
 
+void HttpTestServer::respond(const std::string& path, HttpTestResponse response)
+{
+    const std::scoped_lock guard{ _lock };
+    _responses[path] = std::move(response);
+}
+
 void HttpTestServer::start()
 {
     // A client that hangs up mid-answer must fail the write, not end the test.
@@ -156,9 +162,14 @@ void HttpTestServer::answer(const int connection)
         _requestLines.push_back(requestLine);
     }
 
-    const auto found = _responses.find(requestedPath(requestLine));
-    const HttpTestResponse notFound{ .status = 404, .headers = {}, .body = "not found", .stalls = false, .bytesCutOff = 0 };
-    const HttpTestResponse& response = (found != _responses.end()) ? found->second : notFound;
+    HttpTestResponse response{ .status = 404, .headers = {}, .body = "not found", .stalls = false, .bytesCutOff = 0 };
+    {
+        const std::scoped_lock guard{ _lock };
+        const auto found = _responses.find(requestedPath(requestLine));
+        if (found != _responses.end()) {
+            response = found->second;
+        }
+    }
     if (response.stalls) {
         // Returns when the client hangs up or the server stops.
         while (waitUntilReadable(connection)) {

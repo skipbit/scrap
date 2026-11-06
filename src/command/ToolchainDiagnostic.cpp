@@ -20,6 +20,20 @@ namespace {
 constexpr std::string_view SpecifierShape = "<family>[@<version>], such as 'gcc@15'";
 
 /**
+ * The report that @p text is no specifier, for @p reason, closed by @p ending
+ * after the shape of one.
+ */
+std::string notASpecifier(std::string_view text, std::string_view reason, std::string_view ending)
+{
+    std::string rendered = "error: '" + printableTypedEcho(text) + "' is not a toolchain specifier: ";
+    rendered += reason;
+    rendered += "\nhint: write it as ";
+    rendered += SpecifierShape;
+    rendered += ending;
+    return rendered;
+}
+
+/**
  * A fault in the text of @p file, pointed at as a compiler points at one.
  */
 std::string renderFault(const std::filesystem::path& file, const Toolchain::GlobalConfigFault& fault)
@@ -72,12 +86,12 @@ std::string render(std::string_view, ToolchainNamedIn, const Toolchain::CannotLi
 
 std::string renderNotASpecifier(std::string_view text, std::string_view reason)
 {
-    std::string rendered = "error: '" + printableTypedEcho(text) + "' is not a toolchain specifier: ";
-    rendered += reason;
-    rendered += "\nhint: write it as ";
-    rendered += SpecifierShape;
-    rendered += ", or as system\n";
-    return rendered;
+    return notASpecifier(text, reason, ", or as system\n");
+}
+
+std::string renderNotInstallable(std::string_view text, std::string_view reason)
+{
+    return notASpecifier(text, reason, "\n");
 }
 
 std::string renderToolchainVariableNotASpecifier(std::string_view value, std::string_view reason)

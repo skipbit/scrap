@@ -2,6 +2,7 @@
 
 #include <expected>
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -23,6 +24,7 @@ inline constexpr std::string_view InstallRecordName = ".scrap-toolchain.toml";
 struct InstallRecord {
     std::filesystem::path compiler;                                ///< The C++ compiler, relative to the toolchain's directory.
     std::vector<std::filesystem::path> runtimeLibraryDirectories;  ///< Where its runtime libraries are, relative to the same.
+    std::optional<std::string> ingotIntegrity = std::nullopt;      ///< The digest or SHA-256 the index gave for what was installed.
 };
 
 /**
@@ -31,10 +33,16 @@ struct InstallRecord {
  * Keys this version does not know are passed over. The compiler, and each
  * of the runtime library directories, must be a relative path that stays
  * inside the toolchain's directory. A record without runtime library
- * directories names none.
+ * directories names none, and one without an integrity value cannot be
+ * compared with the index.
  *
  * @return The record, or where and why it cannot be read.
  */
 [[nodiscard]] std::expected<InstallRecord, std::string> parseInstallRecord(std::string_view text);
+
+/**
+ * @brief The text of an install record that holds @p record.
+ */
+[[nodiscard]] std::string renderInstallRecord(const InstallRecord& record);
 
 }  // namespace scrap::Toolchain

@@ -395,3 +395,47 @@ TEST(UrlFetchTest, GoesThroughAProxyTheEnvironmentNames)
     ASSERT_FALSE(fetched.has_value());
     EXPECT_EQ(proxy.requestLines(), (std::vector<std::string>{ "CONNECT scrap-test.invalid:443 HTTP/1.1" }));
 }
+
+TEST(UrlFetchTest, TakesContentOfExactlyTheSizeLimit)
+{
+    const TempDirectory directory;
+    const HttpTestServer server({ { "/file", content("12345") } });
+    const std::filesystem::path destination = directory.path() / "file";
+
+    FetchRequest request = requestFor(server.url("/file"), destination);
+    request.sizeLimit = 5;
+
+    ASSERT_TRUE(fetchToFile(request).has_value());
+    EXPECT_EQ(readWholeFile(destination).value_or(""), "12345");
+}
+
+TEST(UrlFetchTest, RefusesContentPastTheSizeLimitAndLeavesTheDestinationAlone)
+{
+    const TempDirectory directory;
+    const HttpTestServer server({ { "/file", content("123456") } });
+    const std::filesystem::path destination = directory.writeFile("file", "before");
+
+    FetchRequest request = requestFor(server.url("/file"), destination);
+    request.sizeLimit = 5;
+
+    const auto fetched = fetchToFile(request);
+
+    ASSERT_FALSE(fetched.has_value());
+    const auto* tooLarge = std::get_if<ContentTooLarge>(&fetched.error());
+    ASSERT_NE(tooLarge, nullptr);
+    EXPECT_EQ(tooLarge->limit, 5U);
+    EXPECT_EQ(readWholeFile(destination).value_or(""), "before");
+}
+
+TEST(UrlFetchTest, CountsOnlyTheContentAgainstTheSizeLimit)
+{
+    const TempDirectory directory;
+    const HttpTestServer server({ { "/from", redirectTo("/to") }, { "/to", content("12345") } });
+    const std::filesystem::path destination = directory.path() / "file";
+
+    FetchRequest request = requestFor(server.url("/from"), destination);
+    request.sizeLimit = 5;
+
+    ASSERT_TRUE(fetchToFile(request).has_value());
+    EXPECT_EQ(readWholeFile(destination).value_or(""), "12345");
+}

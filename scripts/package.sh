@@ -6,7 +6,9 @@
 #   scripts/package.sh <binary> <os>-<arch> <output-dir>
 #
 # The archive is scrap-<version>-<os>-<arch>.tar.gz and holds one directory of
-# the same name with scrap, LICENSE and README.md. The version is the git
+# the same name with scrap, LICENSE, THIRD_PARTY_LICENSES and README.md. The
+# last but one gathers the licenses of the libraries built into the binary, from
+# the _deps directory of its build tree. The version is the git
 # description without its leading v: 0.3.0 on a release tag, 0.3.0-2-g<hash>
 # after it. The checksum file is in the format `sha256sum -c` reads.
 #
@@ -43,15 +45,53 @@ check_banner() {
 
 check_banner "$binary"
 
+deps="$(dirname "$binary")/../_deps"
+
+# Each line names a library and its license file below the _deps directory. The
+# libcurl of macOS comes with the system, and Mbed TLS only serves the libcurl
+# built in on Linux.
+third_party_licenses() {
+  echo "CLI11 cli11-src/LICENSE"
+  echo "toml++ tomlplusplus-src/LICENSE"
+  echo "liblzma xz-src/COPYING.0BSD"
+  case "$platform" in
+    linux-*)
+      echo "libcurl curl-src/COPYING"
+      echo "Mbed-TLS mbedtls-src/LICENSE"
+      echo "TF-PSA-Crypto mbedtls-src/tf-psa-crypto/LICENSE"
+      ;;
+  esac
+}
+
+write_third_party_licenses() {
+  local library file
+  while read -r library file; do
+    if [ ! -f "$deps/$file" ]; then
+      echo "error: no license file for $library at $deps/$file" >&2
+      exit 1
+    fi
+    printf '%s\n\n' "=== $library ==="
+    cat "$deps/$file"
+    printf '\n'
+  done < <(third_party_licenses)
+}
+
 name="scrap-${describe#v}-$platform"
 mkdir -p "$work/$name" "$work/dist" "$work/unpacked"
 cp "$binary" "$work/$name/scrap"
 cp "$root/LICENSE" "$root/README.md" "$work/$name/"
+write_third_party_licenses > "$work/$name/THIRD_PARTY_LICENSES"
 tar -C "$work" -czf "$work/dist/$name.tar.gz" "$name"
 (cd "$work/dist" && cmake -E sha256sum "$name.tar.gz" > "$name.tar.gz.sha256")
 
 tar -C "$work/unpacked" -xzf "$work/dist/$name.tar.gz"
 check_banner "$work/unpacked/$name/scrap"
+while read -r library _; do
+  if ! grep -qxF "=== $library ===" "$work/unpacked/$name/THIRD_PARTY_LICENSES"; then
+    echo "error: the archive holds no license for $library" >&2
+    exit 1
+  fi
+done < <(third_party_licenses)
 
 mkdir -p "$out"
 mv "$work/dist/$name.tar.gz" "$work/dist/$name.tar.gz.sha256" "$out/"

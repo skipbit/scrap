@@ -15,6 +15,26 @@ std::filesystem::path familyDirectory(const std::filesystem::path& scrapHome, co
     return toolchainsDirectory(scrapHome) / family;
 }
 
+std::filesystem::path toolchainDirectory(const std::filesystem::path& scrapHome, const std::string_view family, const std::string_view version, const std::string_view environment)
+{
+    return familyDirectory(scrapHome, family) / version / environment;
+}
+
+std::filesystem::path indexCopyFile(const std::filesystem::path& scrapHome)
+{
+    return scrapHome / "index" / "toolchain.toml";
+}
+
+std::filesystem::path indexCopySourceFile(const std::filesystem::path& scrapHome)
+{
+    return scrapHome / "index" / "toolchain.toml.source";
+}
+
+std::filesystem::path temporaryDirectory(const std::filesystem::path& scrapHome)
+{
+    return toolchainsDirectory(scrapHome) / ".work";
+}
+
 std::filesystem::path globalConfigFile(const std::filesystem::path& scrapHome)
 {
     return scrapHome / "config.toml";

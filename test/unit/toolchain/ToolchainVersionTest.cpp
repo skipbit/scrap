@@ -119,3 +119,10 @@ TEST(ToolchainVersionTest, StartsWithWholeParts)
     EXPECT_FALSE(version("15.20.0").startsWith(version("15.2")));
     EXPECT_FALSE(version("15.2").startsWith(version("15.2.0")));
 }
+
+TEST(ToolchainVersionTest, LowestComesBeforeEveryOtherVersion)
+{
+    EXPECT_EQ(ToolchainVersion::lowest().text(), "0");
+    EXPECT_EQ(ToolchainVersion::lowest(), ToolchainVersion::parse("0").value());
+    EXPECT_LT(ToolchainVersion::lowest(), ToolchainVersion::parse("0.0.1").value());
+}

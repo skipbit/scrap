@@ -5,6 +5,7 @@
 #include "command/PermissionHint.h"
 #include "command/PrintableText.h"
 #include "command/ProjectArgument.h"
+#include "command/WriteFailureHint.h"
 #include "compile/CompilationDatabase.h"
 #include "project/LanguageStandard.h"
 #include "project/ManifestError.h"
@@ -35,9 +36,6 @@ static_assert(EchoedValueLimit == Project::MaxProjectNameLength, "a value cut fo
 
 /// Next step for a path argument that cannot be searched from.
 constexpr std::string_view PathHint = "hint: pass a directory inside a project, or omit the path to use the current directory\n";
-
-/// Next step for a disk or a quota that is full.
-constexpr std::string_view DiskSpaceHint = "hint: free some disk space and run the command again\n";
 
 /// Next step for a path taken by something else.
 constexpr std::string_view ExistingPathHint = "hint: check what is already at that path\n";
@@ -142,34 +140,6 @@ std::string render(const Project::PathExists& error)
     text += "' already exists\n";
     text += "hint: choose another name, or run the command in another directory\n";
     return text;
-}
-
-/**
- * Whether @p code is the quota failure, which std::errc does not name.
- */
-bool isQuotaExceeded(const std::error_code& code)
-{
-#ifdef EDQUOT
-    return ((code.value() == EDQUOT) && ((code.category() == std::generic_category()) || (code.category() == std::system_category())));
-#else
-    static_cast<void>(code);
-    return false;
-#endif
-}
-
-/**
- * The next step every write failure shares: the permissions, or the space
- * left. Any other reason is left to the caller.
- */
-std::optional<std::string_view> sharedWriteHint(const std::error_code& code)
-{
-    if (code == std::errc::permission_denied || code == std::errc::operation_not_permitted) {
-        return PermissionHint;
-    }
-    if (code == std::errc::no_space_on_device || isQuotaExceeded(code)) {
-        return DiskSpaceHint;
-    }
-    return std::nullopt;
 }
 
 /**

@@ -4,6 +4,7 @@
 
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <curl/curl.h>
 #include <curl/easy.h>
 #include <curl/urlapi.h>
@@ -55,6 +56,9 @@ using UrlPart = std::unique_ptr<char, UrlPartDeleter>;
 struct BodySink {
     CURL* easy = nullptr;
     File::StagedFile* file = nullptr;
+    std::optional<std::uint64_t> sizeLimit;
+    std::uint64_t received = 0;
+    bool tooLarge = false;
     std::error_code failure;
 };
 
@@ -101,6 +105,11 @@ std::size_t receiveBody(const char* data, const std::size_t size, const std::siz
         return length;
     }
 
+    sink->received += length;
+    if (sink->sizeLimit.has_value() && (sink->received > *sink->sizeLimit)) {
+        sink->tooLarge = true;
+        return 0;
+    }
     sink->failure = sink->file->append(std::string_view{ data, length });
     return sink->failure ? 0 : length;
 }
@@ -172,7 +181,7 @@ std::expected<void, FetchError> transfer(const FetchRequest& request, File::Stag
 {
     // These come before the handle, which holds on to them until it is cleaned up.
     std::array<char, CURL_ERROR_SIZE> errorText{};
-    BodySink sink{ .easy = nullptr, .file = &file, .failure = {} };
+    BodySink sink{ .easy = nullptr, .file = &file, .sizeLimit = request.sizeLimit, .received = 0, .tooLarge = false, .failure = {} };
     const EasyHandle easy{ curl_easy_init() };
     if (easy == nullptr) {
         return std::unexpected(TransferFailure{ .url = request.url, .message = "cannot set up a transfer" });
@@ -193,6 +202,9 @@ std::expected<void, FetchError> transfer(const FetchRequest& request, File::Stag
         errorText.fill('\0');
         applyOptions(easy.get(), request, url, *target, sink, errorText.data());
         const CURLcode code = curl_easy_perform(easy.get());
+        if (sink.tooLarge) {
+            return std::unexpected(ContentTooLarge{ .url = url, .limit = *request.sizeLimit });
+        }
         if (sink.failure) {
             return std::unexpected(CannotWriteDestination{ .path = request.destination, .code = sink.failure });
         }

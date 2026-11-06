@@ -31,12 +31,12 @@ bool isInstalled(const std::filesystem::path& directory)
 }
 
 /**
- * The installed toolchain in @p directory, read from its install record.
+ * The install record that @p directory holds.
  */
-std::expected<InstalledToolchain, std::string> readInstalled(const std::string& family, const ToolchainVersion& version, const std::filesystem::path& directory)
+std::expected<InstallRecord, std::string> readRecordFile(const std::filesystem::path& directory)
 {
     const std::filesystem::path recordFile = directory / InstallRecordName;
-    auto text = File::readWholeFile(recordFile);
+    const auto text = File::readWholeFile(recordFile);
     if (! text.has_value()) {
         return std::unexpected("cannot read '" + recordFile.string() + "'");
     }
@@ -44,27 +44,79 @@ std::expected<InstalledToolchain, std::string> readInstalled(const std::string& 
     if (! record.has_value()) {
         return std::unexpected("'" + recordFile.string() + "': " + record.error());
     }
-    const std::filesystem::path compiler = directory / record->compiler;
+    return record;
+}
+
+/**
+ * Whether what @p record names is there in @p directory.
+ *
+ * @return Nothing when it is, or what is missing.
+ */
+std::expected<void, std::string> checkRecordedPaths(const std::filesystem::path& directory, const InstallRecord& record)
+{
+    const std::filesystem::path recordFile = directory / InstallRecordName;
+    const std::filesystem::path compiler = directory / record.compiler;
     std::error_code ec;
     if (! std::filesystem::exists(compiler, ec)) {
         return std::unexpected("'" + recordFile.string() + "' names the compiler '" + compiler.string() + "', which is not there");
     }
-    std::vector<std::filesystem::path> runtimeLibraryDirectories;
-    for (const std::filesystem::path& recorded : record->runtimeLibraryDirectories) {
-        std::filesystem::path runtimeLibraryDirectory = directory / recorded;
+    for (const std::filesystem::path& recorded : record.runtimeLibraryDirectories) {
+        const std::filesystem::path runtimeLibraryDirectory = directory / recorded;
         if (! std::filesystem::is_directory(runtimeLibraryDirectory, ec)) {
             return std::unexpected("'" + recordFile.string() + "' names the runtime library directory '" + runtimeLibraryDirectory.string() + "', which is not there");
         }
-        runtimeLibraryDirectories.push_back(std::move(runtimeLibraryDirectory));
+    }
+    return {};
+}
+
+/**
+ * The record in @p directory, when what it names is there.
+ */
+std::expected<InstallRecord, std::string> readUsableRecord(const std::filesystem::path& directory)
+{
+    auto record = readRecordFile(directory);
+    if (! record.has_value()) {
+        return record;
+    }
+    if (auto checked = checkRecordedPaths(directory, *record); ! checked.has_value()) {
+        return std::unexpected(std::move(checked.error()));
+    }
+    return record;
+}
+
+/**
+ * The installed toolchain in @p directory, read from its install record.
+ */
+std::expected<InstalledToolchain, std::string> readInstalled(const std::string& family, const ToolchainVersion& version, const std::filesystem::path& directory)
+{
+    const auto record = readUsableRecord(directory);
+    if (! record.has_value()) {
+        return std::unexpected(record.error());
+    }
+    std::vector<std::filesystem::path> runtimeLibraryDirectories;
+    for (const std::filesystem::path& recorded : record->runtimeLibraryDirectories) {
+        runtimeLibraryDirectories.push_back(directory / recorded);
     }
     return InstalledToolchain{ .family = family,
                                .version = version,
                                .directory = directory,
-                               .compiler = compiler,
+                               .compiler = directory / record->compiler,
                                .runtimeLibraryDirectories = std::move(runtimeLibraryDirectories) };
 }
 
 }  // anonymous namespace
+
+std::expected<std::optional<InstallRecord>, std::string> usableInstallRecord(const std::filesystem::path& directory)
+{
+    if (! isInstalled(directory)) {
+        return std::nullopt;
+    }
+    auto record = readUsableRecord(directory);
+    if (! record.has_value()) {
+        return std::unexpected(std::move(record.error()));
+    }
+    return std::move(*record);
+}
 
 std::string InstalledToolchain::name() const
 {

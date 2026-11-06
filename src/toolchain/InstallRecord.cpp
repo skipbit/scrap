@@ -1,5 +1,7 @@
 #include "toolchain/InstallRecord.h"
 
+#include "toolchain/driver/TomlText.h"
+
 #include <toml++/toml.hpp>
 
 #include <algorithm>
@@ -15,7 +17,9 @@ namespace scrap::Toolchain {
 
 namespace {
 
+constexpr std::string_view CompilerKey = "compiler";
 constexpr std::string_view RuntimeLibraryDirectoriesKey = "runtime-library-dirs";
+constexpr std::string_view IngotIntegrityKey = "ingot-integrity";
 
 /**
  * Whether @p path names something inside the directory it is taken against:
@@ -83,6 +87,22 @@ std::expected<std::vector<std::filesystem::path>, std::string> runtimeLibraryDir
     return directories;
 }
 
+/**
+ * The integrity value @p table records, nothing when it records none.
+ */
+std::expected<std::optional<std::string>, std::string> ingotIntegrity(const toml::table& table)
+{
+    const toml::node* node = table.get(IngotIntegrityKey);
+    if (node == nullptr) {
+        return std::nullopt;
+    }
+    std::optional<std::string> text = node->value_exact<std::string>();
+    if (! text.has_value()) {
+        return std::unexpected(fault(*node, IngotIntegrityKey, "must be a string"));
+    }
+    return text;
+}
+
 }  // anonymous namespace
 
 std::expected<InstallRecord, std::string> parseInstallRecord(std::string_view text)
@@ -92,11 +112,11 @@ std::expected<InstallRecord, std::string> parseInstallRecord(std::string_view te
         const toml::parse_error& error = parsed.error();
         return std::unexpected("line " + std::to_string(error.source().begin.line) + ": " + std::string{ error.description() });
     }
-    const toml::node* node = parsed.table().get("compiler");
+    const toml::node* node = parsed.table().get(CompilerKey);
     if (node == nullptr) {
-        return std::unexpected("compiler: is missing");
+        return std::unexpected(std::string{ CompilerKey } + ": is missing");
     }
-    auto compiler = pathInside(*node, "compiler");
+    auto compiler = pathInside(*node, CompilerKey);
     if (! compiler.has_value()) {
         return std::unexpected(std::move(compiler.error()));
     }
@@ -104,7 +124,26 @@ std::expected<InstallRecord, std::string> parseInstallRecord(std::string_view te
     if (! directories.has_value()) {
         return std::unexpected(std::move(directories.error()));
     }
-    return InstallRecord{ .compiler = std::move(*compiler), .runtimeLibraryDirectories = std::move(*directories) };
+    auto integrity = ingotIntegrity(parsed.table());
+    if (! integrity.has_value()) {
+        return std::unexpected(std::move(integrity.error()));
+    }
+    return InstallRecord{ .compiler = std::move(*compiler), .runtimeLibraryDirectories = std::move(*directories), .ingotIntegrity = std::move(*integrity) };
+}
+
+std::string renderInstallRecord(const InstallRecord& record)
+{
+    toml::table table;
+    table.insert(CompilerKey, record.compiler.generic_string());
+    toml::array directories;
+    for (const std::filesystem::path& directory : record.runtimeLibraryDirectories) {
+        directories.push_back(directory.generic_string());
+    }
+    table.insert(RuntimeLibraryDirectoriesKey, std::move(directories));
+    if (record.ingotIntegrity.has_value()) {
+        table.insert(IngotIntegrityKey, *record.ingotIntegrity);
+    }
+    return tomlText(table);
 }
 
 }  // namespace scrap::Toolchain

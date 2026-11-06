@@ -44,6 +44,9 @@ public:
     /// The URL of @p path, which starts with a slash, on this server.
     [[nodiscard]] std::string url(const std::string& path) const;
 
+    /// Answer @p path with @p response from now on.
+    void respond(const std::string& path, HttpTestResponse response);
+
     /// The first line of each request received so far.
     [[nodiscard]] std::vector<std::string> requestLines() const;
 

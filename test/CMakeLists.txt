@@ -8,6 +8,8 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/test)
 add_library(scrap_test_support STATIC
     support/Fifo.cpp
     support/HttpTestServer.cpp
+    support/StoredXz.cpp
+    support/TarArchiveBuilder.cpp
     support/TempDirectory.cpp
 )
 target_include_directories(scrap_test_support PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
@@ -59,6 +61,7 @@ scrap_add_unit_test(command SOURCES
     unit/command/ProjectDiagnosticTest.cpp
     unit/command/RuntimeEnvironmentFactoryTest.cpp
     unit/command/ToolchainDiagnosticTest.cpp
+    unit/command/ToolchainInstallDiagnosticTest.cpp
     unit/command/ApplicationTest.cpp
     PROPERTIES TIMEOUT 60
 )
@@ -75,6 +78,8 @@ scrap_add_unit_test(toolchain SOURCES
     unit/toolchain/GlobalConfigFileTest.cpp
     unit/toolchain/GlobalConfigTest.cpp
     unit/toolchain/HostEnvironmentTest.cpp
+    unit/toolchain/HostGlibcTest.cpp
+    unit/toolchain/IngotSelectionTest.cpp
     unit/toolchain/InstallRecordTest.cpp
     unit/toolchain/InstalledToolchainTest.cpp
     unit/toolchain/ScrapHomeLayoutTest.cpp
@@ -98,7 +103,6 @@ scrap_add_unit_test(digest SOURCES
 )
 
 scrap_add_unit_test(tar SOURCES
-    unit/tar/TarArchiveBuilder.cpp
     unit/tar/TarExtractorTest.cpp
     unit/tar/TarPathTest.cpp
     unit/tar/TarReaderTest.cpp
@@ -115,6 +119,13 @@ scrap_add_unit_test(fetch SOURCES
     unit/fetch/UrlFetchTest.cpp
     unit/fetch/UrlFetchOverTheNetworkTest.cpp
     unit/fetch/UrlPolicyTest.cpp
+    PROPERTIES TIMEOUT 120
+)
+
+scrap_add_unit_test(install SOURCES
+    unit/install/IndexCopyTest.cpp
+    unit/install/IngotInstallerTest.cpp
+    unit/install/UnpackedToolchainTest.cpp
     PROPERTIES TIMEOUT 120
 )
 
@@ -164,6 +175,7 @@ target_compile_definitions(scrap_e2e PRIVATE
 )
 
 target_link_libraries(scrap_e2e PRIVATE
+    scrap_digest
     scrap_test_support
     GTest::gtest_main
 )

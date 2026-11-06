@@ -77,3 +77,49 @@ TEST(InstallRecordTest, RefusesRuntimeLibraryDirectoriesOutsideTheToolchain)
     EXPECT_EQ(parseInstallRecord("compiler = \"bin/g++\"\nruntime-library-dirs = [\"../lib\"]\n").error(), reason);
     EXPECT_EQ(parseInstallRecord("compiler = \"bin/g++\"\nruntime-library-dirs = [\"\"]\n").error(), reason);
 }
+
+TEST(InstallRecordTest, ReadsTheIntegrityValue)
+{
+    const auto record = parseInstallRecord("compiler = 'bin/g++'\ningot-integrity = 'sha256:abc'\n");
+
+    ASSERT_TRUE(record.has_value());
+    EXPECT_EQ(record->ingotIntegrity, "sha256:abc");
+}
+
+TEST(InstallRecordTest, HoldsNoIntegrityValueWhenTheRecordHasNone)
+{
+    const auto record = parseInstallRecord("compiler = 'bin/g++'\n");
+
+    ASSERT_TRUE(record.has_value());
+    EXPECT_FALSE(record->ingotIntegrity.has_value());
+}
+
+TEST(InstallRecordTest, RefusesAnIntegrityValueThatIsNotAString)
+{
+    const auto record = parseInstallRecord("compiler = 'bin/g++'\ningot-integrity = 1\n");
+
+    ASSERT_FALSE(record.has_value());
+    EXPECT_NE(record.error().find("ingot-integrity: must be a string"), std::string::npos);
+}
+
+TEST(InstallRecordTest, ReadsBackWhatItRenders)
+{
+    const InstallRecord written{ .compiler = "bin/g++", .runtimeLibraryDirectories = { "lib64", "lib/x86_64-unknown-linux-gnu" }, .ingotIntegrity = "sha256:abc" };
+
+    const auto read = parseInstallRecord(renderInstallRecord(written));
+
+    ASSERT_TRUE(read.has_value());
+    EXPECT_EQ(read->compiler, written.compiler);
+    EXPECT_EQ(read->runtimeLibraryDirectories, written.runtimeLibraryDirectories);
+    EXPECT_EQ(read->ingotIntegrity, written.ingotIntegrity);
+}
+
+TEST(InstallRecordTest, RendersNoIntegrityValueWhenThereIsNone)
+{
+    const InstallRecord written{ .compiler = "bin/g++", .runtimeLibraryDirectories = {} };
+
+    const std::string text = renderInstallRecord(written);
+
+    EXPECT_EQ(text.find("ingot-integrity"), std::string::npos);
+    EXPECT_FALSE(parseInstallRecord(text)->ingotIntegrity.has_value());
+}

@@ -71,6 +71,11 @@ const std::string& ToolchainVersion::text() const
     return _text;
 }
 
+ToolchainVersion ToolchainVersion::lowest()
+{
+    return ToolchainVersion{ "0", { "0" } };
+}
+
 bool ToolchainVersion::startsWith(const ToolchainVersion& prefix) const
 {
     return (prefix._parts.size() <= _parts.size()) && std::equal(prefix._parts.begin(), prefix._parts.end(), _parts.begin());
