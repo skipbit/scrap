@@ -108,6 +108,11 @@ scrap_add_unit_test(tar SOURCES
     unit/tar/TarReaderTest.cpp
 )
 
+scrap_add_unit_test(json SOURCES
+    unit/json/JsonParserTest.cpp
+    unit/json/JsonValueTest.cpp
+)
+
 scrap_add_unit_test(xz SOURCES
     unit/xz/XzFileTest.cpp
 )
