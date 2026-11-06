@@ -3508,12 +3508,16 @@ TEST_F(CliE2ETest, InstallRefusesAToolchainThatNeedsANewerScrap)
 }
 
 /**
- * A toolchain this scrap is new enough for is installed, which shows the
- * version of the running scrap was read.
+ * A toolchain that needs exactly the running scrap is installed, which shows
+ * the version of the running scrap was read. The version comes from the
+ * banner, since a build without release tags is 0.0.0.
  */
 TEST_F(CliE2ETest, InstallTakesAToolchainThisScrapIsNewEnoughFor)
 {
-    const ToolchainServer server("gcc", { { .version = "15.2.0", .ingot = compilerIngot(), .extraToolchainKeys = "min_scrap_version = '0.1.0'\n" } });
+    const std::string banner = trim(runScrap({ "--version" }, {}, _root).stdoutText);
+    ASSERT_TRUE(isVersionBanner(banner)) << "banner: " << banner;
+    const std::string running = banner.substr(banner.find(' ') + 1, banner.find(" (") - banner.find(' ') - 1);
+    const ToolchainServer server("gcc", { { .version = "15.2.0", .ingot = compilerIngot(), .extraToolchainKeys = "min_scrap_version = '" + running + "'\n" } });
 
     auto result = runScrap({ "toolchain", "install", "gcc@15.2.0" }, { server.indexVariable() }, _root);
 
