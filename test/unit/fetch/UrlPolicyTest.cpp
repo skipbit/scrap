@@ -89,3 +89,13 @@ TEST(UrlPolicyTest, LetsARedirectReachHttpOnlyFromThisMachine)
         EXPECT_EQ(isAcceptedRedirect(from, to), accepted) << from.scheme << "://" << from.host << " to " << to.scheme << "://" << to.host;
     }
 }
+
+TEST(UrlPolicyTest, TakesTheSameSchemeHostAndPortAsTheSameServer)
+{
+    const UrlTarget origin{ .scheme = "https", .host = "ghcr.io", .port = "443" };
+
+    EXPECT_TRUE(isSameOrigin(origin, UrlTarget{ .scheme = "https", .host = "ghcr.io", .port = "443" }));
+    EXPECT_FALSE(isSameOrigin(origin, UrlTarget{ .scheme = "http", .host = "ghcr.io", .port = "443" }));
+    EXPECT_FALSE(isSameOrigin(origin, UrlTarget{ .scheme = "https", .host = "pkg-containers.githubusercontent.com", .port = "443" }));
+    EXPECT_FALSE(isSameOrigin(origin, UrlTarget{ .scheme = "https", .host = "ghcr.io", .port = "8443" }));
+}

@@ -8,6 +8,7 @@
 #include <string>
 #include <system_error>
 #include <variant>
+#include <vector>
 
 namespace scrap::Fetch {
 
@@ -28,6 +29,10 @@ struct FetchRequest {
 
     /// How many bytes the content may hold. Nothing limits it when this is empty.
     std::optional<std::uint64_t> sizeLimit = std::nullopt;
+
+    /// Header lines, such as "Accept: text/plain", sent to the server of the URL
+    /// alone and never to another one a redirect leads to.
+    std::vector<std::string> headers = {};
 };
 
 /**
@@ -68,6 +73,8 @@ struct TransferFailure {
 struct UnexpectedStatus {
     std::string url;
     long status = 0;
+    /// What a 401 answer asks for in its WWW-Authenticate header; empty otherwise.
+    std::string authenticate = {};
 };
 
 /**

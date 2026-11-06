@@ -19,6 +19,11 @@ bool isAcceptedRedirect(const UrlTarget& from, const UrlTarget& to)
     return isAccepted(to) && ((to.scheme != "http") || isThisMachine(from.host));
 }
 
+bool isSameOrigin(const UrlTarget& a, const UrlTarget& b)
+{
+    return (a.scheme == b.scheme) && (a.host == b.host) && (a.port == b.port);
+}
+
 bool needsCertificates(const UrlTarget& target)
 {
     return target.scheme == "https";

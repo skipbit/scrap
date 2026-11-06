@@ -11,6 +11,7 @@ namespace scrap::Fetch {
 struct UrlTarget {
     std::string scheme;
     std::string host;
+    std::string port = {};  ///< As written, or the scheme's own when none is.
 };
 
 /**
@@ -30,6 +31,12 @@ struct UrlTarget {
  *        service here.
  */
 [[nodiscard]] bool isAcceptedRedirect(const UrlTarget& from, const UrlTarget& to);
+
+/**
+ * @brief Whether @p a and @p b lead to the same server: the same scheme, host
+ *        and port, as written.
+ */
+[[nodiscard]] bool isSameOrigin(const UrlTarget& a, const UrlTarget& b);
 
 /**
  * @brief Whether fetching @p target needs root certificates to verify the host.

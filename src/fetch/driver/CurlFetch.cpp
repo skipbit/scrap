@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <curl/curl.h>
 #include <curl/easy.h>
+#include <curl/header.h>
 #include <curl/urlapi.h>
 #include <expected>  // IWYU pragma: keep
 #include <memory>
@@ -23,6 +24,7 @@ namespace {
 constexpr int RedirectLimit = 10;
 constexpr long ConnectTimeoutSeconds = 30;
 constexpr long HttpOk = 200;
+constexpr long HttpUnauthorized = 401;
 constexpr long FirstRedirectStatus = 300;
 constexpr long PastLastRedirectStatus = 400;
 
@@ -50,6 +52,14 @@ struct UrlPartDeleter {
 };
 using UrlPart = std::unique_ptr<char, UrlPartDeleter>;
 
+struct HeaderListDeleter {
+    void operator()(curl_slist* list) const
+    {
+        curl_slist_free_all(list);
+    }
+};
+using HeaderList = std::unique_ptr<curl_slist, HeaderListDeleter>;
+
 /**
  * @brief Where the body of a response goes, and what went wrong putting it there.
  */
@@ -62,10 +72,10 @@ struct BodySink {
     std::error_code failure;
 };
 
-std::optional<std::string> urlPart(CURLU* url, const CURLUPart part)
+std::optional<std::string> urlPart(CURLU* url, const CURLUPart part, const unsigned int flags = 0)
 {
     char* text = nullptr;
-    if (curl_url_get(url, part, &text, 0) != CURLUE_OK) {
+    if (curl_url_get(url, part, &text, flags) != CURLUE_OK) {
         return std::nullopt;
     }
     const UrlPart owned{ text };
@@ -84,10 +94,11 @@ std::optional<UrlTarget> readTarget(const std::string& text)
     }
     auto scheme = urlPart(url.get(), CURLUPART_SCHEME);
     auto host = urlPart(url.get(), CURLUPART_HOST);
-    if ((! scheme.has_value()) || (! host.has_value())) {
+    auto port = urlPart(url.get(), CURLUPART_PORT, CURLU_DEFAULT_PORT);
+    if ((! scheme.has_value()) || (! host.has_value()) || (! port.has_value())) {
         return std::nullopt;
     }
-    return UrlTarget{ .scheme = std::move(*scheme), .host = std::move(*host) };
+    return UrlTarget{ .scheme = std::move(*scheme), .host = std::move(*host), .port = std::move(*port) };
 }
 
 /**
@@ -112,6 +123,36 @@ std::size_t receiveBody(const char* data, const std::size_t size, const std::siz
     }
     sink->failure = sink->file->append(std::string_view{ data, length });
     return sink->failure ? 0 : length;
+}
+
+/**
+ * The header lines of @p request as libcurl takes them, or nothing when there
+ * are none or they cannot be put together.
+ */
+std::expected<HeaderList, FetchError> headerList(const FetchRequest& request)
+{
+    HeaderList list;
+    for (const std::string& line : request.headers) {
+        curl_slist* longer = curl_slist_append(list.get(), line.c_str());
+        if (longer == nullptr) {
+            return std::unexpected(TransferFailure{ .url = request.url, .message = "cannot set up the request headers" });
+        }
+        static_cast<void>(list.release());
+        list.reset(longer);
+    }
+    return list;
+}
+
+/**
+ * What a 401 answer asks for, so a caller can authenticate and ask again.
+ */
+std::string authenticationAsked(CURL* easy)
+{
+    curl_header* header = nullptr;
+    if (curl_easy_header(easy, "WWW-Authenticate", 0, CURLH_HEADER, -1, &header) != CURLHE_OK) {
+        return {};
+    }
+    return std::string{ header->value };
 }
 
 void applyOptions(CURL* easy, const FetchRequest& request, const std::string& url, const UrlTarget& target, BodySink& sink, char* errorText)
@@ -188,7 +229,13 @@ std::expected<void, FetchError> transfer(const FetchRequest& request, File::Stag
     }
     sink.easy = easy.get();
 
+    auto headers = headerList(request);
+    if (! headers.has_value()) {
+        return std::unexpected(std::move(headers.error()));
+    }
+
     std::string url = request.url;
+    std::optional<UrlTarget> origin;
     std::optional<UrlTarget> previous;
     for (int hop = 0; hop <= RedirectLimit; ++hop) {
         const std::optional<UrlTarget> target = readTarget(url);
@@ -199,8 +246,15 @@ std::expected<void, FetchError> transfer(const FetchRequest& request, File::Stag
             return std::unexpected(NoCertificateBundle{ .url = url });
         }
 
+        if (! origin.has_value()) {
+            origin = target;
+        }
+
         errorText.fill('\0');
         applyOptions(easy.get(), request, url, *target, sink, errorText.data());
+        if (isSameOrigin(*origin, *target)) {
+            curl_easy_setopt(easy.get(), CURLOPT_HTTPHEADER, headers->get());
+        }
         const CURLcode code = curl_easy_perform(easy.get());
         if (sink.tooLarge) {
             return std::unexpected(ContentTooLarge{ .url = url, .limit = *request.sizeLimit });
@@ -219,7 +273,8 @@ std::expected<void, FetchError> transfer(const FetchRequest& request, File::Stag
         }
         auto next = redirectTarget(easy.get(), status);
         if (! next.has_value()) {
-            return std::unexpected(UnexpectedStatus{ .url = url, .status = status });
+            std::string asked = (status == HttpUnauthorized) ? authenticationAsked(easy.get()) : std::string{};
+            return std::unexpected(UnexpectedStatus{ .url = url, .status = status, .authenticate = std::move(asked) });
         }
         url = std::move(*next);
         previous = target;
