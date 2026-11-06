@@ -137,8 +137,10 @@ std::expected<HeaderList, FetchError> headerList(const FetchRequest& request)
         if (longer == nullptr) {
             return std::unexpected(TransferFailure{ .url = request.url, .message = "cannot set up the request headers" });
         }
-        static_cast<void>(list.release());
-        list.reset(longer);
+        // Appending returns the head of the list, which is new only for the first line.
+        if (list == nullptr) {
+            list.reset(longer);
+        }
     }
     return list;
 }
@@ -218,6 +220,40 @@ std::optional<std::string> redirectTarget(CURL* easy, const long status)
  * Redirects are followed here rather than by libcurl, which can limit their
  * schemes but not the hosts a scheme may lead to.
  */
+/**
+ * Where @p url leads, when it may be fetched after @p previous, the target of
+ * the redirect to it, if any.
+ */
+std::expected<UrlTarget, FetchError> acceptedTarget(const std::string& url, const std::optional<UrlTarget>& previous, const FetchRequest& request)
+{
+    const std::optional<UrlTarget> target = readTarget(url);
+    if ((! target.has_value()) || (! (previous.has_value() ? isAcceptedRedirect(*previous, *target) : isAccepted(*target)))) {
+        return std::unexpected(UrlRefused{ .url = url });
+    }
+    if (needsCertificates(*target) && (! request.certificateBundle.has_value())) {
+        return std::unexpected(NoCertificateBundle{ .url = url });
+    }
+    return *target;
+}
+
+/**
+ * What went wrong in a transfer of @p url that libcurl ended with @p code, if
+ * anything did.
+ */
+std::expected<void, FetchError> transferOutcome(const CURLcode code, const std::string& url, const FetchRequest& request, const BodySink& sink, const char* errorText)
+{
+    if (sink.tooLarge) {
+        return std::unexpected(ContentTooLarge{ .url = url, .limit = request.sizeLimit.value_or(0) });
+    }
+    if (sink.failure) {
+        return std::unexpected(CannotWriteDestination{ .path = request.destination, .code = sink.failure });
+    }
+    if (code != CURLE_OK) {
+        return std::unexpected(transferError(code, url, errorText));
+    }
+    return {};
+}
+
 std::expected<void, FetchError> transfer(const FetchRequest& request, File::StagedFile& file)
 {
     // These come before the handle, which holds on to them until it is cleaned up.
@@ -238,16 +274,12 @@ std::expected<void, FetchError> transfer(const FetchRequest& request, File::Stag
     std::optional<UrlTarget> origin;
     std::optional<UrlTarget> previous;
     for (int hop = 0; hop <= RedirectLimit; ++hop) {
-        const std::optional<UrlTarget> target = readTarget(url);
-        if ((! target.has_value()) || (! (previous.has_value() ? isAcceptedRedirect(*previous, *target) : isAccepted(*target)))) {
-            return std::unexpected(UrlRefused{ .url = url });
+        const auto target = acceptedTarget(url, previous, request);
+        if (! target.has_value()) {
+            return std::unexpected(target.error());
         }
-        if (needsCertificates(*target) && (! request.certificateBundle.has_value())) {
-            return std::unexpected(NoCertificateBundle{ .url = url });
-        }
-
         if (! origin.has_value()) {
-            origin = target;
+            origin = *target;
         }
 
         errorText.fill('\0');
@@ -256,14 +288,8 @@ std::expected<void, FetchError> transfer(const FetchRequest& request, File::Stag
             curl_easy_setopt(easy.get(), CURLOPT_HTTPHEADER, headers->get());
         }
         const CURLcode code = curl_easy_perform(easy.get());
-        if (sink.tooLarge) {
-            return std::unexpected(ContentTooLarge{ .url = url, .limit = *request.sizeLimit });
-        }
-        if (sink.failure) {
-            return std::unexpected(CannotWriteDestination{ .path = request.destination, .code = sink.failure });
-        }
-        if (code != CURLE_OK) {
-            return std::unexpected(transferError(code, url, errorText.data()));
+        if (auto outcome = transferOutcome(code, url, request, sink, errorText.data()); ! outcome.has_value()) {
+            return outcome;
         }
 
         long status = 0;
@@ -277,7 +303,7 @@ std::expected<void, FetchError> transfer(const FetchRequest& request, File::Stag
             return std::unexpected(UnexpectedStatus{ .url = url, .status = status, .authenticate = std::move(asked) });
         }
         url = std::move(*next);
-        previous = target;
+        previous = *target;
     }
     return std::unexpected(TooManyRedirects{ .url = url });
 }

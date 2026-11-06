@@ -38,7 +38,7 @@ HttpTestResponse redirectTo(const std::string& location, const int status = 302)
 
 FetchRequest requestFor(std::string url, std::filesystem::path destination)
 {
-    return { .url = std::move(url), .destination = std::move(destination), .certificateBundle = std::nullopt };
+    return { .url = std::move(url), .destination = std::move(destination), .certificateBundle = std::nullopt, .sizeLimit = std::nullopt, .headers = {} };
 }
 
 /**

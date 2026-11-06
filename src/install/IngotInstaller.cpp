@@ -152,7 +152,7 @@ struct IngotTransfer {
 std::expected<void, IngotInstallFailure> fetchChecked(const Toolchain::UrlSource& source, const IngotTransfer& transfer)
 {
     const std::filesystem::path& ingot = transfer.ingot;
-    const auto fetched = Fetch::fetchToFile({ .url = source.url, .destination = ingot, .certificateBundle = transfer.certificateBundle, .sizeLimit = IngotSizeLimit });
+    const auto fetched = Fetch::fetchToFile({ .url = source.url, .destination = ingot, .certificateBundle = transfer.certificateBundle, .sizeLimit = IngotSizeLimit, .headers = {} });
     if (! fetched.has_value()) {
         return std::unexpected(IngotNotFetched{ .error = fetched.error() });
     }

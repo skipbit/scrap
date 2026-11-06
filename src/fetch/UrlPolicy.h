@@ -11,7 +11,7 @@ namespace scrap::Fetch {
 struct UrlTarget {
     std::string scheme;
     std::string host;
-    std::string port = {};  ///< As written, or the scheme's own when none is.
+    std::string port;  ///< As written, or the scheme's own when none is.
 };
 
 /**

@@ -12,7 +12,6 @@
 #include <array>
 #include <cctype>
 #include <cstdint>
-#include <expected>
 #include <filesystem>
 #include <optional>
 #include <string>

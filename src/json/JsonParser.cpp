@@ -3,7 +3,6 @@
 #include "json/JsonValue.h"
 
 #include <cstddef>
-#include <expected>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -111,15 +110,17 @@ public:
             if (! finished.has_value()) {
                 return std::unexpected(std::move(finished.error()));
             }
-            if (! finished->has_value()) {
+            std::optional<Value>& value = *finished;
+            if (! value.has_value()) {
                 continue;
             }
-            auto placed = place(open, std::move(**finished));
+            auto placed = place(open, std::move(*value));
             if (! placed.has_value()) {
                 return std::unexpected(std::move(placed.error()));
             }
-            if (placed->has_value()) {
-                return wholeText(std::move(**placed));
+            std::optional<Value>& whole = *placed;
+            if (whole.has_value()) {
+                return wholeText(std::move(*whole));
             }
         }
     }

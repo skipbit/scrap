@@ -32,7 +32,7 @@ struct FetchRequest {
 
     /// Header lines, such as "Accept: text/plain", sent to the server of the URL
     /// alone and never to another one a redirect leads to.
-    std::vector<std::string> headers = {};
+    std::vector<std::string> headers;
 };
 
 /**
@@ -74,7 +74,7 @@ struct UnexpectedStatus {
     std::string url;
     long status = 0;
     /// What a 401 answer asks for in its WWW-Authenticate header; empty otherwise.
-    std::string authenticate = {};
+    std::string authenticate;
 };
 
 /**

@@ -5,7 +5,8 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <expected>
+#include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -44,10 +45,11 @@ std::expected<IngotLayer, std::string> readLayer(const Json::Value& layer)
         return std::unexpected(std::string{ "its layer has no SHA-256 digest" });
     }
     const Json::Value* size = layer.member("size");
-    if ((size == nullptr) || (! size->asUnsigned().has_value())) {
+    const std::optional<std::uint64_t> bytes = (size == nullptr) ? std::nullopt : size->asUnsigned();
+    if (! bytes.has_value()) {
         return std::unexpected(std::string{ "its layer has no size" });
     }
-    return IngotLayer{ .digest = *digest->asString(), .size = *size->asUnsigned() };
+    return IngotLayer{ .digest = *digest->asString(), .size = *bytes };
 }
 
 }  // anonymous namespace

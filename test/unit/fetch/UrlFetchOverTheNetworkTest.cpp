@@ -67,7 +67,7 @@ TEST(UrlFetchOverTheNetworkTest, VerifiesARealHostWithTheCertificatesOfThisMachi
     const std::optional<std::filesystem::path> bundle = findCertificateBundle("", knownCertificateBundles());
     ASSERT_TRUE(bundle.has_value());
 
-    const auto fetched = fetchToFile({ .url = std::string{ RealUrl }, .destination = temp.path() / "index.toml", .certificateBundle = bundle });
+    const auto fetched = fetchToFile({ .url = std::string{ RealUrl }, .destination = temp.path() / "index.toml", .certificateBundle = bundle, .sizeLimit = std::nullopt, .headers = {} });
 
     ASSERT_TRUE(fetched.has_value());
     const auto text = readWholeFile(temp.path() / "index.toml");
@@ -89,7 +89,7 @@ TEST(UrlFetchOverTheNetworkTest, RefusesARealHostTheCertificatesOfThisMachineDoN
     const std::optional<std::filesystem::path> bundle = findCertificateBundle("", knownCertificateBundles());
     ASSERT_TRUE(bundle.has_value());
 
-    const auto fetched = fetchToFile({ .url = std::string{ UntrustedUrl }, .destination = temp.path() / "out", .certificateBundle = bundle });
+    const auto fetched = fetchToFile({ .url = std::string{ UntrustedUrl }, .destination = temp.path() / "out", .certificateBundle = bundle, .sizeLimit = std::nullopt, .headers = {} });
 
     ASSERT_FALSE(fetched.has_value());
     EXPECT_TRUE(std::holds_alternative<CertificateFailure>(fetched.error()));
@@ -109,7 +109,7 @@ TEST(UrlFetchOverTheNetworkTest, RefusesARealHostItsCertificatesDoNotVouchFor)
     const auto unrelated = temp.path() / "unrelated.pem";
     ASSERT_FALSE(scrap::File::writeNewFile(unrelated, UnrelatedRoot).operator bool());
 
-    const auto fetched = fetchToFile({ .url = std::string{ RealUrl }, .destination = temp.path() / "index.toml", .certificateBundle = unrelated });
+    const auto fetched = fetchToFile({ .url = std::string{ RealUrl }, .destination = temp.path() / "index.toml", .certificateBundle = unrelated, .sizeLimit = std::nullopt, .headers = {} });
 
     ASSERT_FALSE(fetched.has_value());
     EXPECT_TRUE(std::holds_alternative<CertificateFailure>(fetched.error()));
