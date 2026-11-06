@@ -148,9 +148,20 @@ TEST(ToolchainInstallDiagnosticTest, AsksForAnUpdateWhenTheIndexFormatIsUnknown)
     EXPECT_EQ(text, "error: the toolchain index has the format 2, which this scrap cannot read\nhint: update scrap and run the command again\n");
 }
 
-TEST(ToolchainInstallDiagnosticTest, AsksForAnUpdateForABuildKeptInARegistry)
+TEST(ToolchainInstallDiagnosticTest, SaysWhatOfTheRegistryCannotBeUsed)
 {
-    const std::string text = renderInstallFailure("gcc", RegistryNotSupported{});
+    const std::string text = renderInstallFailure("gcc@15", RegistryAnswerUnusable{ .url = "https://ghcr.io/v2/x/gcc/manifests/sha256:abc", .reason = "it gave no token" });
 
-    EXPECT_NE(text.find("hint: update scrap and run the command again\n"), std::string::npos) << text;
+    EXPECT_EQ(text,
+              "error: cannot install 'gcc@15': the registry answered 'https://ghcr.io/v2/x/gcc/manifests/sha256:abc' with what scrap cannot use: it gave no token\n"
+              "hint: run the command again; if it keeps failing, report it\n");
+}
+
+TEST(ToolchainInstallDiagnosticTest, SaysWhichRegistryAndTagSayNotWhereTheBuildIsKept)
+{
+    const std::string text = renderInstallFailure("gcc@15", RegistryNotLocated{ .registry = "ghcr.io/x", .tag = "gcc" });
+
+    EXPECT_EQ(text,
+              "error: cannot install 'gcc@15': the index names the registry 'ghcr.io/x' and the tag 'gcc', which do not say where its build is kept\n"
+              "hint: run the command again; if it keeps failing, report it\n");
 }

@@ -1,6 +1,7 @@
 #include "install/IngotInstaller.h"
 
 #include "digest/Sha256.h"
+#include "fetch/UrlFetch.h"
 #include "support/HttpTestServer.h"
 #include "support/StoredXz.h"
 #include "support/TarArchiveBuilder.h"
@@ -308,13 +309,97 @@ TEST_F(IngotInstallerTest, KeepsWhatIsInstalledWhenReplacingItFails)
     EXPECT_EQ(parseInstallRecord(_home.readFile(destination() / InstallRecordName))->ingotIntegrity, sha256Of(first));
 }
 
-TEST_F(IngotInstallerTest, DoesNotYetFetchFromARegistry)
+/**
+ * A registry on this machine that serves @p ingot under @p manifestDigest, or
+ * under the digest of its manifest when that is empty.
+ */
+struct ServedFromARegistry {
+    explicit ServedFromARegistry(const std::string& ingot, std::string blob = {})
+    {
+        const std::string layerDigest = "sha256:" + sha256Of(ingot);
+        manifest = R"({"mediaType": "application/vnd.oci.image.manifest.v1+json", "layers": [{"mediaType": "application/x-tar+xz", "digest": ")" + layerDigest
+                   + R"(", "size": )" + std::to_string(ingot.size()) + "}]}";
+        digest = "sha256:" + sha256Of(manifest);
+        server.respond("/v2/example/gcc/manifests/" + digest, { .status = 200, .headers = {}, .body = manifest, .stalls = false });
+        server.respond("/v2/example/gcc/blobs/" + layerDigest, { .status = 200, .headers = {}, .body = blob.empty() ? ingot : blob, .stalls = false });
+    }
+
+    [[nodiscard]] RegistrySource source() const
+    {
+        return { .registry = "127.0.0.1:" + std::to_string(server.port()) + "/example", .tag = "gcc:15.2.0", .digest = digest };
+    }
+
+    HttpTestServer server{ {} };
+    std::string manifest;
+    std::string digest;
+};
+
+TEST_F(IngotInstallerTest, InstallsAnIngotFromARegistryAndRecordsItsDigest)
 {
-    const auto installed = installIngot(requestFor(RegistrySource{ .registry = "ghcr.io/example", .tag = "gcc:15.2.0", .digest = "sha256:abc" }));
+    const ServedFromARegistry registry(gccIngot());
+
+    const auto installed = installIngot(requestFor(registry.source()));
+
+    ASSERT_TRUE(installed.has_value());
+    EXPECT_EQ(_home.readFile(destination() / "bin" / "g++"), "new compiler");
+    EXPECT_EQ(parseInstallRecord(_home.readFile(destination() / InstallRecordName))->ingotIntegrity, registry.digest);
+    EXPECT_EQ(_steps, (std::vector<std::string>{ "Downloading 'gcc@15.2.0'", "Extracting 'gcc@15.2.0'" }));
+    EXPECT_TRUE(std::filesystem::is_empty(temporaryDirectory(_home.path())));
+}
+
+TEST_F(IngotInstallerTest, RefusesALayerOtherThanTheManifestNames)
+{
+    const std::string ingot = gccIngot();
+    const ServedFromARegistry registry(ingot, gccIngot("other compiler"));
+
+    const auto installed = installIngot(requestFor(registry.source()));
 
     ASSERT_FALSE(installed.has_value());
-    EXPECT_TRUE(std::holds_alternative<RegistryNotSupported>(installed.error()));
-    EXPECT_FALSE(std::filesystem::exists(_home.path() / "toolchains"));
+    EXPECT_TRUE(std::holds_alternative<IngotDoesNotMatch>(installed.error()));
+    expectNothingLeftBehind();
+}
+
+TEST_F(IngotInstallerTest, ReportsAManifestThatIsNotOneOfAnIngot)
+{
+    ServedFromARegistry registry(gccIngot());
+    const std::string manifest = R"({"mediaType": "application/vnd.oci.image.manifest.v1+json", "layers": []})";
+    registry.digest = "sha256:" + sha256Of(manifest);
+    registry.server.respond("/v2/example/gcc/manifests/" + registry.digest, { .status = 200, .headers = {}, .body = manifest, .stalls = false });
+
+    const auto installed = installIngot(requestFor(registry.source()));
+
+    ASSERT_FALSE(installed.has_value());
+    const auto* unusable = std::get_if<RegistryAnswerUnusable>(&installed.error());
+    ASSERT_NE(unusable, nullptr);
+    EXPECT_EQ(unusable->url, "http://" + registry.source().registry.substr(0, registry.source().registry.find('/')) + "/v2/example/gcc/manifests/" + registry.digest);
+    EXPECT_EQ(unusable->reason, "its manifest is not one of an ingot: it does not hold exactly one layer");
+    expectNothingLeftBehind();
+}
+
+TEST_F(IngotInstallerTest, ReportsARegistryItCannotReach)
+{
+    ServedFromARegistry registry(gccIngot());
+    registry.digest = "sha256:" + sha256Of("another manifest");
+
+    const auto installed = installIngot(requestFor(registry.source()));
+
+    ASSERT_FALSE(installed.has_value());
+    const auto* notFetched = std::get_if<IngotNotFetched>(&installed.error());
+    ASSERT_NE(notFetched, nullptr);
+    EXPECT_TRUE(std::holds_alternative<scrap::Fetch::UnexpectedStatus>(notFetched->error));
+    expectNothingLeftBehind();
+}
+
+TEST_F(IngotInstallerTest, RefusesARegistryAndTagThatSayNotWhereTheIngotIsKept)
+{
+    const auto installed = installIngot(requestFor(RegistrySource{ .registry = "ghcr.io/example", .tag = "gcc", .digest = "sha256:abc" }));
+
+    ASSERT_FALSE(installed.has_value());
+    const auto* notLocated = std::get_if<RegistryNotLocated>(&installed.error());
+    ASSERT_NE(notLocated, nullptr);
+    EXPECT_EQ(notLocated->registry, "ghcr.io/example");
+    EXPECT_EQ(notLocated->tag, "gcc");
+    expectNothingLeftBehind();
 }
 
 /**

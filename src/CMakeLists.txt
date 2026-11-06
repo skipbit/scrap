@@ -158,7 +158,7 @@ add_library(scrap_install STATIC
 target_include_directories(scrap_install PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(scrap_install
     PUBLIC scrap_toolchain scrap_fetch
-    PRIVATE scrap_digest scrap_file scrap_tar scrap_xz
+    PRIVATE scrap_digest scrap_file scrap_registry scrap_tar scrap_xz
 )
 scrap_apply_compile_settings(scrap_install WARNINGS_AS_ERRORS)
 

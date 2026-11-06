@@ -5,6 +5,8 @@
 #include "file/WholeFile.h"
 #include "install/IngotUnpack.h"
 #include "install/UnpackedToolchain.h"
+#include "registry/IngotLocation.h"
+#include "registry/RegistryFetch.h"
 #include "toolchain/IngotSelection.h"
 #include "toolchain/InstallRecord.h"
 #include "toolchain/ScrapHomeLayout.h"
@@ -136,11 +138,21 @@ std::expected<void, IngotNotPlaced> place(const std::filesystem::path& finished,
 }
 
 /**
- * Fetch the ingot @p source names to @p ingot, and check it against the index.
+ * Where a fetched ingot goes, and what fetching it may use.
  */
-std::expected<void, IngotInstallFailure> fetchChecked(const Toolchain::UrlSource& source, const std::filesystem::path& ingot, const std::optional<std::filesystem::path>& certificateBundle)
+struct IngotTransfer {
+    std::filesystem::path ingot;
+    std::filesystem::path workDirectory;
+    std::optional<std::filesystem::path> certificateBundle;
+};
+
+/**
+ * Fetch the ingot @p source names, and check it against the index.
+ */
+std::expected<void, IngotInstallFailure> fetchChecked(const Toolchain::UrlSource& source, const IngotTransfer& transfer)
 {
-    const auto fetched = Fetch::fetchToFile({ .url = source.url, .destination = ingot, .certificateBundle = certificateBundle, .sizeLimit = IngotSizeLimit });
+    const std::filesystem::path& ingot = transfer.ingot;
+    const auto fetched = Fetch::fetchToFile({ .url = source.url, .destination = ingot, .certificateBundle = transfer.certificateBundle, .sizeLimit = IngotSizeLimit });
     if (! fetched.has_value()) {
         return std::unexpected(IngotNotFetched{ .error = fetched.error() });
     }
@@ -150,6 +162,51 @@ std::expected<void, IngotInstallFailure> fetchChecked(const Toolchain::UrlSource
     }
     if (*digest != source.sha256) {
         return std::unexpected(IngotDoesNotMatch{});
+    }
+    return {};
+}
+
+IngotInstallFailure installFailureOf(Fetch::FetchError error)
+{
+    return IngotNotFetched{ .error = std::move(error) };
+}
+
+IngotInstallFailure installFailureOf(const Registry::ContentDoesNotMatch&)
+{
+    return IngotDoesNotMatch{};
+}
+
+IngotInstallFailure installFailureOf(Registry::AnswerUnusable answer)
+{
+    return RegistryAnswerUnusable{ .url = std::move(answer.url), .reason = std::move(answer.reason) };
+}
+
+IngotInstallFailure installFailureOf(const Registry::FetchedFileUnreadable& unreadable)
+{
+    return IngotNotUnpacked{ .reason = "cannot read '" + unreadable.path.string() + "': " + unreadable.code.message(), .code = unreadable.code };
+}
+
+/**
+ * Fetch the ingot @p source names from its registry, which checks it against
+ * the digest of the index.
+ */
+std::expected<void, IngotInstallFailure> fetchChecked(const Toolchain::RegistrySource& source, const IngotTransfer& transfer)
+{
+    auto location = Registry::locateIngot(source.registry, source.tag, source.digest);
+    if (! location.has_value()) {
+        return std::unexpected(RegistryNotLocated{ .registry = source.registry, .tag = source.tag });
+    }
+    auto fetched = Registry::fetchIngot({ .location = std::move(*location),
+                                          .destination = transfer.ingot,
+                                          .workDirectory = transfer.workDirectory,
+                                          .certificateBundle = transfer.certificateBundle,
+                                          .sizeLimit = IngotSizeLimit });
+    if (! fetched.has_value()) {
+        return std::unexpected(std::visit(
+            [](auto&& failure) {
+            return installFailureOf(std::forward<decltype(failure)>(failure));
+        },
+            std::move(fetched.error())));
     }
     return {};
 }
@@ -203,11 +260,6 @@ void discardAbandonedWork(const std::filesystem::path& workDirectory, const std:
 std::expected<std::filesystem::path, IngotInstallFailure> installIngot(const IngotInstallRequest& request)
 {
     const Toolchain::SelectedIngot& selected = request.selected;
-    const auto* source = std::get_if<Toolchain::UrlSource>(&selected.ingot.source);
-    if (source == nullptr) {
-        return std::unexpected(RegistryNotSupported{});
-    }
-
     const std::filesystem::path workRoot = Toolchain::temporaryDirectory(request.scrapHome);
     discardAbandonedWork(workRoot, std::filesystem::file_time_type::clock::now());
     auto work = WorkDirectory::below(workRoot);
@@ -218,7 +270,13 @@ std::expected<std::filesystem::path, IngotInstallFailure> installIngot(const Ing
     const std::string name = selected.family + "@" + selected.version.text();
     const std::filesystem::path ingot = work->path() / "ingot";
     request.announce("Downloading '" + name + "'");
-    if (auto fetched = fetchChecked(*source, ingot, request.certificateBundle); ! fetched.has_value()) {
+    const IngotTransfer transfer{ .ingot = ingot, .workDirectory = work->path(), .certificateBundle = request.certificateBundle };
+    auto fetched = std::visit(
+        [&transfer](const auto& source) {
+        return fetchChecked(source, transfer);
+    },
+        selected.ingot.source);
+    if (! fetched.has_value()) {
         return std::unexpected(std::move(fetched.error()));
     }
 

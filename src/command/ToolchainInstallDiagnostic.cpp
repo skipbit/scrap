@@ -163,9 +163,14 @@ std::string render(const std::string_view specifier, const Install::IngotDoesNot
     return "error: the download of '" + printableTypedEcho(specifier) + "' does not match the index\n" + std::string{ RetryHint };
 }
 
-std::string render(const std::string_view specifier, const Install::RegistryNotSupported&)
+std::string render(const std::string_view specifier, const Install::RegistryNotLocated& failure)
 {
-    return cannotInstall(specifier, "its build is kept in a registry, which this scrap cannot fetch from", "hint: update scrap and run the command again\n");
+    return cannotInstall(specifier, "the index names the registry '" + failure.registry + "' and the tag '" + failure.tag + "', which do not say where its build is kept", RetryHint);
+}
+
+std::string render(const std::string_view specifier, const Install::RegistryAnswerUnusable& failure)
+{
+    return cannotInstall(specifier, "the registry answered '" + failure.url + "' with what scrap cannot use: " + failure.reason, RetryHint);
 }
 
 std::string render(const std::string_view specifier, const Install::IngotNotUnpacked& failure)
