@@ -131,6 +131,8 @@ scrap_add_unit_test(registry SOURCES
     unit/registry/BearerChallengeTest.cpp
     unit/registry/IngotLocationTest.cpp
     unit/registry/IngotManifestTest.cpp
+    unit/registry/RegistryFetchTest.cpp
+    PROPERTIES TIMEOUT 120
 )
 
 scrap_add_unit_test(install SOURCES

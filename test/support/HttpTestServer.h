@@ -20,6 +20,10 @@ struct HttpTestResponse {
     std::string body;
     bool stalls = false;          ///< Say nothing, and hold the connection open.
     std::size_t bytesCutOff = 0;  ///< Promise this many bytes beyond the body, and hang up.
+    /// A header line, such as "Authorization: Bearer x", without which the
+    /// answer is 401 with this challenge instead.
+    std::string requiredHeader = {};
+    std::string challenge = {};
 };
 
 /**

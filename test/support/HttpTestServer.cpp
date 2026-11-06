@@ -177,6 +177,9 @@ void HttpTestServer::answer(const int connection)
             response = found->second;
         }
     }
+    if ((! response.requiredHeader.empty()) && (request.find("\r\n" + response.requiredHeader + "\r\n") == std::string::npos)) {
+        response = HttpTestResponse{ .status = 401, .headers = "WWW-Authenticate: " + response.challenge + "\r\n", .body = {}, .stalls = false, .bytesCutOff = 0 };
+    }
     if (response.stalls) {
         // Returns when the client hangs up or the server stops.
         while (waitUntilReadable(connection)) {
