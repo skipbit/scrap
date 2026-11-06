@@ -127,6 +127,12 @@ scrap_add_unit_test(fetch SOURCES
     PROPERTIES TIMEOUT 120
 )
 
+scrap_add_unit_test(registry SOURCES
+    unit/registry/BearerChallengeTest.cpp
+    unit/registry/IngotLocationTest.cpp
+    unit/registry/IngotManifestTest.cpp
+)
+
 scrap_add_unit_test(install SOURCES
     unit/install/IndexCopyTest.cpp
     unit/install/IngotInstallerTest.cpp

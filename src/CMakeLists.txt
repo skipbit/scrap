@@ -84,6 +84,16 @@ target_include_directories(scrap_fetch PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(scrap_fetch PRIVATE scrap_file scrap_libcurl)
 scrap_apply_compile_settings(scrap_fetch WARNINGS_AS_ERRORS)
 
+# Fetching ingots from an OCI registry
+add_library(scrap_registry STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/registry/BearerChallenge.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/registry/IngotLocation.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/registry/IngotManifest.cpp
+)
+target_include_directories(scrap_registry PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(scrap_registry PRIVATE scrap_fetch scrap_json)
+scrap_apply_compile_settings(scrap_registry WARNINGS_AS_ERRORS)
+
 # Project configuration (scrap.toml)
 add_library(scrap_project STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/project/DefaultTemplate.cpp
