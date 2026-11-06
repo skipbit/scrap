@@ -48,17 +48,27 @@
 namespace {
 
 /**
- * Whether text is a version banner: the program name, a release triple, and
- * an optional parenthesised description of the build.
+ * The release triple of a version banner: the program name, a release triple,
+ * and an optional parenthesised description of the build. Nothing when text
+ * is not a banner.
  *
  * The check is structural on purpose. Comparing against the exact string the
  * build produced would put the same value on both sides of the assertion, so
  * no wrong derivation could fail it.
  */
+std::optional<std::string> releaseInBanner(const std::string& text)
+{
+    static const std::regex Pattern{ R"(^scrap ([0-9]+\.[0-9]+\.[0-9]+)( \(.+\))?$)" };
+    std::smatch match;
+    if (! std::regex_match(text, match, Pattern)) {
+        return std::nullopt;
+    }
+    return match[1].str();
+}
+
 bool isVersionBanner(const std::string& text)
 {
-    static const std::regex Pattern{ R"(^scrap [0-9]+\.[0-9]+\.[0-9]+( \(.+\))?$)" };
-    return std::regex_match(text, Pattern);
+    return releaseInBanner(text).has_value();
 }
 
 /**
@@ -3514,10 +3524,12 @@ TEST_F(CliE2ETest, InstallRefusesAToolchainThatNeedsANewerScrap)
  */
 TEST_F(CliE2ETest, InstallTakesAToolchainThisScrapIsNewEnoughFor)
 {
-    const std::string banner = trim(runScrap({ "--version" }, {}, _root).stdoutText);
-    ASSERT_TRUE(isVersionBanner(banner)) << "banner: " << banner;
-    const std::string running = banner.substr(banner.find(' ') + 1, banner.find(" (") - banner.find(' ') - 1);
-    const ToolchainServer server("gcc", { { .version = "15.2.0", .ingot = compilerIngot(), .extraToolchainKeys = "min_scrap_version = '" + running + "'\n" } });
+    const auto version = runScrap({ "--version" }, {}, _root);
+    ASSERT_TRUE(version.exitedNormally);
+    ASSERT_EQ(version.exitCode, 0) << version.stderrText;
+    const std::optional<std::string> running = releaseInBanner(trim(version.stdoutText));
+    ASSERT_TRUE(running.has_value()) << "banner: " << version.stdoutText;
+    const ToolchainServer server("gcc", { { .version = "15.2.0", .ingot = compilerIngot(), .extraToolchainKeys = "min_scrap_version = '" + *running + "'\n" } });
 
     auto result = runScrap({ "toolchain", "install", "gcc@15.2.0" }, { server.indexVariable() }, _root);
 
