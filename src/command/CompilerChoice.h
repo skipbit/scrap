@@ -16,6 +16,8 @@ namespace scrap::Command {
 struct ChosenCompiler {
     std::filesystem::path compiler;                                ///< The program to run, as an absolute path.
     std::vector<std::filesystem::path> runtimeLibraryDirectories;  ///< Where its runtime libraries are; none for the system's compiler.
+    std::vector<std::string> compileArguments;                     ///< What it is given to compile; none for the system's compiler.
+    std::vector<std::string> linkArguments;                        ///< What it is given to link; none for the system's compiler.
     std::string announcement;                                      ///< The line naming it, ending in a newline.
 };
 

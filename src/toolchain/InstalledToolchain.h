@@ -24,6 +24,8 @@ struct InstalledToolchain {
     std::filesystem::path directory;                               ///< <SCRAP_HOME>/toolchains/<family>/<version>/<platform>-<arch>
     std::filesystem::path compiler;                                ///< The C++ compiler inside the directory.
     std::vector<std::filesystem::path> runtimeLibraryDirectories;  ///< Where its runtime libraries are inside the directory.
+    std::vector<std::string> compileArguments;                     ///< What its compiler is given to compile with it.
+    std::vector<std::string> linkArguments;                        ///< What its compiler is given to link with it.
 
     /** The name that selects it, as <family>@<version>. */
     [[nodiscard]] std::string name() const;

@@ -291,7 +291,9 @@ std::expected<std::filesystem::path, int> buildProject(const RuntimeEnvironment&
         .driver = Compile::CompilerDriver{ Toolchain::identifyCompiler(compiler->compiler) },
         .standard = project.manifest.package.standard,
         .profile = profile,
-        .runtimeLibraryDirectories = compiler->runtimeLibraryDirectories
+        .runtimeLibraryDirectories = compiler->runtimeLibraryDirectories,
+        .compileArguments = compiler->compileArguments,
+        .linkArguments = compiler->linkArguments
     };
     const auto compiles = Compile::planCompileCommands(settings, *sources);
     const auto written = Compile::writeCompilationDatabase(project.root / buildDirectory, compiles);

@@ -420,6 +420,20 @@ protected:
     }
 
     /**
+     * Record @p compileArgument and @p linkArgument as what @p family
+     * @p version, laid out by installToolchain(), needs to compile and to
+     * link, for every host.
+     */
+    void recordToolchainArguments(std::string_view family, std::string_view version, std::string_view compileArgument, std::string_view linkArgument) const
+    {
+        for (const char* host : { "linux-x86_64", "linux-aarch64", "darwin-x86_64", "darwin-aarch64" }) {
+            const std::string toolchain = "toolchains/" + std::string{ family } + "/" + std::string{ version } + "/" + host;
+            _temp->writeFile(toolchain + "/.scrap-toolchain.toml",
+                             "compiler = 'bin/g++'\ncompile-args = ['" + std::string{ compileArgument } + "']\nlink-args = ['" + std::string{ linkArgument } + "']\n");
+        }
+    }
+
+    /**
      * The toolchains the compilers installWorkingToolchain() lays out have
      * run as, one line each, in order.
      */
@@ -2936,6 +2950,31 @@ TEST_F(CliE2ETest, BuildEmbedsTheRuntimeLibraryDirectoryOfTheToolchain)
     EXPECT_TRUE(directory.ends_with("/lib64")) << directory;
     EXPECT_NE(directory.find("toolchains/gcc/15.2.0/"), std::string::npos) << directory;
     EXPECT_TRUE(std::filesystem::path{ directory }.is_absolute()) << directory;
+}
+
+/**
+ * The arguments the record of an installed toolchain names are given to
+ * its compiler: the compile ones to each compile, the link ones to each
+ * link.
+ */
+TEST_F(CliE2ETest, BuildGivesTheCompilerTheArgumentsTheToolchainRecords)
+{
+    installWorkingToolchain("llvm", "22.1.8");
+    recordToolchainArguments("llvm", "22.1.8", "-DSCRAP_RECORDED_COMPILE_ARGUMENT", "-Wl,-rpath,/scrap-recorded-link-argument");
+    writeFile("hello/scrap.toml", ValidManifest);
+    writeFile("hello/src/main.cpp", MainSource);
+
+    auto result = runScrap({ "build" }, { "SCRAP_TOOLCHAIN=llvm@22.1.8" }, _root / "hello", BuildTimeout);
+
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    const std::string arguments = readFile("compiler-arguments");
+    const auto compile = arguments.find("-DSCRAP_RECORDED_COMPILE_ARGUMENT\n");
+    const auto link = arguments.find("-Wl,-rpath,/scrap-recorded-link-argument\n");
+    ASSERT_NE(compile, std::string::npos) << arguments;
+    ASSERT_NE(link, std::string::npos) << arguments;
+    EXPECT_LT(arguments.find("\n-c\n"), link) << arguments;
+    EXPECT_GT(arguments.find("\n-c\n", compile), compile) << arguments;
+    EXPECT_EQ(arguments.find("-DSCRAP_RECORDED_COMPILE_ARGUMENT\n", compile + 1), std::string::npos) << arguments;
 }
 
 /**
