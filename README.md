@@ -292,7 +292,7 @@ scrap follows these core principles:
 
 1. **Convention over Configuration** - Sensible defaults that just work
 2. **Reproducible Builds** - Same input, same output, everywhere
-3. **Modern C++ First** - Built for C++11 and later, with C++23 by default, not C++98
+3. **Modern C++ First** - New projects start on a modern standard; older ones are there when a project needs them
 4. **Community Driven** - Open source, open development
 5. **Developer Experience** - Making C++ development enjoyable
 
