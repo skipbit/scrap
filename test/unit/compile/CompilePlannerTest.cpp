@@ -43,8 +43,7 @@ BuildSettings settingsFor(const CompilerIdentity& identity,
                           .standard = standard,
                           .profile = profile,
                           .runtimeLibraryDirectories = {},
-                          .compileArguments = {},
-                          .linkArguments = {} };
+                          .arguments = { .compile = {}, .link = {} } };
 }
 
 TargetSources targetWithSources(TargetKind kind, const char* name, const char* entryPoint, std::vector<std::filesystem::path> sources)
@@ -134,7 +133,7 @@ TEST(CompilePlannerTest, CompilesASourceFromTheProjectRoot)
 TEST(CompilePlannerTest, CompilesWithTheArgumentsTheToolchainNeeds)
 {
     BuildSettings settings = settingsFor(Gcc13);
-    settings.compileArguments = { "-stdlib=libc++", "-isysroot", "/sdk" };
+    settings.arguments.compile = { "-stdlib=libc++", "-isysroot", "/sdk" };
 
     const auto commands = planCompileCommands(settings, { executableWithSources("hello", "src/main.cpp", { "src/main.cpp" }) });
 
@@ -437,7 +436,7 @@ TEST(CompilePlannerTest, LinksWithTheArgumentsTheToolchainNeeds)
 {
     BuildSettings settings = settingsFor(CompilerIdentity{});
     settings.runtimeLibraryDirectories = { "/home/me/.scrap/llvm/lib" };
-    settings.linkArguments = { "-stdlib=libc++", "-fuse-ld=lld" };
+    settings.arguments.link = { "-stdlib=libc++", "-fuse-ld=lld" };
 
     const auto commands = planLinkCommands(settings,
                                            { executableWithSources("hello", "src/main.cpp", { "src/main.cpp" }),

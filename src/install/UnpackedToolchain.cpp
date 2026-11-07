@@ -1,5 +1,7 @@
 #include "install/UnpackedToolchain.h"
 
+#include "toolchain/ToolchainArguments.h"
+
 #include <algorithm>
 #include <filesystem>
 #include <string>
@@ -75,16 +77,16 @@ std::vector<std::filesystem::path> findRuntimeLibraryDirectories(const std::file
     return found;
 }
 
-RuntimeArguments runtimeArgumentsFor(std::string_view platform, const std::filesystem::path& root)
+Toolchain::ToolchainArguments runtimeArgumentsFor(std::string_view platform, const std::filesystem::path& root)
 {
     if (librariesBelow(root, isLibcxxName).empty()) {
-        return RuntimeArguments{ .compile = {}, .link = {} };
+        return Toolchain::ToolchainArguments{ .compile = {}, .link = {} };
     }
     if (platform == "darwin") {
-        return RuntimeArguments{ .compile = {}, .link = { "-lc++abi" } };
+        return Toolchain::ToolchainArguments{ .compile = {}, .link = { "-lc++abi" } };
     }
-    return RuntimeArguments{ .compile = { "-stdlib=libc++" },
-                             .link = { "-stdlib=libc++", "-fuse-ld=lld", "-rtlib=compiler-rt", "-unwindlib=libunwind" } };
+    return Toolchain::ToolchainArguments{ .compile = { "-stdlib=libc++" },
+                                          .link = { "-stdlib=libc++", "-fuse-ld=lld", "-rtlib=compiler-rt", "-unwindlib=libunwind" } };
 }
 
 }  // namespace scrap::Install

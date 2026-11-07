@@ -230,11 +230,9 @@ std::expected<std::filesystem::path, IngotInstallFailure> prepareToolchain(const
     if (! std::filesystem::exists(root / compiler, ec)) {
         return std::unexpected(IngotNotUnpacked{ .reason = "the ingot holds no '" + compiler.string() + "'", .code = {} });
     }
-    RuntimeArguments arguments = runtimeArgumentsFor(selected.ingot.platform, root);
     const Toolchain::InstallRecord record{ .compiler = compiler,
                                            .runtimeLibraryDirectories = findRuntimeLibraryDirectories(root),
-                                           .compileArguments = std::move(arguments.compile),
-                                           .linkArguments = std::move(arguments.link),
+                                           .arguments = runtimeArgumentsFor(selected.ingot.platform, root),
                                            .ingotIntegrity = Toolchain::integrityOf(selected.ingot) };
     const std::filesystem::path recordFile = root / Toolchain::InstallRecordName;
     ec = File::writeNewFile(recordFile, Toolchain::renderInstallRecord(record));

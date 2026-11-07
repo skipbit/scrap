@@ -22,6 +22,7 @@
 #include "toolchain/HostEnvironment.h"
 #include "toolchain/MacSdk.h"
 #include "toolchain/SystemArchiver.h"
+#include "toolchain/ToolchainArguments.h"
 
 #include <algorithm>
 #include <expected>  // IWYU pragma: keep
@@ -152,13 +153,13 @@ std::expected<std::vector<std::string>, int> sdkArgumentsFor(const RuntimeEnviro
 }
 
 /**
- * @p first followed by @p second.
+ * @p arguments with @p sdk added to both its lists.
  */
-std::vector<std::string> joined(const std::vector<std::string>& first, const std::vector<std::string>& second)
+Toolchain::ToolchainArguments withSdk(Toolchain::ToolchainArguments arguments, const std::vector<std::string>& sdk)
 {
-    std::vector<std::string> both = first;
-    both.insert(both.end(), second.begin(), second.end());
-    return both;
+    arguments.compile.insert(arguments.compile.end(), sdk.begin(), sdk.end());
+    arguments.link.insert(arguments.link.end(), sdk.begin(), sdk.end());
+    return arguments;
 }
 
 /**
@@ -187,8 +188,7 @@ std::expected<Compile::BuildSettings, int> settingsFor(const RuntimeEnvironment&
         .standard = project.manifest.package.standard,
         .profile = profile,
         .runtimeLibraryDirectories = compiler->runtimeLibraryDirectories,
-        .compileArguments = joined(compiler->compileArguments, *sdk),
-        .linkArguments = joined(compiler->linkArguments, *sdk)
+        .arguments = withSdk(compiler->arguments, *sdk)
     };
 }
 

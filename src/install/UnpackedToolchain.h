@@ -1,7 +1,8 @@
 #pragma once
 
+#include "toolchain/ToolchainArguments.h"
+
 #include <filesystem>
-#include <string>
 #include <string_view>
 #include <vector>
 
@@ -20,15 +21,6 @@ namespace scrap::Install {
 [[nodiscard]] std::vector<std::filesystem::path> findRuntimeLibraryDirectories(const std::filesystem::path& root);
 
 /**
- * @brief What a compiler is given to build with the runtime libraries of its
- *        toolchain.
- */
-struct RuntimeArguments {
-    std::vector<std::string> compile;  ///< Given to every compile.
-    std::vector<std::string> link;     ///< Given to every link.
-};
-
-/**
  * @brief What the compiler of the toolchain at @p root needs to build with
  *        the runtime libraries the toolchain holds, on @p platform.
  *
@@ -42,6 +34,6 @@ struct RuntimeArguments {
  * @param platform The platform of the ingot, as the index spells it.
  * @param root Where the toolchain starts.
  */
-[[nodiscard]] RuntimeArguments runtimeArgumentsFor(std::string_view platform, const std::filesystem::path& root);
+[[nodiscard]] Toolchain::ToolchainArguments runtimeArgumentsFor(std::string_view platform, const std::filesystem::path& root);
 
 }  // namespace scrap::Install

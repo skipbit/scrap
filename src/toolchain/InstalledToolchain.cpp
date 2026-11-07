@@ -102,8 +102,7 @@ std::expected<InstalledToolchain, std::string> readInstalled(const std::string& 
                                .directory = directory,
                                .compiler = directory / record->compiler,
                                .runtimeLibraryDirectories = std::move(runtimeLibraryDirectories),
-                               .compileArguments = record->compileArguments,
-                               .linkArguments = record->linkArguments };
+                               .arguments = record->arguments };
 }
 
 }  // anonymous namespace

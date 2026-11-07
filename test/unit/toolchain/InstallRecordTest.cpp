@@ -106,8 +106,7 @@ TEST(InstallRecordTest, ReadsBackWhatItRenders)
 {
     const InstallRecord written{ .compiler = "bin/clang++",
                                  .runtimeLibraryDirectories = { "lib64", "lib/x86_64-unknown-linux-gnu" },
-                                 .compileArguments = { "-stdlib=libc++" },
-                                 .linkArguments = { "-stdlib=libc++", "-fuse-ld=lld" },
+                                 .arguments = { .compile = { "-stdlib=libc++" }, .link = { "-stdlib=libc++", "-fuse-ld=lld" } },
                                  .ingotIntegrity = "sha256:abc" };
 
     const auto read = parseInstallRecord(renderInstallRecord(written));
@@ -115,14 +114,14 @@ TEST(InstallRecordTest, ReadsBackWhatItRenders)
     ASSERT_TRUE(read.has_value());
     EXPECT_EQ(read->compiler, written.compiler);
     EXPECT_EQ(read->runtimeLibraryDirectories, written.runtimeLibraryDirectories);
-    EXPECT_EQ(read->compileArguments, written.compileArguments);
-    EXPECT_EQ(read->linkArguments, written.linkArguments);
+    EXPECT_EQ(read->arguments.compile, written.arguments.compile);
+    EXPECT_EQ(read->arguments.link, written.arguments.link);
     EXPECT_EQ(read->ingotIntegrity, written.ingotIntegrity);
 }
 
 TEST(InstallRecordTest, RendersNoIntegrityValueWhenThereIsNone)
 {
-    const InstallRecord written{ .compiler = "bin/g++", .runtimeLibraryDirectories = {}, .compileArguments = {}, .linkArguments = {} };
+    const InstallRecord written{ .compiler = "bin/g++", .runtimeLibraryDirectories = {}, .arguments = { .compile = {}, .link = {} } };
 
     const std::string text = renderInstallRecord(written);
 
@@ -137,7 +136,7 @@ TEST(InstallRecordTest, RendersNoIntegrityValueWhenThereIsNone)
  */
 TEST(InstallRecordTest, RendersNoArgumentsWhenThereAreNone)
 {
-    const InstallRecord written{ .compiler = "bin/g++", .runtimeLibraryDirectories = { "lib64" }, .compileArguments = {}, .linkArguments = {} };
+    const InstallRecord written{ .compiler = "bin/g++", .runtimeLibraryDirectories = { "lib64" }, .arguments = { .compile = {}, .link = {} } };
 
     const std::string text = renderInstallRecord(written);
 
@@ -154,14 +153,14 @@ TEST(InstallRecordTest, ReadsTheCompileAndLinkArguments)
     const auto record = parseInstallRecord("compiler = 'bin/clang++'\ncompile-args = ['-stdlib=libc++']\nlink-args = ['-stdlib=libc++', '-lc++abi']\n");
 
     ASSERT_TRUE(record.has_value()) << record.error();
-    EXPECT_EQ(record->compileArguments, std::vector<std::string>{ "-stdlib=libc++" });
+    EXPECT_EQ(record->arguments.compile, std::vector<std::string>{ "-stdlib=libc++" });
     const std::vector<std::string> link{ "-stdlib=libc++", "-lc++abi" };
-    EXPECT_EQ(record->linkArguments, link);
+    EXPECT_EQ(record->arguments.link, link);
 
     const auto without = parseInstallRecord("compiler = 'bin/g++'\n");
     ASSERT_TRUE(without.has_value()) << without.error();
-    EXPECT_TRUE(without->compileArguments.empty());
-    EXPECT_TRUE(without->linkArguments.empty());
+    EXPECT_TRUE(without->arguments.compile.empty());
+    EXPECT_TRUE(without->arguments.link.empty());
 }
 
 /**

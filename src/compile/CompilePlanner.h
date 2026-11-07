@@ -7,6 +7,7 @@
 #include "compile/LinkCommand.h"
 #include "project/LanguageStandard.h"
 #include "project/SourceCollector.h"
+#include "toolchain/ToolchainArguments.h"
 
 #include <filesystem>
 #include <string_view>
@@ -25,8 +26,7 @@ struct BuildSettings {
     Project::LanguageStandard standard;                            ///< The standard the manifest states.
     BuildProfile profile;                                          ///< What the compiler is asked to build for.
     std::vector<std::filesystem::path> runtimeLibraryDirectories;  ///< Where executables are linked with and find the compiler's runtime libraries, absolute.
-    std::vector<std::string> compileArguments;                     ///< What the toolchain needs on every compile command.
-    std::vector<std::string> linkArguments;                        ///< What the toolchain needs on every link command.
+    Toolchain::ToolchainArguments arguments;                       ///< What the toolchain needs on every compile and link command.
 };
 
 /**

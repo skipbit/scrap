@@ -103,7 +103,7 @@ std::vector<std::string> sharedCompileArguments(const BuildSettings& settings)
     if (const auto color = settings.driver.colorOption(); color.has_value()) {
         arguments.push_back(*color);
     }
-    arguments.insert(arguments.end(), settings.compileArguments.begin(), settings.compileArguments.end());
+    arguments.insert(arguments.end(), settings.arguments.compile.begin(), settings.arguments.compile.end());
     return arguments;
 }
 
@@ -283,7 +283,7 @@ std::vector<LinkCommand> planLinkCommands(const BuildSettings& settings, const s
         for (const std::filesystem::path& directory : settings.runtimeLibraryDirectories) {
             arguments.insert(arguments.end(), { "-L", directory.string(), "-Xlinker", "-rpath", "-Xlinker", directory.string() });
         }
-        arguments.insert(arguments.end(), settings.linkArguments.begin(), settings.linkArguments.end());
+        arguments.insert(arguments.end(), settings.arguments.link.begin(), settings.arguments.link.end());
         std::vector<std::filesystem::path> inputs;
         for (const std::string& object : objectFiles(settings, entry)) {
             inputs.emplace_back(object);

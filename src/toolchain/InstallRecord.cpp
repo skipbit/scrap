@@ -180,8 +180,7 @@ std::expected<InstallRecord, std::string> parseInstallRecord(std::string_view te
     }
     return InstallRecord{ .compiler = std::move(*compiler),
                           .runtimeLibraryDirectories = std::move(*directories),
-                          .compileArguments = std::move(*compileArguments),
-                          .linkArguments = std::move(*linkArguments),
+                          .arguments = { .compile = std::move(*compileArguments), .link = std::move(*linkArguments) },
                           .ingotIntegrity = std::move(*integrity) };
 }
 
@@ -194,8 +193,8 @@ std::string renderInstallRecord(const InstallRecord& record)
         directories.push_back(directory.generic_string());
     }
     table.insert(RuntimeLibraryDirectoriesKey, std::move(directories));
-    insertArguments(table, CompileArgumentsKey, record.compileArguments);
-    insertArguments(table, LinkArgumentsKey, record.linkArguments);
+    insertArguments(table, CompileArgumentsKey, record.arguments.compile);
+    insertArguments(table, LinkArgumentsKey, record.arguments.link);
     if (record.ingotIntegrity.has_value()) {
         table.insert(IngotIntegrityKey, *record.ingotIntegrity);
     }

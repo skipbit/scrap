@@ -1,5 +1,7 @@
 #pragma once
 
+#include "toolchain/ToolchainArguments.h"
+
 #include <expected>
 #include <filesystem>
 #include <optional>
@@ -24,8 +26,7 @@ inline constexpr std::string_view InstallRecordName = ".scrap-toolchain.toml";
 struct InstallRecord {
     std::filesystem::path compiler;                                ///< The C++ compiler, relative to the toolchain's directory.
     std::vector<std::filesystem::path> runtimeLibraryDirectories;  ///< Where its runtime libraries are, relative to the same.
-    std::vector<std::string> compileArguments;                     ///< What the compiler is given to compile with the toolchain.
-    std::vector<std::string> linkArguments;                        ///< What the compiler is given to link with the toolchain.
+    ToolchainArguments arguments;                                  ///< What the compiler is given to compile and link with the toolchain.
     std::optional<std::string> ingotIntegrity = std::nullopt;      ///< The digest or SHA-256 the index gave for what was installed.
 };
 

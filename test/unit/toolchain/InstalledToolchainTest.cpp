@@ -168,9 +168,9 @@ TEST(InstalledToolchainTest, FindsTheCompileAndLinkArguments)
     const auto found = findInstalledToolchain(home.path(), Host, parseToolchainSpecifier("llvm").value());
     ASSERT_TRUE(found.has_value()) << reasonOf(found.error());
     ASSERT_TRUE(found->has_value());
-    EXPECT_EQ((*found)->compileArguments, std::vector<std::string>{ "-stdlib=libc++" });
+    EXPECT_EQ((*found)->arguments.compile, std::vector<std::string>{ "-stdlib=libc++" });
     const std::vector<std::string> link{ "-stdlib=libc++", "-fuse-ld=lld" };
-    EXPECT_EQ((*found)->linkArguments, link);
+    EXPECT_EQ((*found)->arguments.link, link);
 }
 
 /**
@@ -179,7 +179,7 @@ TEST(InstalledToolchainTest, FindsTheCompileAndLinkArguments)
 TEST(InstalledToolchainTest, NamesItselfAsFamilyAndVersion)
 {
     const InstalledToolchain toolchain{
-        .family = "gcc", .version = ToolchainVersion::parse("15.2.0").value(), .directory = "", .compiler = "", .runtimeLibraryDirectories = {}, .compileArguments = {}, .linkArguments = {}
+        .family = "gcc", .version = ToolchainVersion::parse("15.2.0").value(), .directory = "", .compiler = "", .runtimeLibraryDirectories = {}, .arguments = { .compile = {}, .link = {} }
     };
 
     EXPECT_EQ(toolchain.name(), "gcc@15.2.0");

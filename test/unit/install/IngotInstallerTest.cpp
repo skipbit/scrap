@@ -198,8 +198,8 @@ TEST_F(IngotInstallerTest, RecordsWhatTheCompilerNeedsToUseTheRuntimeLibraries)
     const auto record = parseInstallRecord(_home.readFile(destination() / InstallRecordName));
 
     ASSERT_TRUE(record.has_value());
-    EXPECT_EQ(record->compileArguments, std::vector<std::string>{ "-stdlib=libc++" });
-    EXPECT_EQ(record->linkArguments, (std::vector<std::string>{ "-stdlib=libc++", "-fuse-ld=lld", "-rtlib=compiler-rt", "-unwindlib=libunwind" }));
+    EXPECT_EQ(record->arguments.compile, std::vector<std::string>{ "-stdlib=libc++" });
+    EXPECT_EQ(record->arguments.link, (std::vector<std::string>{ "-stdlib=libc++", "-fuse-ld=lld", "-rtlib=compiler-rt", "-unwindlib=libunwind" }));
 }
 
 TEST_F(IngotInstallerTest, RecordsNothingMoreForAToolchainWithoutLibcxx)
@@ -209,8 +209,8 @@ TEST_F(IngotInstallerTest, RecordsNothingMoreForAToolchainWithoutLibcxx)
     const auto record = parseInstallRecord(_home.readFile(destination() / InstallRecordName));
 
     ASSERT_TRUE(record.has_value());
-    EXPECT_TRUE(record->compileArguments.empty());
-    EXPECT_TRUE(record->linkArguments.empty());
+    EXPECT_TRUE(record->arguments.compile.empty());
+    EXPECT_TRUE(record->arguments.link.empty());
 }
 
 TEST_F(IngotInstallerTest, SaysWhatItIsDoing)

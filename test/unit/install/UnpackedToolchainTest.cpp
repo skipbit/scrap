@@ -1,6 +1,7 @@
 #include "install/UnpackedToolchain.h"
 
 #include "support/TempDirectory.h"
+#include "toolchain/ToolchainArguments.h"
 
 #include <gtest/gtest.h>
 
@@ -10,6 +11,7 @@
 
 using namespace scrap::Install;
 using scrap::TestSupport::TempDirectory;
+using scrap::Toolchain::ToolchainArguments;
 
 /**
  * An archive that holds everything in one directory of its own starts there.
@@ -137,7 +139,7 @@ TEST(UnpackedToolchainTest, UsesTheLibcxxOfTheToolchainOnLinux)
     const TempDirectory root;
     root.writeFile("lib/x86_64-unknown-linux-gnu/libc++.so.1", "");
 
-    const RuntimeArguments arguments = runtimeArgumentsFor("linux", root.path());
+    const ToolchainArguments arguments = runtimeArgumentsFor("linux", root.path());
 
     EXPECT_EQ(arguments.compile, std::vector<std::string>{ "-stdlib=libc++" });
     const std::vector<std::string> link{ "-stdlib=libc++", "-fuse-ld=lld", "-rtlib=compiler-rt", "-unwindlib=libunwind" };
@@ -153,7 +155,7 @@ TEST(UnpackedToolchainTest, UsesTheLibcxxOfTheToolchainOnMacOs)
     const TempDirectory root;
     root.writeFile("lib/libc++.1.dylib", "");
 
-    const RuntimeArguments arguments = runtimeArgumentsFor("darwin", root.path());
+    const ToolchainArguments arguments = runtimeArgumentsFor("darwin", root.path());
 
     EXPECT_TRUE(arguments.compile.empty());
     EXPECT_EQ(arguments.link, std::vector<std::string>{ "-lc++abi" });
@@ -170,7 +172,7 @@ TEST(UnpackedToolchainTest, NeedsNothingWithoutLibcxx)
     root.writeFile("share/libc++.so.1", "");
 
     for (const char* const platform : { "linux", "darwin" }) {
-        const RuntimeArguments arguments = runtimeArgumentsFor(platform, root.path());
+        const ToolchainArguments arguments = runtimeArgumentsFor(platform, root.path());
         EXPECT_TRUE(arguments.compile.empty()) << platform;
         EXPECT_TRUE(arguments.link.empty()) << platform;
     }
