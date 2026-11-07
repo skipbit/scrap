@@ -1,6 +1,7 @@
 #include "toolchain/MacSdk.h"
 
 #include "process/Subprocess.h"
+#include "toolchain/ProgramAnswer.h"
 
 #include <chrono>
 #include <cstddef>
@@ -26,18 +27,11 @@ constexpr std::size_t XcrunOutputLimit = 4096;
 std::optional<std::filesystem::path> askXcrunForSdkPath()
 {
     const std::vector<std::string> arguments{ "/usr/bin/xcrun", "--show-sdk-path" };
-    const auto completion = Process::runProgram(arguments, { .workingDirectory = {}, .capture = Process::OutputCapture::StandardOutput, .group = Process::ProcessGroup::Caller, .timeout = XcrunTimeout, .outputLimit = XcrunOutputLimit });
-    if ((! completion.has_value()) || (completion->exitCode != 0)) {
+    const auto answer = askProgram(arguments, { .workingDirectory = {}, .capture = Process::OutputCapture::StandardOutput, .group = Process::ProcessGroup::Caller, .timeout = XcrunTimeout, .outputLimit = XcrunOutputLimit });
+    if (! answer.has_value()) {
         return std::nullopt;
     }
-    std::string answer = completion->output;
-    while ((! answer.empty()) && ((answer.back() == '\n') || (answer.back() == '\r'))) {
-        answer.pop_back();
-    }
-    if (answer.empty()) {
-        return std::nullopt;
-    }
-    return std::filesystem::path{ answer };
+    return std::filesystem::path{ *answer };
 }
 
 std::expected<std::vector<std::string>, SdkNotFound> sdkArguments(bool findsSdkItself, std::string_view platform, const std::string& sdkRoot, const SdkPathQuery& query)
