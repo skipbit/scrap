@@ -117,6 +117,8 @@ scrap toolchain install llvm@18
 scrap toolchain select llvm@18
 ```
 
+A program built with an installed toolchain runs with the runtime libraries of that toolchain; with LLVM, that is the libc++ it carries. On Linux, the linker of LLVM 17 to 22 needs `libxml2` on the machine. On macOS, an installed LLVM uses the SDK that `xcrun` names, which the Command Line Tools provide, or the one `SDKROOT` names. A toolchain installed by an earlier version of scrap is used as it was installed until it is installed again with `--force`.
+
 ### 📦 Modern Package Management (Planned)
 
 ```bash
