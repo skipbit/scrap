@@ -126,3 +126,52 @@ TEST(UnpackedToolchainTest, FindsNothingWhereThereIsNoLibDirectory)
 
     EXPECT_TRUE(findRuntimeLibraryDirectories(root.path()).empty());
 }
+
+/**
+ * A toolchain with libc++ on linux is asked to use it, with the linker,
+ * compiler-rt and libunwind it carries, so nothing comes from a GCC on the
+ * host.
+ */
+TEST(UnpackedToolchainTest, UsesTheLibcxxOfTheToolchainOnLinux)
+{
+    const TempDirectory root;
+    root.writeFile("lib/x86_64-unknown-linux-gnu/libc++.so.1", "");
+
+    const RuntimeArguments arguments = runtimeArgumentsFor("linux", root.path());
+
+    EXPECT_EQ(arguments.compile, std::vector<std::string>{ "-stdlib=libc++" });
+    const std::vector<std::string> link{ "-stdlib=libc++", "-fuse-ld=lld", "-rtlib=compiler-rt", "-unwindlib=libunwind" };
+    EXPECT_EQ(arguments.link, link);
+}
+
+/**
+ * A toolchain with libc++ on darwin links its own libc++abi, which its
+ * libc++ does not re-export, and keeps the linker of the system.
+ */
+TEST(UnpackedToolchainTest, UsesTheLibcxxOfTheToolchainOnMacOs)
+{
+    const TempDirectory root;
+    root.writeFile("lib/libc++.1.dylib", "");
+
+    const RuntimeArguments arguments = runtimeArgumentsFor("darwin", root.path());
+
+    EXPECT_TRUE(arguments.compile.empty());
+    EXPECT_EQ(arguments.link, std::vector<std::string>{ "-lc++abi" });
+}
+
+/**
+ * A toolchain without libc++, as GCC, needs nothing more, even with libc++
+ * named elsewhere than lib and lib64.
+ */
+TEST(UnpackedToolchainTest, NeedsNothingWithoutLibcxx)
+{
+    const TempDirectory root;
+    root.writeFile("lib64/libstdc++.so.6", "");
+    root.writeFile("share/libc++.so.1", "");
+
+    for (const char* const platform : { "linux", "darwin" }) {
+        const RuntimeArguments arguments = runtimeArgumentsFor(platform, root.path());
+        EXPECT_TRUE(arguments.compile.empty()) << platform;
+        EXPECT_TRUE(arguments.link.empty()) << platform;
+    }
+}

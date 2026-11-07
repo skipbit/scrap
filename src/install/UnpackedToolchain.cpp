@@ -11,9 +11,31 @@ namespace scrap::Install {
 
 namespace {
 
+bool isLibcxxName(const std::string& name)
+{
+    return name.starts_with("libc++.so") || (name.starts_with("libc++.") && name.ends_with(".dylib"));
+}
+
 bool isRuntimeLibraryName(const std::string& name)
 {
-    return name.starts_with("libstdc++.so") || name.starts_with("libc++.so") || (name.starts_with("libc++.") && name.ends_with(".dylib"));
+    return name.starts_with("libstdc++.so") || isLibcxxName(name);
+}
+
+/**
+ * The files below lib and lib64 of @p root whose names @p accepts takes.
+ */
+std::vector<std::filesystem::path> librariesBelow(const std::filesystem::path& root, bool (*accepts)(const std::string&))
+{
+    std::vector<std::filesystem::path> found;
+    for (const std::string_view top : { "lib", "lib64" }) {
+        std::error_code ec;
+        for (std::filesystem::recursive_directory_iterator it(root / top, ec), end; (! ec) && (it != end); it.increment(ec)) {
+            if (accepts(it->path().filename().string())) {
+                found.push_back(it->path());
+            }
+        }
+    }
+    return found;
 }
 
 }  // anonymous namespace
@@ -44,18 +66,25 @@ std::filesystem::path contentRoot(const std::filesystem::path& directory)
 std::vector<std::filesystem::path> findRuntimeLibraryDirectories(const std::filesystem::path& root)
 {
     std::vector<std::filesystem::path> found;
-    for (const std::string_view top : { "lib", "lib64" }) {
-        std::error_code ec;
-        for (std::filesystem::recursive_directory_iterator it(root / top, ec), end; (! ec) && (it != end); it.increment(ec)) {
-            if (isRuntimeLibraryName(it->path().filename().string())) {
-                found.push_back(it->path().parent_path().lexically_relative(root));
-            }
-        }
+    for (const std::filesystem::path& library : librariesBelow(root, isRuntimeLibraryName)) {
+        found.push_back(library.parent_path().lexically_relative(root));
     }
     std::ranges::sort(found);
     const auto repeated = std::ranges::unique(found);
     found.erase(repeated.begin(), repeated.end());
     return found;
+}
+
+RuntimeArguments runtimeArgumentsFor(std::string_view platform, const std::filesystem::path& root)
+{
+    if (librariesBelow(root, isLibcxxName).empty()) {
+        return RuntimeArguments{ .compile = {}, .link = {} };
+    }
+    if (platform == "darwin") {
+        return RuntimeArguments{ .compile = {}, .link = { "-lc++abi" } };
+    }
+    return RuntimeArguments{ .compile = { "-stdlib=libc++" },
+                             .link = { "-stdlib=libc++", "-fuse-ld=lld", "-rtlib=compiler-rt", "-unwindlib=libunwind" } };
 }
 
 }  // namespace scrap::Install
