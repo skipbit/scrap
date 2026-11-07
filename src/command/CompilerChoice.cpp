@@ -159,7 +159,11 @@ std::expected<ChosenCompiler, Toolchain::NoCompiler> systemCompiler(const Runtim
             announcement += describeSource(*source);
         }
         announcement += ")\n";
-        return ChosenCompiler{ .compiler = std::move(found->path), .runtimeLibraryDirectories = {}, .announcement = std::move(announcement) };
+        return ChosenCompiler{ .compiler = std::move(found->path),
+                               .runtimeLibraryDirectories = {},
+                               .arguments = { .compile = {}, .link = {} },
+                               .installed = false,
+                               .announcement = std::move(announcement) };
     }
     return std::unexpected(std::move(found.error()));
 }
@@ -211,6 +215,8 @@ std::expected<ChosenCompiler, std::string> installedCompiler(const RuntimeEnviro
     std::filesystem::path compiler = found->compiler;
     return ChosenCompiler{ .compiler = std::move(compiler),
                            .runtimeLibraryDirectories = std::move(found->runtimeLibraryDirectories),
+                           .arguments = std::move(found->arguments),
+                           .installed = true,
                            .announcement = std::move(announcement) };
 }
 

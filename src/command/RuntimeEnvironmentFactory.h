@@ -21,6 +21,7 @@ struct ProcessInputs {
     std::string toolchain;        ///< SCRAP_TOOLCHAIN
     std::string toolchainIndex;   ///< SCRAP_TOOLCHAIN_INDEX
     std::string certificateFile;  ///< SSL_CERT_FILE
+    std::string sdkRoot;          ///< SDKROOT
 };
 
 /**

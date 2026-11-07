@@ -19,7 +19,10 @@
 #include "project/SourceCollector.h"
 #include "project/TargetResolver.h"
 #include "toolchain/CompilerIdentity.h"
+#include "toolchain/HostEnvironment.h"
+#include "toolchain/MacSdk.h"
 #include "toolchain/SystemArchiver.h"
+#include "toolchain/ToolchainArguments.h"
 
 #include <algorithm>
 #include <expected>  // IWYU pragma: keep
@@ -127,6 +130,62 @@ std::expected<ChosenCompiler, int> findCompiler(const RuntimeEnvironment& env, c
     }
     std::cerr << chosen->announcement;
     return std::move(*chosen);
+}
+
+/**
+ * What @p compiler is given to compile and link against the macOS SDK.
+ * Reports an SDK that cannot be found.
+ */
+std::expected<std::vector<std::string>, int> sdkArgumentsFor(const RuntimeEnvironment& env, const ChosenCompiler& compiler)
+{
+    const std::optional<Toolchain::HostEnvironment> host = Toolchain::hostEnvironment();
+    const std::string_view platform = host.has_value() ? host->platform : std::string_view{};
+    auto arguments = Toolchain::sdkArguments(! compiler.installed, platform, env.sdkRoot, Toolchain::askXcrunForSdkPath);
+    if (! arguments.has_value()) {
+        std::cerr << renderSdkNotFound(compiler.compiler);
+        return std::unexpected(1);
+    }
+    return std::move(*arguments);
+}
+
+/**
+ * @p arguments with @p sdk added to both its lists.
+ */
+Toolchain::ToolchainArguments withSdk(Toolchain::ToolchainArguments arguments, const std::vector<std::string>& sdk)
+{
+    arguments.compile.insert(arguments.compile.end(), sdk.begin(), sdk.end());
+    arguments.link.insert(arguments.link.end(), sdk.begin(), sdk.end());
+    return arguments;
+}
+
+/**
+ * The settings to build @p project with: the compiler it uses, named on
+ * standard error with where it came from, and what that compiler is given.
+ * The macOS SDK is asked for before the compiler is identified.
+ */
+std::expected<Compile::BuildSettings, int> settingsFor(const RuntimeEnvironment& env,
+                                                       const Project::LoadedProject& project,
+                                                       const Compile::BuildProfile profile,
+                                                       const std::filesystem::path& buildDirectory)
+{
+    const auto compiler = findCompiler(env, project);
+    if (! compiler.has_value()) {
+        return std::unexpected(compiler.error());
+    }
+    const auto sdk = sdkArgumentsFor(env, *compiler);
+    if (! sdk.has_value()) {
+        return std::unexpected(sdk.error());
+    }
+    return Compile::BuildSettings{
+        .projectRoot = project.root,
+        .buildDirectory = buildDirectory,
+        .compiler = compiler->compiler,
+        .driver = Compile::CompilerDriver{ Toolchain::identifyCompiler(compiler->compiler) },
+        .standard = project.manifest.package.standard,
+        .profile = profile,
+        .runtimeLibraryDirectories = compiler->runtimeLibraryDirectories,
+        .arguments = withSdk(compiler->arguments, *sdk)
+    };
 }
 
 /**
@@ -279,20 +338,11 @@ std::expected<std::filesystem::path, int> buildProject(const RuntimeEnvironment&
         return std::unexpected(sources.error());
     }
 
-    const auto compiler = findCompiler(env, project);
-    if (! compiler.has_value()) {
-        return std::unexpected(compiler.error());
+    const auto settingsResult = settingsFor(env, project, profile, buildDirectory);
+    if (! settingsResult.has_value()) {
+        return std::unexpected(settingsResult.error());
     }
-
-    const Compile::BuildSettings settings{
-        .projectRoot = project.root,
-        .buildDirectory = buildDirectory,
-        .compiler = compiler->compiler,
-        .driver = Compile::CompilerDriver{ Toolchain::identifyCompiler(compiler->compiler) },
-        .standard = project.manifest.package.standard,
-        .profile = profile,
-        .runtimeLibraryDirectories = compiler->runtimeLibraryDirectories
-    };
+    const Compile::BuildSettings& settings = *settingsResult;
     const auto compiles = Compile::planCompileCommands(settings, *sources);
     const auto written = Compile::writeCompilationDatabase(project.root / buildDirectory, compiles);
     if (! written.has_value()) {
@@ -303,7 +353,7 @@ std::expected<std::filesystem::path, int> buildProject(const RuntimeEnvironment&
     // The database is written before the build stops for a reason below, so
     // an editor reads the commands whether or not they can run.
     if (! settings.driver.standardOption(settings.standard).has_value()) {
-        std::cerr << renderUnsupportedStandard(compiler->compiler, settings.standard);
+        std::cerr << renderUnsupportedStandard(settings.compiler, settings.standard);
         return std::unexpected(1);
     }
 

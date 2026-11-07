@@ -42,7 +42,8 @@ BuildSettings settingsFor(const CompilerIdentity& identity,
                           .driver = CompilerDriver{ identity },
                           .standard = standard,
                           .profile = profile,
-                          .runtimeLibraryDirectories = {} };
+                          .runtimeLibraryDirectories = {},
+                          .arguments = { .compile = {}, .link = {} } };
 }
 
 TargetSources targetWithSources(TargetKind kind, const char* name, const char* entryPoint, std::vector<std::filesystem::path> sources)
@@ -125,6 +126,41 @@ TEST(CompilePlannerTest, CompilesASourceFromTheProjectRoot)
  * A release build is optimised, leaves assertions and debugging information
  * out, and keeps the warnings of a debug build.
  */
+/**
+ * The compile arguments the toolchain needs come after the options scrap
+ * chooses and before those of the target, as written.
+ */
+TEST(CompilePlannerTest, CompilesWithTheArgumentsTheToolchainNeeds)
+{
+    BuildSettings settings = settingsFor(Gcc13);
+    settings.arguments.compile = { "-stdlib=libc++", "-isysroot", "/sdk" };
+
+    const auto commands = planCompileCommands(settings, { executableWithSources("hello", "src/main.cpp", { "src/main.cpp" }) });
+
+    ASSERT_EQ(commands.size(), 1);
+    EXPECT_EQ(commands[0].arguments,
+              (std::vector<std::string>{ "/usr/bin/c++",
+                                         "-std=c++23",
+                                         "-g",
+                                         "-O0",
+                                         "-Wall",
+                                         "-Wextra",
+                                         "-Wpedantic",
+                                         "-fdiagnostics-color=always",
+                                         "-stdlib=libc++",
+                                         "-isysroot",
+                                         "/sdk",
+                                         "-I",
+                                         "include",
+                                         "-MD",
+                                         "-MF",
+                                         "build/debug/obj/hello/src/main.cpp.o.d",
+                                         "-c",
+                                         "src/main.cpp",
+                                         "-o",
+                                         "build/debug/obj/hello/src/main.cpp.o" }));
+}
+
 TEST(CompilePlannerTest, CompilesASourceForRelease)
 {
     const auto commands = planCompileCommands(settingsFor(Gcc13, LanguageStandard::Cxx23, "build/release", BuildProfile::Release),
@@ -357,9 +393,9 @@ TEST(CompilePlannerTest, LinksTheObjectFilesOfAnExecutable)
 }
 
 /**
- * Each runtime library directory is embedded in an executable as a run-time
- * search path, in order and whole, even with a comma in it; a library is
- * archived without one.
+ * Each runtime library directory is searched for libraries and embedded in
+ * an executable as a run-time search path, in order and whole, even with a
+ * comma in it; a library is archived without one.
  */
 TEST(CompilePlannerTest, EmbedsTheRuntimeLibraryDirectoriesInAnExecutable)
 {
@@ -373,14 +409,50 @@ TEST(CompilePlannerTest, EmbedsTheRuntimeLibraryDirectoriesInAnExecutable)
     ASSERT_EQ(commands.size(), 1);
     EXPECT_EQ(commands[0].arguments,
               (std::vector<std::string>{ "/usr/bin/c++",
-                                         "-Xlinker",
-                                         "-rpath",
-                                         "-Xlinker",
+                                         "-L",
                                          "/home/me/.scrap/gcc/lib64",
                                          "-Xlinker",
                                          "-rpath",
                                          "-Xlinker",
+                                         "/home/me/.scrap/gcc/lib64",
+                                         "-L",
                                          "/home/me/.scrap/a,b",
+                                         "-Xlinker",
+                                         "-rpath",
+                                         "-Xlinker",
+                                         "/home/me/.scrap/a,b",
+                                         "build/debug/obj/hello/src/main.cpp.o",
+                                         "build/debug/lib/libcore.a",
+                                         "-o",
+                                         "build/debug/bin/hello" }));
+}
+
+/**
+ * The link arguments the toolchain needs come after its runtime library
+ * directories and before the objects, as written; a library is archived
+ * without them.
+ */
+TEST(CompilePlannerTest, LinksWithTheArgumentsTheToolchainNeeds)
+{
+    BuildSettings settings = settingsFor(CompilerIdentity{});
+    settings.runtimeLibraryDirectories = { "/home/me/.scrap/llvm/lib" };
+    settings.arguments.link = { "-stdlib=libc++", "-fuse-ld=lld" };
+
+    const auto commands = planLinkCommands(settings,
+                                           { executableWithSources("hello", "src/main.cpp", { "src/main.cpp" }),
+                                             targetWithSources(TargetKind::Library, "core", "", { "src/core.cpp" }) });
+
+    ASSERT_EQ(commands.size(), 1);
+    EXPECT_EQ(commands[0].arguments,
+              (std::vector<std::string>{ "/usr/bin/c++",
+                                         "-L",
+                                         "/home/me/.scrap/llvm/lib",
+                                         "-Xlinker",
+                                         "-rpath",
+                                         "-Xlinker",
+                                         "/home/me/.scrap/llvm/lib",
+                                         "-stdlib=libc++",
+                                         "-fuse-ld=lld",
                                          "build/debug/obj/hello/src/main.cpp.o",
                                          "build/debug/lib/libcore.a",
                                          "-o",

@@ -83,6 +83,7 @@ scrap_add_unit_test(toolchain SOURCES
     unit/toolchain/IngotSelectionTest.cpp
     unit/toolchain/InstallRecordTest.cpp
     unit/toolchain/InstalledToolchainTest.cpp
+    unit/toolchain/MacSdkTest.cpp
     unit/toolchain/ScrapHomeLayoutTest.cpp
     unit/toolchain/SystemArchiverTest.cpp
     unit/toolchain/SystemCompilerTest.cpp

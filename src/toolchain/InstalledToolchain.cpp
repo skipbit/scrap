@@ -3,6 +3,7 @@
 #include "file/WholeFile.h"
 #include "toolchain/HostEnvironment.h"
 #include "toolchain/InstallRecord.h"
+#include "toolchain/RuntimeLibraryName.h"
 #include "toolchain/ScrapHomeLayout.h"
 #include "toolchain/ToolchainName.h"
 #include "toolchain/ToolchainSpecifier.h"
@@ -70,7 +71,31 @@ std::expected<void, std::string> checkRecordedPaths(const std::filesystem::path&
 }
 
 /**
- * The record in @p directory, when what it names is there.
+ * Why the record in @p directory cannot be used as it is: one written by an
+ * earlier scrap names a runtime library directory that holds libc++, and
+ * says nothing of what the compiler needs to build with it.
+ */
+std::expected<void, std::string> checkRecordedArguments(const std::filesystem::path& directory, const InstallRecord& record)
+{
+    if ((! record.arguments.compile.empty()) || (! record.arguments.link.empty())) {
+        return {};
+    }
+    for (const std::filesystem::path& recorded : record.runtimeLibraryDirectories) {
+        const std::filesystem::path runtimeLibraryDirectory = directory / recorded;
+        std::error_code ec;
+        for (std::filesystem::directory_iterator it(runtimeLibraryDirectory, ec), end; (! ec) && (it != end); it.increment(ec)) {
+            if (isLibcxxName(it->path().filename().string())) {
+                return std::unexpected("'" + (directory / InstallRecordName).string() + "' was written by an earlier scrap, which did not record how to build with the libc++ in '"
+                                       + runtimeLibraryDirectory.string() + "'");
+            }
+        }
+    }
+    return {};
+}
+
+/**
+ * The record in @p directory, when what it names is there and says how to
+ * build with it.
  */
 std::expected<InstallRecord, std::string> readUsableRecord(const std::filesystem::path& directory)
 {
@@ -79,6 +104,9 @@ std::expected<InstallRecord, std::string> readUsableRecord(const std::filesystem
         return record;
     }
     if (auto checked = checkRecordedPaths(directory, *record); ! checked.has_value()) {
+        return std::unexpected(std::move(checked.error()));
+    }
+    if (auto checked = checkRecordedArguments(directory, *record); ! checked.has_value()) {
         return std::unexpected(std::move(checked.error()));
     }
     return record;
@@ -101,7 +129,8 @@ std::expected<InstalledToolchain, std::string> readInstalled(const std::string& 
                                .version = version,
                                .directory = directory,
                                .compiler = directory / record->compiler,
-                               .runtimeLibraryDirectories = std::move(runtimeLibraryDirectories) };
+                               .runtimeLibraryDirectories = std::move(runtimeLibraryDirectories),
+                               .arguments = record->arguments };
 }
 
 }  // anonymous namespace

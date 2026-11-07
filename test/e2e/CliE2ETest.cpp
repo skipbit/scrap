@@ -420,6 +420,20 @@ protected:
     }
 
     /**
+     * Record @p compileArgument and @p linkArgument as what @p family
+     * @p version, laid out by installToolchain(), needs to compile and to
+     * link, for every host.
+     */
+    void recordToolchainArguments(std::string_view family, std::string_view version, std::string_view compileArgument, std::string_view linkArgument) const
+    {
+        for (const char* host : { "linux-x86_64", "linux-aarch64", "darwin-x86_64", "darwin-aarch64" }) {
+            const std::string toolchain = "toolchains/" + std::string{ family } + "/" + std::string{ version } + "/" + host;
+            _temp->writeFile(toolchain + "/.scrap-toolchain.toml",
+                             "compiler = 'bin/g++'\ncompile-args = ['" + std::string{ compileArgument } + "']\nlink-args = ['" + std::string{ linkArgument } + "']\n");
+        }
+    }
+
+    /**
      * The toolchains the compilers installWorkingToolchain() lays out have
      * run as, one line each, in order.
      */
@@ -2936,6 +2950,98 @@ TEST_F(CliE2ETest, BuildEmbedsTheRuntimeLibraryDirectoryOfTheToolchain)
     EXPECT_TRUE(directory.ends_with("/lib64")) << directory;
     EXPECT_NE(directory.find("toolchains/gcc/15.2.0/"), std::string::npos) << directory;
     EXPECT_TRUE(std::filesystem::path{ directory }.is_absolute()) << directory;
+}
+
+/**
+ * The arguments the record of an installed toolchain names are given to
+ * its compiler: the compile ones to each compile, the link ones to each
+ * link.
+ */
+TEST_F(CliE2ETest, BuildGivesTheCompilerTheArgumentsTheToolchainRecords)
+{
+    installWorkingToolchain("llvm", "22.1.8");
+    recordToolchainArguments("llvm", "22.1.8", "-DSCRAP_RECORDED_COMPILE_ARGUMENT", "-Wl,-rpath,/scrap-recorded-link-argument");
+    writeFile("hello/scrap.toml", ValidManifest);
+    writeFile("hello/src/main.cpp", MainSource);
+
+    auto result = runScrap({ "build" }, { "SCRAP_TOOLCHAIN=llvm@22.1.8" }, _root / "hello", BuildTimeout);
+
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    const std::string arguments = readFile("compiler-arguments");
+    const auto compile = arguments.find("-DSCRAP_RECORDED_COMPILE_ARGUMENT\n");
+    const auto link = arguments.find("-Wl,-rpath,/scrap-recorded-link-argument\n");
+    ASSERT_NE(compile, std::string::npos) << arguments;
+    ASSERT_NE(link, std::string::npos) << arguments;
+    EXPECT_LT(arguments.find("\n-c\n"), link) << arguments;
+    EXPECT_GT(arguments.find("\n-c\n", compile), compile) << arguments;
+    EXPECT_EQ(arguments.find("-DSCRAP_RECORDED_COMPILE_ARGUMENT\n", compile + 1), std::string::npos) << arguments;
+}
+
+/**
+ * An LLVM installed by an earlier scrap has a record that says nothing of
+ * how to build with its libc++, so a build asks for it to be installed
+ * again rather than linking with it in part.
+ */
+TEST_F(CliE2ETest, BuildAsksToInstallAgainAnLlvmInstalledByAnEarlierScrap)
+{
+    installWorkingToolchain("llvm", "22.1.8");
+    for (const char* host : { "linux-x86_64", "linux-aarch64", "darwin-x86_64", "darwin-aarch64" }) {
+        const std::string toolchain = std::string{ "toolchains/llvm/22.1.8/" } + host;
+        writeFile(toolchain + "/lib/libc++.so.1", "");
+        writeFile(toolchain + "/lib/libc++.1.dylib", "");
+        writeFile(toolchain + "/.scrap-toolchain.toml", "compiler = 'bin/g++'\nruntime-library-dirs = ['lib']\n");
+    }
+    writeFile("hello/scrap.toml", ValidManifest);
+    writeFile("hello/src/main.cpp", MainSource);
+
+    auto result = runScrap({ "build" }, { "SCRAP_TOOLCHAIN=llvm@22.1.8" }, _root / "hello", BuildTimeout);
+
+    EXPECT_EQ(result.exitCode, 1) << result.stderrText;
+    EXPECT_NE(result.stderrText.find("was written by an earlier scrap"), std::string::npos) << result.stderrText;
+    EXPECT_NE(result.stderrText.find("hint: run 'scrap toolchain install --force llvm@22.1.8'\n"), std::string::npos) << result.stderrText;
+    EXPECT_EQ(compilersUsed(), "");
+}
+
+/**
+ * On macOS the compiler of an installed toolchain is pointed at the SDK
+ * xcrun names, unless SDKROOT names one, which the compiler reads itself.
+ * Elsewhere it is given no SDK.
+ */
+TEST_F(CliE2ETest, BuildPointsAnInstalledToolchainAtTheMacOsSdk)
+{
+    installWorkingToolchain("llvm", "22.1.8");
+    writeFile("hello/scrap.toml", ValidManifest);
+    writeFile("hello/src/main.cpp", MainSource);
+
+    auto result = runScrap({ "build" }, { "SCRAP_TOOLCHAIN=llvm@22.1.8" }, _root / "hello", BuildTimeout);
+
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    const std::string arguments = readFile("compiler-arguments");
+#if defined(__APPLE__)
+    const std::string option = "-isysroot\n";
+    ASSERT_NE(arguments.find(option), std::string::npos) << arguments;
+    const auto start = arguments.find(option) + option.size();
+    const std::filesystem::path sdk = arguments.substr(start, arguments.find('\n', start) - start);
+    EXPECT_TRUE(std::filesystem::is_directory(sdk)) << sdk;
+
+    writeFile("compiler-arguments", "");
+    auto named = runScrap({ "build", "--release" }, { "SCRAP_TOOLCHAIN=llvm@22.1.8", "SDKROOT=" + sdk.string() }, _root / "hello", BuildTimeout);
+    EXPECT_EQ(named.exitCode, 0) << named.stderrText;
+    EXPECT_NE(readFile("compiler-arguments").find("-c\n"), std::string::npos);
+    EXPECT_EQ(readFile("compiler-arguments").find("-isysroot"), std::string::npos);
+
+    // The same compiler, taken as the system's, finds the SDK itself. Its
+    // commands are those of the build before, so that build is removed.
+    writeFile("compiler-arguments", "");
+    std::filesystem::remove_all(_root / "hello" / "build");
+    const std::filesystem::path compiler = _root / "toolchains/llvm/22.1.8/darwin-aarch64/bin/g++";
+    auto system = runScrap({ "build", "--release" }, { "SCRAP_TOOLCHAIN=system", "CXX=" + compiler.string() }, _root / "hello", BuildTimeout);
+    EXPECT_EQ(system.exitCode, 0) << system.stderrText;
+    EXPECT_NE(readFile("compiler-arguments").find("-c\n"), std::string::npos);
+    EXPECT_EQ(readFile("compiler-arguments").find("-isysroot"), std::string::npos);
+#else
+    EXPECT_EQ(arguments.find("-isysroot"), std::string::npos) << arguments;
+#endif
 }
 
 /**

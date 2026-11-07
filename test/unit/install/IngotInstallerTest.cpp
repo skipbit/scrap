@@ -187,6 +187,32 @@ TEST_F(IngotInstallerTest, RecognisesTheRuntimeLibraryOfMacOs)
     EXPECT_EQ(record->runtimeLibraryDirectories, (std::vector<std::filesystem::path>{ "lib" }));
 }
 
+/**
+ * A toolchain with libc++ is recorded with what its compiler needs to use
+ * it on the platform of the ingot; one with libstdc++ alone with nothing.
+ */
+TEST_F(IngotInstallerTest, RecordsWhatTheCompilerNeedsToUseTheRuntimeLibraries)
+{
+    ASSERT_TRUE(install(ingotOf(fileEntry("bin/g++", "compiler", 0755) + fileEntry("lib/x86_64-unknown-linux-gnu/libc++.so.1", "runtime"))).has_value());
+
+    const auto record = parseInstallRecord(_home.readFile(destination() / InstallRecordName));
+
+    ASSERT_TRUE(record.has_value());
+    EXPECT_EQ(record->arguments.compile, std::vector<std::string>{ "-stdlib=libc++" });
+    EXPECT_EQ(record->arguments.link, (std::vector<std::string>{ "-stdlib=libc++", "-fuse-ld=lld", "-rtlib=compiler-rt", "-unwindlib=libunwind" }));
+}
+
+TEST_F(IngotInstallerTest, RecordsNothingMoreForAToolchainWithoutLibcxx)
+{
+    ASSERT_TRUE(install(ingotOf(fileEntry("bin/g++", "compiler", 0755) + fileEntry("lib64/libstdc++.so.6", "runtime"))).has_value());
+
+    const auto record = parseInstallRecord(_home.readFile(destination() / InstallRecordName));
+
+    ASSERT_TRUE(record.has_value());
+    EXPECT_TRUE(record->arguments.compile.empty());
+    EXPECT_TRUE(record->arguments.link.empty());
+}
+
 TEST_F(IngotInstallerTest, SaysWhatItIsDoing)
 {
     ASSERT_TRUE(install(gccIngot()).has_value());

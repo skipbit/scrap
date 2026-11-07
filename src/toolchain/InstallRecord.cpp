@@ -19,6 +19,8 @@ namespace {
 
 constexpr std::string_view CompilerKey = "compiler";
 constexpr std::string_view RuntimeLibraryDirectoriesKey = "runtime-library-dirs";
+constexpr std::string_view CompileArgumentsKey = "compile-args";
+constexpr std::string_view LinkArgumentsKey = "link-args";
 constexpr std::string_view IngotIntegrityKey = "ingot-integrity";
 
 /**
@@ -88,6 +90,31 @@ std::expected<std::vector<std::filesystem::path>, std::string> runtimeLibraryDir
 }
 
 /**
+ * The arguments @p table records under @p key, none when it records no list
+ * of them.
+ */
+std::expected<std::vector<std::string>, std::string> arguments(const toml::table& table, std::string_view key)
+{
+    const toml::node* node = table.get(key);
+    if (node == nullptr) {
+        return std::vector<std::string>{};
+    }
+    const toml::array* entries = node->as_array();
+    if (entries == nullptr) {
+        return std::unexpected(fault(*node, key, "must be an array of strings"));
+    }
+    std::vector<std::string> found;
+    for (const toml::node& entry : *entries) {
+        std::optional<std::string> text = entry.value_exact<std::string>();
+        if (! text.has_value()) {
+            return std::unexpected(fault(entry, key, "must be a string"));
+        }
+        found.push_back(std::move(*text));
+    }
+    return found;
+}
+
+/**
  * The integrity value @p table records, nothing when it records none.
  */
 std::expected<std::optional<std::string>, std::string> ingotIntegrity(const toml::table& table)
@@ -101,6 +128,21 @@ std::expected<std::optional<std::string>, std::string> ingotIntegrity(const toml
         return std::unexpected(fault(*node, IngotIntegrityKey, "must be a string"));
     }
     return text;
+}
+
+/**
+ * Put @p list into @p table under @p key, unless it is empty.
+ */
+void insertArguments(toml::table& table, std::string_view key, const std::vector<std::string>& list)
+{
+    if (list.empty()) {
+        return;
+    }
+    toml::array entries;
+    for (const std::string& argument : list) {
+        entries.push_back(argument);
+    }
+    table.insert(key, std::move(entries));
 }
 
 }  // anonymous namespace
@@ -124,11 +166,22 @@ std::expected<InstallRecord, std::string> parseInstallRecord(std::string_view te
     if (! directories.has_value()) {
         return std::unexpected(std::move(directories.error()));
     }
+    auto compileArguments = arguments(parsed.table(), CompileArgumentsKey);
+    if (! compileArguments.has_value()) {
+        return std::unexpected(std::move(compileArguments.error()));
+    }
+    auto linkArguments = arguments(parsed.table(), LinkArgumentsKey);
+    if (! linkArguments.has_value()) {
+        return std::unexpected(std::move(linkArguments.error()));
+    }
     auto integrity = ingotIntegrity(parsed.table());
     if (! integrity.has_value()) {
         return std::unexpected(std::move(integrity.error()));
     }
-    return InstallRecord{ .compiler = std::move(*compiler), .runtimeLibraryDirectories = std::move(*directories), .ingotIntegrity = std::move(*integrity) };
+    return InstallRecord{ .compiler = std::move(*compiler),
+                          .runtimeLibraryDirectories = std::move(*directories),
+                          .arguments = { .compile = std::move(*compileArguments), .link = std::move(*linkArguments) },
+                          .ingotIntegrity = std::move(*integrity) };
 }
 
 std::string renderInstallRecord(const InstallRecord& record)
@@ -140,6 +193,8 @@ std::string renderInstallRecord(const InstallRecord& record)
         directories.push_back(directory.generic_string());
     }
     table.insert(RuntimeLibraryDirectoriesKey, std::move(directories));
+    insertArguments(table, CompileArgumentsKey, record.arguments.compile);
+    insertArguments(table, LinkArgumentsKey, record.arguments.link);
     if (record.ingotIntegrity.has_value()) {
         table.insert(IngotIntegrityKey, *record.ingotIntegrity);
     }

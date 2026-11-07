@@ -2,6 +2,7 @@
 
 #include "toolchain/HostEnvironment.h"
 #include "toolchain/InstallRecord.h"
+#include "toolchain/ToolchainArguments.h"
 #include "toolchain/ToolchainSpecifier.h"
 #include "toolchain/ToolchainVersion.h"
 
@@ -24,6 +25,7 @@ struct InstalledToolchain {
     std::filesystem::path directory;                               ///< <SCRAP_HOME>/toolchains/<family>/<version>/<platform>-<arch>
     std::filesystem::path compiler;                                ///< The C++ compiler inside the directory.
     std::vector<std::filesystem::path> runtimeLibraryDirectories;  ///< Where its runtime libraries are inside the directory.
+    ToolchainArguments arguments;                                  ///< What its compiler is given to compile and link with it.
 
     /** The name that selects it, as <family>@<version>. */
     [[nodiscard]] std::string name() const;
@@ -100,7 +102,9 @@ using InstalledToolchainFault = std::variant<NoToolchainForHost, UnusableInstall
 /**
  * @brief The install record in @p directory, when what it names is there.
  *
- * A directory whose record cannot be looked up counts as holding none.
+ * A directory whose record cannot be looked up counts as holding none. A
+ * record written by an earlier scrap for a toolchain with libc++ cannot be
+ * used: it does not say what the compiler needs to build with it.
  *
  * @return The record, nothing when @p directory holds none, or why the
  *         toolchain there cannot be used.
