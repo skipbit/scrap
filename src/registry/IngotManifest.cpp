@@ -1,10 +1,9 @@
 #include "registry/IngotManifest.h"
 
+#include "digest/DigestText.h"
 #include "json/JsonParser.h"
 #include "json/JsonValue.h"
 
-#include <algorithm>
-#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -16,19 +15,6 @@ namespace {
 
 constexpr std::string_view ManifestMediaType = "application/vnd.oci.image.manifest.v1+json";
 constexpr std::string_view IngotLayerMediaType = "application/x-tar+xz";
-constexpr std::string_view DigestPrefix = "sha256:";
-constexpr std::size_t Sha256HexLength = 64;
-
-bool isLowercaseHex(const char c)
-{
-    return ((c >= '0') && (c <= '9')) || ((c >= 'a') && (c <= 'f'));
-}
-
-bool isSha256Digest(const std::string_view digest)
-{
-    return digest.starts_with(DigestPrefix) && (digest.size() == DigestPrefix.size() + Sha256HexLength) && std::ranges::all_of(digest.substr(DigestPrefix.size()), isLowercaseHex);
-}
-
 bool hasString(const Json::Value& value, const std::string_view name, const std::string_view expected)
 {
     const std::string* actual = value.stringMember(name);
@@ -41,7 +27,7 @@ std::expected<IngotLayer, std::string> readLayer(const Json::Value& layer)
         return std::unexpected("its layer is not " + std::string{ IngotLayerMediaType });
     }
     const std::string* digest = layer.stringMember("digest");
-    if ((digest == nullptr) || (! isSha256Digest(*digest))) {
+    if ((digest == nullptr) || (! Digest::isSha256Digest(*digest))) {
         return std::unexpected(std::string{ "its layer has no SHA-256 digest" });
     }
     const Json::Value* size = layer.member("size");

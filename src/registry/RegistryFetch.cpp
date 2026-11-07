@@ -1,5 +1,6 @@
 #include "registry/RegistryFetch.h"
 
+#include "digest/DigestText.h"
 #include "digest/Sha256File.h"
 #include "fetch/UrlFetch.h"
 #include "file/WholeFile.h"
@@ -29,7 +30,6 @@ constexpr std::uint64_t TokenSizeLimit = 1024ULL * 1024;
 constexpr std::uint64_t ManifestSizeLimit = 4ULL * 1024 * 1024;
 constexpr long HttpUnauthorized = 401;
 constexpr std::string_view AcceptManifest = "Accept: application/vnd.oci.image.manifest.v1+json";
-constexpr std::string_view DigestPrefix = "sha256:";
 constexpr std::array<char, 16> HexDigits{ '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
 constexpr unsigned HighNibbleShift = 4;
 constexpr unsigned NibbleMask = 0xF;
@@ -152,7 +152,7 @@ std::expected<void, RegistryFailure> checkDigest(const std::filesystem::path& fi
     if (! actual.has_value()) {
         return std::unexpected(FetchedFileUnreadable{ .path = file, .code = actual.error() });
     }
-    if (std::string{ DigestPrefix } + *actual != digest) {
+    if (Digest::sha256Digest(*actual) != digest) {
         return std::unexpected(ContentDoesNotMatch{ .url = url });
     }
     return {};

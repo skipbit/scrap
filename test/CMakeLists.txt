@@ -98,6 +98,7 @@ scrap_add_unit_test(file SOURCES
 )
 
 scrap_add_unit_test(digest SOURCES
+    unit/digest/DigestTextTest.cpp
     unit/digest/Sha256FileTest.cpp
     unit/digest/Sha256Test.cpp
 )

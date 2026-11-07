@@ -41,6 +41,7 @@ scrap_apply_compile_settings(scrap_file WARNINGS_AS_ERRORS)
 
 # Digests of bytes and files, depending on nothing else in scrap
 add_library(scrap_digest STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/digest/DigestText.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/digest/Sha256.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/digest/Sha256File.cpp
 )
@@ -144,7 +145,7 @@ add_library(scrap_toolchain STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/driver/TomlText.cpp
 )
 target_include_directories(scrap_toolchain PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(scrap_toolchain PRIVATE scrap_file scrap_process tomlplusplus::tomlplusplus)
+target_link_libraries(scrap_toolchain PRIVATE scrap_digest scrap_file scrap_process tomlplusplus::tomlplusplus)
 scrap_apply_compile_settings(scrap_toolchain WARNINGS_AS_ERRORS)
 
 # Installing toolchains: obtaining the index, and fetching, checking and placing
