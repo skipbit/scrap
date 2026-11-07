@@ -43,8 +43,12 @@ constexpr std::string_view ExistingPathHint = "hint: check what is already at th
 /// Next step after a compiler diagnostic, which already says what is wrong.
 constexpr std::string_view FixErrorsHint = "hint: fix the errors reported above and run the command again\n";
 
+/// What a linker that cannot start without libxml2 names in its output.
+constexpr std::string_view LinkerLibxml2Library = "libxml2.so.2";
+
 /// Next step when the linker could not start without libxml2.
 constexpr std::string_view LinkerLibxml2Hint = "hint: the linker of this toolchain needs libxml2.so.2; install libxml2 on this machine, or use a newer LLVM\n";
+static_assert(LinkerLibxml2Hint.contains(LinkerLibxml2Library));
 
 /// Next step when a signal stopped the compiler, which running out of memory does.
 constexpr std::string_view CompilerMemoryHint = "hint: check that the compiler has enough memory and run the command again\n";
@@ -521,7 +525,7 @@ struct StepFailureReport {
  */
 std::string_view exitHint(const Build::FailedStep& failed)
 {
-    if ((failed.step.kind == Build::StepKind::Link) && failed.output.contains("libxml2.so.2")) {
+    if ((failed.step.kind == Build::StepKind::Link) && failed.output.contains(LinkerLibxml2Library)) {
         return LinkerLibxml2Hint;
     }
     return FixErrorsHint;
