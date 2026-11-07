@@ -75,6 +75,7 @@ struct StepResult {
 struct FailedStep {
     BuildStep step;
     StepFailure failure;
+    std::string output;  ///< What the program wrote, both streams together.
 };
 
 }  // namespace scrap::Build

@@ -43,6 +43,13 @@ constexpr std::string_view ExistingPathHint = "hint: check what is already at th
 /// Next step after a compiler diagnostic, which already says what is wrong.
 constexpr std::string_view FixErrorsHint = "hint: fix the errors reported above and run the command again\n";
 
+/// What a linker that cannot start without libxml2 names in its output.
+constexpr std::string_view LinkerLibxml2Library = "libxml2.so.2";
+
+/// Next step when the linker could not start without libxml2.
+constexpr std::string_view LinkerLibxml2Hint = "hint: the linker of this toolchain needs libxml2.so.2; install libxml2 on this machine, or use a newer LLVM\n";
+static_assert(LinkerLibxml2Hint.contains(LinkerLibxml2Library));
+
 /// Next step when a signal stopped the compiler, which running out of memory does.
 constexpr std::string_view CompilerMemoryHint = "hint: check that the compiler has enough memory and run the command again\n";
 
@@ -511,6 +518,19 @@ struct StepFailureReport {
     std::string_view hint;  ///< Ends in a newline.
 };
 
+/**
+ * What to do about a step that exited with a failure: install libxml2 when
+ * the linker could not start without it, as the LLVM linker of 17 to 22
+ * cannot, and fix the errors reported otherwise.
+ */
+std::string_view exitHint(const Build::FailedStep& failed)
+{
+    if ((failed.step.kind == Build::StepKind::Link) && failed.output.contains(LinkerLibxml2Library)) {
+        return LinkerLibxml2Hint;
+    }
+    return FixErrorsHint;
+}
+
 StepFailureReport reportStepFailure(const Build::FailedStep& failed)
 {
     const StepTool tool = toolFor(failed.step.kind);
@@ -525,7 +545,7 @@ StepFailureReport reportStepFailure(const Build::FailedStep& failed)
         return { .error = describeFailedStep(failed.step) + ": " + std::string{ tool.name } + " was stopped by signal " + std::to_string(failed.failure.status) + '\n',
                  .hint = tool.memoryHint };
     case Build::StepFailureKind::Exited:
-        return { .error = describeFailedStep(failed.step) + '\n', .hint = FixErrorsHint };
+        return { .error = describeFailedStep(failed.step) + '\n', .hint = exitHint(failed) };
     }
     // Every kind is answered above, so a kind added without a message here
     // fails the build rather than being reported as one of the others.
@@ -533,6 +553,15 @@ StepFailureReport reportStepFailure(const Build::FailedStep& failed)
 }
 
 }  // anonymous namespace
+
+std::string renderSdkNotFound(const std::filesystem::path& compiler)
+{
+    std::string text = "error: cannot find the macOS SDK for '";
+    text += printablePath(compiler);
+    text += "': 'xcrun --show-sdk-path' gave no path\n";
+    text += "hint: install the Command Line Tools with 'xcode-select --install', or set SDKROOT to the SDK\n";
+    return text;
+}
 
 std::string renderUnsupportedStandard(const std::filesystem::path& compiler, const Project::LanguageStandard standard)
 {

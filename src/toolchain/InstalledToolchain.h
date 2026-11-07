@@ -2,6 +2,7 @@
 
 #include "toolchain/HostEnvironment.h"
 #include "toolchain/InstallRecord.h"
+#include "toolchain/ToolchainArguments.h"
 #include "toolchain/ToolchainSpecifier.h"
 #include "toolchain/ToolchainVersion.h"
 
@@ -24,6 +25,7 @@ struct InstalledToolchain {
     std::filesystem::path directory;                               ///< <SCRAP_HOME>/toolchains/<family>/<version>/<platform>-<arch>
     std::filesystem::path compiler;                                ///< The C++ compiler inside the directory.
     std::vector<std::filesystem::path> runtimeLibraryDirectories;  ///< Where its runtime libraries are inside the directory.
+    ToolchainArguments arguments;                                  ///< What its compiler is given to compile and link with it.
 
     /** The name that selects it, as <family>@<version>. */
     [[nodiscard]] std::string name() const;

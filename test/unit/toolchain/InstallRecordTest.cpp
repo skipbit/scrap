@@ -104,22 +104,71 @@ TEST(InstallRecordTest, RefusesAnIntegrityValueThatIsNotAString)
 
 TEST(InstallRecordTest, ReadsBackWhatItRenders)
 {
-    const InstallRecord written{ .compiler = "bin/g++", .runtimeLibraryDirectories = { "lib64", "lib/x86_64-unknown-linux-gnu" }, .ingotIntegrity = "sha256:abc" };
+    const InstallRecord written{ .compiler = "bin/clang++",
+                                 .runtimeLibraryDirectories = { "lib64", "lib/x86_64-unknown-linux-gnu" },
+                                 .arguments = { .compile = { "-stdlib=libc++" }, .link = { "-stdlib=libc++", "-fuse-ld=lld" } },
+                                 .ingotIntegrity = "sha256:abc" };
 
     const auto read = parseInstallRecord(renderInstallRecord(written));
 
     ASSERT_TRUE(read.has_value());
     EXPECT_EQ(read->compiler, written.compiler);
     EXPECT_EQ(read->runtimeLibraryDirectories, written.runtimeLibraryDirectories);
+    EXPECT_EQ(read->arguments.compile, written.arguments.compile);
+    EXPECT_EQ(read->arguments.link, written.arguments.link);
     EXPECT_EQ(read->ingotIntegrity, written.ingotIntegrity);
 }
 
 TEST(InstallRecordTest, RendersNoIntegrityValueWhenThereIsNone)
 {
-    const InstallRecord written{ .compiler = "bin/g++", .runtimeLibraryDirectories = {} };
+    const InstallRecord written{ .compiler = "bin/g++", .runtimeLibraryDirectories = {}, .arguments = { .compile = {}, .link = {} } };
 
     const std::string text = renderInstallRecord(written);
 
     EXPECT_EQ(text.find("ingot-integrity"), std::string::npos);
     EXPECT_FALSE(parseInstallRecord(text)->ingotIntegrity.has_value());
+}
+
+/**
+ * A record of a toolchain that needs nothing more to compile and link, as
+ * one of GCC, holds no argument lists, so it reads as the records written
+ * before there were any.
+ */
+TEST(InstallRecordTest, RendersNoArgumentsWhenThereAreNone)
+{
+    const InstallRecord written{ .compiler = "bin/g++", .runtimeLibraryDirectories = { "lib64" }, .arguments = { .compile = {}, .link = {} } };
+
+    const std::string text = renderInstallRecord(written);
+
+    EXPECT_EQ(text.find("compile-args"), std::string::npos);
+    EXPECT_EQ(text.find("link-args"), std::string::npos);
+}
+
+/**
+ * Compile and link arguments are read in order; a record without them, as
+ * one written before there were any, names none.
+ */
+TEST(InstallRecordTest, ReadsTheCompileAndLinkArguments)
+{
+    const auto record = parseInstallRecord("compiler = 'bin/clang++'\ncompile-args = ['-stdlib=libc++']\nlink-args = ['-stdlib=libc++', '-lc++abi']\n");
+
+    ASSERT_TRUE(record.has_value()) << record.error();
+    EXPECT_EQ(record->arguments.compile, std::vector<std::string>{ "-stdlib=libc++" });
+    const std::vector<std::string> link{ "-stdlib=libc++", "-lc++abi" };
+    EXPECT_EQ(record->arguments.link, link);
+
+    const auto without = parseInstallRecord("compiler = 'bin/g++'\n");
+    ASSERT_TRUE(without.has_value()) << without.error();
+    EXPECT_TRUE(without->arguments.compile.empty());
+    EXPECT_TRUE(without->arguments.link.empty());
+}
+
+/**
+ * Arguments that are not a list of strings are refused, naming the key.
+ */
+TEST(InstallRecordTest, RefusesArgumentsThatAreNotAListOfStrings)
+{
+    EXPECT_EQ(parseInstallRecord("compiler = 'bin/clang++'\ncompile-args = '-stdlib=libc++'\n").error(),
+              "line 2: compile-args: must be an array of strings");
+    EXPECT_EQ(parseInstallRecord("compiler = 'bin/clang++'\nlink-args = ['-lc++abi', 1]\n").error(), "line 2: link-args: must be a string");
 }

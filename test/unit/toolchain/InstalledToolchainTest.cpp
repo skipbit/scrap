@@ -155,12 +155,31 @@ TEST(InstalledToolchainTest, FindsTheRuntimeLibraryDirectories)
 }
 
 /**
+ * The compile and link arguments the record names are taken as written.
+ */
+TEST(InstalledToolchainTest, FindsTheCompileAndLinkArguments)
+{
+    const TempDirectory home;
+    install(home, "llvm", "22.1.8");
+    const std::string directory = "toolchains/llvm/22.1.8/linux-x86_64";
+    home.writeFile(directory + "/" + std::string{ InstallRecordName },
+                   "compiler = 'bin/g++'\ncompile-args = ['-stdlib=libc++']\nlink-args = ['-stdlib=libc++', '-fuse-ld=lld']\n");
+
+    const auto found = findInstalledToolchain(home.path(), Host, parseToolchainSpecifier("llvm").value());
+    ASSERT_TRUE(found.has_value()) << reasonOf(found.error());
+    ASSERT_TRUE(found->has_value());
+    EXPECT_EQ((*found)->arguments.compile, std::vector<std::string>{ "-stdlib=libc++" });
+    const std::vector<std::string> link{ "-stdlib=libc++", "-fuse-ld=lld" };
+    EXPECT_EQ((*found)->arguments.link, link);
+}
+
+/**
  * A toolchain is named as the specifier that selects it is written.
  */
 TEST(InstalledToolchainTest, NamesItselfAsFamilyAndVersion)
 {
     const InstalledToolchain toolchain{
-        .family = "gcc", .version = ToolchainVersion::parse("15.2.0").value(), .directory = "", .compiler = "", .runtimeLibraryDirectories = {}
+        .family = "gcc", .version = ToolchainVersion::parse("15.2.0").value(), .directory = "", .compiler = "", .runtimeLibraryDirectories = {}, .arguments = { .compile = {}, .link = {} }
     };
 
     EXPECT_EQ(toolchain.name(), "gcc@15.2.0");

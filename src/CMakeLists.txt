@@ -134,6 +134,8 @@ add_library(scrap_toolchain STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/IngotSelection.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/InstallRecord.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/InstalledToolchain.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/MacSdk.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/ProgramAnswer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/ProgramSearch.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/ScrapHomeLayout.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/SystemArchiver.cpp

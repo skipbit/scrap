@@ -1,6 +1,9 @@
 #pragma once
 
+#include "toolchain/ToolchainArguments.h"
+
 #include <filesystem>
+#include <string_view>
 #include <vector>
 
 namespace scrap::Install {
@@ -16,5 +19,21 @@ namespace scrap::Install {
  *        library.
  */
 [[nodiscard]] std::vector<std::filesystem::path> findRuntimeLibraryDirectories(const std::filesystem::path& root);
+
+/**
+ * @brief What the compiler of the toolchain at @p root needs to build with
+ *        the runtime libraries the toolchain holds, on @p platform.
+ *
+ * A toolchain that holds libc++, as LLVM does, is asked to use it. On linux
+ * the compiler is also asked for the linker, compiler-rt and libunwind of
+ * the toolchain, so nothing comes from a GCC on the host. On darwin it is
+ * asked for the libc++abi of the toolchain, which its libc++ does not
+ * re-export, and keeps the linker of the system, which reads the SDK. A
+ * toolchain that holds no libc++, as GCC, needs nothing.
+ *
+ * @param platform The platform of the ingot, as the index spells it.
+ * @param root Where the toolchain starts.
+ */
+[[nodiscard]] Toolchain::ToolchainArguments runtimeArgumentsFor(std::string_view platform, const std::filesystem::path& root);
 
 }  // namespace scrap::Install

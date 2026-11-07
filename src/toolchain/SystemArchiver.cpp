@@ -1,6 +1,7 @@
 #include "toolchain/SystemArchiver.h"
 
 #include "process/Subprocess.h"
+#include "toolchain/ProgramAnswer.h"
 #include "toolchain/ProgramSearch.h"
 
 #include <expected>  // IWYU pragma: keep
@@ -24,18 +25,7 @@ constexpr std::string_view ArchiverProgramName = "ar";
 std::optional<std::string> askForArchiver(const std::filesystem::path& compiler)
 {
     const std::vector<std::string> arguments{ compiler.string(), "-print-prog-name=" + std::string{ ArchiverProgramName } };
-    const auto completion = Process::runProgram(arguments, { .workingDirectory = {}, .capture = Process::OutputCapture::StandardOutput, .group = Process::ProcessGroup::Caller, .timeout = std::nullopt, .outputLimit = std::nullopt });
-    if ((! completion.has_value()) || (completion->exitCode != 0)) {
-        return std::nullopt;
-    }
-    std::string answer = completion->output;
-    while ((! answer.empty()) && ((answer.back() == '\n') || (answer.back() == '\r'))) {
-        answer.pop_back();
-    }
-    if (answer.empty()) {
-        return std::nullopt;
-    }
-    return answer;
+    return askProgram(arguments, { .workingDirectory = {}, .capture = Process::OutputCapture::StandardOutput, .group = Process::ProcessGroup::Caller, .timeout = std::nullopt, .outputLimit = std::nullopt });
 }
 
 }  // anonymous namespace

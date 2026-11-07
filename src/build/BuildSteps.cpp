@@ -152,7 +152,7 @@ private:
         lock.lock();
         _reporter->finished(step, result.output);
         if (result.failure.has_value()) {
-            _failures.push_back(FailedStep{ .step = step, .failure = *result.failure });
+            _failures.push_back(FailedStep{ .step = step, .failure = *result.failure, .output = std::move(result.output) });
         }
     }
 

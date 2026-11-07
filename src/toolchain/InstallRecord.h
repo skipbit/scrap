@@ -1,5 +1,7 @@
 #pragma once
 
+#include "toolchain/ToolchainArguments.h"
+
 #include <expected>
 #include <filesystem>
 #include <optional>
@@ -24,6 +26,7 @@ inline constexpr std::string_view InstallRecordName = ".scrap-toolchain.toml";
 struct InstallRecord {
     std::filesystem::path compiler;                                ///< The C++ compiler, relative to the toolchain's directory.
     std::vector<std::filesystem::path> runtimeLibraryDirectories;  ///< Where its runtime libraries are, relative to the same.
+    ToolchainArguments arguments;                                  ///< What the compiler is given to compile and link with the toolchain.
     std::optional<std::string> ingotIntegrity = std::nullopt;      ///< The digest or SHA-256 the index gave for what was installed.
 };
 
@@ -32,9 +35,10 @@ struct InstallRecord {
  *
  * Keys this version does not know are passed over. The compiler, and each
  * of the runtime library directories, must be a relative path that stays
- * inside the toolchain's directory. A record without runtime library
- * directories names none, and one without an integrity value cannot be
- * compared with the index.
+ * inside the toolchain's directory. Compile and link arguments are lists
+ * of strings. A record without runtime library directories, or without
+ * compile or link arguments, names none, and one without an integrity
+ * value cannot be compared with the index.
  *
  * @return The record, or where and why it cannot be read.
  */

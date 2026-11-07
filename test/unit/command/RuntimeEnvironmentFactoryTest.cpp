@@ -21,6 +21,7 @@ struct GivenInputs {
     std::string toolchain{};
     std::string toolchainIndex{};
     std::string certificateFile{};
+    std::string sdkRoot{};
 };
 
 /**
@@ -37,6 +38,7 @@ RuntimeEnvironment environmentOf(const GivenInputs& given)
         .toolchain = given.toolchain,
         .toolchainIndex = given.toolchainIndex,
         .certificateFile = given.certificateFile,
+        .sdkRoot = given.sdkRoot,
     });
 }
 
@@ -190,4 +192,10 @@ TEST(RuntimeEnvironmentFactoryTest, CarriesWhereTheIndexAndCertificatesAre)
 
     EXPECT_EQ(env.toolchainIndexUrl, "https://example.com/index.toml");
     EXPECT_EQ(env.certificateFile, "/etc/roots.pem");
+}
+
+TEST(RuntimeEnvironmentFactoryTest, CarriesTheSdkTheEnvironmentNames)
+{
+    EXPECT_EQ(environmentOf({ .workingDirectory = "/project", .sdkRoot = "/sdk" }).sdkRoot, "/sdk");
+    EXPECT_TRUE(environmentOf({ .workingDirectory = "/project" }).sdkRoot.empty());
 }
