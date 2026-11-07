@@ -236,6 +236,23 @@ TEST(RegistryFetchTest, ReportsARegistryThatGivesNoToken)
     }
 }
 
+TEST(RegistryFetchTest, SendsNoTokenThatWouldBreakTheHeaderLine)
+{
+    const TempDirectory temp;
+    FakeRegistry registry;
+    registry.server().respond(FakeRegistry::tokenPath(), ok(R"({"token": "abc\r\nX-Injected: 1"})"));
+
+    const auto fetched = fetchIngot(requestFor(registry, temp));
+
+    for (const std::string& head : registry.server().requestHeads()) {
+        EXPECT_FALSE(head.contains("X-Injected")) << head;
+    }
+    ASSERT_FALSE(fetched.has_value());
+    const auto* unusable = std::get_if<AnswerUnusable>(&fetched.error());
+    ASSERT_NE(unusable, nullptr);
+    EXPECT_EQ(unusable->reason, "it gave no token");
+}
+
 TEST(RegistryFetchTest, ReportsAManifestTheRegistryDoesNotHave)
 {
     const TempDirectory temp;

@@ -18,7 +18,9 @@ namespace scrap::Registry {
 /**
  * @brief The token in the answer of a token endpoint, @p json.
  *
- * "token" is preferred to "access_token".
+ * "token" is preferred to "access_token", and either must be a b64token of
+ * RFC 6750, which keeps line breaks and spaces out of the header that carries
+ * it.
  *
  * @return The token, or nothing when the answer is not JSON or holds none.
  */

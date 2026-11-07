@@ -4,8 +4,10 @@
 #include "json/JsonValue.h"
 #include "registry/BearerChallenge.h"
 
+#include <algorithm>
 #include <array>
 #include <cctype>
+#include <cstddef>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -38,6 +40,21 @@ std::string percentEncoded(const std::string_view text)
     return encoded;
 }
 
+bool isTokenCharacter(const char c)
+{
+    return (std::isalnum(static_cast<unsigned char>(c)) != 0) || (c == '-') || (c == '.') || (c == '_') || (c == '~') || (c == '+') || (c == '/');
+}
+
+/**
+ * Whether @p text may follow "Bearer " in a header line: the b64token of RFC
+ * 6750, so that no line break or space reaches the request.
+ */
+bool isBearerToken(const std::string_view text)
+{
+    const std::size_t last = text.find_last_not_of('=');
+    return (last != std::string_view::npos) && std::ranges::all_of(text.substr(0, last + 1), isTokenCharacter);
+}
+
 }  // anonymous namespace
 
 std::string tokenUrl(const BearerChallenge& challenge, const std::string_view defaultScope)
@@ -59,7 +76,7 @@ std::optional<std::string> readTokenAnswer(const std::string_view json)
     }
     for (const std::string_view name : { "token", "access_token" }) {
         const std::string* token = answer->stringMember(name);
-        if ((token != nullptr) && (! token->empty())) {
+        if ((token != nullptr) && isBearerToken(*token)) {
             return *token;
         }
     }

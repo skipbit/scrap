@@ -82,3 +82,30 @@ TEST(TokenRequestTest, GivesNoTokenFromWhatIsNotJson)
     EXPECT_EQ(readTokenAnswer("token=abc"), std::nullopt);
     EXPECT_EQ(readTokenAnswer(""), std::nullopt);
 }
+
+TEST(TokenRequestTest, GivesNoTokenThatWouldBreakTheHeaderLine)
+{
+    EXPECT_EQ(readTokenAnswer(R"({"token":"abc\r\nX-Injected: 1"})"), std::nullopt);
+    EXPECT_EQ(readTokenAnswer(R"({"token":"abc def"})"), std::nullopt);
+    EXPECT_EQ(readTokenAnswer(R"({"token":"abc)" + std::string{ '\\', 'u' } + R"(0000def"})"), std::nullopt);
+}
+
+TEST(TokenRequestTest, FallsBackToTheAccessTokenWhenTheTokenCannotBeSent)
+{
+    EXPECT_EQ(readTokenAnswer(R"({"token":"a b","access_token":"xyz"})"), std::optional<std::string>{ "xyz" });
+}
+
+TEST(TokenRequestTest, TakesPaddingOnlyAtTheEndOfAToken)
+{
+    EXPECT_EQ(readTokenAnswer(R"({"token":"a="})"), std::optional<std::string>{ "a=" });
+    EXPECT_EQ(readTokenAnswer(R"({"token":"ab=="})"), std::optional<std::string>{ "ab==" });
+    EXPECT_EQ(readTokenAnswer(R"({"token":"a=b"})"), std::nullopt);
+    EXPECT_EQ(readTokenAnswer(R"({"token":"=="})"), std::nullopt);
+}
+
+TEST(TokenRequestTest, ReadsATokenShapedAsAJsonWebToken)
+{
+    const std::string token = "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ4In0.c2lnbmF0dXJl-_~+/";
+
+    EXPECT_EQ(readTokenAnswer(R"({"token":")" + token + R"("})"), std::optional<std::string>{ token });
+}
