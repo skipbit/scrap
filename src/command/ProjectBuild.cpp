@@ -162,6 +162,37 @@ std::vector<std::string> joined(const std::vector<std::string>& first, const std
 }
 
 /**
+ * The settings to build @p project with: the compiler it uses, named on
+ * standard error with where it came from, and what that compiler is given.
+ * The macOS SDK is asked for before the compiler is identified.
+ */
+std::expected<Compile::BuildSettings, int> settingsFor(const RuntimeEnvironment& env,
+                                                       const Project::LoadedProject& project,
+                                                       const Compile::BuildProfile profile,
+                                                       const std::filesystem::path& buildDirectory)
+{
+    const auto compiler = findCompiler(env, project);
+    if (! compiler.has_value()) {
+        return std::unexpected(compiler.error());
+    }
+    const auto sdk = sdkArgumentsFor(env, *compiler);
+    if (! sdk.has_value()) {
+        return std::unexpected(sdk.error());
+    }
+    return Compile::BuildSettings{
+        .projectRoot = project.root,
+        .buildDirectory = buildDirectory,
+        .compiler = compiler->compiler,
+        .driver = Compile::CompilerDriver{ Toolchain::identifyCompiler(compiler->compiler) },
+        .standard = project.manifest.package.standard,
+        .profile = profile,
+        .runtimeLibraryDirectories = compiler->runtimeLibraryDirectories,
+        .compileArguments = joined(compiler->compileArguments, *sdk),
+        .linkArguments = joined(compiler->linkArguments, *sdk)
+    };
+}
+
+/**
  * The names of @p targets, in their order.
  */
 std::vector<std::string> namesOf(const std::vector<Project::Target>& targets)
@@ -311,26 +342,11 @@ std::expected<std::filesystem::path, int> buildProject(const RuntimeEnvironment&
         return std::unexpected(sources.error());
     }
 
-    const auto compiler = findCompiler(env, project);
-    if (! compiler.has_value()) {
-        return std::unexpected(compiler.error());
+    const auto settingsResult = settingsFor(env, project, profile, buildDirectory);
+    if (! settingsResult.has_value()) {
+        return std::unexpected(settingsResult.error());
     }
-    const auto sdk = sdkArgumentsFor(env, *compiler);
-    if (! sdk.has_value()) {
-        return std::unexpected(sdk.error());
-    }
-
-    const Compile::BuildSettings settings{
-        .projectRoot = project.root,
-        .buildDirectory = buildDirectory,
-        .compiler = compiler->compiler,
-        .driver = Compile::CompilerDriver{ Toolchain::identifyCompiler(compiler->compiler) },
-        .standard = project.manifest.package.standard,
-        .profile = profile,
-        .runtimeLibraryDirectories = compiler->runtimeLibraryDirectories,
-        .compileArguments = joined(compiler->compileArguments, *sdk),
-        .linkArguments = joined(compiler->linkArguments, *sdk)
-    };
+    const Compile::BuildSettings& settings = *settingsResult;
     const auto compiles = Compile::planCompileCommands(settings, *sources);
     const auto written = Compile::writeCompilationDatabase(project.root / buildDirectory, compiles);
     if (! written.has_value()) {
@@ -341,7 +357,7 @@ std::expected<std::filesystem::path, int> buildProject(const RuntimeEnvironment&
     // The database is written before the build stops for a reason below, so
     // an editor reads the commands whether or not they can run.
     if (! settings.driver.standardOption(settings.standard).has_value()) {
-        std::cerr << renderUnsupportedStandard(compiler->compiler, settings.standard);
+        std::cerr << renderUnsupportedStandard(settings.compiler, settings.standard);
         return std::unexpected(1);
     }
 
