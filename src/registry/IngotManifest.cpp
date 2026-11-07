@@ -31,8 +31,8 @@ bool isSha256Digest(const std::string_view digest)
 
 bool hasString(const Json::Value& value, const std::string_view name, const std::string_view expected)
 {
-    const Json::Value* member = value.member(name);
-    return (member != nullptr) && (member->asString() != nullptr) && (*member->asString() == expected);
+    const std::string* actual = value.stringMember(name);
+    return (actual != nullptr) && (*actual == expected);
 }
 
 std::expected<IngotLayer, std::string> readLayer(const Json::Value& layer)
@@ -40,8 +40,8 @@ std::expected<IngotLayer, std::string> readLayer(const Json::Value& layer)
     if (! hasString(layer, "mediaType", IngotLayerMediaType)) {
         return std::unexpected("its layer is not " + std::string{ IngotLayerMediaType });
     }
-    const Json::Value* digest = layer.member("digest");
-    if ((digest == nullptr) || (digest->asString() == nullptr) || (! isSha256Digest(*digest->asString()))) {
+    const std::string* digest = layer.stringMember("digest");
+    if ((digest == nullptr) || (! isSha256Digest(*digest))) {
         return std::unexpected(std::string{ "its layer has no SHA-256 digest" });
     }
     const Json::Value* size = layer.member("size");
@@ -49,7 +49,7 @@ std::expected<IngotLayer, std::string> readLayer(const Json::Value& layer)
     if (! bytes.has_value()) {
         return std::unexpected(std::string{ "its layer has no size" });
     }
-    return IngotLayer{ .digest = *digest->asString(), .size = *bytes };
+    return IngotLayer{ .digest = *digest, .size = *bytes };
 }
 
 }  // anonymous namespace

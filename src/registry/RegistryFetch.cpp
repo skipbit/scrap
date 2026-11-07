@@ -101,9 +101,9 @@ std::expected<std::string, RegistryFailure> fetchToken(const BearerChallenge& ch
     const auto answer = Json::parse(*text);
     if (answer.has_value()) {
         for (const std::string_view name : { "token", "access_token" }) {
-            const Json::Value* token = answer->member(name);
-            if ((token != nullptr) && (token->asString() != nullptr) && (! token->asString()->empty())) {
-                return *token->asString();
+            const std::string* token = answer->stringMember(name);
+            if ((token != nullptr) && (! token->empty())) {
+                return *token;
             }
         }
     }

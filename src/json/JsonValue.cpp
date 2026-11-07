@@ -24,6 +24,12 @@ const Value* Value::member(const std::string_view name) const
     return nullptr;
 }
 
+const std::string* Value::stringMember(const std::string_view name) const
+{
+    const Value* found = member(name);
+    return (found == nullptr) ? nullptr : found->asString();
+}
+
 const std::string* Value::asString() const
 {
     return std::get_if<std::string>(&data);

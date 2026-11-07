@@ -41,6 +41,9 @@ struct Value {
     /// The member named @p name, when this is an object that has one.
     [[nodiscard]] const Value* member(std::string_view name) const;
 
+    /// The string held by the member named @p name, when there is one.
+    [[nodiscard]] const std::string* stringMember(std::string_view name) const;
+
     [[nodiscard]] const std::string* asString() const;
     [[nodiscard]] const Array* asArray() const;
 

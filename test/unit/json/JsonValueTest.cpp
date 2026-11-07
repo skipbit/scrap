@@ -41,6 +41,17 @@ TEST(JsonValueTest, GivesAStringOrAnArrayOnlyWhenItIsOne)
     EXPECT_EQ(items.asString(), nullptr);
 }
 
+TEST(JsonValueTest, GivesAMemberOnlyWhenItIsAString)
+{
+    const Value object{ Object{ Member{ .name = "a", .value = Value{ std::string{ "x" } } }, Member{ .name = "b", .value = Value{ true } } } };
+
+    ASSERT_NE(object.stringMember("a"), nullptr);
+    EXPECT_EQ(*object.stringMember("a"), "x");
+    EXPECT_EQ(object.stringMember("b"), nullptr);
+    EXPECT_EQ(object.stringMember("c"), nullptr);
+    EXPECT_EQ(Value{ std::string{ "x" } }.stringMember("a"), nullptr);
+}
+
 TEST(JsonValueTest, GivesAWholeNumberThatFits)
 {
     EXPECT_EQ(Value{ Number{ "0" } }.asUnsigned(), std::optional<std::uint64_t>{ 0 });
