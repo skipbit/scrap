@@ -232,6 +232,8 @@ std::expected<std::filesystem::path, IngotInstallFailure> prepareToolchain(const
     }
     const Toolchain::InstallRecord record{ .compiler = compiler,
                                            .runtimeLibraryDirectories = findRuntimeLibraryDirectories(root),
+                                           .compileArguments = {},
+                                           .linkArguments = {},
                                            .ingotIntegrity = Toolchain::integrityOf(selected.ingot) };
     const std::filesystem::path recordFile = root / Toolchain::InstallRecordName;
     ec = File::writeNewFile(recordFile, Toolchain::renderInstallRecord(record));
