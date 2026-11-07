@@ -1,5 +1,6 @@
 #include "install/UnpackedToolchain.h"
 
+#include "toolchain/RuntimeLibraryName.h"
 #include "toolchain/ToolchainArguments.h"
 
 #include <algorithm>
@@ -13,14 +14,9 @@ namespace scrap::Install {
 
 namespace {
 
-bool isLibcxxName(const std::string& name)
-{
-    return name.starts_with("libc++.so") || (name.starts_with("libc++.") && name.ends_with(".dylib"));
-}
-
 bool isRuntimeLibraryName(const std::string& name)
 {
-    return name.starts_with("libstdc++.so") || isLibcxxName(name);
+    return name.starts_with("libstdc++.so") || Toolchain::isLibcxxName(name);
 }
 
 /**
@@ -79,7 +75,7 @@ std::vector<std::filesystem::path> findRuntimeLibraryDirectories(const std::file
 
 Toolchain::ToolchainArguments runtimeArgumentsFor(std::string_view platform, const std::filesystem::path& root)
 {
-    if (librariesBelow(root, isLibcxxName).empty()) {
+    if (librariesBelow(root, Toolchain::isLibcxxName).empty()) {
         return Toolchain::ToolchainArguments{ .compile = {}, .link = {} };
     }
     if (platform == "darwin") {

@@ -2978,6 +2978,31 @@ TEST_F(CliE2ETest, BuildGivesTheCompilerTheArgumentsTheToolchainRecords)
 }
 
 /**
+ * An LLVM installed by an earlier scrap has a record that says nothing of
+ * how to build with its libc++, so a build asks for it to be installed
+ * again rather than linking with it in part.
+ */
+TEST_F(CliE2ETest, BuildAsksToInstallAgainAnLlvmInstalledByAnEarlierScrap)
+{
+    installWorkingToolchain("llvm", "22.1.8");
+    for (const char* host : { "linux-x86_64", "linux-aarch64", "darwin-x86_64", "darwin-aarch64" }) {
+        const std::string toolchain = std::string{ "toolchains/llvm/22.1.8/" } + host;
+        writeFile(toolchain + "/lib/libc++.so.1", "");
+        writeFile(toolchain + "/lib/libc++.1.dylib", "");
+        writeFile(toolchain + "/.scrap-toolchain.toml", "compiler = 'bin/g++'\nruntime-library-dirs = ['lib']\n");
+    }
+    writeFile("hello/scrap.toml", ValidManifest);
+    writeFile("hello/src/main.cpp", MainSource);
+
+    auto result = runScrap({ "build" }, { "SCRAP_TOOLCHAIN=llvm@22.1.8" }, _root / "hello", BuildTimeout);
+
+    EXPECT_EQ(result.exitCode, 1) << result.stderrText;
+    EXPECT_NE(result.stderrText.find("was written by an earlier scrap"), std::string::npos) << result.stderrText;
+    EXPECT_NE(result.stderrText.find("hint: run 'scrap toolchain install --force llvm@22.1.8'\n"), std::string::npos) << result.stderrText;
+    EXPECT_EQ(compilersUsed(), "");
+}
+
+/**
  * On macOS the compiler of an installed toolchain is pointed at the SDK
  * xcrun names, unless SDKROOT names one, which the compiler reads itself.
  * Elsewhere it is given no SDK.

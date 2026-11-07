@@ -174,6 +174,47 @@ TEST(InstalledToolchainTest, FindsTheCompileAndLinkArguments)
 }
 
 /**
+ * A record written by an earlier scrap for a toolchain with libc++ says
+ * nothing of what the compiler needs to build with it, so the toolchain is
+ * installed again rather than built with in part.
+ */
+TEST(InstalledToolchainTest, RefusesARecordOfAnEarlierScrapForLibcxx)
+{
+    const TempDirectory home;
+    install(home, "llvm", "22.1.8", "darwin-aarch64");
+    const std::string directory = "toolchains/llvm/22.1.8/darwin-aarch64";
+    home.writeFile(directory + "/lib/libc++.1.dylib", "");
+    home.writeFile(directory + "/" + std::string{ InstallRecordName }, "compiler = 'bin/g++'\nruntime-library-dirs = ['lib']\n");
+    const HostEnvironment darwin{ .platform = "darwin", .arch = "aarch64" };
+
+    const auto old = findInstalledToolchain(home.path(), darwin, parseToolchainSpecifier("llvm").value());
+    ASSERT_FALSE(old.has_value());
+    EXPECT_NE(reasonOf(old.error()).find("was written by an earlier scrap"), std::string::npos) << reasonOf(old.error());
+    EXPECT_TRUE(reasonOf(old.error()).ends_with("/lib'")) << reasonOf(old.error());
+
+    home.writeFile(directory + "/" + std::string{ InstallRecordName }, "compiler = 'bin/g++'\nruntime-library-dirs = ['lib']\nlink-args = ['-lc++abi']\n");
+    const auto current = findInstalledToolchain(home.path(), darwin, parseToolchainSpecifier("llvm").value());
+    ASSERT_TRUE(current.has_value()) << reasonOf(current.error());
+    EXPECT_TRUE(current->has_value());
+}
+
+/**
+ * A record of GCC names no arguments, as its runtime libraries need none.
+ */
+TEST(InstalledToolchainTest, TakesARecordWithoutArgumentsForLibstdcxx)
+{
+    const TempDirectory home;
+    install(home, "gcc", "15.2.0");
+    const std::string directory = "toolchains/gcc/15.2.0/linux-x86_64";
+    home.writeFile(directory + "/lib64/libstdc++.so.6", "");
+    home.writeFile(directory + "/" + std::string{ InstallRecordName }, "compiler = 'bin/g++'\nruntime-library-dirs = ['lib64']\n");
+
+    const auto found = findInstalledToolchain(home.path(), Host, parseToolchainSpecifier("gcc").value());
+    ASSERT_TRUE(found.has_value()) << reasonOf(found.error());
+    EXPECT_TRUE(found->has_value());
+}
+
+/**
  * A toolchain is named as the specifier that selects it is written.
  */
 TEST(InstalledToolchainTest, NamesItselfAsFamilyAndVersion)
