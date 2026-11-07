@@ -60,6 +60,7 @@ int main(int argc, char* argv[])
             .toolchain = environmentVariable("SCRAP_TOOLCHAIN"),
             .toolchainIndex = environmentVariable("SCRAP_TOOLCHAIN_INDEX"),
             .certificateFile = environmentVariable("SSL_CERT_FILE"),
+            .sdkRoot = environmentVariable("SDKROOT"),
         });
 
         auto helpRenderer = std::make_unique<DefaultHelpRenderer>();

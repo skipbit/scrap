@@ -534,6 +534,15 @@ StepFailureReport reportStepFailure(const Build::FailedStep& failed)
 
 }  // anonymous namespace
 
+std::string renderSdkNotFound(const std::filesystem::path& compiler)
+{
+    std::string text = "error: cannot find the macOS SDK for '";
+    text += printablePath(compiler);
+    text += "': 'xcrun --show-sdk-path' gave no path\n";
+    text += "hint: install the Command Line Tools with 'xcode-select --install', or set SDKROOT to the SDK\n";
+    return text;
+}
+
 std::string renderUnsupportedStandard(const std::filesystem::path& compiler, const Project::LanguageStandard standard)
 {
     std::string text = "error: '";

@@ -35,6 +35,7 @@ using scrap::Command::renderNoTargetNamed;
 using scrap::Command::renderNoTargetToBuild;
 using scrap::Command::renderOutputRemovalFailure;
 using scrap::Command::renderProjectError;
+using scrap::Command::renderSdkNotFound;
 using scrap::Command::renderSeveralExecutablesToRun;
 using scrap::Command::renderSeveralLibraries;
 using scrap::Command::renderSourceCollectionError;
@@ -883,6 +884,13 @@ TEST(ProjectDiagnosticTest, RendersAStandardTheCompilerCannotBuild)
     EXPECT_EQ(renderUnsupportedStandard("/usr/bin/g++", LanguageStandard::Cxx26),
               "error: '/usr/bin/g++' does not support C++26\n"
               "hint: use a newer compiler, or set std in scrap.toml to an older standard\n");
+}
+
+TEST(ProjectDiagnosticTest, RendersAnSdkThatCannotBeFound)
+{
+    EXPECT_EQ(renderSdkNotFound("/Users/me/.scrap/toolchains/llvm/22.1.8/darwin-aarch64/bin/clang++"),
+              "error: cannot find the macOS SDK for '/Users/me/.scrap/toolchains/llvm/22.1.8/darwin-aarch64/bin/clang++': 'xcrun --show-sdk-path' gave no path\n"
+              "hint: install the Command Line Tools with 'xcode-select --install', or set SDKROOT to the SDK\n");
 }
 
 /**

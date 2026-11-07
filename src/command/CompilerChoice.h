@@ -18,6 +18,7 @@ struct ChosenCompiler {
     std::vector<std::filesystem::path> runtimeLibraryDirectories;  ///< Where its runtime libraries are; none for the system's compiler.
     std::vector<std::string> compileArguments;                     ///< What it is given to compile; none for the system's compiler.
     std::vector<std::string> linkArguments;                        ///< What it is given to link; none for the system's compiler.
+    bool installed;                                                ///< Whether it is the compiler of a toolchain scrap installed.
     std::string announcement;                                      ///< The line naming it, ending in a newline.
 };
 

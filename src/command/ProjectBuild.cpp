@@ -19,6 +19,8 @@
 #include "project/SourceCollector.h"
 #include "project/TargetResolver.h"
 #include "toolchain/CompilerIdentity.h"
+#include "toolchain/HostEnvironment.h"
+#include "toolchain/MacSdk.h"
 #include "toolchain/SystemArchiver.h"
 
 #include <algorithm>
@@ -127,6 +129,36 @@ std::expected<ChosenCompiler, int> findCompiler(const RuntimeEnvironment& env, c
     }
     std::cerr << chosen->announcement;
     return std::move(*chosen);
+}
+
+/**
+ * What @p compiler is given to compile and link against the macOS SDK: only
+ * the compiler of an installed toolchain, on darwin, needs it. Reports an
+ * SDK that cannot be found.
+ */
+std::expected<std::vector<std::string>, int> sdkArgumentsFor(const RuntimeEnvironment& env, const ChosenCompiler& compiler)
+{
+    if (! compiler.installed) {
+        return std::vector<std::string>{};
+    }
+    const std::optional<Toolchain::HostEnvironment> host = Toolchain::hostEnvironment();
+    const std::string_view platform = host.has_value() ? host->platform : std::string_view{};
+    auto arguments = Toolchain::sdkArguments(platform, env.sdkRoot, Toolchain::askXcrunForSdkPath);
+    if (! arguments.has_value()) {
+        std::cerr << renderSdkNotFound(compiler.compiler);
+        return std::unexpected(1);
+    }
+    return std::move(*arguments);
+}
+
+/**
+ * @p first followed by @p second.
+ */
+std::vector<std::string> joined(const std::vector<std::string>& first, const std::vector<std::string>& second)
+{
+    std::vector<std::string> both = first;
+    both.insert(both.end(), second.begin(), second.end());
+    return both;
 }
 
 /**
@@ -283,6 +315,10 @@ std::expected<std::filesystem::path, int> buildProject(const RuntimeEnvironment&
     if (! compiler.has_value()) {
         return std::unexpected(compiler.error());
     }
+    const auto sdk = sdkArgumentsFor(env, *compiler);
+    if (! sdk.has_value()) {
+        return std::unexpected(sdk.error());
+    }
 
     const Compile::BuildSettings settings{
         .projectRoot = project.root,
@@ -292,8 +328,8 @@ std::expected<std::filesystem::path, int> buildProject(const RuntimeEnvironment&
         .standard = project.manifest.package.standard,
         .profile = profile,
         .runtimeLibraryDirectories = compiler->runtimeLibraryDirectories,
-        .compileArguments = compiler->compileArguments,
-        .linkArguments = compiler->linkArguments
+        .compileArguments = joined(compiler->compileArguments, *sdk),
+        .linkArguments = joined(compiler->linkArguments, *sdk)
     };
     const auto compiles = Compile::planCompileCommands(settings, *sources);
     const auto written = Compile::writeCompilationDatabase(project.root / buildDirectory, compiles);

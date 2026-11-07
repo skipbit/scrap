@@ -50,6 +50,11 @@ struct RuntimeEnvironment {
      * SSL_CERT_FILE, or empty to look in the usual places.
      */
     std::string certificateFile;
+    /**
+     * The macOS SDK the environment names, from SDKROOT, or empty when it
+     * names none.
+     */
+    std::string sdkRoot;
 };
 
 }  // namespace scrap::Command

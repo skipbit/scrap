@@ -2978,6 +2978,48 @@ TEST_F(CliE2ETest, BuildGivesTheCompilerTheArgumentsTheToolchainRecords)
 }
 
 /**
+ * On macOS the compiler of an installed toolchain is pointed at the SDK
+ * xcrun names, unless SDKROOT names one, which the compiler reads itself.
+ * Elsewhere it is given no SDK.
+ */
+TEST_F(CliE2ETest, BuildPointsAnInstalledToolchainAtTheMacOsSdk)
+{
+    installWorkingToolchain("llvm", "22.1.8");
+    writeFile("hello/scrap.toml", ValidManifest);
+    writeFile("hello/src/main.cpp", MainSource);
+
+    auto result = runScrap({ "build" }, { "SCRAP_TOOLCHAIN=llvm@22.1.8" }, _root / "hello", BuildTimeout);
+
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    const std::string arguments = readFile("compiler-arguments");
+#if defined(__APPLE__)
+    const std::string option = "-isysroot\n";
+    ASSERT_NE(arguments.find(option), std::string::npos) << arguments;
+    const auto start = arguments.find(option) + option.size();
+    const std::filesystem::path sdk = arguments.substr(start, arguments.find('\n', start) - start);
+    EXPECT_TRUE(std::filesystem::is_directory(sdk)) << sdk;
+
+    writeFile("compiler-arguments", "");
+    auto named = runScrap({ "build", "--release" }, { "SCRAP_TOOLCHAIN=llvm@22.1.8", "SDKROOT=" + sdk.string() }, _root / "hello", BuildTimeout);
+    EXPECT_EQ(named.exitCode, 0) << named.stderrText;
+    EXPECT_NE(readFile("compiler-arguments").find("-c\n"), std::string::npos);
+    EXPECT_EQ(readFile("compiler-arguments").find("-isysroot"), std::string::npos);
+
+    // The same compiler, taken as the system's, finds the SDK itself. Its
+    // commands are those of the build before, so that build is removed.
+    writeFile("compiler-arguments", "");
+    std::filesystem::remove_all(_root / "hello" / "build");
+    const std::filesystem::path compiler = _root / "toolchains/llvm/22.1.8/darwin-aarch64/bin/g++";
+    auto system = runScrap({ "build", "--release" }, { "SCRAP_TOOLCHAIN=system", "CXX=" + compiler.string() }, _root / "hello", BuildTimeout);
+    EXPECT_EQ(system.exitCode, 0) << system.stderrText;
+    EXPECT_NE(readFile("compiler-arguments").find("-c\n"), std::string::npos);
+    EXPECT_EQ(readFile("compiler-arguments").find("-isysroot"), std::string::npos);
+#else
+    EXPECT_EQ(arguments.find("-isysroot"), std::string::npos) << arguments;
+#endif
+}
+
+/**
  * system chooses the compiler the system provides over the global default,
  * and the build says where system was named.
  */

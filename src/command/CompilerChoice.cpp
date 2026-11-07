@@ -163,6 +163,7 @@ std::expected<ChosenCompiler, Toolchain::NoCompiler> systemCompiler(const Runtim
                                .runtimeLibraryDirectories = {},
                                .compileArguments = {},
                                .linkArguments = {},
+                               .installed = false,
                                .announcement = std::move(announcement) };
     }
     return std::unexpected(std::move(found.error()));
@@ -217,6 +218,7 @@ std::expected<ChosenCompiler, std::string> installedCompiler(const RuntimeEnviro
                            .runtimeLibraryDirectories = std::move(found->runtimeLibraryDirectories),
                            .compileArguments = std::move(found->compileArguments),
                            .linkArguments = std::move(found->linkArguments),
+                           .installed = true,
                            .announcement = std::move(announcement) };
 }
 

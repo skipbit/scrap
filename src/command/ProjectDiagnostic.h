@@ -159,6 +159,15 @@ namespace scrap::Command {
 [[nodiscard]] std::string renderUnsupportedStandard(const std::filesystem::path& compiler, Project::LanguageStandard standard);
 
 /**
+ * @brief Describe a macOS SDK that could not be found for the compiler of an
+ *        installed toolchain, and what to do next.
+ *
+ * @param compiler The compiler in use, absolute.
+ * @return Text for standard error, each line ending in a newline.
+ */
+[[nodiscard]] std::string renderSdkNotFound(const std::filesystem::path& compiler);
+
+/**
  * @brief Describe a project that declares more than one library, and what to
  *        do next.
  *
