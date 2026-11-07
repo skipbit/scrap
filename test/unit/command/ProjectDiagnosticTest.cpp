@@ -768,6 +768,25 @@ TEST(ProjectDiagnosticTest, RendersALinkerThatNeedsLibxml2)
 }
 
 /**
+ * A link of a project that uses libxml2 itself, and fails for its own
+ * reason, asks for a fix to the code: only the loader failing to start the
+ * linker asks for libxml2.
+ */
+TEST(ProjectDiagnosticTest, AsksForAFixWhenTheProjectsOwnLinkNamesLibxml2)
+{
+    const std::string output = "/usr/bin/ld: main.o: in function `main':\n"
+                               "main.cpp:(.text+0x5): undefined reference to `xmlParseFile'\n"
+                               "/usr/bin/ld: warning: libxml2.so.2, needed by libbar.so, not found (try using -rpath or -rpath-link)\n";
+    const FailedStep failed{ .step = linkStep(),
+                             .failure = StepFailure{ .kind = StepFailureKind::Exited, .path = {}, .code = {}, .status = 1 },
+                             .output = output };
+
+    EXPECT_EQ(renderStepFailures({ failed }),
+              "error: failed to link '/home/me/hello/build/debug/bin/hello'\n"
+              "hint: fix the errors reported above and run the command again\n");
+}
+
+/**
  * A compilation whose output names libxml2.so.2, as a source that includes
  * a header of it may, still asks for a fix to the code.
  */

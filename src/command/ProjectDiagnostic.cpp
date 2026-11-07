@@ -43,8 +43,12 @@ constexpr std::string_view ExistingPathHint = "hint: check what is already at th
 /// Next step after a compiler diagnostic, which already says what is wrong.
 constexpr std::string_view FixErrorsHint = "hint: fix the errors reported above and run the command again\n";
 
-/// What a linker that cannot start without libxml2 names in its output.
+/// The library the linker of LLVM 17 to 22 cannot start without.
 constexpr std::string_view LinkerLibxml2Library = "libxml2.so.2";
+
+/// What the loader of the system writes when a program cannot start without it.
+constexpr std::string_view LinkerLibxml2LoadFailure = "error while loading shared libraries: libxml2.so.2";
+static_assert(LinkerLibxml2LoadFailure.ends_with(LinkerLibxml2Library));
 
 /// Next step when the linker could not start without libxml2.
 constexpr std::string_view LinkerLibxml2Hint = "hint: the linker of this toolchain needs libxml2.so.2; install libxml2 on this machine, or use a newer LLVM\n";
@@ -520,12 +524,13 @@ struct StepFailureReport {
 
 /**
  * What to do about a step that exited with a failure: install libxml2 when
- * the linker could not start without it, as the LLVM linker of 17 to 22
- * cannot, and fix the errors reported otherwise.
+ * the loader could not start the linker without it, as it cannot start the
+ * LLVM linker of 17 to 22, and fix the errors reported otherwise, including
+ * those of a project that links with libxml2 itself.
  */
 std::string_view exitHint(const Build::FailedStep& failed)
 {
-    if ((failed.step.kind == Build::StepKind::Link) && failed.output.contains(LinkerLibxml2Library)) {
+    if ((failed.step.kind == Build::StepKind::Link) && failed.output.contains(LinkerLibxml2LoadFailure)) {
         return LinkerLibxml2Hint;
     }
     return FixErrorsHint;
