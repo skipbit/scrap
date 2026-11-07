@@ -133,18 +133,14 @@ std::expected<ChosenCompiler, int> findCompiler(const RuntimeEnvironment& env, c
 }
 
 /**
- * What @p compiler is given to compile and link against the macOS SDK: only
- * the compiler of an installed toolchain, on darwin, needs it. Reports an
- * SDK that cannot be found.
+ * What @p compiler is given to compile and link against the macOS SDK.
+ * Reports an SDK that cannot be found.
  */
 std::expected<std::vector<std::string>, int> sdkArgumentsFor(const RuntimeEnvironment& env, const ChosenCompiler& compiler)
 {
-    if (! compiler.installed) {
-        return std::vector<std::string>{};
-    }
     const std::optional<Toolchain::HostEnvironment> host = Toolchain::hostEnvironment();
     const std::string_view platform = host.has_value() ? host->platform : std::string_view{};
-    auto arguments = Toolchain::sdkArguments(platform, env.sdkRoot, Toolchain::askXcrunForSdkPath);
+    auto arguments = Toolchain::sdkArguments(! compiler.installed, platform, env.sdkRoot, Toolchain::askXcrunForSdkPath);
     if (! arguments.has_value()) {
         std::cerr << renderSdkNotFound(compiler.compiler);
         return std::unexpected(1);

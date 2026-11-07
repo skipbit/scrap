@@ -28,7 +28,7 @@ TEST(MacSdkTest, PointsTheCompilerAtTheSdkOnDarwin)
 {
     int asked = 0;
 
-    const auto arguments = sdkArguments("darwin", "", answering("/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk", asked));
+    const auto arguments = sdkArguments(false, "darwin", "", answering("/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk", asked));
 
     ASSERT_TRUE(arguments.has_value());
     EXPECT_EQ(*arguments, (std::vector<std::string>{ "-isysroot", "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk" }));
@@ -42,7 +42,21 @@ TEST(MacSdkTest, LeavesTheSdkTheEnvironmentNamesToTheCompiler)
 {
     int asked = 0;
 
-    const auto arguments = sdkArguments("darwin", "/sdk", answering("/other", asked));
+    const auto arguments = sdkArguments(false, "darwin", "/sdk", answering("/other", asked));
+
+    ASSERT_TRUE(arguments.has_value());
+    EXPECT_TRUE(arguments->empty());
+    EXPECT_EQ(asked, 0);
+}
+
+/**
+ * The compiler of the system finds the SDK itself, so it is given nothing.
+ */
+TEST(MacSdkTest, GivesNothingToACompilerThatFindsTheSdkItself)
+{
+    int asked = 0;
+
+    const auto arguments = sdkArguments(true, "darwin", "", answering("/sdk", asked));
 
     ASSERT_TRUE(arguments.has_value());
     EXPECT_TRUE(arguments->empty());
@@ -53,7 +67,7 @@ TEST(MacSdkTest, NeedsNoSdkElsewhere)
 {
     int asked = 0;
 
-    const auto arguments = sdkArguments("linux", "", answering("/sdk", asked));
+    const auto arguments = sdkArguments(false, "linux", "", answering("/sdk", asked));
 
     ASSERT_TRUE(arguments.has_value());
     EXPECT_TRUE(arguments->empty());
@@ -64,7 +78,7 @@ TEST(MacSdkTest, ReportsAnSdkThatCannotBeFound)
 {
     int asked = 0;
 
-    EXPECT_FALSE(sdkArguments("darwin", "", answering(std::nullopt, asked)).has_value());
+    EXPECT_FALSE(sdkArguments(false, "darwin", "", answering(std::nullopt, asked)).has_value());
 }
 
 #if defined(__APPLE__)

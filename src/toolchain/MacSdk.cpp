@@ -40,9 +40,9 @@ std::optional<std::filesystem::path> askXcrunForSdkPath()
     return std::filesystem::path{ answer };
 }
 
-std::expected<std::vector<std::string>, SdkNotFound> sdkArguments(std::string_view platform, const std::string& sdkRoot, const SdkPathQuery& query)
+std::expected<std::vector<std::string>, SdkNotFound> sdkArguments(bool findsSdkItself, std::string_view platform, const std::string& sdkRoot, const SdkPathQuery& query)
 {
-    if ((platform != "darwin") || (! sdkRoot.empty())) {
+    if (findsSdkItself || (platform != "darwin") || (! sdkRoot.empty())) {
         return std::vector<std::string>{};
     }
     const std::optional<std::filesystem::path> sdk = query();
