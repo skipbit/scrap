@@ -4,14 +4,11 @@
 #include "digest/Sha256.h"
 #include "digest/Sha256File.h"
 #include "fetch/UrlFetch.h"
-#include "json/JsonParser.h"
-#include "json/JsonValue.h"
 #include "registry/BearerChallenge.h"
 #include "registry/IngotLocation.h"
 #include "registry/IngotManifest.h"
+#include "registry/TokenRequest.h"
 
-#include <array>
-#include <cctype>
 #include <cstdint>
 #include <filesystem>
 #include <optional>
@@ -29,40 +26,6 @@ constexpr std::uint64_t TokenSizeLimit = 1024ULL * 1024;
 constexpr std::uint64_t ManifestSizeLimit = 4ULL * 1024 * 1024;
 constexpr long HttpUnauthorized = 401;
 constexpr std::string_view AcceptManifest = "Accept: application/vnd.oci.image.manifest.v1+json";
-constexpr std::array<char, 16> HexDigits{ '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
-constexpr unsigned HighNibbleShift = 4;
-constexpr unsigned NibbleMask = 0xF;
-
-/**
- * @p text with everything but letters, digits and -._~ percent-encoded, for a
- * query parameter.
- */
-std::string percentEncoded(const std::string_view text)
-{
-    std::string encoded;
-    for (const char c : text) {
-        const auto byte = static_cast<unsigned char>(c);
-        if ((std::isalnum(byte) != 0) || (c == '-') || (c == '.') || (c == '_') || (c == '~')) {
-            encoded.push_back(c);
-        } else {
-            encoded.push_back('%');
-            encoded.push_back(HexDigits.at(byte >> HighNibbleShift));
-            encoded.push_back(HexDigits.at(byte & NibbleMask));
-        }
-    }
-    return encoded;
-}
-
-std::string tokenUrl(const BearerChallenge& challenge, const std::string& defaultScope)
-{
-    std::string url = challenge.realm;
-    url += url.contains('?') ? '&' : '?';
-    if (! challenge.service.empty()) {
-        url += "service=" + percentEncoded(challenge.service) + "&";
-    }
-    url += "scope=" + percentEncoded(challenge.scope.empty() ? defaultScope : challenge.scope);
-    return url;
-}
 
 std::expected<std::string, RegistryFailure> fetchText(const std::string& url, const RegistryFetchRequest& request, std::vector<std::string> headers, const std::uint64_t sizeLimit)
 {
@@ -83,6 +46,24 @@ std::expected<void, RegistryFailure> fetchInto(const std::string& url, const std
 }
 
 /**
+ * The header lines that carry @p token, when there is one.
+ */
+std::vector<std::string> authorization(const std::optional<std::string>& token)
+{
+    if (! token.has_value()) {
+        return {};
+    }
+    return { "Authorization: Bearer " + *token };
+}
+
+std::vector<std::string> manifestHeaders(const std::optional<std::string>& token)
+{
+    std::vector<std::string> headers = authorization(token);
+    headers.insert(headers.begin(), std::string{ AcceptManifest });
+    return headers;
+}
+
+/**
  * The token a registry hands out at the realm of @p challenge.
  */
 std::expected<std::string, RegistryFailure> fetchToken(const BearerChallenge& challenge, const RegistryFetchRequest& request)
@@ -92,24 +73,19 @@ std::expected<std::string, RegistryFailure> fetchToken(const BearerChallenge& ch
     if (! text.has_value()) {
         return std::unexpected(std::move(text.error()));
     }
-    const auto answer = Json::parse(*text);
-    if (answer.has_value()) {
-        for (const std::string_view name : { "token", "access_token" }) {
-            const std::string* token = answer->stringMember(name);
-            if ((token != nullptr) && (! token->empty())) {
-                return *token;
-            }
-        }
+    auto token = readTokenAnswer(*text);
+    if (! token.has_value()) {
+        return std::unexpected(AnswerUnusable{ .url = url, .reason = "it gave no token" });
     }
-    return std::unexpected(AnswerUnusable{ .url = url, .reason = "it gave no token" });
+    return std::move(*token);
 }
 
 /**
- * The manifest, and the header lines that authorise the requests after it.
+ * The manifest, and the token it took to get it, when one was needed.
  */
 struct FetchedManifest {
     std::string text;
-    std::vector<std::string> authorization;
+    std::optional<std::string> token;
 };
 
 /**
@@ -118,10 +94,9 @@ struct FetchedManifest {
 std::expected<FetchedManifest, RegistryFailure> fetchManifest(const RegistryFetchRequest& request)
 {
     const std::string url = request.location.manifestUrl();
-    std::vector<std::string> headers{ std::string{ AcceptManifest } };
-    auto fetched = fetchText(url, request, headers, ManifestSizeLimit);
+    auto fetched = fetchText(url, request, manifestHeaders(std::nullopt), ManifestSizeLimit);
     if (fetched.has_value()) {
-        return FetchedManifest{ .text = std::move(*fetched), .authorization = {} };
+        return FetchedManifest{ .text = std::move(*fetched), .token = std::nullopt };
     }
 
     const auto* failure = std::get_if<Fetch::FetchError>(&fetched.error());
@@ -138,13 +113,11 @@ std::expected<FetchedManifest, RegistryFailure> fetchManifest(const RegistryFetc
         return std::unexpected(std::move(token.error()));
     }
 
-    std::vector<std::string> authorization{ "Authorization: Bearer " + *token };
-    headers.push_back(authorization.front());
-    auto again = fetchText(url, request, std::move(headers), ManifestSizeLimit);
+    auto again = fetchText(url, request, manifestHeaders(*token), ManifestSizeLimit);
     if (! again.has_value()) {
         return std::unexpected(std::move(again.error()));
     }
-    return FetchedManifest{ .text = std::move(*again), .authorization = std::move(authorization) };
+    return FetchedManifest{ .text = std::move(*again), .token = std::move(*token) };
 }
 
 std::expected<void, RegistryFailure> checkDigest(const std::filesystem::path& file, const std::string_view digest, const std::string& url)
@@ -159,13 +132,13 @@ std::expected<void, RegistryFailure> checkDigest(const std::filesystem::path& fi
     return {};
 }
 
-std::expected<void, RegistryFailure> fetchLayer(const RegistryFetchRequest& request, const IngotLayer& layer, std::vector<std::string> authorization)
+std::expected<void, RegistryFailure> fetchLayer(const RegistryFetchRequest& request, const IngotLayer& layer, const std::optional<std::string>& token)
 {
     const std::string url = request.location.blobUrl(layer.digest);
     if (layer.size > request.sizeLimit) {
         return std::unexpected(Fetch::FetchError{ Fetch::ContentTooLarge{ .url = url, .limit = request.sizeLimit } });
     }
-    if (auto fetched = fetchInto(url, request.destination, request, std::move(authorization), layer.size); ! fetched.has_value()) {
+    if (auto fetched = fetchInto(url, request.destination, request, authorization(token), layer.size); ! fetched.has_value()) {
         // The limit was the size the manifest gives, so more is not that layer.
         const auto* failure = std::get_if<Fetch::FetchError>(&fetched.error());
         if ((failure != nullptr) && std::holds_alternative<Fetch::ContentTooLarge>(*failure)) {
@@ -194,7 +167,7 @@ std::expected<void, RegistryFailure> fetchIngot(const RegistryFetchRequest& requ
     if (! layer.has_value()) {
         return std::unexpected(AnswerUnusable{ .url = url, .reason = "its manifest is not one of an ingot: " + layer.error() });
     }
-    return fetchLayer(request, *layer, std::move(manifest->authorization));
+    return fetchLayer(request, *layer, manifest->token);
 }
 
 }  // namespace scrap::Registry

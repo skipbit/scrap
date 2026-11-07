@@ -133,6 +133,7 @@ scrap_add_unit_test(registry SOURCES
     unit/registry/IngotLocationTest.cpp
     unit/registry/IngotManifestTest.cpp
     unit/registry/RegistryFetchTest.cpp
+    unit/registry/TokenRequestTest.cpp
     PROPERTIES TIMEOUT 120
 )
 

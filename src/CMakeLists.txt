@@ -91,6 +91,7 @@ add_library(scrap_registry STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/registry/IngotLocation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/registry/IngotManifest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/registry/RegistryFetch.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/registry/TokenRequest.cpp
 )
 target_include_directories(scrap_registry PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(scrap_registry PUBLIC scrap_fetch PRIVATE scrap_digest scrap_file scrap_json)
