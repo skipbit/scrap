@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <optional>
+#include <string>
 
 using scrap::Registry::locateIngot;
 
@@ -48,4 +49,28 @@ TEST(IngotLocationTest, RefusesARegistryWithoutAHostOrATagWithoutAName)
     EXPECT_EQ(locateIngot(":5000/toolchains", "gcc:1", Digest), std::nullopt);
     EXPECT_EQ(locateIngot("ghcr.io/toolchains", "gcc", Digest), std::nullopt);
     EXPECT_EQ(locateIngot("ghcr.io/toolchains", ":1", Digest), std::nullopt);
+}
+
+TEST(IngotLocationTest, TakesTheSeparatorsARepositoryNameMayHold)
+{
+    EXPECT_NE(locateIngot("ghcr.io/a.b/c_d/e__f/g-h/i---j", "k0:1", Digest), std::nullopt);
+}
+
+TEST(IngotLocationTest, RefusesARepositoryNameAnOciRegistryDoesNotTake)
+{
+    for (const auto* registry : { "ghcr.io/Skipbit", "ghcr.io/a?b=c", "ghcr.io/a/../b", "ghcr.io/a b", "ghcr.io/a//b", "ghcr.io/a/", "ghcr.io/-a", "ghcr.io/a.", "ghcr.io/a..b", "ghcr.io/a___b", "ghcr.io/a._b", "ghcr.io/a%2fb", "ghcr.io/a#b" }) {
+        EXPECT_EQ(locateIngot(registry, "gcc:1", Digest), std::nullopt) << registry;
+    }
+    EXPECT_EQ(locateIngot("ghcr.io/toolchains", "gcc?x=1:15", Digest), std::nullopt);
+    EXPECT_EQ(locateIngot("ghcr.io/toolchains", "../gcc:15", Digest), std::nullopt);
+}
+
+TEST(IngotLocationTest, RefusesATagAnOciRegistryDoesNotTake)
+{
+    for (const auto* tag : { "gcc:", "gcc:.1", "gcc:-1", "gcc:1/2", "gcc:1?x", "gcc:1 2", "gcc:1:2" }) {
+        EXPECT_EQ(locateIngot("ghcr.io/toolchains", tag, Digest), std::nullopt) << tag;
+    }
+    EXPECT_EQ(locateIngot("ghcr.io/toolchains", "gcc:" + std::string(129, 'a'), Digest), std::nullopt);
+    EXPECT_NE(locateIngot("ghcr.io/toolchains", "gcc:_V1.2-rc.3", Digest), std::nullopt);
+    EXPECT_NE(locateIngot("ghcr.io/toolchains", "gcc:" + std::string(128, 'a'), Digest), std::nullopt);
 }

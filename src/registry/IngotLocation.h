@@ -30,8 +30,11 @@ struct IngotLocation {
  * as gcc in gcc:15.2.0, completes the repository. The registry is reached over
  * https, or over http when it is this machine.
  *
- * @return The location, or nothing when the registry names no host or the tag
- *         no name.
+ * The repository and the part of the tag after the colon must be names an OCI
+ * registry takes, so that nothing in them changes what the URLs ask for.
+ *
+ * @return The location, or nothing when the registry names no host, or the
+ *         repository or the tag is not a name an OCI registry takes.
  */
 [[nodiscard]] std::optional<IngotLocation> locateIngot(std::string_view registry, std::string_view tag, std::string_view digest);
 
