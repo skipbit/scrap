@@ -4,6 +4,7 @@
 #include "fetch/UrlFetch.h"
 #include "file/WholeFile.h"
 #include "registry/IngotLocation.h"
+#include "support/FakeOciRegistry.h"
 #include "support/HttpTestServer.h"
 #include "support/TempDirectory.h"
 
@@ -13,12 +14,15 @@
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <string_view>
+#include <utility>
 #include <variant>
 #include <vector>
 
 using namespace scrap::Registry;
 using scrap::Digest::Sha256;
 using scrap::File::readWholeFile;
+using scrap::TestSupport::FakeOciRegistry;
 using scrap::TestSupport::HttpTestResponse;
 using scrap::TestSupport::HttpTestServer;
 using scrap::TestSupport::TempDirectory;
@@ -28,11 +32,16 @@ namespace {
 constexpr std::string_view Token = "anonymous-token";
 constexpr std::uint64_t Limit = 1024;
 
-std::string digestOf(const std::string& bytes)
+std::string sha256HexOf(const std::string_view bytes)
 {
     Sha256 digest;
     digest.update(bytes);
-    return "sha256:" + digest.hexDigest();
+    return digest.hexDigest();
+}
+
+std::string digestOf(const std::string& bytes)
+{
+    return "sha256:" + sha256HexOf(bytes);
 }
 
 std::string manifestFor(const std::string& layerDigest, const std::uint64_t size)
@@ -46,6 +55,8 @@ HttpTestResponse ok(std::string body)
     return { .status = 200, .headers = {}, .body = std::move(body), .stalls = false };
 }
 
+constexpr std::string_view Repository = "skipbit/toolchains/gcc";
+
 /**
  * A registry on this machine that keeps one ingot in skipbit/toolchains/gcc
  * and asks for a token, as ghcr.io does. Its blob redirects to storage on
@@ -53,52 +64,40 @@ HttpTestResponse ok(std::string body)
  */
 class FakeRegistry {
 public:
-    explicit FakeRegistry(std::string ingot = "the bytes of an ingot")
-        : _ingot(std::move(ingot))
+    explicit FakeRegistry(const std::string& ingot = "the bytes of an ingot")
+        : _registry(_server, std::string{ Repository }, ingot, sha256HexOf, { .token = std::string{ Token }, .service = "registry", .storagePath = "/storage", .blob = {} })
     {
-        serve(manifestFor(digestOf(_ingot), _ingot.size()));
-        _server.respond(tokenPath(), ok(R"({"token": ")" + std::string{ Token } + R"("})"));
-        _server.respond(blobPath(), locked({ .status = 307, .headers = "Location: http://localhost:" + std::to_string(_server.port()) + "/storage\r\n", .body = {}, .stalls = false }));
-        _server.respond("/storage", ok(_ingot));
     }
 
     /// Serve @p manifest, under the digest the index gives.
     void serve(const std::string& manifest)
     {
-        _manifest = manifest;
-        _server.respond(manifestPath(), locked(ok(manifest)));
+        _registry.serveManifest(manifest);
     }
 
     [[nodiscard]] IngotLocation location() const
     {
-        return { .origin = "http://127.0.0.1:" + std::to_string(_server.port()), .repository = "skipbit/toolchains/gcc", .digest = digestOf(_manifest) };
+        return { .origin = "http://127.0.0.1:" + std::to_string(_server.port()), .repository = std::string{ Repository }, .digest = _registry.manifestDigest() };
     }
 
     [[nodiscard]] std::string manifestPath() const
     {
-        return "/v2/skipbit/toolchains/gcc/manifests/" + digestOf(_manifest);
+        return _registry.manifestPath();
     }
 
     [[nodiscard]] std::string blobPath() const
     {
-        return "/v2/skipbit/toolchains/gcc/blobs/" + digestOf(_ingot);
+        return _registry.blobPath();
     }
 
     [[nodiscard]] static std::string tokenPath()
     {
-        return "/token?service=registry&scope=repository%3Askipbit%2Ftoolchains%2Fgcc%3Apull";
-    }
-
-    [[nodiscard]] std::string challenge() const
-    {
-        return R"(Bearer realm="http://127.0.0.1:)" + std::to_string(_server.port()) + R"(/token",service="registry")";
+        return FakeOciRegistry::tokenPath(std::string{ Repository }, "registry");
     }
 
     HttpTestResponse locked(HttpTestResponse response) const
     {
-        response.requiredHeader = "Authorization: Bearer " + std::string{ Token };
-        response.challenge = challenge();
-        return response;
+        return _registry.locked(std::move(response));
     }
 
     HttpTestServer& server()
@@ -107,9 +106,8 @@ public:
     }
 
 private:
-    std::string _ingot;
-    std::string _manifest;
     HttpTestServer _server{ {} };
+    FakeOciRegistry _registry;
 };
 
 RegistryFetchRequest requestFor(const FakeRegistry& registry, const TempDirectory& temp, const std::uint64_t limit = Limit)

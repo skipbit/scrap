@@ -2,6 +2,7 @@
 
 #include "digest/Sha256.h"
 #include "fetch/UrlFetch.h"
+#include "support/FakeOciRegistry.h"
 #include "support/HttpTestServer.h"
 #include "support/StoredXz.h"
 #include "support/TarArchiveBuilder.h"
@@ -28,6 +29,7 @@
 #include <vector>
 
 using namespace scrap::Install;
+using scrap::TestSupport::FakeOciRegistry;
 using scrap::TestSupport::HttpTestResponse;
 using scrap::TestSupport::HttpTestServer;
 using scrap::TestSupport::storedXz;
@@ -310,18 +312,14 @@ TEST_F(IngotInstallerTest, KeepsWhatIsInstalledWhenReplacingItFails)
 }
 
 /**
- * A registry on this machine that serves @p ingot under @p manifestDigest, or
- * under the digest of its manifest when that is empty.
+ * A registry on this machine that serves @p ingot, or @p blob in its place when
+ * that is not empty, under the digest of its manifest.
  */
 struct ServedFromARegistry {
     explicit ServedFromARegistry(const std::string& ingot, std::string blob = {})
+        : registry(server, "example/gcc", ingot, sha256Of, { .token = {}, .service = {}, .storagePath = {}, .blob = std::move(blob) })
+        , digest(registry.manifestDigest())
     {
-        const std::string layerDigest = "sha256:" + sha256Of(ingot);
-        manifest = R"({"mediaType": "application/vnd.oci.image.manifest.v1+json", "layers": [{"mediaType": "application/x-tar+xz", "digest": ")" + layerDigest
-                   + R"(", "size": )" + std::to_string(ingot.size()) + "}]}";
-        digest = "sha256:" + sha256Of(manifest);
-        server.respond("/v2/example/gcc/manifests/" + digest, { .status = 200, .headers = {}, .body = manifest, .stalls = false });
-        server.respond("/v2/example/gcc/blobs/" + layerDigest, { .status = 200, .headers = {}, .body = blob.empty() ? ingot : blob, .stalls = false });
     }
 
     [[nodiscard]] RegistrySource source() const
@@ -330,7 +328,7 @@ struct ServedFromARegistry {
     }
 
     HttpTestServer server{ {} };
-    std::string manifest;
+    FakeOciRegistry registry;
     std::string digest;
 };
 

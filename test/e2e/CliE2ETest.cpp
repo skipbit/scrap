@@ -3,6 +3,7 @@
 // stderr). These are black-box tests: no headers from src/ are used here.
 
 #include "digest/Sha256.h"
+#include "support/FakeOciRegistry.h"
 #include "support/HttpTestServer.h"
 #include "support/StoredXz.h"
 #include "support/TarArchiveBuilder.h"
@@ -3195,31 +3196,11 @@ private:
      */
     std::string keepInRegistry(const std::string_view family, const ToolchainOffer& offered)
     {
-        const std::string port = std::to_string(_server.port());
-        const std::string repository = "/v2/skipbit/toolchains/" + std::string{ family };
-        const std::string layerDigest = "sha256:" + sha256Of(offered.ingot);
-        const std::string manifest = R"({"schemaVersion": 2, "mediaType": "application/vnd.oci.image.manifest.v1+json", "layers": [{"mediaType": "application/x-tar+xz", "digest": ")"
-                                     + layerDigest + R"(", "size": )" + std::to_string(offered.ingot.size()) + "}]}";
-        const std::string digest = "sha256:" + sha256Of(manifest);
+        const std::string repository = "skipbit/toolchains/" + std::string{ family };
+        const scrap::TestSupport::FakeOciRegistry registry(_server, repository, offered.ingot, sha256Of, { .token = std::string{ RegistryToken }, .service = "e2e", .storagePath = "/storage/" + offered.version, .blob = {} });
+        const std::string& digest = registry.manifestDigest();
         _manifestDigests[offered.version] = digest;
-
-        const std::string challenge = R"(Bearer realm="http://127.0.0.1:)" + port + R"(/token",service="e2e")";
-        const std::string authorization = "Authorization: Bearer " + std::string{ RegistryToken };
-        _server.respond("/token?service=e2e&scope=repository%3Askipbit%2Ftoolchains%2F" + std::string{ family } + "%3Apull",
-                        { .status = 200, .headers = {}, .body = R"({"token": ")" + std::string{ RegistryToken } + R"("})", .stalls = false });
-        _server.respond(repository + "/manifests/" + digest,
-                        { .status = 200, .headers = {}, .body = manifest, .stalls = false, .bytesCutOff = 0, .requiredHeader = authorization, .challenge = challenge });
-        const std::string storage = "/storage/" + offered.version;
-        _server.respond(repository + "/blobs/" + layerDigest,
-                        { .status = 307,
-                          .headers = "Location: http://localhost:" + port + storage + "\r\n",
-                          .body = {},
-                          .stalls = false,
-                          .bytesCutOff = 0,
-                          .requiredHeader = authorization,
-                          .challenge = challenge });
-        _server.respond(storage, { .status = 200, .headers = {}, .body = offered.ingot, .stalls = false });
-        return "registry = '127.0.0.1:" + port + "/skipbit/toolchains'\ntag = '" + std::string{ family } + ":" + offered.version + "'\ndigest = '" + digest + "'\n";
+        return "registry = '127.0.0.1:" + std::to_string(_server.port()) + "/skipbit/toolchains'\ntag = '" + std::string{ family } + ":" + offered.version + "'\ndigest = '" + digest + "'\n";
     }
 
     std::map<std::string, std::string> _manifestDigests;

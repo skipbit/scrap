@@ -6,6 +6,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/test)
 
 # Helpers shared by the tests of more than one module
 add_library(scrap_test_support STATIC
+    support/FakeOciRegistry.cpp
     support/Fifo.cpp
     support/HttpTestServer.cpp
     support/StoredXz.cpp
