@@ -9,7 +9,7 @@
 
 **A Modern C++ Package Manager and Build System**
 
-[Quick Start](#-quick-start) • [Features](#-features) • [Installation](#-installation) • [Documentation](#-documentation) • [Contributing](#-contributing)
+[Quick Start](#-quick-start) • [Features](#-features) • [Project Status](#-project-status) • [Installation](#-installation) • [Contributing](#-contributing)
 
 </div>
 
@@ -17,7 +17,7 @@
 
 ## 🎯 What is scrap?
 
-scrap is a modern development tool for C++ that brings the simplicity and power of Rust's Cargo to the C++ ecosystem. It provides a unified interface for project management, dependency handling, and build orchestration - all without the traditional complexity of C++ development.
+scrap is a modern development tool for C++ that brings the simplicity and power of Rust's Cargo to the C++ ecosystem. It aims to provide a unified interface for project management, dependency handling, and build orchestration - all without the traditional complexity of C++ development.
 
 ### Why scrap?
 
@@ -28,13 +28,15 @@ C++ development has traditionally suffered from:
 - **🖥️ System-dependent toolchains** - "It works on my machine" is too common
 - **📚 High barrier to entry** - Setting up a C++ project shouldn't require a PhD
 
-scrap solves these problems by providing:
+scrap aims to solve these problems with:
 
 - **🚀 Zero-configuration project setup** - Get started in seconds, not hours
 - **📁 Standardized project structure** - Convention over configuration
 - **🔄 Reproducible builds** - Same toolchain, same results, everywhere
 - **📦 Modern package management** - GitHub-based ecosystem for sharing libraries
 - **🛠️ Integrated toolchain management** - No more system dependency hell
+
+What works today is listed under [Project Status](#-project-status).
 
 ## 🚀 Quick Start
 
@@ -70,20 +72,11 @@ std = "23"
 [[bin]]
 name = "my-app"
 src = "src/main.cpp"
-
-[dependencies]
-fmt = "10.2.1"
-boost = { version = "1.84.0", features = ["filesystem", "asio"] }
 ```
 
-`std` names the C++ standard to build against: `"11"`, `"14"`, `"17"`, `"20"`,
-`"23"` (the default) or `"26"`. Whether a given compiler can build the one you
-name is the compiler's to answer, and `scrap build` says so before it compiles
-anything.
+`std` names the C++ standard to build against: `"11"`, `"14"`, `"17"`, `"20"`, `"23"` (the default) or `"26"`. Whether a given compiler can build the one you name is the compiler's to answer, and `scrap build` says so before it compiles anything.
 
-A target can add to the commands that build it. Settings written on a target
-apply to it alone; a library's settings under `[lib.public]` also apply to
-every executable that uses it:
+A target can add to the commands that build it. Settings written on a target apply to it alone; a library's settings under `[lib.public]` also apply to every executable that uses it:
 
 ```toml
 [[lib]]
@@ -115,86 +108,51 @@ scrap toolchain install llvm@18
 
 # Select an installed toolchain as the global default
 scrap toolchain select llvm@18
+
+# Remove the global default
+scrap toolchain unselect
 ```
+
+A project can name its own toolchain in `scrap.toml`, which comes before the global default; `system` names the compiler of the system, found through `CXX` or on `PATH`:
+
+```toml
+[toolchain]
+name = "llvm@18"
+```
+
+The `SCRAP_TOOLCHAIN` environment variable comes before both. A toolchain that is named and not installed is an error; scrap does not install it in passing.
 
 A program built with an installed toolchain runs with the runtime libraries of that toolchain; with LLVM, that is the libc++ it carries. On Linux, the linker of LLVM 17 to 22 needs `libxml2` on the machine. On macOS, an installed LLVM uses the SDK that `xcrun` names, which the Command Line Tools provide, or the one `SDKROOT` names. An LLVM installed by an earlier version of scrap has to be installed again with `--force`, as a build with it says.
 
-### 📦 Modern Package Management (Planned)
-
-```bash
-# Add a dependency
-scrap add fmt
-
-# Search for packages
-scrap search boost
-
-# Update dependencies
-scrap update
-```
-
 ## 📋 Project Status
 
-scrap is in early alpha development. Currently implemented:
+scrap is in early alpha development.
 
-✅ **Core Features**
-- CLI command framework (help, version, command discovery)
-- Project creation (`scrap new`) from the built-in template
-- Builds (`scrap build`): a debug build by default, and with `--release` an
-  optimised one without debugging information, each in its own directory
-  below `build/`. The sources of each target are compiled, the library is
-  archived and each executable is linked, as many commands at once as there
-  are processors the build may run on, with `compile_commands.json` written
-  beside them. Once a command fails no further one starts, and the ones
-  still running are waited for. `--target <name>` builds only that target
-  and the library it uses, while `compile_commands.json` still describes
-  every target
-- Building only what changed: a source is compiled again only when it, a
-  header it includes, the compiler or its command has changed since it was
-  last compiled, or when a header of the same name has appeared where the
-  compiler would find it first; a library or an executable is made again
-  only when what it is made from has changed. A header appearing in a
-  directory the system searches, or in one named only in `compile-flags`,
-  is not noticed. The headers each compilation read are learned from the
-  compiler (`-MD`), so a compiler scrap does not recognise is run every
-  time. What each step read is kept below `build/<profile>/records/`, and
-  a step whose record is missing or cannot be read runs
-- Static libraries: with a `[[lib]]` in `scrap.toml`, the sources below
-  `src/` become `build/<profile>/lib/lib<name>.a`, and each executable is
-  built from its entry point and links that library. The archiver is the
-  one the compiler names for `-print-prog-name=ar`
-- Settings per target: `include-dirs`, `defines` and `compile-flags` on a
-  `[[bin]]` or `[[lib]]`, and `link-flags` on a `[[bin]]`, apply to that
-  target alone. Under `[lib.public]` all four apply to the library and
-  every executable that uses it; a static library is not linked, so this
-  is where its `link-flags` go
-- Removing the build output (`scrap clean`): the project's `build/`
-  directory is removed with everything in it
-- Running the project (`scrap run`): the executable named by `--bin`, or
-  the project's one executable, is built, for release with `--release`, and
-  started in the current directory, with the arguments after
-  `--`. Its exit code becomes the exit code of `scrap run` (128 plus the
-  signal when a signal stops it), and a build that fails exits with 101
-  without starting anything. A failed build
-  leaves the executable of the last one in place, as `make` does, so a
-  binary started by hand may be older than the sources
-- External command metadata fetching - `scrap-*` executables are probed via
-  `--scrap-metadata` (falling back to `--help`) for a plain first-line
-  description shown in `scrap --help`; structured JSON/options metadata is
-  not yet part of the protocol
+✅ **Works today**
+- **Creating a project** - `scrap new <name>` creates a project from the built-in template
+- **Building** - `scrap build` makes a debug build, or an optimised one with `--release`, below `build/`, along with a `compile_commands.json` for editors and other tools. `--target <name>` builds one target
+- **Building only what changed** - a source is compiled again when it, a header it includes, the compiler or the command that compiles it has changed
+- **Static libraries** - with a `[[lib]]` in `scrap.toml`, the sources below `src/` become a static library that each executable links
+- **Settings per target** - include directories, defines and flags, as shown in [Simple Configuration](#-simple-configuration)
+- **Running** - `scrap run` builds the executable and starts it with the arguments after `--`, and exits with its exit code. `--bin <name>` chooses the executable when there is more than one
+- **Cleaning** - `scrap clean` removes `build/`
+- **Toolchains** - `scrap toolchain install`, `select` and `unselect`, and a toolchain per project in `scrap.toml`, as shown in [Integrated Toolchain Management](#-integrated-toolchain-management)
+- **External commands** - an executable named `scrap-<name>` on `PATH` runs as `scrap <name>` and is listed in `scrap --help`
 
 🚧 **In Progress**
-- Template system with variable substitution
-- A chosen number of parallel jobs
-- Configuration file parsing (`scrap.toml`) - `[dependencies]` is accepted and
-  not yet read
-- Git-based template repository integration
-- Toolchain management
+- Choosing a template with `--template`, and templates from Git repositories
+- `scrap template list` and `scrap template update`
+- `scrap toolchain list`
+- Choosing the number of parallel jobs
+- `[dependencies]` in `scrap.toml`, which is accepted and not yet read
 
 📅 **Planned**
-- Package registry and dependency management
-- Cross-compilation support
+- Package management: dependency resolution, a package registry, and `scrap add`, `scrap search` and `scrap update`
+- Binary package distribution and package publishing tools
+- Cross-compilation
 - IDE integrations
 - CI/CD templates
+- SBOM generation
 
 ## 🛠️ Installation
 
@@ -204,10 +162,7 @@ scrap is in early alpha development. Currently implemented:
 curl -fsSL https://skipbit.github.io/scrap/install.sh | sh
 ```
 
-This installs the latest release to `~/.scrap/bin/scrap` (`$SCRAP_HOME/bin`
-when `SCRAP_HOME` is set), after checking the archive against its published
-sha256, and offers to add that directory to `PATH`. To install a specific
-release:
+This installs the latest release to `~/.scrap/bin/scrap` (`$SCRAP_HOME/bin` when `SCRAP_HOME` is set), after checking the archive against its published sha256, and offers to add that directory to `PATH`. To install a specific release:
 
 ```bash
 curl -fsSL https://skipbit.github.io/scrap/install.sh | sh -s -- v0.3.0
@@ -218,47 +173,33 @@ Prebuilt binaries are available for:
 - Linux x86_64, with glibc 2.29 or later
 - macOS on Apple silicon, 15.0 or later
 
-The archives, their checksums and build provenance attestations are on the
-[releases page](https://github.com/skipbit/scrap/releases).
-
-### Prerequisites
-
-- A C++23 compiler and standard library. On Linux:
-  - GCC 13-15 with the libstdc++ it is paired with
-  - Clang 20-22 with libstdc++ 13, 14 or 15, or with libc++ 20 or 22
-
-  On macOS, the Apple Clang shipped with macOS 15 or 26.
-- A C compiler as well: the build fetches liblzma and links it in, and on Linux libcurl and Mbed TLS too. macOS uses the libcurl it ships with.
-- CMake 3.20 or higher (3.25 or higher for the presets used below)
-- Git
+The archives, their checksums and build provenance attestations are on the [releases page](https://github.com/skipbit/scrap/releases).
 
 ### Building from Source
 
+To build scrap yourself, you need:
+
+- A C++23 compiler and standard library. CI builds and tests scrap with:
+  - On Linux, GCC 13 and 15 with their libstdc++, and Clang 20 and 22 with libstdc++ 13, 14 and 15 and with the libc++ of the same version
+  - On macOS, the Apple Clang of macOS 15 and 26
+- A C compiler as well: the build fetches liblzma and links it in, and on Linux libcurl and Mbed TLS too. macOS uses the libcurl it ships with.
+- CMake 3.25 or higher
+- Git
+
+Then build it and copy it to a directory on your `PATH`:
+
 ```bash
-# Clone the repository
 git clone https://github.com/skipbit/scrap.git
 cd scrap
 
-# Configure and build
-cmake --preset release
-cmake --build --preset release --parallel
+# Build scrap alone, without its tests
+cmake --preset release-no-tests
+cmake --build --preset release-no-tests --parallel
 
-# The executable will be at build/release/bin/scrap
+# Copy it to where the install script puts it
+mkdir -p ~/.scrap/bin
+cp build/release-no-tests/bin/scrap ~/.scrap/bin/
 ```
-
-### Install (Unix-like systems)
-
-```bash
-sudo cp build/release/bin/scrap /usr/local/bin/
-```
-
-## 📖 Documentation
-
-Detailed documentation is being developed. For now:
-
-- [Architecture Overview](docs/architecture/README.md)
-- [Template System](docs/template-system.md)
-- [Coding Style Guide](docs/CODINGSTYLE.md)
 
 ## 🌐 Ecosystem
 
@@ -267,8 +208,8 @@ scrap is building a comprehensive C++ ecosystem:
 ### Related Repositories
 
 - [scrap-templates](https://github.com/skipbit/scrap-templates) - Official project templates
-- [scrap-packages](https://github.com/skipbit/scrap-packages) (Coming Soon) - Package registry
-- [scrap-toolchains](https://github.com/skipbit/scrap-toolchains) (Coming Soon) - Toolchain definitions
+- [scrap-toolchain](https://github.com/skipbit/scrap-toolchain) - The toolchains that `scrap toolchain install` installs
+- scrap-packages (Coming Soon) - Package registry
 
 ### Vision
 
@@ -280,11 +221,10 @@ Our goal is to create a Homebrew-like ecosystem for C++ development, where:
 
 ## 🤝 Contributing
 
-We welcome contributions! scrap is built with:
+We welcome contributions! scrap is written in C++23, and its design aims for:
 
-- **Clean Architecture** - Domain-driven design with clear separation of concerns
-- **Modern C++23** - Leveraging the latest language features
-- **SOLID Principles** - Extensible and maintainable codebase
+- **Clean Architecture** - Keep the core free of I/O, platform and command-line details
+- **Single responsibility** - Give each unit one job, so that a change stays in one place
 
 ### How to Contribute
 
@@ -298,8 +238,7 @@ We welcome contributions! scrap is built with:
 ### Development Setup
 
 ```bash
-# Clone with submodules
-git clone --recursive https://github.com/skipbit/scrap.git
+git clone https://github.com/skipbit/scrap.git
 
 # Configure, build and run the tests in debug mode
 cmake --workflow --preset debug
@@ -311,7 +250,7 @@ ctest --preset debug
 
 ### Testing
 
-The project uses GoogleTest for unit and end-to-end testing, run through ctest. Tests are automatically built when `BUILD_TESTS=ON`.
+The project uses GoogleTest for unit and end-to-end testing, run through ctest. The tests are built unless `BUILD_TESTS` is set to `OFF`.
 
 ```bash
 # Build and run all tests
@@ -320,14 +259,8 @@ cmake --workflow --preset debug
 # Run tests with verbose output
 ctest --preset debug --verbose
 
-# Run a specific test executable directly
-./build/debug/test/scrap_gtest_command
-./build/debug/test/scrap_gtest_file
-./build/debug/test/scrap_gtest_project
-./build/debug/test/scrap_gtest_process
-./build/debug/test/scrap_gtest_toolchain
-./build/debug/test/scrap_gtest_compile
-./build/debug/test/scrap_gtest_build
+# Run the tests of one module directly, or the end-to-end tests
+./build/debug/test/scrap_gtest_<module>
 ./build/debug/test/scrap_e2e
 
 # Release build testing
@@ -337,6 +270,13 @@ cmake --workflow --preset release
 **Test Structure:**
 - `test/unit/command/` - Unit tests for the command layer
 - `test/unit/file/` - Unit tests for reading and writing whole files
+- `test/unit/digest/` - Unit tests for SHA-256 digests
+- `test/unit/tar/` - Unit tests for reading and extracting tar archives
+- `test/unit/json/` - Unit tests for the JSON parser
+- `test/unit/xz/` - Unit tests for reading xz-compressed files
+- `test/unit/fetch/` - Unit tests for fetching a URL
+- `test/unit/registry/` - Unit tests for fetching toolchains from a container registry
+- `test/unit/install/` - Unit tests for installing a fetched toolchain
 - `test/unit/project/` - Unit tests for project configuration (`scrap.toml`) and layout
 - `test/unit/process/` - Unit tests for running other programs
 - `test/unit/toolchain/` - Unit tests for toolchain detection
@@ -346,37 +286,13 @@ cmake --workflow --preset release
 - `test/e2e/` - End-to-end tests that spawn the built `scrap` binary as a subprocess
 - `test/cmake/` - Tests of the CMake modules, run in script mode
 
-## 📊 Roadmap
-
-### Phase 1: Foundation (Current)
-- ✅ Command structure (CLI framework)
-- 🚧 Template system
-- 🚧 Configuration management
-- 🚧 Basic build system
-
-### Phase 2: Toolchain & Build
-- ⏳ Toolchain management
-- ⏳ Full build system implementation
-- ⏳ Dependency resolution
-
-### Phase 3: Package Ecosystem
-- ⏳ Package registry
-- ⏳ Binary package distribution
-- ⏳ Package publishing tools
-
-### Phase 4: Advanced Features
-- ⏳ Cross-compilation
-- ⏳ IDE integrations
-- ⏳ CI/CD templates
-- ⏳ SBOM generation
-
 ## 🎯 Design Philosophy
 
 scrap follows these core principles:
 
 1. **Convention over Configuration** - Sensible defaults that just work
 2. **Reproducible Builds** - Same input, same output, everywhere
-3. **Modern C++ First** - Built for C++17/20/23, not C++98
+3. **Modern C++ First** - Built for C++11 and later, with C++23 by default, not C++98
 4. **Community Driven** - Open source, open development
 5. **Developer Experience** - Making C++ development enjoyable
 
@@ -396,7 +312,6 @@ Special thanks to all contributors and the C++ community for feedback and suppor
 ## 📬 Contact
 
 - **GitHub Issues**: [Report bugs or request features](https://github.com/skipbit/scrap/issues)
-- **Discussions**: [Join the conversation](https://github.com/skipbit/scrap/discussions)
 
 ---
 
