@@ -713,7 +713,8 @@ BuildStep linkStep()
 TEST(ProjectDiagnosticTest, RendersASourceThatFailedToCompile)
 {
     const FailedStep failed{ .step = compileStep("src/main.cpp"),
-                             .failure = StepFailure{ .kind = StepFailureKind::Exited, .path = {}, .code = {}, .status = 1 } };
+                             .failure = StepFailure{ .kind = StepFailureKind::Exited, .path = {}, .code = {}, .status = 1 },
+                             .output = "" };
 
     EXPECT_EQ(renderStepFailures({ failed }),
               "error: failed to compile '/home/me/hello/src/main.cpp' for 'hello'\n"
@@ -727,7 +728,8 @@ TEST(ProjectDiagnosticTest, RendersASourceThatFailedToCompile)
 TEST(ProjectDiagnosticTest, RendersASourceThatLooksLikeAnOption)
 {
     const FailedStep failed{ .step = compileStep("./-x.cpp"),
-                             .failure = StepFailure{ .kind = StepFailureKind::Exited, .path = {}, .code = {}, .status = 1 } };
+                             .failure = StepFailure{ .kind = StepFailureKind::Exited, .path = {}, .code = {}, .status = 1 },
+                             .output = "" };
 
     EXPECT_NE(renderStepFailures({ failed }).find("'/home/me/hello/-x.cpp'"), std::string::npos);
 }
@@ -738,10 +740,45 @@ TEST(ProjectDiagnosticTest, RendersASourceThatLooksLikeAnOption)
 TEST(ProjectDiagnosticTest, RendersAnExecutableThatFailedToLink)
 {
     const FailedStep failed{ .step = linkStep(),
-                             .failure = StepFailure{ .kind = StepFailureKind::Exited, .path = {}, .code = {}, .status = 1 } };
+                             .failure = StepFailure{ .kind = StepFailureKind::Exited, .path = {}, .code = {}, .status = 1 },
+                             .output = "" };
 
     EXPECT_EQ(renderStepFailures({ failed }),
               "error: failed to link '/home/me/hello/build/debug/bin/hello'\n"
+              "hint: fix the errors reported above and run the command again\n");
+}
+
+/**
+ * A link that failed because the linker could not start without libxml2,
+ * as the LLVM linker of 17 to 22 cannot, asks for libxml2 rather than for
+ * a fix to the code.
+ */
+TEST(ProjectDiagnosticTest, RendersALinkerThatNeedsLibxml2)
+{
+    const std::string output = "/t/bin/ld.lld: error while loading shared libraries: libxml2.so.2: cannot open shared object file: No such file or directory\n"
+                               "clang++: error: unable to execute command: No such file or directory\n"
+                               "clang++: error: linker command failed due to signal (use -v to see invocation)\n";
+    const FailedStep failed{ .step = linkStep(),
+                             .failure = StepFailure{ .kind = StepFailureKind::Exited, .path = {}, .code = {}, .status = 1 },
+                             .output = output };
+
+    EXPECT_EQ(renderStepFailures({ failed }),
+              "error: failed to link '/home/me/hello/build/debug/bin/hello'\n"
+              "hint: the linker of this toolchain needs libxml2.so.2; install libxml2 on this machine, or use a newer LLVM\n");
+}
+
+/**
+ * A compilation whose output names libxml2.so.2, as a source that includes
+ * a header of it may, still asks for a fix to the code.
+ */
+TEST(ProjectDiagnosticTest, AsksForAFixWhenACompilationNamesLibxml2)
+{
+    const FailedStep failed{ .step = compileStep("src/main.cpp"),
+                             .failure = StepFailure{ .kind = StepFailureKind::Exited, .path = {}, .code = {}, .status = 1 },
+                             .output = "src/main.cpp:1:10: fatal error: libxml2.so.2: No such file or directory\n" };
+
+    EXPECT_EQ(renderStepFailures({ failed }),
+              "error: failed to compile '/home/me/hello/src/main.cpp' for 'hello'\n"
               "hint: fix the errors reported above and run the command again\n");
 }
 
@@ -751,7 +788,8 @@ TEST(ProjectDiagnosticTest, RendersAnExecutableThatFailedToLink)
 TEST(ProjectDiagnosticTest, RendersALibraryThatFailedToArchive)
 {
     const FailedStep failed{ .step = archiveStep(),
-                             .failure = StepFailure{ .kind = StepFailureKind::Exited, .path = {}, .code = {}, .status = 1 } };
+                             .failure = StepFailure{ .kind = StepFailureKind::Exited, .path = {}, .code = {}, .status = 1 },
+                             .output = "" };
 
     EXPECT_EQ(renderStepFailures({ failed }),
               "error: failed to archive '/home/me/hello/build/debug/lib/libcore.a'\n"
@@ -764,7 +802,8 @@ TEST(ProjectDiagnosticTest, RendersALibraryThatFailedToArchive)
 TEST(ProjectDiagnosticTest, RendersAnArchiverASignalStopped)
 {
     const FailedStep failed{ .step = archiveStep(),
-                             .failure = StepFailure{ .kind = StepFailureKind::Signalled, .path = {}, .code = {}, .status = 9 } };
+                             .failure = StepFailure{ .kind = StepFailureKind::Signalled, .path = {}, .code = {}, .status = 9 },
+                             .output = "" };
 
     EXPECT_EQ(renderStepFailures({ failed }),
               "error: failed to archive '/home/me/hello/build/debug/lib/libcore.a': "
@@ -782,7 +821,8 @@ TEST(ProjectDiagnosticTest, RendersAnArchiverThatCouldNotStart)
                              .failure = StepFailure{ .kind = StepFailureKind::CannotStart,
                                                      .path = "/usr/bin/ar",
                                                      .code = std::make_error_code(std::errc::permission_denied),
-                                                     .status = 0 } };
+                                                     .status = 0 },
+                             .output = "" };
 
     EXPECT_EQ(renderStepFailures({ failed }),
               "error: cannot run '/usr/bin/ar': " + std::make_error_code(std::errc::permission_denied).message()
@@ -796,7 +836,8 @@ TEST(ProjectDiagnosticTest, RendersAnArchiverThatCouldNotStart)
 TEST(ProjectDiagnosticTest, RendersACompilerASignalStopped)
 {
     const FailedStep failed{ .step = compileStep("src/main.cpp"),
-                             .failure = StepFailure{ .kind = StepFailureKind::Signalled, .path = {}, .code = {}, .status = 9 } };
+                             .failure = StepFailure{ .kind = StepFailureKind::Signalled, .path = {}, .code = {}, .status = 9 },
+                             .output = "" };
 
     EXPECT_EQ(renderStepFailures({ failed }),
               "error: failed to compile '/home/me/hello/src/main.cpp' for 'hello': "
@@ -813,7 +854,8 @@ TEST(ProjectDiagnosticTest, RendersACompilerThatCouldNotStart)
                              .failure = StepFailure{ .kind = StepFailureKind::CannotStart,
                                                      .path = "/usr/bin/c++",
                                                      .code = std::make_error_code(std::errc::permission_denied),
-                                                     .status = 0 } };
+                                                     .status = 0 },
+                             .output = "" };
 
     EXPECT_EQ(renderStepFailures({ failed }),
               "error: cannot run '/usr/bin/c++': " + std::make_error_code(std::errc::permission_denied).message()
@@ -830,7 +872,8 @@ TEST(ProjectDiagnosticTest, RendersADirectoryAStepCouldNotCreate)
                              .failure = StepFailure{ .kind = StepFailureKind::CannotCreateDirectory,
                                                      .path = "/home/me/hello/build/debug/obj",
                                                      .code = std::make_error_code(std::errc::not_a_directory),
-                                                     .status = 0 } };
+                                                     .status = 0 },
+                             .output = "" };
 
     const std::string text = renderStepFailures({ failed });
 
@@ -846,8 +889,8 @@ TEST(ProjectDiagnosticTest, RendersEveryStepThatFailedWithTheHintOnce)
 {
     const StepFailure exited{ .kind = StepFailureKind::Exited, .path = {}, .code = {}, .status = 1 };
 
-    EXPECT_EQ(renderStepFailures({ FailedStep{ .step = compileStep("src/b.cpp"), .failure = exited },
-                                   FailedStep{ .step = compileStep("src/a.cpp"), .failure = exited } }),
+    EXPECT_EQ(renderStepFailures({ FailedStep{ .step = compileStep("src/b.cpp"), .failure = exited, .output = "" },
+                                   FailedStep{ .step = compileStep("src/a.cpp"), .failure = exited, .output = "" } }),
               "error: failed to compile '/home/me/hello/src/b.cpp' for 'hello'\n"
               "error: failed to compile '/home/me/hello/src/a.cpp' for 'hello'\n"
               "hint: fix the errors reported above and run the command again\n");
@@ -863,10 +906,10 @@ TEST(ProjectDiagnosticTest, RendersEachDifferentHintOnceInOrder)
     const StepFailure exited{ .kind = StepFailureKind::Exited, .path = {}, .code = {}, .status = 1 };
     const StepFailure signalled{ .kind = StepFailureKind::Signalled, .path = {}, .code = {}, .status = 9 };
 
-    EXPECT_EQ(renderStepFailures({ FailedStep{ .step = compileStep("src/a.cpp"), .failure = signalled },
-                                   FailedStep{ .step = compileStep("src/b.cpp"), .failure = exited },
-                                   FailedStep{ .step = compileStep("src/b.cpp"), .failure = exited },
-                                   FailedStep{ .step = compileStep("src/c.cpp"), .failure = signalled } }),
+    EXPECT_EQ(renderStepFailures({ FailedStep{ .step = compileStep("src/a.cpp"), .failure = signalled, .output = "" },
+                                   FailedStep{ .step = compileStep("src/b.cpp"), .failure = exited, .output = "" },
+                                   FailedStep{ .step = compileStep("src/b.cpp"), .failure = exited, .output = "" },
+                                   FailedStep{ .step = compileStep("src/c.cpp"), .failure = signalled, .output = "" } }),
               "error: failed to compile '/home/me/hello/src/a.cpp' for 'hello': the compiler was stopped by signal 9\n"
               "error: failed to compile '/home/me/hello/src/b.cpp' for 'hello'\n"
               "error: failed to compile '/home/me/hello/src/b.cpp' for 'hello'\n"

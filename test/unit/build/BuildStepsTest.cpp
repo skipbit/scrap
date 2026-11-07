@@ -316,6 +316,8 @@ TEST(BuildStepsTest, WaitsForTheRunningStepsAfterAFailure)
     EXPECT_EQ(result.error()[0].step.subject, "src/a.cpp");
     EXPECT_EQ(result.error()[1].step.subject, "src/b.cpp");
     EXPECT_EQ(result.error()[1].failure.kind, StepFailureKind::Exited);
+    EXPECT_EQ(result.error()[0].output, "a: error");
+    EXPECT_EQ(result.error()[1].output, "b: error");
     EXPECT_EQ(timeline.eventsStartingWith("run "), (std::vector<std::string>{ "run src/a.cpp", "run src/b.cpp" }));
     EXPECT_EQ(reported(timeline).back(), "finished src/b.cpp [b: error]");
 }
