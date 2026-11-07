@@ -116,6 +116,32 @@ TEST(JsonParserTest, RefusesAnObjectThatNamesAMemberTwice)
     EXPECT_EQ(parsed.error().offset, 9U);
 }
 
+TEST(JsonParserTest, RefusesAMemberThatRepeatsOneFarBefore)
+{
+    std::string text = "{";
+    for (int index = 0; index < 20000; ++index) {
+        text += "\"m" + std::to_string(index) + "\": 0, ";
+    }
+    const std::size_t repeatAt = text.size();
+    text += "\"m0\": 1}";
+
+    const auto parsed = parse(text);
+
+    ASSERT_FALSE(parsed.has_value());
+    EXPECT_EQ(parsed.error().reason, "the member 'm0' appears twice");
+    EXPECT_EQ(parsed.error().offset, repeatAt);
+}
+
+TEST(JsonParserTest, TakesTheSameNameInDifferentObjects)
+{
+    const auto parsed = parse(R"({"a": {"a": 1}, "b": {"a": 2}})");
+
+    ASSERT_TRUE(parsed.has_value());
+    const Value* b = parsed->member("b");
+    ASSERT_NE(b, nullptr);
+    EXPECT_NE(b->member("a"), nullptr);
+}
+
 TEST(JsonParserTest, RefusesBrokenArraysAndObjects)
 {
     EXPECT_EQ(reasonFor("[1 2]"), "expected ',' or ']'");

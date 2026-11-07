@@ -6,6 +6,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <unordered_set>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -82,7 +83,8 @@ bool isDigit(const char c)
  */
 struct OpenContainer {
     Value container;
-    std::string pendingName;  ///< The name of the member being read, in an object.
+    std::string pendingName;                ///< The name of the member being read, in an object.
+    std::unordered_set<std::string> names;  ///< The names of its members so far, in an object.
 };
 
 /**
@@ -341,7 +343,7 @@ private:
         if (! name.has_value()) {
             return std::unexpected(std::move(name.error()));
         }
-        if (object.container.member(*name) != nullptr) {
+        if (! object.names.insert(*name).second) {
             _at = nameAt;
             return fail("the member '" + *name + "' appears twice");
         }
@@ -379,7 +381,7 @@ private:
         }
         const bool isObject = (peek() == '{');
         ++_at;
-        open.push_back(OpenContainer{ .container = isObject ? Value{ Object{} } : Value{ Array{} }, .pendingName = {} });
+        open.push_back(OpenContainer{ .container = isObject ? Value{ Object{} } : Value{ Array{} }, .pendingName = {}, .names = {} });
         skipWhitespace();
         if (consume(isObject ? '}' : ']')) {
             Value empty = std::move(open.back().container);
