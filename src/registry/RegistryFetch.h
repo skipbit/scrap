@@ -31,7 +31,7 @@ struct AnswerUnusable {
 };
 
 /**
- * @brief A file just fetched could not be read back.
+ * @brief The fetched layer could not be read back to check its digest.
  */
 struct FetchedFileUnreadable {
     std::filesystem::path path;
@@ -46,8 +46,6 @@ using RegistryFailure = std::variant<Fetch::FetchError, ContentDoesNotMatch, Ans
 struct RegistryFetchRequest {
     IngotLocation location;
     std::filesystem::path destination;
-    /// Where the token and the manifest go on the way; nothing else uses it.
-    std::filesystem::path workDirectory;
     std::optional<std::filesystem::path> certificateBundle;
     /// How many bytes the ingot may hold.
     std::uint64_t sizeLimit = 0;

@@ -114,7 +114,7 @@ private:
 
 RegistryFetchRequest requestFor(const FakeRegistry& registry, const TempDirectory& temp, const std::uint64_t limit = Limit)
 {
-    return { .location = registry.location(), .destination = temp.path() / "ingot", .workDirectory = temp.path(), .certificateBundle = std::nullopt, .sizeLimit = limit };
+    return { .location = registry.location(), .destination = temp.path() / "ingot", .certificateBundle = std::nullopt, .sizeLimit = limit };
 }
 
 }  // anonymous namespace

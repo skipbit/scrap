@@ -1,9 +1,9 @@
 #include "registry/RegistryFetch.h"
 
 #include "digest/DigestText.h"
+#include "digest/Sha256.h"
 #include "digest/Sha256File.h"
 #include "fetch/UrlFetch.h"
-#include "file/WholeFile.h"
 #include "json/JsonParser.h"
 #include "json/JsonValue.h"
 #include "registry/BearerChallenge.h"
@@ -17,7 +17,6 @@
 #include <optional>
 #include <string>
 #include <string_view>
-#include <system_error>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -65,14 +64,13 @@ std::string tokenUrl(const BearerChallenge& challenge, const std::string& defaul
     return url;
 }
 
-std::expected<std::string, RegistryFailure> readFetched(const std::filesystem::path& file)
+std::expected<std::string, RegistryFailure> fetchText(const std::string& url, const RegistryFetchRequest& request, std::vector<std::string> headers, const std::uint64_t sizeLimit)
 {
-    auto text = File::readWholeFile(file);
-    if (! text.has_value()) {
-        // Reading a whole file reports the step that failed rather than an error code.
-        return std::unexpected(FetchedFileUnreadable{ .path = file, .code = std::make_error_code(std::errc::io_error) });
+    auto fetched = Fetch::fetchToString({ .url = url, .certificateBundle = request.certificateBundle, .sizeLimit = sizeLimit, .headers = std::move(headers) });
+    if (! fetched.has_value()) {
+        return std::unexpected(std::move(fetched.error()));
     }
-    return std::move(*text);
+    return std::move(*fetched);
 }
 
 std::expected<void, RegistryFailure> fetchInto(const std::string& url, const std::filesystem::path& destination, const RegistryFetchRequest& request, std::vector<std::string> headers, const std::uint64_t sizeLimit)
@@ -90,11 +88,7 @@ std::expected<void, RegistryFailure> fetchInto(const std::string& url, const std
 std::expected<std::string, RegistryFailure> fetchToken(const BearerChallenge& challenge, const RegistryFetchRequest& request)
 {
     const std::string url = tokenUrl(challenge, request.location.pullScope());
-    const std::filesystem::path file = request.workDirectory / "token.json";
-    if (auto fetched = fetchInto(url, file, request, {}, TokenSizeLimit); ! fetched.has_value()) {
-        return std::unexpected(std::move(fetched.error()));
-    }
-    auto text = readFetched(file);
+    auto text = fetchText(url, request, {}, TokenSizeLimit);
     if (! text.has_value()) {
         return std::unexpected(std::move(text.error()));
     }
@@ -111,17 +105,23 @@ std::expected<std::string, RegistryFailure> fetchToken(const BearerChallenge& ch
 }
 
 /**
- * Fetch the manifest into @p file, with a token when the registry asks for one.
- *
- * @return The header lines that authorise further requests, or what went wrong.
+ * The manifest, and the header lines that authorise the requests after it.
  */
-std::expected<std::vector<std::string>, RegistryFailure> fetchManifest(const RegistryFetchRequest& request, const std::filesystem::path& file)
+struct FetchedManifest {
+    std::string text;
+    std::vector<std::string> authorization;
+};
+
+/**
+ * Fetch the manifest, with a token when the registry asks for one.
+ */
+std::expected<FetchedManifest, RegistryFailure> fetchManifest(const RegistryFetchRequest& request)
 {
     const std::string url = request.location.manifestUrl();
     std::vector<std::string> headers{ std::string{ AcceptManifest } };
-    auto fetched = fetchInto(url, file, request, headers, ManifestSizeLimit);
+    auto fetched = fetchText(url, request, headers, ManifestSizeLimit);
     if (fetched.has_value()) {
-        return std::vector<std::string>{};
+        return FetchedManifest{ .text = std::move(*fetched), .authorization = {} };
     }
 
     const auto* failure = std::get_if<Fetch::FetchError>(&fetched.error());
@@ -140,10 +140,11 @@ std::expected<std::vector<std::string>, RegistryFailure> fetchManifest(const Reg
 
     std::vector<std::string> authorization{ "Authorization: Bearer " + *token };
     headers.push_back(authorization.front());
-    if (auto again = fetchInto(url, file, request, headers, ManifestSizeLimit); ! again.has_value()) {
+    auto again = fetchText(url, request, std::move(headers), ManifestSizeLimit);
+    if (! again.has_value()) {
         return std::unexpected(std::move(again.error()));
     }
-    return authorization;
+    return FetchedManifest{ .text = std::move(*again), .authorization = std::move(authorization) };
 }
 
 std::expected<void, RegistryFailure> checkDigest(const std::filesystem::path& file, const std::string_view digest, const std::string& url)
@@ -179,24 +180,21 @@ std::expected<void, RegistryFailure> fetchLayer(const RegistryFetchRequest& requ
 
 std::expected<void, RegistryFailure> fetchIngot(const RegistryFetchRequest& request)
 {
-    const std::filesystem::path manifestFile = request.workDirectory / "manifest.json";
-    auto authorization = fetchManifest(request, manifestFile);
-    if (! authorization.has_value()) {
-        return std::unexpected(std::move(authorization.error()));
+    auto manifest = fetchManifest(request);
+    if (! manifest.has_value()) {
+        return std::unexpected(std::move(manifest.error()));
     }
     const std::string url = request.location.manifestUrl();
-    if (auto checked = checkDigest(manifestFile, request.location.digest, url); ! checked.has_value()) {
-        return checked;
+    Digest::Sha256 sha256;
+    sha256.update(manifest->text);
+    if (Digest::sha256Digest(sha256.hexDigest()) != request.location.digest) {
+        return std::unexpected(ContentDoesNotMatch{ .url = url });
     }
-    auto text = readFetched(manifestFile);
-    if (! text.has_value()) {
-        return std::unexpected(std::move(text.error()));
-    }
-    auto layer = readIngotManifest(*text);
+    auto layer = readIngotManifest(manifest->text);
     if (! layer.has_value()) {
         return std::unexpected(AnswerUnusable{ .url = url, .reason = "its manifest is not one of an ingot: " + layer.error() });
     }
-    return fetchLayer(request, *layer, std::move(*authorization));
+    return fetchLayer(request, *layer, std::move(manifest->authorization));
 }
 
 }  // namespace scrap::Registry

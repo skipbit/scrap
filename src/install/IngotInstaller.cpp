@@ -142,7 +142,6 @@ std::expected<void, IngotNotPlaced> place(const std::filesystem::path& finished,
  */
 struct IngotTransfer {
     std::filesystem::path ingot;
-    std::filesystem::path workDirectory;
     std::optional<std::filesystem::path> certificateBundle;
 };
 
@@ -198,7 +197,6 @@ std::expected<void, IngotInstallFailure> fetchChecked(const Toolchain::RegistryS
     }
     auto fetched = Registry::fetchIngot({ .location = std::move(*location),
                                           .destination = transfer.ingot,
-                                          .workDirectory = transfer.workDirectory,
                                           .certificateBundle = transfer.certificateBundle,
                                           .sizeLimit = IngotSizeLimit });
     if (! fetched.has_value()) {
@@ -270,7 +268,7 @@ std::expected<std::filesystem::path, IngotInstallFailure> installIngot(const Ing
     const std::string name = selected.family + "@" + selected.version.text();
     const std::filesystem::path ingot = work->path() / "ingot";
     request.announce("Downloading '" + name + "'");
-    const IngotTransfer transfer{ .ingot = ingot, .workDirectory = work->path(), .certificateBundle = request.certificateBundle };
+    const IngotTransfer transfer{ .ingot = ingot, .certificateBundle = request.certificateBundle };
     auto fetched = std::visit(
         [&transfer](const auto& source) {
         return fetchChecked(source, transfer);
