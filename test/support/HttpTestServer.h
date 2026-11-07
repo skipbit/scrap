@@ -20,6 +20,10 @@ struct HttpTestResponse {
     std::string body;
     bool stalls = false;          ///< Say nothing, and hold the connection open.
     std::size_t bytesCutOff = 0;  ///< Promise this many bytes beyond the body, and hang up.
+    /// A header line, such as "Authorization: Bearer x", without which the
+    /// answer is 401 with this challenge instead.
+    std::string requiredHeader = {};
+    std::string challenge = {};
 };
 
 /**
@@ -50,6 +54,9 @@ public:
     /// The first line of each request received so far.
     [[nodiscard]] std::vector<std::string> requestLines() const;
 
+    /// The request line and header lines of each request received so far, as sent.
+    [[nodiscard]] std::vector<std::string> requestHeads() const;
+
 private:
     void start();
     void serve();
@@ -59,6 +66,7 @@ private:
     std::map<std::string, HttpTestResponse> _responses;
     mutable std::mutex _lock;
     std::vector<std::string> _requestLines;
+    std::vector<std::string> _requestHeads;
     std::atomic<bool> _stopping{ false };
     int _listener = -1;
     std::uint16_t _port = 0;

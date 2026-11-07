@@ -3,6 +3,7 @@
 // stderr). These are black-box tests: no headers from src/ are used here.
 
 #include "digest/Sha256.h"
+#include "support/FakeOciRegistry.h"
 #include "support/HttpTestServer.h"
 #include "support/StoredXz.h"
 #include "support/TarArchiveBuilder.h"
@@ -3057,6 +3058,7 @@ struct ToolchainOffer {
     std::string extraToolchainKeys = {};  ///< Lines for the toolchain, such as min_scrap_version.
     std::string extraIngotKeys = {};      ///< Lines for the ingot, such as glibc_version.
     bool hasIngot = true;
+    bool inRegistry = false;  ///< Keep the ingot in a registry that asks for a token, rather than at a URL.
 };
 
 constexpr std::string_view IndexPath = "/index.toml";
@@ -3117,11 +3119,9 @@ public:
             index += "\n[[toolchains]]\nfamily = '" + std::string{ family } + "'\nversion = '" + offered.version + "'\nstatus = '" + offered.status
                      + "'\ncompiler = 'g++'\nlicense = 'MIT'\n" + offered.extraToolchainKeys;
             if (offered.hasIngot) {
-                const std::string path = ingotPath(offered.version);
-                const std::string sha256 = offered.declaredSha256.empty() ? sha256Of(offered.ingot) : offered.declaredSha256;
-                index += "\n[[toolchains.ingots]]\nplatform = '" + hostPlatform() + "'\narch = '" + hostArch() + "'\nurl = '" + _server.url(path) + "'\nsha256 = '" + sha256
-                         + "'\n" + offered.extraIngotKeys;
-                _server.respond(path, { .status = 200, .headers = {}, .body = offered.ingot, .stalls = false });
+                index += "\n[[toolchains.ingots]]\nplatform = '" + hostPlatform() + "'\narch = '" + hostArch() + "'\n";
+                index += offered.inRegistry ? keepInRegistry(family, offered) : serveAtUrl(offered);
+                index += offered.extraIngotKeys;
             }
         }
         _server.respond(std::string{ IndexPath }, { .status = 200, .headers = {}, .body = std::move(index), .stalls = false });
@@ -3154,11 +3154,56 @@ public:
         }));
     }
 
+    /** The digest of the manifest of the ingot of @p version kept in the registry. */
+    [[nodiscard]] std::string manifestDigest(const std::string_view version) const
+    {
+        return _manifestDigests.at(std::string{ version });
+    }
+
+    /** Whether the stored ingots were asked for, and never with the token. */
+    [[nodiscard]] bool storageServedWithoutTheToken() const
+    {
+        std::vector<std::string> heads = _server.requestHeads();
+        std::erase_if(heads, [](const std::string& head) {
+            return ! head.starts_with("GET /storage/");
+        });
+        return (! heads.empty()) && std::ranges::none_of(heads, [](const std::string& head) {
+            return head.find("Authorization") != std::string::npos;
+        });
+    }
+
 private:
+    static constexpr std::string_view RegistryToken = "e2e-token";
+
     [[nodiscard]] static std::string ingotPath(const std::string_view version)
     {
         return "/ingot-" + std::string{ version };
     }
+
+    /** Serve the ingot at a URL, and give the keys of the index that name it. */
+    std::string serveAtUrl(const ToolchainOffer& offered)
+    {
+        const std::string path = ingotPath(offered.version);
+        const std::string sha256 = offered.declaredSha256.empty() ? sha256Of(offered.ingot) : offered.declaredSha256;
+        _server.respond(path, { .status = 200, .headers = {}, .body = offered.ingot, .stalls = false });
+        return "url = '" + _server.url(path) + "'\nsha256 = '" + sha256 + "'\n";
+    }
+
+    /**
+     * Keep the ingot in a registry as ghcr.io does: behind an anonymous token,
+     * with the layer redirected to storage on another host name for this
+     * machine. Give the keys of the index that name it.
+     */
+    std::string keepInRegistry(const std::string_view family, const ToolchainOffer& offered)
+    {
+        const std::string repository = "skipbit/toolchains/" + std::string{ family };
+        const scrap::TestSupport::FakeOciRegistry registry(_server, repository, offered.ingot, sha256Of, { .token = std::string{ RegistryToken }, .service = "e2e", .storagePath = "/storage/" + offered.version, .blob = {} });
+        const std::string& digest = registry.manifestDigest();
+        _manifestDigests[offered.version] = digest;
+        return "registry = '127.0.0.1:" + std::to_string(_server.port()) + "/skipbit/toolchains'\ntag = '" + std::string{ family } + ":" + offered.version + "'\ndigest = '" + digest + "'\n";
+    }
+
+    std::map<std::string, std::string> _manifestDigests;
 
     scrap::TestSupport::HttpTestServer _server;
 };
@@ -3227,6 +3272,45 @@ TEST_F(CliE2ETest, InstallsAToolchainFromTheIndex)
     EXPECT_FALSE(readFile("index/toolchain.toml").empty());
     EXPECT_EQ(readFile("bin/c++"), compilerBefore);
     EXPECT_EQ(server.timesFetched("15.2.0"), 1U);
+}
+
+/**
+ * A toolchain kept in a registry is installed through the registry's token,
+ * which the storage its layer moved to never sees, and is recorded by the
+ * digest the index gives.
+ */
+TEST_F(CliE2ETest, InstallsAToolchainKeptInARegistry)
+{
+    const ToolchainServer server("gcc", { { .version = "15.2.0", .ingot = compilerIngot("the installed compiler"), .inRegistry = true } });
+
+    auto result = runScrap({ "toolchain", "install", "gcc@15.2.0" }, { server.indexVariable() }, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    const std::string directory = "toolchains/gcc/15.2.0/" + hostDirectoryName();
+    EXPECT_EQ(readFile(directory + "/bin/g++"), "the installed compiler");
+    EXPECT_NE(readFile(directory + "/.scrap-toolchain.toml").find(server.manifestDigest("15.2.0")), std::string::npos) << readFile(directory + "/.scrap-toolchain.toml");
+    EXPECT_TRUE(server.storageServedWithoutTheToken());
+    EXPECT_TRUE(std::filesystem::is_empty(_root / "toolchains" / ".work"));
+}
+
+/**
+ * A toolchain kept in a registry is told apart from a build of it made again,
+ * and replaced by it when forced.
+ */
+TEST_F(CliE2ETest, InstallTellsOfABuildMadeAgainInARegistryAndReplacesItWhenForced)
+{
+    ToolchainServer server("gcc", { { .version = "15.2.0", .ingot = compilerIngot("first build"), .inRegistry = true } });
+    ASSERT_EQ(runScrap({ "toolchain", "install", "gcc@15.2.0" }, { server.indexVariable() }, _root).exitCode, 0);
+    server.offer("gcc", { { .version = "15.2.0", .ingot = compilerIngot("second build"), .inRegistry = true } });
+
+    auto told = runScrap({ "toolchain", "install", "gcc@15.2.0" }, { server.indexVariable() }, _root);
+    auto forced = runScrap({ "toolchain", "install", "--force", "gcc@15.2.0" }, { server.indexVariable() }, _root);
+
+    EXPECT_EQ(told.exitCode, 0) << told.stderrText;
+    EXPECT_NE(told.stderrText.find("warning: the index now lists a different build of 'gcc@15.2.0'\n"), std::string::npos) << told.stderrText;
+    EXPECT_EQ(forced.exitCode, 0) << forced.stderrText;
+    EXPECT_EQ(readFile("toolchains/gcc/15.2.0/" + hostDirectoryName() + "/bin/g++"), "second build");
 }
 
 /**

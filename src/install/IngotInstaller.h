@@ -30,9 +30,20 @@ struct IngotNotFetched {
 struct IngotDoesNotMatch { };
 
 /**
- * @brief The ingot is kept in a registry, which this version cannot fetch from.
+ * @brief The registry and tag the index names do not say where the ingot is kept.
  */
-struct RegistryNotSupported { };
+struct RegistryNotLocated {
+    std::string registry;
+    std::string tag;
+};
+
+/**
+ * @brief The registry answered at the URL with something that cannot be used.
+ */
+struct RegistryAnswerUnusable {
+    std::string url;
+    std::string reason;
+};
 
 /**
  * @brief The toolchain could not be put where it belongs.
@@ -44,7 +55,7 @@ struct IngotNotPlaced {
     std::optional<std::filesystem::path> previousKeptAt = std::nullopt;
 };
 
-using IngotInstallFailure = std::variant<IngotNotFetched, IngotDoesNotMatch, RegistryNotSupported, IngotNotUnpacked, IngotNotPlaced>;
+using IngotInstallFailure = std::variant<IngotNotFetched, IngotDoesNotMatch, RegistryNotLocated, RegistryAnswerUnusable, IngotNotUnpacked, IngotNotPlaced>;
 
 /**
  * @brief What to install, and where.

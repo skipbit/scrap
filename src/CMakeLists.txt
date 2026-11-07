@@ -41,6 +41,7 @@ scrap_apply_compile_settings(scrap_file WARNINGS_AS_ERRORS)
 
 # Digests of bytes and files, depending on nothing else in scrap
 add_library(scrap_digest STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/digest/DigestText.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/digest/Sha256.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/digest/Sha256File.cpp
 )
@@ -65,6 +66,14 @@ add_library(scrap_tar STATIC
 target_include_directories(scrap_tar PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 scrap_apply_compile_settings(scrap_tar WARNINGS_AS_ERRORS)
 
+# Reading JSON, depending on nothing else in scrap
+add_library(scrap_json STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/json/JsonParser.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/json/JsonValue.cpp
+)
+target_include_directories(scrap_json PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+scrap_apply_compile_settings(scrap_json WARNINGS_AS_ERRORS)
+
 # Fetching URLs into files
 add_library(scrap_fetch STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/fetch/CertificateBundle.cpp
@@ -75,6 +84,18 @@ add_library(scrap_fetch STATIC
 target_include_directories(scrap_fetch PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(scrap_fetch PRIVATE scrap_file scrap_libcurl)
 scrap_apply_compile_settings(scrap_fetch WARNINGS_AS_ERRORS)
+
+# Fetching ingots from an OCI registry
+add_library(scrap_registry STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/registry/BearerChallenge.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/registry/IngotLocation.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/registry/IngotManifest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/registry/RegistryFetch.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/registry/TokenRequest.cpp
+)
+target_include_directories(scrap_registry PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(scrap_registry PUBLIC scrap_fetch PRIVATE scrap_digest scrap_file scrap_json)
+scrap_apply_compile_settings(scrap_registry WARNINGS_AS_ERRORS)
 
 # Project configuration (scrap.toml)
 add_library(scrap_project STATIC
@@ -125,7 +146,7 @@ add_library(scrap_toolchain STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/driver/TomlText.cpp
 )
 target_include_directories(scrap_toolchain PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(scrap_toolchain PRIVATE scrap_file scrap_process tomlplusplus::tomlplusplus)
+target_link_libraries(scrap_toolchain PRIVATE scrap_digest scrap_file scrap_process tomlplusplus::tomlplusplus)
 scrap_apply_compile_settings(scrap_toolchain WARNINGS_AS_ERRORS)
 
 # Installing toolchains: obtaining the index, and fetching, checking and placing
@@ -139,7 +160,7 @@ add_library(scrap_install STATIC
 target_include_directories(scrap_install PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(scrap_install
     PUBLIC scrap_toolchain scrap_fetch
-    PRIVATE scrap_digest scrap_file scrap_tar scrap_xz
+    PRIVATE scrap_digest scrap_file scrap_registry scrap_tar scrap_xz
 )
 scrap_apply_compile_settings(scrap_install WARNINGS_AS_ERRORS)
 

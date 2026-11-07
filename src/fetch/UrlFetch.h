@@ -8,6 +8,7 @@
 #include <string>
 #include <system_error>
 #include <variant>
+#include <vector>
 
 namespace scrap::Fetch {
 
@@ -28,6 +29,29 @@ struct FetchRequest {
 
     /// How many bytes the content may hold. Nothing limits it when this is empty.
     std::optional<std::uint64_t> sizeLimit = std::nullopt;
+
+    /// Header lines, such as "Accept: text/plain", sent to the server of the URL
+    /// alone and never to another one a redirect leads to.
+    std::vector<std::string> headers;
+};
+
+/**
+ * @brief What to fetch into memory. The content must be small, so a limit is required.
+ */
+struct FetchTextRequest {
+    std::string url;
+
+    /// As in FetchRequest.
+    std::optional<std::filesystem::path> certificateBundle;
+
+    /// How long nothing may arrive before the transfer is given up.
+    std::chrono::seconds stallLimit = std::chrono::seconds{ 60 };
+
+    /// How many bytes the content may hold.
+    std::uint64_t sizeLimit = 0;
+
+    /// As in FetchRequest.
+    std::vector<std::string> headers;
 };
 
 /**
@@ -68,6 +92,8 @@ struct TransferFailure {
 struct UnexpectedStatus {
     std::string url;
     long status = 0;
+    /// What a 401 answer asks for in its WWW-Authenticate header; empty otherwise.
+    std::string authenticate;
 };
 
 /**
@@ -110,5 +136,13 @@ using FetchError = std::variant<UrlRefused, NoCertificateBundle, CertificateFail
  * @return Nothing on success, or what went wrong.
  */
 [[nodiscard]] std::expected<void, FetchError> fetchToFile(const FetchRequest& request);
+
+/**
+ * @brief Fetch a URL into memory, following redirects as fetchToFile does.
+ *
+ * @return The content, or what went wrong. The content is cut short only when
+ *         the response ended by closing the connection, as for fetchToFile.
+ */
+[[nodiscard]] std::expected<std::string, FetchError> fetchToString(const FetchTextRequest& request);
 
 }  // namespace scrap::Fetch

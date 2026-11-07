@@ -6,6 +6,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/test)
 
 # Helpers shared by the tests of more than one module
 add_library(scrap_test_support STATIC
+    support/FakeOciRegistry.cpp
     support/Fifo.cpp
     support/HttpTestServer.cpp
     support/StoredXz.cpp
@@ -98,6 +99,7 @@ scrap_add_unit_test(file SOURCES
 )
 
 scrap_add_unit_test(digest SOURCES
+    unit/digest/DigestTextTest.cpp
     unit/digest/Sha256FileTest.cpp
     unit/digest/Sha256Test.cpp
 )
@@ -106,6 +108,11 @@ scrap_add_unit_test(tar SOURCES
     unit/tar/TarExtractorTest.cpp
     unit/tar/TarPathTest.cpp
     unit/tar/TarReaderTest.cpp
+)
+
+scrap_add_unit_test(json SOURCES
+    unit/json/JsonParserTest.cpp
+    unit/json/JsonValueTest.cpp
 )
 
 scrap_add_unit_test(xz SOURCES
@@ -119,6 +126,15 @@ scrap_add_unit_test(fetch SOURCES
     unit/fetch/UrlFetchTest.cpp
     unit/fetch/UrlFetchOverTheNetworkTest.cpp
     unit/fetch/UrlPolicyTest.cpp
+    PROPERTIES TIMEOUT 120
+)
+
+scrap_add_unit_test(registry SOURCES
+    unit/registry/BearerChallengeTest.cpp
+    unit/registry/IngotLocationTest.cpp
+    unit/registry/IngotManifestTest.cpp
+    unit/registry/RegistryFetchTest.cpp
+    unit/registry/TokenRequestTest.cpp
     PROPERTIES TIMEOUT 120
 )
 

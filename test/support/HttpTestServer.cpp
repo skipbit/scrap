@@ -119,6 +119,12 @@ std::vector<std::string> HttpTestServer::requestLines() const
     return _requestLines;
 }
 
+std::vector<std::string> HttpTestServer::requestHeads() const
+{
+    const std::scoped_lock guard{ _lock };
+    return _requestHeads;
+}
+
 bool HttpTestServer::waitUntilReadable(const int descriptor) const
 {
     pollfd watched{ .fd = descriptor, .events = POLLIN, .revents = 0 };
@@ -160,6 +166,7 @@ void HttpTestServer::answer(const int connection)
     {
         const std::scoped_lock guard{ _lock };
         _requestLines.push_back(requestLine);
+        _requestHeads.push_back(request.substr(0, request.find("\r\n\r\n") + 2));
     }
 
     HttpTestResponse response{ .status = 404, .headers = {}, .body = "not found", .stalls = false, .bytesCutOff = 0 };
@@ -169,6 +176,9 @@ void HttpTestServer::answer(const int connection)
         if (found != _responses.end()) {
             response = found->second;
         }
+    }
+    if ((! response.requiredHeader.empty()) && (request.find("\r\n" + response.requiredHeader + "\r\n") == std::string::npos)) {
+        response = HttpTestResponse{ .status = 401, .headers = "WWW-Authenticate: " + response.challenge + "\r\n", .body = {}, .stalls = false, .bytesCutOff = 0 };
     }
     if (response.stalls) {
         // Returns when the client hangs up or the server stops.

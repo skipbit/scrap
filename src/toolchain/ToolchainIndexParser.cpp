@@ -1,5 +1,6 @@
 #include "toolchain/ToolchainIndexParser.h"
 
+#include "digest/DigestText.h"
 #include "toolchain/ToolchainIndex.h"
 #include "toolchain/ToolchainName.h"
 #include "toolchain/ToolchainVersion.h"
@@ -23,9 +24,6 @@ namespace {
 
 /// The one format of the index this version reads.
 constexpr std::int64_t SupportedSchemaVersion = 1;
-
-constexpr std::string_view DigestPrefix = "sha256:";
-constexpr std::size_t Sha256HexLength = 64;
 
 /**
  * A fault at @p node, naming the line it starts on and its key.
@@ -125,18 +123,6 @@ std::expected<std::optional<ToolchainVersion>, ToolchainIndexError> optionalVers
     return std::optional<ToolchainVersion>{ std::move(*version) };
 }
 
-bool isLowercaseHex(std::string_view text)
-{
-    return std::ranges::all_of(text, [](char c) {
-        return ((c >= '0') && (c <= '9')) || ((c >= 'a') && (c <= 'f'));
-    });
-}
-
-bool isSha256(std::string_view text)
-{
-    return (text.size() == Sha256HexLength) && isLowercaseHex(text);
-}
-
 std::expected<RegistrySource, ToolchainIndexError> parseRegistrySource(const toml::table& ingot, std::string_view key)
 {
     auto registry = requireString(ingot, key, "registry");
@@ -151,7 +137,7 @@ std::expected<RegistrySource, ToolchainIndexError> parseRegistrySource(const tom
     if (! digest.has_value()) {
         return std::unexpected(digest.error());
     }
-    if ((! digest->starts_with(DigestPrefix)) || (! isSha256(std::string_view{ *digest }.substr(DigestPrefix.size())))) {
+    if (! Digest::isSha256Digest(*digest)) {
         return std::unexpected(faultAt(*ingot.get("digest"), keyBelow(key, "digest"), "must be sha256: and 64 lowercase hex digits"));
     }
     return RegistrySource{ .registry = std::move(*registry), .tag = std::move(*tag), .digest = std::move(*digest) };
@@ -167,7 +153,7 @@ std::expected<UrlSource, ToolchainIndexError> parseUrlSource(const toml::table& 
     if (! sha256.has_value()) {
         return std::unexpected(sha256.error());
     }
-    if (! isSha256(*sha256)) {
+    if (! Digest::isSha256Hex(*sha256)) {
         return std::unexpected(faultAt(*ingot.get("sha256"), keyBelow(key, "sha256"), "must be 64 lowercase hex digits"));
     }
     return UrlSource{ .url = std::move(*url), .sha256 = std::move(*sha256) };

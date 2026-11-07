@@ -3,18 +3,23 @@
 #include "file/StagedFile.h"
 
 #include <array>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <curl/curl.h>
 #include <curl/easy.h>
+#include <curl/header.h>
 #include <curl/urlapi.h>
 #include <expected>  // IWYU pragma: keep
+#include <filesystem>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <system_error>
 #include <utility>
+#include <vector>
 
 namespace scrap::Fetch {
 
@@ -23,6 +28,7 @@ namespace {
 constexpr int RedirectLimit = 10;
 constexpr long ConnectTimeoutSeconds = 30;
 constexpr long HttpOk = 200;
+constexpr long HttpUnauthorized = 401;
 constexpr long FirstRedirectStatus = 300;
 constexpr long PastLastRedirectStatus = 400;
 
@@ -50,22 +56,49 @@ struct UrlPartDeleter {
 };
 using UrlPart = std::unique_ptr<char, UrlPartDeleter>;
 
+struct HeaderListDeleter {
+    void operator()(curl_slist* list) const
+    {
+        curl_slist_free_all(list);
+    }
+};
+using HeaderList = std::unique_ptr<curl_slist, HeaderListDeleter>;
+
+using Append = std::function<std::error_code(std::string_view)>;
+
+/**
+ * What a transfer needs, whether its content goes to a file or to memory.
+ */
+struct Transfer {
+    std::string url;
+    std::optional<std::filesystem::path> certificateBundle;
+    std::chrono::seconds stallLimit;
+    std::optional<std::uint64_t> sizeLimit;
+    std::vector<std::string> headers;
+
+    /// Takes each piece of the content, and reports why it could not.
+    Append append;
+
+    /// Named when @p append fails. Empty where it cannot.
+    std::filesystem::path destination;
+};
+
 /**
  * @brief Where the body of a response goes, and what went wrong putting it there.
  */
 struct BodySink {
     CURL* easy = nullptr;
-    File::StagedFile* file = nullptr;
+    Append append;
     std::optional<std::uint64_t> sizeLimit;
     std::uint64_t received = 0;
     bool tooLarge = false;
     std::error_code failure;
 };
 
-std::optional<std::string> urlPart(CURLU* url, const CURLUPart part)
+std::optional<std::string> urlPart(CURLU* url, const CURLUPart part, const unsigned int flags = 0)
 {
     char* text = nullptr;
-    if (curl_url_get(url, part, &text, 0) != CURLUE_OK) {
+    if (curl_url_get(url, part, &text, flags) != CURLUE_OK) {
         return std::nullopt;
     }
     const UrlPart owned{ text };
@@ -84,14 +117,15 @@ std::optional<UrlTarget> readTarget(const std::string& text)
     }
     auto scheme = urlPart(url.get(), CURLUPART_SCHEME);
     auto host = urlPart(url.get(), CURLUPART_HOST);
-    if ((! scheme.has_value()) || (! host.has_value())) {
+    auto port = urlPart(url.get(), CURLUPART_PORT, CURLU_DEFAULT_PORT);
+    if ((! scheme.has_value()) || (! host.has_value()) || (! port.has_value())) {
         return std::nullopt;
     }
-    return UrlTarget{ .scheme = std::move(*scheme), .host = std::move(*host) };
+    return UrlTarget{ .scheme = std::move(*scheme), .host = std::move(*host), .port = std::move(*port) };
 }
 
 /**
- * Put the body of a successful response in the file. libcurl hands over the
+ * Pass the body of a successful response on. libcurl hands over the
  * bodies of all responses, and those of redirects and errors are nobody's.
  */
 std::size_t receiveBody(const char* data, const std::size_t size, const std::size_t count, void* userData)
@@ -110,11 +144,43 @@ std::size_t receiveBody(const char* data, const std::size_t size, const std::siz
         sink->tooLarge = true;
         return 0;
     }
-    sink->failure = sink->file->append(std::string_view{ data, length });
+    sink->failure = sink->append(std::string_view{ data, length });
     return sink->failure ? 0 : length;
 }
 
-void applyOptions(CURL* easy, const FetchRequest& request, const std::string& url, const UrlTarget& target, BodySink& sink, char* errorText)
+/**
+ * The header lines of @p request as libcurl takes them, or nothing when there
+ * are none or they cannot be put together.
+ */
+std::expected<HeaderList, FetchError> headerList(const Transfer& request)
+{
+    HeaderList list;
+    for (const std::string& line : request.headers) {
+        curl_slist* longer = curl_slist_append(list.get(), line.c_str());
+        if (longer == nullptr) {
+            return std::unexpected(TransferFailure{ .url = request.url, .message = "cannot set up the request headers" });
+        }
+        // Appending returns the head of the list, which is new only for the first line.
+        if (list == nullptr) {
+            list.reset(longer);
+        }
+    }
+    return list;
+}
+
+/**
+ * What a 401 answer asks for, so a caller can authenticate and ask again.
+ */
+std::string authenticationAsked(CURL* easy)
+{
+    curl_header* header = nullptr;
+    if (curl_easy_header(easy, "WWW-Authenticate", 0, CURLH_HEADER, -1, &header) != CURLHE_OK) {
+        return {};
+    }
+    return std::string{ header->value };
+}
+
+void applyOptions(CURL* easy, const Transfer& request, const std::string& url, const UrlTarget& target, BodySink& sink, char* errorText)
 {
     curl_easy_reset(easy);
     curl_easy_setopt(easy, CURLOPT_URL, url.c_str());
@@ -172,44 +238,81 @@ std::optional<std::string> redirectTarget(CURL* easy, const long status)
 }
 
 /**
- * Follow @p request.url to its content, which goes to @p file.
+ * Where @p url leads, when it may be fetched after @p previous, the target of
+ * the redirect to it, if any.
+ */
+std::expected<UrlTarget, FetchError> acceptedTarget(const std::string& url, const std::optional<UrlTarget>& previous, const Transfer& request)
+{
+    const std::optional<UrlTarget> target = readTarget(url);
+    if ((! target.has_value()) || (! (previous.has_value() ? isAcceptedRedirect(*previous, *target) : isAccepted(*target)))) {
+        return std::unexpected(UrlRefused{ .url = url });
+    }
+    if (needsCertificates(*target) && (! request.certificateBundle.has_value())) {
+        return std::unexpected(NoCertificateBundle{ .url = url });
+    }
+    return *target;
+}
+
+/**
+ * What went wrong in a transfer of @p url that libcurl ended with @p code, if
+ * anything did.
+ */
+std::expected<void, FetchError> transferOutcome(const CURLcode code, const std::string& url, const Transfer& request, const BodySink& sink, const char* errorText)
+{
+    if (sink.tooLarge) {
+        return std::unexpected(ContentTooLarge{ .url = url, .limit = request.sizeLimit.value_or(0) });
+    }
+    if (sink.failure) {
+        return std::unexpected(CannotWriteDestination{ .path = request.destination, .code = sink.failure });
+    }
+    if (code != CURLE_OK) {
+        return std::unexpected(transferError(code, url, errorText));
+    }
+    return {};
+}
+
+/**
+ * Follow @p request.url to its content, which goes to @p request.append.
  *
  * Redirects are followed here rather than by libcurl, which can limit their
  * schemes but not the hosts a scheme may lead to.
  */
-std::expected<void, FetchError> transfer(const FetchRequest& request, File::StagedFile& file)
+std::expected<void, FetchError> transfer(const Transfer& request)
 {
     // These come before the handle, which holds on to them until it is cleaned up.
     std::array<char, CURL_ERROR_SIZE> errorText{};
-    BodySink sink{ .easy = nullptr, .file = &file, .sizeLimit = request.sizeLimit, .received = 0, .tooLarge = false, .failure = {} };
+    BodySink sink{ .easy = nullptr, .append = request.append, .sizeLimit = request.sizeLimit, .received = 0, .tooLarge = false, .failure = {} };
     const EasyHandle easy{ curl_easy_init() };
     if (easy == nullptr) {
         return std::unexpected(TransferFailure{ .url = request.url, .message = "cannot set up a transfer" });
     }
     sink.easy = easy.get();
 
+    auto headers = headerList(request);
+    if (! headers.has_value()) {
+        return std::unexpected(std::move(headers.error()));
+    }
+
     std::string url = request.url;
+    std::optional<UrlTarget> origin;
     std::optional<UrlTarget> previous;
     for (int hop = 0; hop <= RedirectLimit; ++hop) {
-        const std::optional<UrlTarget> target = readTarget(url);
-        if ((! target.has_value()) || (! (previous.has_value() ? isAcceptedRedirect(*previous, *target) : isAccepted(*target)))) {
-            return std::unexpected(UrlRefused{ .url = url });
+        const auto target = acceptedTarget(url, previous, request);
+        if (! target.has_value()) {
+            return std::unexpected(target.error());
         }
-        if (needsCertificates(*target) && (! request.certificateBundle.has_value())) {
-            return std::unexpected(NoCertificateBundle{ .url = url });
+        if (! origin.has_value()) {
+            origin = *target;
         }
 
         errorText.fill('\0');
         applyOptions(easy.get(), request, url, *target, sink, errorText.data());
+        if (isSameOrigin(*origin, *target)) {
+            curl_easy_setopt(easy.get(), CURLOPT_HTTPHEADER, headers->get());
+        }
         const CURLcode code = curl_easy_perform(easy.get());
-        if (sink.tooLarge) {
-            return std::unexpected(ContentTooLarge{ .url = url, .limit = *request.sizeLimit });
-        }
-        if (sink.failure) {
-            return std::unexpected(CannotWriteDestination{ .path = request.destination, .code = sink.failure });
-        }
-        if (code != CURLE_OK) {
-            return std::unexpected(transferError(code, url, errorText.data()));
+        if (auto outcome = transferOutcome(code, url, request, sink, errorText.data()); ! outcome.has_value()) {
+            return outcome;
         }
 
         long status = 0;
@@ -219,10 +322,11 @@ std::expected<void, FetchError> transfer(const FetchRequest& request, File::Stag
         }
         auto next = redirectTarget(easy.get(), status);
         if (! next.has_value()) {
-            return std::unexpected(UnexpectedStatus{ .url = url, .status = status });
+            std::string asked = (status == HttpUnauthorized) ? authenticationAsked(easy.get()) : std::string{};
+            return std::unexpected(UnexpectedStatus{ .url = url, .status = status, .authenticate = std::move(asked) });
         }
         url = std::move(*next);
-        previous = target;
+        previous = *target;
     }
     return std::unexpected(TooManyRedirects{ .url = url });
 }
@@ -235,13 +339,42 @@ std::expected<void, FetchError> fetchToFile(const FetchRequest& request)
     if (! file.has_value()) {
         return std::unexpected(CannotWriteDestination{ .path = request.destination, .code = file.error() });
     }
-    if (auto done = transfer(request, *file); ! done.has_value()) {
+    const Transfer toFile{ .url = request.url,
+                           .certificateBundle = request.certificateBundle,
+                           .stallLimit = request.stallLimit,
+                           .sizeLimit = request.sizeLimit,
+                           .headers = request.headers,
+                           .append = [&file](const std::string_view bytes) {
+        return file->append(bytes);
+    },
+                           .destination = request.destination };
+    if (auto done = transfer(toFile); ! done.has_value()) {
         return std::unexpected(std::move(done.error()));
     }
     if (const std::error_code failure = file->commit()) {
         return std::unexpected(CannotWriteDestination{ .path = request.destination, .code = failure });
     }
     return {};
+}
+
+std::expected<std::string, FetchError> fetchToString(const FetchTextRequest& request)
+{
+    std::string content;
+    const Transfer toMemory{ .url = request.url,
+                             .certificateBundle = request.certificateBundle,
+                             .stallLimit = request.stallLimit,
+                             .sizeLimit = request.sizeLimit,
+                             .headers = request.headers,
+                             .append =
+                                 [&content](const std::string_view bytes) {
+        content.append(bytes);
+        return std::error_code{};
+    },
+                             .destination = {} };
+    if (auto done = transfer(toMemory); ! done.has_value()) {
+        return std::unexpected(std::move(done.error()));
+    }
+    return content;
 }
 
 }  // namespace scrap::Fetch

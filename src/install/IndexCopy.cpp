@@ -94,7 +94,7 @@ std::expected<ObtainedIndex, IndexFault> obtainIndex(const std::filesystem::path
 
     std::error_code ec;
     std::filesystem::create_directories(copy.parent_path(), ec);
-    const auto transfer = Fetch::fetchToFile({ .url = source.url, .destination = fetched, .certificateBundle = source.certificateBundle, .sizeLimit = IndexSizeLimit });
+    const auto transfer = Fetch::fetchToFile({ .url = source.url, .destination = fetched, .certificateBundle = source.certificateBundle, .sizeLimit = IndexSizeLimit, .headers = {} });
     if (! transfer.has_value()) {
         return fallBackOnCopy(scrapHome, source, scrapVersion, IndexUnavailable{ .reason = Fetch::describeFetchError(transfer.error()), .fetchError = transfer.error() });
     }

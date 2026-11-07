@@ -64,7 +64,7 @@ TEST(UrlPolicyTest, AcceptsHttpsAnywhereAndHttpOnlyFromThisMachine)
     };
 
     for (const auto& [scheme, host, accepted, verified] : cases) {
-        const UrlTarget target{ .scheme = scheme, .host = host };
+        const UrlTarget target{ .scheme = scheme, .host = host, .port = "" };
         EXPECT_EQ(isAccepted(target), accepted) << scheme << "://" << host;
         EXPECT_EQ(needsCertificates(target), verified) << scheme << "://" << host;
     }
@@ -73,19 +73,29 @@ TEST(UrlPolicyTest, AcceptsHttpsAnywhereAndHttpOnlyFromThisMachine)
 TEST(UrlPolicyTest, LetsARedirectReachHttpOnlyFromThisMachine)
 {
     const std::vector<RedirectCase> cases{
-        { { "http", "localhost" }, { "http", "127.0.0.1" }, true },
-        { { "https", "localhost" }, { "http", "localhost" }, true },
-        { { "http", "localhost" }, { "https", "example.com" }, true },
-        { { "https", "example.com" }, { "https", "example.org" }, true },
-        { { "https", "example.com" }, { "http", "127.0.0.1" }, false },
-        { { "https", "example.com" }, { "http", "localhost" }, false },
-        { { "https", "example.com" }, { "http", "[::1]" }, false },
-        { { "https", "example.com" }, { "http", "example.org" }, false },
-        { { "http", "localhost" }, { "http", "example.com" }, false },
-        { { "http", "localhost" }, { "ftp", "localhost" }, false },
+        { { "http", "localhost", "" }, { "http", "127.0.0.1", "" }, true },
+        { { "https", "localhost", "" }, { "http", "localhost", "" }, true },
+        { { "http", "localhost", "" }, { "https", "example.com", "" }, true },
+        { { "https", "example.com", "" }, { "https", "example.org", "" }, true },
+        { { "https", "example.com", "" }, { "http", "127.0.0.1", "" }, false },
+        { { "https", "example.com", "" }, { "http", "localhost", "" }, false },
+        { { "https", "example.com", "" }, { "http", "[::1]", "" }, false },
+        { { "https", "example.com", "" }, { "http", "example.org", "" }, false },
+        { { "http", "localhost", "" }, { "http", "example.com", "" }, false },
+        { { "http", "localhost", "" }, { "ftp", "localhost", "" }, false },
     };
 
     for (const auto& [from, to, accepted] : cases) {
         EXPECT_EQ(isAcceptedRedirect(from, to), accepted) << from.scheme << "://" << from.host << " to " << to.scheme << "://" << to.host;
     }
+}
+
+TEST(UrlPolicyTest, TakesTheSameSchemeHostAndPortAsTheSameServer)
+{
+    const UrlTarget origin{ .scheme = "https", .host = "ghcr.io", .port = "443" };
+
+    EXPECT_TRUE(isSameOrigin(origin, UrlTarget{ .scheme = "https", .host = "ghcr.io", .port = "443" }));
+    EXPECT_FALSE(isSameOrigin(origin, UrlTarget{ .scheme = "http", .host = "ghcr.io", .port = "443" }));
+    EXPECT_FALSE(isSameOrigin(origin, UrlTarget{ .scheme = "https", .host = "pkg-containers.githubusercontent.com", .port = "443" }));
+    EXPECT_FALSE(isSameOrigin(origin, UrlTarget{ .scheme = "https", .host = "ghcr.io", .port = "8443" }));
 }

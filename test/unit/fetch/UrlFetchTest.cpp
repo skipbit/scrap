@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 
 #include <chrono>
+#include <cstdint>
 #include <cstdlib>
 #include <filesystem>
 #include <map>
@@ -38,7 +39,12 @@ HttpTestResponse redirectTo(const std::string& location, const int status = 302)
 
 FetchRequest requestFor(std::string url, std::filesystem::path destination)
 {
-    return { .url = std::move(url), .destination = std::move(destination), .certificateBundle = std::nullopt };
+    return { .url = std::move(url), .destination = std::move(destination), .certificateBundle = std::nullopt, .sizeLimit = std::nullopt, .headers = {} };
+}
+
+FetchTextRequest textRequestFor(std::string url, const std::uint64_t sizeLimit = 1024)
+{
+    return { .url = std::move(url), .certificateBundle = std::nullopt, .sizeLimit = sizeLimit, .headers = {} };
 }
 
 /**
@@ -249,6 +255,67 @@ TEST(UrlFetchTest, FollowsRedirectsAndKeepsOnlyTheLastBody)
     EXPECT_EQ(server.requestLines(), (std::vector<std::string>{ "GET /first HTTP/1.1", "GET /second HTTP/1.1", "GET /third HTTP/1.1" }));
 }
 
+TEST(UrlFetchTest, SendsTheHeadersToTheServerOfTheUrl)
+{
+    const TempDirectory temp;
+    const HttpTestServer server{ {
+        { "/first", redirectTo("/second") },
+        { "/second", content("arrived") },
+    } };
+    FetchRequest request = requestFor(server.url("/first"), temp.path() / "out");
+    request.headers = { "Authorization: Bearer secret", "Accept: text/plain" };
+
+    ASSERT_TRUE(fetchToFile(request).has_value());
+
+    const std::vector<std::string> heads = server.requestHeads();
+    ASSERT_EQ(heads.size(), 2U);
+    for (const std::string& head : heads) {
+        EXPECT_NE(head.find("\r\nAuthorization: Bearer secret\r\n"), std::string::npos) << head;
+        EXPECT_NE(head.find("\r\nAccept: text/plain\r\n"), std::string::npos) << head;
+    }
+}
+
+TEST(UrlFetchTest, KeepsTheHeadersFromAnotherServerARedirectLeadsTo)
+{
+    const TempDirectory temp;
+    HttpTestServer server{ {} };
+    server.respond("/first", redirectTo("http://localhost:" + std::to_string(server.port()) + "/second"));
+    server.respond("/second", content("arrived"));
+    FetchRequest request = requestFor(server.url("/first"), temp.path() / "out");
+    request.headers = { "Authorization: Bearer secret" };
+
+    ASSERT_TRUE(fetchToFile(request).has_value());
+
+    const std::vector<std::string> heads = server.requestHeads();
+    ASSERT_EQ(heads.size(), 2U);
+    EXPECT_NE(heads[0].find("Authorization"), std::string::npos) << heads[0];
+    EXPECT_EQ(heads[1].find("Authorization"), std::string::npos) << heads[1];
+    EXPECT_EQ(readWholeFile(temp.path() / "out"), "arrived");
+}
+
+TEST(UrlFetchTest, ReportsWhatAnAnswerThatNeedsAuthenticationAsksFor)
+{
+    const TempDirectory temp;
+    const std::string asked = R"(Bearer realm="http://127.0.0.1/token",service="registry")";
+    const HttpTestServer server{ {
+        { "/locked", { .status = 401, .headers = "WWW-Authenticate: " + asked + "\r\n", .body = {}, .stalls = false } },
+        { "/missing", { .status = 404, .headers = "WWW-Authenticate: " + asked + "\r\n", .body = {}, .stalls = false } },
+    } };
+
+    const auto locked = fetchToFile(requestFor(server.url("/locked"), temp.path() / "out"));
+    const auto missing = fetchToFile(requestFor(server.url("/missing"), temp.path() / "out"));
+
+    ASSERT_FALSE(locked.has_value());
+    const auto* status = std::get_if<UnexpectedStatus>(&locked.error());
+    ASSERT_NE(status, nullptr);
+    EXPECT_EQ(status->status, 401);
+    EXPECT_EQ(status->authenticate, asked);
+    ASSERT_FALSE(missing.has_value());
+    ASSERT_NE(std::get_if<UnexpectedStatus>(&missing.error()), nullptr);
+    EXPECT_EQ(std::get<UnexpectedStatus>(missing.error()).authenticate, "");
+    EXPECT_FALSE(std::filesystem::exists(temp.path() / "out"));
+}
+
 TEST(UrlFetchTest, RefusesARedirectToHttpOnAnotherHost)
 {
     const TempDirectory temp;
@@ -438,4 +505,57 @@ TEST(UrlFetchTest, CountsOnlyTheContentAgainstTheSizeLimit)
 
     ASSERT_TRUE(fetchToFile(request).has_value());
     EXPECT_EQ(readWholeFile(destination).value_or(""), "12345");
+}
+
+TEST(UrlFetchTextTest, GivesTheBytesOfTheResponse)
+{
+    const std::string body{ "a\0b\xff", 4 };
+    const HttpTestServer server{ { { "/text", content(body) } } };
+
+    const auto fetched = fetchToString(textRequestFor(server.url("/text")));
+
+    ASSERT_TRUE(fetched.has_value());
+    EXPECT_EQ(*fetched, body);
+}
+
+TEST(UrlFetchTextTest, RefusesContentPastTheSizeLimit)
+{
+    const HttpTestServer server({ { "/text", content("123456") } });
+
+    const auto fetched = fetchToString(textRequestFor(server.url("/text"), 5));
+
+    ASSERT_FALSE(fetched.has_value());
+    const auto* tooLarge = std::get_if<ContentTooLarge>(&fetched.error());
+    ASSERT_NE(tooLarge, nullptr);
+    EXPECT_EQ(tooLarge->limit, 5U);
+}
+
+TEST(UrlFetchTextTest, FollowsARedirectAndKeepsOnlyTheLastBody)
+{
+    const HttpTestServer server{ {
+        { "/first", redirectTo("/second") },
+        { "/second", content("arrived") },
+    } };
+
+    const auto fetched = fetchToString(textRequestFor(server.url("/first")));
+
+    ASSERT_TRUE(fetched.has_value());
+    EXPECT_EQ(*fetched, "arrived");
+}
+
+TEST(UrlFetchTextTest, KeepsTheHeadersFromAnotherServerARedirectLeadsTo)
+{
+    HttpTestServer server{ {} };
+    server.respond("/first", redirectTo("http://localhost:" + std::to_string(server.port()) + "/second"));
+    server.respond("/second", content("arrived"));
+    FetchTextRequest request = textRequestFor(server.url("/first"));
+    request.headers = { "Authorization: Bearer secret" };
+
+    const auto fetched = fetchToString(request);
+
+    ASSERT_TRUE(fetched.has_value());
+    const std::vector<std::string> heads = server.requestHeads();
+    ASSERT_EQ(heads.size(), 2U);
+    EXPECT_NE(heads[0].find("Authorization"), std::string::npos) << heads[0];
+    EXPECT_EQ(heads[1].find("Authorization"), std::string::npos) << heads[1];
 }
