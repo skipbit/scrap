@@ -215,12 +215,6 @@ std::optional<std::string> redirectTarget(CURL* easy, const long status)
 }
 
 /**
- * Follow @p request.url to its content, which goes to @p file.
- *
- * Redirects are followed here rather than by libcurl, which can limit their
- * schemes but not the hosts a scheme may lead to.
- */
-/**
  * Where @p url leads, when it may be fetched after @p previous, the target of
  * the redirect to it, if any.
  */
@@ -254,6 +248,12 @@ std::expected<void, FetchError> transferOutcome(const CURLcode code, const std::
     return {};
 }
 
+/**
+ * Follow @p request.url to its content, which goes to @p file.
+ *
+ * Redirects are followed here rather than by libcurl, which can limit their
+ * schemes but not the hosts a scheme may lead to.
+ */
 std::expected<void, FetchError> transfer(const FetchRequest& request, File::StagedFile& file)
 {
     // These come before the handle, which holds on to them until it is cleaned up.
