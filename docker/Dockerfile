@@ -32,6 +32,7 @@ RUN apt-get update \
     && ln -s "/usr/bin/clang++-${LLVM_VERSION}" /usr/local/bin/clang++ \
     && ln -s "/usr/bin/clang-format-${LLVM_VERSION}" /usr/local/bin/clang-format \
     && ln -s "/usr/bin/clang-tidy-${LLVM_VERSION}" /usr/local/bin/clang-tidy \
+    && ln -s "/usr/bin/run-clang-tidy-${LLVM_VERSION}" /usr/local/bin/run-clang-tidy \
     && rm -rf /var/lib/apt/lists/*
 
 # scripts/tools.sh runs the tools directly when it finds this.

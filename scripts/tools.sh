@@ -48,7 +48,10 @@ case "${1:-}" in
     # --fresh: build/lint may hold a cache made on the host, naming a compiler
     # the image does not have.
     CC=clang CXX=clang++ CXXFLAGS=-stdlib=libc++ cmake --preset lint --fresh
-    linted_sources | xargs -0 -r clang-tidy -p build/lint --warnings-as-errors='*'
+    # run-clang-tidy takes the files as regular expressions over the paths in
+    # the compilation database, and prints the output of each file whole.
+    files_re="$(linted_sources | python3 -c 'import os, re, sys; print("|".join("^" + re.escape(os.path.abspath(p)) + "$" for p in sys.stdin.read().split("\0") if p))')"
+    run-clang-tidy -p build/lint -j "$(nproc)" -warnings-as-errors='*' "$files_re"
     ;;
   *)
     echo "usage: scripts/tools.sh format | format-check | lint" >&2
