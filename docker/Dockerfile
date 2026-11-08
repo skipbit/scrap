@@ -28,6 +28,7 @@ RUN apt-get update \
         cmake \
         git \
         make \
+        python3 \
     && ln -s "/usr/bin/clang-${LLVM_VERSION}" /usr/local/bin/clang \
     && ln -s "/usr/bin/clang++-${LLVM_VERSION}" /usr/local/bin/clang++ \
     && ln -s "/usr/bin/clang-format-${LLVM_VERSION}" /usr/local/bin/clang-format \
