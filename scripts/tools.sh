@@ -8,6 +8,8 @@
 #   scripts/tools.sh format-check  fail on a source that is not formatted
 #   scripts/tools.sh lint          run clang-tidy over the modules the check covers
 #
+# lint runs 4 clang-tidy at a time, or as many as SCRAP_LINT_JOBS names.
+#
 # Outside the container it starts one and runs itself inside it.
 
 set -euo pipefail
@@ -75,7 +77,7 @@ case "${1:-}" in
     CC=clang CXX=clang++ CXXFLAGS=-stdlib=libc++ cmake --preset lint --fresh
     # run-clang-tidy prints the output of each file whole.
     files_re="$(linted_sources_regex)"
-    run-clang-tidy -p build/lint -j "$(nproc)" -warnings-as-errors='*' "$files_re"
+    run-clang-tidy -p build/lint -j "${SCRAP_LINT_JOBS:-4}" -warnings-as-errors='*' "$files_re"
     ;;
   *)
     echo "usage: scripts/tools.sh format | format-check | lint" >&2

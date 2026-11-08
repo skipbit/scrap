@@ -15,6 +15,8 @@ services:
       # The caller's user has no home in the image; git needs one to fetch
       # the dependencies at configure time.
       HOME: /tmp
+      # Passed on from the caller when set; scripts/tools.sh says what it does.
+      SCRAP_LINT_JOBS:
     volumes:
       - "${REPO_ROOT:?REPO_ROOT must name the repository root}:${REPO_ROOT}"
     working_dir: "${REPO_ROOT}"
