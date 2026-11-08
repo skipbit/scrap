@@ -162,10 +162,10 @@ scrap is in early alpha development.
 curl -fsSL https://skipbit.github.io/scrap/install.sh | sh
 ```
 
-This installs the latest release to `~/.scrap/bin/scrap` (`$SCRAP_HOME/bin` when `SCRAP_HOME` is set), after checking the archive against its published sha256, and offers to add that directory to `PATH`. To install a specific release:
+This installs the latest release to `~/.scrap/bin/scrap` (`$SCRAP_HOME/bin` when `SCRAP_HOME` is set), after checking the archive against its published sha256, and offers to add that directory to `PATH`. To install a specific release, give its version as the [releases page](https://github.com/skipbit/scrap/releases) names it, in place of `vX.Y.Z`:
 
 ```bash
-curl -fsSL https://skipbit.github.io/scrap/install.sh | sh -s -- v0.3.0
+curl -fsSL https://skipbit.github.io/scrap/install.sh | sh -s -- vX.Y.Z
 ```
 
 Prebuilt binaries are available for:

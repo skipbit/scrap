@@ -3,7 +3,7 @@
 # Installs a prebuilt scrap from a GitHub release.
 #
 #   curl -fsSL https://skipbit.github.io/scrap/install.sh | sh
-#   curl -fsSL https://skipbit.github.io/scrap/install.sh | sh -s -- v0.3.0
+#   curl -fsSL https://skipbit.github.io/scrap/install.sh | sh -s -- vX.Y.Z
 #
 # Without a version it installs the latest release, which is never a
 # prerelease; a prerelease is installed only when named. The archive is
