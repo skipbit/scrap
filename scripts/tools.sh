@@ -35,6 +35,31 @@ linted_sources() {
   find src/build src/command src/compile src/digest src/fetch src/file src/install src/json src/process src/project src/registry src/tar src/toolchain src/xz -type f -name '*.cpp' -print0
 }
 
+# The linted sources as one regular expression over the paths in the
+# compilation database, which is how run-clang-tidy takes them. It fails when
+# there are none or when one has no entry in the database, as run-clang-tidy
+# would skip that source without a word.
+linted_sources_regex() {
+  linted_sources | python3 -c '
+import json, os, re, sys
+
+def path_of(entry):
+    if os.path.isabs(entry["file"]):
+        return entry["file"]
+    return os.path.normpath(os.path.join(entry["directory"], entry["file"]))
+
+with open(sys.argv[1]) as database_file:
+    database = {path_of(entry) for entry in json.load(database_file)}
+sources = [os.path.abspath(path) for path in sys.stdin.read().split("\0") if path]
+if not sources:
+    sys.exit("no linted sources")
+missing = [path for path in sources if path not in database]
+if missing:
+    sys.exit("not in the compilation database: " + " ".join(missing))
+print("|".join("^" + re.escape(path) + "$" for path in sources))
+' build/lint/compile_commands.json
+}
+
 case "${1:-}" in
   format)
     formatted_sources | xargs -0 -r clang-format -i
@@ -48,9 +73,8 @@ case "${1:-}" in
     # --fresh: build/lint may hold a cache made on the host, naming a compiler
     # the image does not have.
     CC=clang CXX=clang++ CXXFLAGS=-stdlib=libc++ cmake --preset lint --fresh
-    # run-clang-tidy takes the files as regular expressions over the paths in
-    # the compilation database, and prints the output of each file whole.
-    files_re="$(linted_sources | python3 -c 'import os, re, sys; print("|".join("^" + re.escape(os.path.abspath(p)) + "$" for p in sys.stdin.read().split("\0") if p))')"
+    # run-clang-tidy prints the output of each file whole.
+    files_re="$(linted_sources_regex)"
     run-clang-tidy -p build/lint -j "$(nproc)" -warnings-as-errors='*' "$files_re"
     ;;
   *)
