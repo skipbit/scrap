@@ -3,8 +3,8 @@
 # Called by pr-checks.yml, main-checks.yml, and release.yml.
 # Not intended for standalone execution (workflow_call only).
 #
-# Each job names the compiler and standard library it builds with, covering
-# the range in the README.
+# Each job names the compiler and standard library it builds with. The
+# README lists these as the ones CI builds and tests scrap with.
 #
 # The matrix runs Release only. Debug builds are handled separately by
 # coverage jobs in pr-checks.yml and main-checks.yml.
