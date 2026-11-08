@@ -1,0 +1,19 @@
+#!/bin/bash
+#
+# Runs clang-tidy through ctcache, which skips a source whose earlier result
+# was clean. ctcache keys that result on the preprocessed source, which a
+# second #include of a header, or a removed NOLINT, leaves as it was. The key
+# here also holds the bytes of the source and of every header under src/, so
+# a change to any of them runs clang-tidy again.
+
+set -euo pipefail
+
+source_file="${*: -1}"
+if [[ "$source_file" != *.cpp ]]; then
+  exec clang-tidy "$@"
+fi
+
+inputs="$(find src -type f -name '*.h' -print0 | sort -z |
+  xargs -0 sha256sum "$source_file" | sha256sum | cut -d ' ' -f 1)"
+exec python3 /usr/local/lib/ctcache/clang_tidy_cache.py clang-tidy \
+  "--extra-arg=-DSCRAP_LINT_INPUTS=$inputs" "$@"
