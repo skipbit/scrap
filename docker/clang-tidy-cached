@@ -1,19 +1,74 @@
-#!/bin/bash
-#
-# Runs clang-tidy through ctcache, which skips a source whose earlier result
-# was clean. ctcache keys that result on the preprocessed source, which a
-# second #include of a header, or a removed NOLINT, leaves as it was. The key
-# here also holds the bytes of the source and of every header under src/, so
-# a change to any of them runs clang-tidy again.
+#!/usr/bin/env python3
+"""Runs clang-tidy through ctcache.
 
-set -euo pipefail
+ctcache skips a source whose earlier clang-tidy result was clean. It keys
+that result on the preprocessed source, which a second #include of a header,
+or a removed NOLINT, leaves as it was. The key here also holds the bytes of
+the source and of every header it includes outside the system headers, so a
+change to any of them runs clang-tidy again.
+"""
 
-source_file="${*: -1}"
-if [[ "$source_file" != *.cpp ]]; then
-  exec clang-tidy "$@"
-fi
+import hashlib
+import json
+import os
+import shlex
+import subprocess
+import sys
 
-inputs="$(find src -type f -name '*.h' -print0 | sort -z |
-  xargs -0 sha256sum "$source_file" | sha256sum | cut -d ' ' -f 1)"
-exec python3 /usr/local/lib/ctcache/clang_tidy_cache.py clang-tidy \
-  "--extra-arg=-DSCRAP_LINT_INPUTS=$inputs" "$@"
+CTCACHE = "/usr/local/lib/ctcache/clang_tidy_cache.py"
+
+
+def database_dir(args):
+    for index, arg in enumerate(args):
+        if arg.startswith("-p="):
+            return arg[len("-p="):]
+        if arg == "-p" and index + 1 < len(args):
+            return args[index + 1]
+    sys.exit("clang-tidy-cached: no -p names the compilation database")
+
+
+def compile_command(database, source):
+    with open(os.path.join(database, "compile_commands.json")) as database_file:
+        for entry in json.load(database_file):
+            path = os.path.join(entry["directory"], entry["file"])
+            if os.path.realpath(path) == os.path.realpath(source):
+                return entry
+    sys.exit(f"clang-tidy-cached: no compile command for {source}")
+
+
+def included_files(entry):
+    if "arguments" in entry:
+        command = list(entry["arguments"])
+    else:
+        command = shlex.split(entry["command"])
+    if "-o" in command:
+        index = command.index("-o")
+        del command[index:index + 2]
+    rule = subprocess.run(command + ["-MM"], cwd=entry["directory"],
+                          check=True, capture_output=True, text=True).stdout
+    paths = rule.replace("\\\n", " ").split(":", 1)[1].split()
+    return sorted({os.path.realpath(os.path.join(entry["directory"], path))
+                   for path in paths})
+
+
+def inputs_digest(paths):
+    digest = hashlib.sha256()
+    for path in paths:
+        with open(path, "rb") as input_file:
+            content = hashlib.sha256(input_file.read()).hexdigest()
+        digest.update(f"{content}  {path}\n".encode())
+    return digest.hexdigest()
+
+
+def main():
+    args = sys.argv[1:]
+    if not args or not args[-1].endswith(".cpp"):
+        os.execvp("clang-tidy", ["clang-tidy", *args])
+    entry = compile_command(database_dir(args), args[-1])
+    digest = inputs_digest(included_files(entry))
+    os.execvp("python3", ["python3", CTCACHE, "clang-tidy",
+                          f"--extra-arg=-DSCRAP_LINT_INPUTS={digest}", *args])
+
+
+if __name__ == "__main__":
+    main()
