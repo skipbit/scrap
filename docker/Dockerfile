@@ -36,5 +36,17 @@ RUN apt-get update \
     && ln -s "/usr/bin/run-clang-tidy-${LLVM_VERSION}" /usr/local/bin/run-clang-tidy \
     && rm -rf /var/lib/apt/lists/*
 
+# ctcache, which keeps the clang-tidy results of a developer's machine, as the
+# one file of its client at the commit of a release, checked against its sha256.
+ARG CTCACHE_COMMIT=e33c063ca6e52b48bcefbc45d46d8c150ffa81ca
+ADD --chmod=755 \
+    --checksum=sha256:a1b677a8b0ba318c330b043582872e40ddfe797c6499682cf0033ae9c5665e07 \
+    "https://raw.githubusercontent.com/matus-chochlik/ctcache/${CTCACHE_COMMIT}/src/ctcache/clang_tidy_cache.py" \
+    /usr/local/lib/ctcache/clang_tidy_cache.py
+COPY --chmod=755 clang-tidy-cached /usr/local/bin/clang-tidy-cached
+# The versions of the packages, which clang-tidy-cached adds to its key: an
+# image built on an update of the archive runs clang-tidy on every source again.
+RUN dpkg-query -W -f '${Package} ${Version}\n' > /usr/local/lib/ctcache/packages
+
 # scripts/tools.sh runs the tools directly when it finds this.
 ENV SCRAP_TOOLS_CONTAINER=1
