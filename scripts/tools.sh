@@ -10,7 +10,7 @@
 #
 # lint runs 4 clang-tidy at a time, or as many as SCRAP_LINT_JOBS names. It
 # keeps the results in build/ctcache and skips a source whose result there was
-# clean, unless SCRAP_LINT_CACHE is off.
+# clean, unless SCRAP_LINT_CACHE is off. Removing build/ctcache drops them.
 #
 # Outside the container it starts one and runs itself inside it.
 
