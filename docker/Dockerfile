@@ -44,6 +44,9 @@ ADD --chmod=755 \
     "https://raw.githubusercontent.com/matus-chochlik/ctcache/${CTCACHE_COMMIT}/src/ctcache/clang_tidy_cache.py" \
     /usr/local/lib/ctcache/clang_tidy_cache.py
 COPY --chmod=755 clang-tidy-cached /usr/local/bin/clang-tidy-cached
+# The versions of the packages, which clang-tidy-cached adds to its key: an
+# image built on an update of the archive runs clang-tidy on every source again.
+RUN dpkg-query -W -f '${Package} ${Version}\n' > /usr/local/lib/ctcache/packages
 
 # scripts/tools.sh runs the tools directly when it finds this.
 ENV SCRAP_TOOLS_CONTAINER=1

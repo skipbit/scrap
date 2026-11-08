@@ -5,7 +5,8 @@ ctcache skips a source whose earlier clang-tidy result was clean. It keys
 that result on the preprocessed source, which a second #include of a header,
 or a removed NOLINT, leaves as it was. The key here also holds the bytes of
 the source and of every header it includes outside the system headers, so a
-change to any of them runs clang-tidy again.
+change to any of them runs clang-tidy again, and the versions of the packages
+of the image, so an update of clang-tidy or of its libraries does too.
 """
 
 import hashlib
@@ -16,6 +17,7 @@ import subprocess
 import sys
 
 CTCACHE = "/usr/local/lib/ctcache/clang_tidy_cache.py"
+PACKAGES = "/usr/local/lib/ctcache/packages"
 
 
 def database_dir(args):
@@ -65,7 +67,7 @@ def main():
     if not args or not args[-1].endswith(".cpp"):
         os.execvp("clang-tidy", ["clang-tidy", *args])
     entry = compile_command(database_dir(args), args[-1])
-    digest = inputs_digest(included_files(entry))
+    digest = inputs_digest(included_files(entry) + [PACKAGES])
     os.execvp("python3", ["python3", CTCACHE, "clang-tidy",
                           f"--extra-arg=-DSCRAP_LINT_INPUTS={digest}", *args])
 
