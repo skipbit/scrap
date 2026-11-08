@@ -33,8 +33,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      # Every run here starts without the results of an earlier one.
       - name: Run clang-tidy
         run: scripts/tools.sh lint
+        env:
+          SCRAP_LINT_CACHE: 'off'
 
       # What the build was configured with, as CMake recorded it.
       - name: Report the configuration the build used

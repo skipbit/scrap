@@ -8,7 +8,9 @@
 #   scripts/tools.sh format-check  fail on a source that is not formatted
 #   scripts/tools.sh lint          run clang-tidy over the modules the check covers
 #
-# lint runs 4 clang-tidy at a time, or as many as SCRAP_LINT_JOBS names.
+# lint runs 4 clang-tidy at a time, or as many as SCRAP_LINT_JOBS names. It
+# keeps the results in build/ctcache and skips a source whose result there was
+# clean, unless SCRAP_LINT_CACHE is off.
 #
 # Outside the container it starts one and runs itself inside it.
 
@@ -77,7 +79,16 @@ case "${1:-}" in
     CC=clang CXX=clang++ CXXFLAGS=-stdlib=libc++ cmake --preset lint --fresh
     # run-clang-tidy prints the output of each file whole.
     files_re="$(linted_sources_regex)"
-    run-clang-tidy -p build/lint -j "${SCRAP_LINT_JOBS:-4}" -warnings-as-errors='*' "$files_re"
+    case "${SCRAP_LINT_CACHE:-on}" in
+      on) clang_tidy=clang-tidy-cached ;;
+      off) clang_tidy=clang-tidy ;;
+      *)
+        echo "SCRAP_LINT_CACHE is on or off, not ${SCRAP_LINT_CACHE}" >&2
+        exit 2
+        ;;
+    esac
+    CTCACHE_DIR="$root/build/ctcache" run-clang-tidy -clang-tidy-binary "$clang_tidy" \
+      -p build/lint -j "${SCRAP_LINT_JOBS:-4}" -warnings-as-errors='*' "$files_re"
     ;;
   *)
     echo "usage: scripts/tools.sh format | format-check | lint" >&2
