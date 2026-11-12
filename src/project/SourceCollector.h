@@ -55,7 +55,8 @@ using SourceCollectionError = std::variant<SourceScanFailure, SourceNamedTwice>;
 enum class LeftOutReason : std::uint8_t {
     /// Its extension is a source extension spelled in another case.
     ExtensionSpelling,
-    /// It is a symbolic link to a directory, which the scan does not follow.
+    /// It is a symbolic link to a directory outside src/, or to one that
+    /// cannot be resolved, which the scan does not follow.
     DirectoryLink,
     /// It is a symbolic link to a file that does not exist.
     BrokenLink,
@@ -102,9 +103,11 @@ struct CollectedSources {
  *
  * What the scan does not build is left out and listed, so the build goes on
  * as before and can still name it: a file whose extension is a source
- * extension in another case, a symbolic link to a directory, which is not
- * followed, and a link named as a source that names no file. A declared file
- * is built and not listed.
+ * extension in another case, a symbolic link to a directory outside src/ or
+ * to one that cannot be resolved, which is not followed, and a link named as
+ * a source that names no file. A link to a directory below src/ leaves
+ * nothing out, since the scan reaches that directory under its own path, and
+ * is not listed. A declared file is built and not listed.
  *
  * A project with a library gives the sources below src/ to the library, except
  * the entry points of the executables, and adds the file the library names,

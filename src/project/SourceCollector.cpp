@@ -36,13 +36,33 @@ bool isSource(const std::filesystem::directory_entry& entry)
 }
 
 /**
- * Why the scan leaves @p entry out although it looks like a source, or
- * nothing when it is a source or does not look like one.
+ * Whether @p entry resolves to @p walked or a directory below it, which the
+ * scan reaches under its own path. A link that cannot be resolved does not,
+ * and nothing does when @p walked is empty.
  */
-std::optional<LeftOutReason> leftOutReason(const std::filesystem::directory_entry& entry)
+bool resolvesBelow(const std::filesystem::directory_entry& entry, const std::filesystem::path& walked)
+{
+    std::error_code ec;
+    const std::filesystem::path target = std::filesystem::canonical(entry.path(), ec);
+    if (ec || walked.empty()) {
+        return false;
+    }
+    const std::filesystem::path relative = target.lexically_relative(walked);
+    return (! relative.empty()) && (*relative.begin() != "..");
+}
+
+/**
+ * Why the scan leaves @p entry out although it looks like a source, or
+ * nothing when it is a source or does not look like one. @p walked is the
+ * resolved directory the scan walks.
+ */
+std::optional<LeftOutReason> leftOutReason(const std::filesystem::directory_entry& entry, const std::filesystem::path& walked)
 {
     std::error_code ec;
     if (entry.is_symlink(ec) && entry.is_directory(ec)) {
+        if (resolvesBelow(entry, walked)) {
+            return std::nullopt;
+        }
         return LeftOutReason::DirectoryLink;
     }
     const std::string extension = entry.path().extension().string();
@@ -86,6 +106,7 @@ std::expected<ScannedSources, SourceCollectionError> scanSourceDirectory(const s
         return ScannedSources{};
     }
 
+    const std::filesystem::path walked = std::filesystem::canonical(directory, ec);
     ScannedSources scanned;
     std::filesystem::recursive_directory_iterator it(directory, ec);
     if (ec) {
@@ -99,7 +120,7 @@ std::expected<ScannedSources, SourceCollectionError> scanSourceDirectory(const s
         const std::filesystem::path relative = current.lexically_relative(projectRoot).lexically_normal();
         if (isSource(*it)) {
             scanned.sources.push_back(relative);
-        } else if (const auto reason = leftOutReason(*it)) {
+        } else if (const auto reason = leftOutReason(*it, walked)) {
             scanned.leftOut.push_back(LeftOutEntry{ .path = relative, .reason = *reason });
         }
         it.increment(ec);

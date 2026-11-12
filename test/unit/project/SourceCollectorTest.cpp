@@ -335,10 +335,10 @@ TEST(SourceCollectorTest, ReportsASourceDirectoryItCannotExamine)
 }
 
 /**
- * A symbolic link to a directory below src/ is not followed, and the scan
- * goes on past it.
+ * A symbolic link below src/ to a directory outside it is not followed, and
+ * the scan goes on past it.
  */
-TEST(SourceCollectorTest, LeavesOutALinkToADirectoryBelowSrc)
+TEST(SourceCollectorTest, LeavesOutALinkToADirectoryOutsideSrc)
 {
     const TempDirectory temp;
     temp.writeFile("src/main.cpp", SourceText);
@@ -355,6 +355,54 @@ TEST(SourceCollectorTest, LeavesOutALinkToADirectoryBelowSrc)
     ASSERT_EQ(collected->targets.size(), 1);
     EXPECT_EQ(collected->targets[0].sources, (std::vector<std::filesystem::path>{ "src/main.cpp" }));
     EXPECT_EQ(collected->leftOut, (std::vector<LeftOutEntry>{ { .path = "src/shared", .reason = LeftOutReason::DirectoryLink } }));
+}
+
+/**
+ * A symbolic link to a directory that the scan walks below src/ leaves
+ * nothing out: the sources there are built under their own path.
+ */
+TEST(SourceCollectorTest, ListsNoLinkToADirectoryTheScanWalks)
+{
+    const TempDirectory temp;
+    temp.writeFile("src/main.cpp", SourceText);
+    temp.writeFile("src/real/util.cpp", SourceText);
+    std::error_code ec;
+    std::filesystem::create_directory_symlink("real", temp.path() / "src" / "alias", ec);
+    if (ec) {
+        GTEST_SKIP() << "the file system cannot hold a symbolic link: " << ec.message();
+    }
+    std::filesystem::create_directory_symlink(".", temp.path() / "src" / "self");
+
+    const auto collected = collectSources(temp.path(), { executableNamed("app", "src/main.cpp") });
+
+    ASSERT_TRUE(collected.has_value());
+    ASSERT_EQ(collected->targets.size(), 1);
+    EXPECT_EQ(collected->targets[0].sources, (std::vector<std::filesystem::path>{ "src/main.cpp", "src/real/util.cpp" }));
+    EXPECT_TRUE(collected->leftOut.empty());
+}
+
+/**
+ * A link below src/ that reaches a directory outside src/ through another
+ * link below src/ still leaves that directory out.
+ */
+TEST(SourceCollectorTest, LeavesOutALinkThatReachesOutsideSrcThroughAnother)
+{
+    const TempDirectory temp;
+    temp.writeFile("src/main.cpp", SourceText);
+    temp.writeFile("shared/util.cpp", SourceText);
+    std::error_code ec;
+    std::filesystem::create_directory_symlink("../shared", temp.path() / "src" / "shared", ec);
+    if (ec) {
+        GTEST_SKIP() << "the file system cannot hold a symbolic link: " << ec.message();
+    }
+    std::filesystem::create_directory_symlink("shared", temp.path() / "src" / "again");
+
+    const auto collected = collectSources(temp.path(), { executableNamed("app", "src/main.cpp") });
+
+    ASSERT_TRUE(collected.has_value());
+    ASSERT_EQ(collected->targets.size(), 1);
+    EXPECT_EQ(collected->targets[0].sources, (std::vector<std::filesystem::path>{ "src/main.cpp" }));
+    EXPECT_EQ(collected->leftOut, (std::vector<LeftOutEntry>{ { .path = "src/again", .reason = LeftOutReason::DirectoryLink }, { .path = "src/shared", .reason = LeftOutReason::DirectoryLink } }));
 }
 
 /**

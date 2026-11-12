@@ -432,7 +432,7 @@ std::string renderLeftOut(const Project::LeftOutEntry& entry)
         text += " in lower case";
         break;
     case Project::LeftOutReason::DirectoryLink:
-        text += "a symbolic link to a directory, which scrap does not follow";
+        text += "a symbolic link to a directory outside src/, which scrap does not follow";
         break;
     case Project::LeftOutReason::BrokenLink:
         text += "a symbolic link to a file that does not exist";
