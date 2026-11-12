@@ -161,6 +161,16 @@ void insertIfKnown(toml::table& table, std::string_view key, const std::optional
 }
 
 /**
+ * Put @p path into @p table under @p key, when there is one.
+ */
+void insertIfKnown(toml::table& table, std::string_view key, const std::optional<std::filesystem::path>& path)
+{
+    insertIfKnown(table, key, path.transform([](const std::filesystem::path& known) {
+        return known.generic_string();
+    }));
+}
+
+/**
  * Put @p list into @p table under @p key, unless it is empty.
  */
 void insertArguments(toml::table& table, std::string_view key, const std::vector<std::string>& list)
@@ -241,9 +251,7 @@ std::string renderInstallRecord(const InstallRecord& record)
     insertArguments(table, CompileArgumentsKey, record.arguments.compile);
     insertArguments(table, LinkArgumentsKey, record.arguments.link);
     insertIfKnown(table, IngotIntegrityKey, record.ingotIntegrity);
-    if (record.cCompiler.has_value()) {
-        table.insert(CCompilerKey, record.cCompiler->generic_string());
-    }
+    insertIfKnown(table, CCompilerKey, record.cCompiler);
     insertIfKnown(table, SourceKey, record.source);
     insertIfKnown(table, InstalledAtKey, record.installedAt);
     return tomlText(table);
