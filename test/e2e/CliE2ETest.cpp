@@ -26,7 +26,9 @@
 #include <map>
 #include <optional>
 #include <poll.h>
+#include <ranges>
 #include <regex>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <sys/resource.h>
@@ -283,6 +285,27 @@ bool drainBoth(int fd1, int fd2, std::chrono::steady_clock::time_point deadline,
     }
 
     return false;
+}
+
+/**
+ * The words of the first rule of a dependency file, its target first, split
+ * on blanks with each line continuation dropped. A path holding a space is not
+ * read whole.
+ */
+std::vector<std::string> firstRuleWords(const std::string& file)
+{
+    std::istringstream text(file);
+    std::vector<std::string> words;
+    for (std::string word; text >> word;) {
+        if (word == "\\") {
+            continue;
+        }
+        if ((! words.empty()) && word.ends_with(':')) {
+            break;
+        }
+        words.push_back(word);
+    }
+    return words;
 }
 
 }  // namespace
@@ -1795,8 +1818,13 @@ TEST_F(CliE2ETest, BuildListsWhatTheRealCompilerReadBesideTheObject)
 
     ASSERT_TRUE(result.exitedNormally) << result.stderrText;
     ASSERT_EQ(result.exitCode, 0) << result.stderrText;
+    // The compiler decides the order: Apple clang 21 names the SDKSettings.json
+    // of the SDK before the source.
     const std::string listed = readFile("work/hello/build/debug/obj/hello/src/main.cpp.o.d");
-    EXPECT_TRUE(listed.starts_with("build/debug/obj/hello/src/main.cpp.o: src/main.cpp ")) << listed;
+    const std::vector<std::string> words = firstRuleWords(listed);
+    ASSERT_FALSE(words.empty()) << listed;
+    EXPECT_EQ(words.front(), "build/debug/obj/hello/src/main.cpp.o:") << listed;
+    EXPECT_TRUE(std::ranges::contains(words | std::views::drop(1), std::string{ "src/main.cpp" })) << listed;
 }
 
 TEST_F(CliE2ETest, BuildsANewProjectForReleaseApartFromDebug)
