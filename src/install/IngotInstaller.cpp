@@ -17,6 +17,7 @@
 #include <cstdint>
 #include <expected>  // IWYU pragma: keep
 #include <filesystem>
+#include <functional>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -238,12 +239,12 @@ std::expected<std::filesystem::path, IngotInstallFailure> programIn(const std::f
 
 /**
  * Unpack @p ingot in the new directory @p stage and record what it holds, and
- * that it was installed at @p installedAt.
+ * the time @p now tells once it is unpacked.
  *
  * @return Where the finished toolchain starts, or what went wrong.
  */
 std::expected<std::filesystem::path, IngotInstallFailure> prepareToolchain(const Toolchain::SelectedIngot& selected,
-                                                                           const std::chrono::system_clock::time_point installedAt,
+                                                                           const std::function<std::chrono::system_clock::time_point()>& now,
                                                                            const std::filesystem::path& ingot,
                                                                            const std::filesystem::path& stage)
 {
@@ -275,7 +276,7 @@ std::expected<std::filesystem::path, IngotInstallFailure> prepareToolchain(const
                                            .ingotIntegrity = Toolchain::integrityOf(selected.ingot),
                                            .cCompiler = std::move(cCompiler),
                                            .source = sourceOf(selected.ingot),
-                                           .installedAt = utcText(installedAt) };
+                                           .installedAt = utcText(now()) };
     const std::filesystem::path recordFile = root / Toolchain::InstallRecordName;
     ec = File::writeNewFile(recordFile, Toolchain::renderInstallRecord(record));
     if (ec) {
@@ -322,7 +323,7 @@ std::expected<std::filesystem::path, IngotInstallFailure> installIngot(const Ing
     }
 
     request.announce("Extracting '" + name + "'");
-    auto root = prepareToolchain(selected, request.installedAt, ingot, work->path() / "stage");
+    auto root = prepareToolchain(selected, request.now, ingot, work->path() / "stage");
     if (! root.has_value()) {
         return std::unexpected(std::move(root.error()));
     }

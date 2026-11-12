@@ -19,6 +19,7 @@
 #include <gtest/gtest.h>
 
 #include <chrono>
+#include <cstddef>
 #include <filesystem>
 #include <map>
 #include <optional>
@@ -104,7 +105,10 @@ protected:
                                             .ingot = Ingot{ .platform = "linux", .arch = "x86_64", .source = std::move(source), .glibcVersion = std::nullopt } },
                  .environment = TestHost,
                  .certificateBundle = std::nullopt,
-                 .installedAt = InstalledAt,
+                 .now = [this] {
+            _stepsBeforeTheTime = _steps.size();
+            return std::chrono::system_clock::time_point{ InstalledAt };
+        },
                  .announce = [this](const std::string_view step) {
             _steps.emplace_back(step);
         } };
@@ -124,7 +128,8 @@ protected:
 
     TempDirectory _home;
     std::vector<std::string> _steps;
-    std::optional<std::string> _cCompiler;  ///< The C compiler the index names.
+    std::optional<std::size_t> _stepsBeforeTheTime;  ///< How many steps had begun when the time was taken.
+    std::optional<std::string> _cCompiler;           ///< The C compiler the index names.
 };
 
 }  // anonymous namespace
@@ -154,16 +159,29 @@ TEST_F(IngotInstallerTest, InstallsWhatScrapThenFindsAndCanUse)
 TEST_F(IngotInstallerTest, RecordsWhatTheIndexGaveForIt)
 {
     const std::string ingot = gccIngot();
-    ASSERT_TRUE(install(ingot).has_value());
+    const HttpTestServer server({ { "/ingot", HttpTestResponse{ .status = 200, .headers = {}, .body = ingot, .stalls = false } } });
+    ASSERT_TRUE(installIngot(requestFor(UrlSource{ .url = server.url("/ingot"), .sha256 = sha256Of(ingot) })).has_value());
 
     const auto record = parseInstallRecord(_home.readFile(destination() / InstallRecordName));
 
     ASSERT_TRUE(record.has_value());
     EXPECT_EQ(record->compiler, std::filesystem::path{ "bin/g++" });
     EXPECT_EQ(record->ingotIntegrity, sha256Of(ingot));
-    EXPECT_TRUE(record->source.has_value() && record->source->ends_with("/ingot")) << record->source.value_or("");
+    EXPECT_EQ(record->source, server.url("/ingot"));
     EXPECT_EQ(record->installedAt, InstalledAtText);
     EXPECT_FALSE(record->cCompiler.has_value());
+}
+
+/**
+ * The time recorded is taken once the ingot is fetched and unpacked, so it
+ * is not early by however long the transfer took.
+ */
+TEST_F(IngotInstallerTest, TakesTheTimeOfInstallingOnceTheIngotIsUnpacked)
+{
+    ASSERT_TRUE(install(gccIngot()).has_value());
+
+    EXPECT_EQ(_steps, (std::vector<std::string>{ "Downloading 'gcc@15.2.0'", "Extracting 'gcc@15.2.0'" }));
+    EXPECT_EQ(_stepsBeforeTheTime, 2U);
 }
 
 /**

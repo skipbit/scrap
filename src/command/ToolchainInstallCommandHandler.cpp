@@ -22,7 +22,6 @@
 #include "toolchain/ToolchainSpecifier.h"
 #include "toolchain/ToolchainVersion.h"
 
-#include <chrono>
 #include <cstddef>
 #include <expected>  // IWYU pragma: keep
 #include <filesystem>
@@ -197,7 +196,6 @@ bool bringIn(const std::filesystem::path& scrapHome,
                                               .selected = selected,
                                               .environment = environment,
                                               .certificateBundle = bundle,
-                                              .installedAt = std::chrono::system_clock::now(),
                                               .announce = [](const std::string_view step) {
         std::cerr << step << "\n";
     } });
