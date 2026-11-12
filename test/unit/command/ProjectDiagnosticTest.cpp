@@ -171,13 +171,14 @@ TEST(ProjectDiagnosticTest, RendersASourceExtensionSpelledInAnotherCaseLeftOut)
 }
 
 /**
- * A link to a directory below src/ is named as one scrap does not follow.
+ * A link below src/ to a directory outside it is named as one scrap does not
+ * follow.
  */
 TEST(ProjectDiagnosticTest, RendersALinkToADirectoryLeftOut)
 {
     const LeftOutEntry entry{ .path = "src/shared", .reason = LeftOutReason::DirectoryLink };
 
-    EXPECT_EQ(renderLeftOut(entry), "warning: leaving out 'src/shared', a symbolic link to a directory, which scrap does not follow\n");
+    EXPECT_EQ(renderLeftOut(entry), "warning: leaving out 'src/shared', a symbolic link to a directory outside src/, which scrap does not follow\n");
 }
 
 /**
