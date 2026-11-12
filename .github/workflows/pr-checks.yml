@@ -1,13 +1,19 @@
 # Quality gate for pull requests.
 #
 # Runs build/test matrix, static analysis, format checks, and diff coverage.
-# All checks must pass before a PR can be merged.
+# All of them pass before a pull request is merged; main does not require
+# them.
 
 name: PR Checks
 
 on:
   pull_request:
     branches: [main]
+    # A pull request that changes only Markdown files does not start these
+    # checks: no job reads them, except package, which copies README.md as
+    # it is.
+    paths-ignore:
+      - '**.md'
   workflow_dispatch:
 
 permissions:
