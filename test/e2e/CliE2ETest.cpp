@@ -26,7 +26,9 @@
 #include <map>
 #include <optional>
 #include <poll.h>
+#include <ranges>
 #include <regex>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <sys/resource.h>
@@ -283,6 +285,15 @@ bool drainBoth(int fd1, int fd2, std::chrono::steady_clock::time_point deadline,
     }
 
     return false;
+}
+
+/**
+ * The words of a make rule, with each line continuation read as a space.
+ */
+std::vector<std::string> ruleWords(const std::string& rule)
+{
+    std::istringstream joined(std::regex_replace(rule, std::regex(R"(\\\n)"), " "));
+    return { std::istream_iterator<std::string>(joined), std::istream_iterator<std::string>() };
 }
 
 }  // namespace
@@ -1795,8 +1806,12 @@ TEST_F(CliE2ETest, BuildListsWhatTheRealCompilerReadBesideTheObject)
 
     ASSERT_TRUE(result.exitedNormally) << result.stderrText;
     ASSERT_EQ(result.exitCode, 0) << result.stderrText;
+    // The compiler decides the order: Apple clang names the SDK before the source.
     const std::string listed = readFile("work/hello/build/debug/obj/hello/src/main.cpp.o.d");
-    EXPECT_TRUE(listed.starts_with("build/debug/obj/hello/src/main.cpp.o: src/main.cpp ")) << listed;
+    const std::vector<std::string> words = ruleWords(listed);
+    ASSERT_FALSE(words.empty()) << listed;
+    EXPECT_EQ(words.front(), "build/debug/obj/hello/src/main.cpp.o:") << listed;
+    EXPECT_TRUE(std::ranges::contains(words | std::views::drop(1), std::string{ "src/main.cpp" })) << listed;
 }
 
 TEST_F(CliE2ETest, BuildsANewProjectForReleaseApartFromDebug)
