@@ -93,6 +93,21 @@ std::expected<std::string, ToolchainIndexError> requireName(const toml::table& t
 }
 
 /**
+ * The name @p table holds at @p key, or nothing when the key is absent.
+ */
+std::expected<std::optional<std::string>, ToolchainIndexError> optionalName(const toml::table& table, std::string_view tableKey, std::string_view key)
+{
+    if (! table.contains(key)) {
+        return std::nullopt;
+    }
+    auto name = requireName(table, tableKey, key);
+    if (! name.has_value()) {
+        return std::unexpected(name.error());
+    }
+    return std::optional<std::string>{ std::move(*name) };
+}
+
+/**
  * The version @p table holds at @p key, which must be present.
  */
 std::expected<ToolchainVersion, ToolchainIndexError> requireVersion(const toml::table& table, std::string_view tableKey, std::string_view key)
@@ -306,6 +321,7 @@ std::expected<IndexedToolchain, ToolchainIndexError> parseToolchain(const toml::
             .version = std::move(*version),
             .status = ToolchainStatus::Disabled,
             .compiler = {},
+            .cCompiler = std::nullopt,
             .minScrapVersion = std::move(*minScrapVersion),
             .ingots = {},
         };
@@ -318,6 +334,10 @@ std::expected<IndexedToolchain, ToolchainIndexError> parseToolchain(const toml::
     if (! compiler.has_value()) {
         return std::unexpected(compiler.error());
     }
+    auto cCompiler = optionalName(toolchain, key, "c_compiler");
+    if (! cCompiler.has_value()) {
+        return std::unexpected(cCompiler.error());
+    }
     auto ingots = parseIngots(toolchain, key);
     if (! ingots.has_value()) {
         return std::unexpected(ingots.error());
@@ -327,6 +347,7 @@ std::expected<IndexedToolchain, ToolchainIndexError> parseToolchain(const toml::
         .version = std::move(*version),
         .status = *status,
         .compiler = std::move(*compiler),
+        .cCompiler = std::move(*cCompiler),
         .minScrapVersion = std::move(*minScrapVersion),
         .ingots = std::move(*ingots),
     };

@@ -145,7 +145,7 @@ std::expected<SelectedIngot, IngotSelectionFault> selectIngot(const ToolchainInd
         return std::unexpected(faultOf(*named.front(), index, host));
     }
     const IndexedToolchain& toolchain = **chosen;
-    return SelectedIngot{ .family = toolchain.family, .version = toolchain.version, .compiler = toolchain.compiler, .ingot = *ingotFor(toolchain, host.environment) };
+    return SelectedIngot{ .family = toolchain.family, .version = toolchain.version, .compiler = toolchain.compiler, .cCompiler = toolchain.cCompiler, .ingot = *ingotFor(toolchain, host.environment) };
 }
 
 }  // namespace scrap::Toolchain

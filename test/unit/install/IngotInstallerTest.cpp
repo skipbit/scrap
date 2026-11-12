@@ -96,6 +96,7 @@ protected:
                  .selected = SelectedIngot{ .family = "gcc",
                                             .version = ToolchainVersion::parse("15.2.0").value(),
                                             .compiler = "g++",
+                                            .cCompiler = std::nullopt,
                                             .ingot = Ingot{ .platform = "linux", .arch = "x86_64", .source = std::move(source), .glibcVersion = std::nullopt } },
                  .environment = TestHost,
                  .certificateBundle = std::nullopt,
