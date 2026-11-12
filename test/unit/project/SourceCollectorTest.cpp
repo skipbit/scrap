@@ -335,10 +335,10 @@ TEST(SourceCollectorTest, ReportsASourceDirectoryItCannotExamine)
 }
 
 /**
- * A symbolic link to a directory below src/ is not followed, and the scan
- * goes on past it.
+ * A symbolic link below src/ to a directory outside it is not followed, and
+ * the scan goes on past it.
  */
-TEST(SourceCollectorTest, LeavesOutALinkToADirectoryBelowSrc)
+TEST(SourceCollectorTest, LeavesOutALinkToADirectoryOutsideSrc)
 {
     const TempDirectory temp;
     temp.writeFile("src/main.cpp", SourceText);
@@ -400,6 +400,8 @@ TEST(SourceCollectorTest, LeavesOutALinkThatReachesOutsideSrcThroughAnother)
     const auto collected = collectSources(temp.path(), { executableNamed("app", "src/main.cpp") });
 
     ASSERT_TRUE(collected.has_value());
+    ASSERT_EQ(collected->targets.size(), 1);
+    EXPECT_EQ(collected->targets[0].sources, (std::vector<std::filesystem::path>{ "src/main.cpp" }));
     EXPECT_EQ(collected->leftOut, (std::vector<LeftOutEntry>{ { .path = "src/again", .reason = LeftOutReason::DirectoryLink }, { .path = "src/shared", .reason = LeftOutReason::DirectoryLink } }));
 }
 
