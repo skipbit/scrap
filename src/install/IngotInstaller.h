@@ -65,6 +65,7 @@ struct IngotInstallRequest {
     Toolchain::SelectedIngot selected;
     Toolchain::HostEnvironment environment;
     std::optional<std::filesystem::path> certificateBundle;
+    std::chrono::system_clock::time_point installedAt;  ///< When to record the toolchain was installed.
     /// Takes each step as it begins.
     std::function<void(std::string_view)> announce = [](std::string_view) {
     };

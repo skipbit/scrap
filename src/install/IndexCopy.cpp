@@ -3,15 +3,14 @@
 #include "fetch/FetchErrorText.h"
 #include "fetch/UrlFetch.h"
 #include "file/WholeFile.h"
+#include "install/UtcTime.h"
 #include "toolchain/ScrapHomeLayout.h"
 #include "toolchain/ToolchainIndex.h"
 #include "toolchain/ToolchainIndexParser.h"
 #include "toolchain/ToolchainVersion.h"
 
-#include <array>
 #include <chrono>
 #include <cstdint>
-#include <ctime>
 #include <expected>  // IWYU pragma: keep
 #include <filesystem>
 #include <optional>
@@ -36,13 +35,7 @@ std::string modificationTimeInUtc(const std::filesystem::path& file)
     if (ec) {
         return "an unknown time";
     }
-    const std::time_t seconds = std::chrono::system_clock::to_time_t(std::chrono::time_point_cast<std::chrono::system_clock::duration>(std::chrono::file_clock::to_sys(written)));
-    std::tm parts{};
-    std::array<char, 32> text{};
-    if ((::gmtime_r(&seconds, &parts) == nullptr) || (std::strftime(text.data(), text.size(), "%Y-%m-%dT%H:%M:%SZ", &parts) == 0)) {
-        return "an unknown time";
-    }
-    return std::string{ text.data() };
+    return utcText(std::chrono::time_point_cast<std::chrono::system_clock::duration>(std::chrono::file_clock::to_sys(written))).value_or("an unknown time");
 }
 
 std::expected<Toolchain::ToolchainIndex, Toolchain::ToolchainIndexError> readIndexFile(const std::filesystem::path& file, const Toolchain::ToolchainVersion& scrapVersion)
