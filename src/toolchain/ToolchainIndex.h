@@ -54,6 +54,7 @@ struct IndexedToolchain {
     ToolchainVersion version;
     ToolchainStatus status = ToolchainStatus::Disabled;  ///< Disabled until read, so a toolchain not read in full is never installed.
     std::string compiler;                                ///< The program to run, e.g. g++ or clang.
+    std::optional<std::string> cCompiler;                ///< The program to run on C sources, e.g. gcc or clang, when the index names one.
     std::optional<ToolchainVersion> minScrapVersion;     ///< When newer than the reading scrap, nothing past this was read: no compiler, no ingots.
     std::vector<Ingot> ingots;                           ///< Empty when none has been built, or all were withdrawn.
 };

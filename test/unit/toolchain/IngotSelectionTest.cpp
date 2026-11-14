@@ -43,6 +43,7 @@ IndexedToolchain toolchain(std::string_view family, std::string_view text, const
              .version = version(text),
              .status = status,
              .compiler = "g++",
+             .cCompiler = "gcc",
              .minScrapVersion = std::nullopt,
              .ingots = { hostIngot() } };
 }
@@ -75,6 +76,7 @@ TEST(IngotSelectionTest, GivesWhatIsNeededToInstallTheToolchain)
     ASSERT_TRUE(selected.has_value());
     EXPECT_EQ(selected->family, "llvm");
     EXPECT_EQ(selected->compiler, "g++");
+    EXPECT_EQ(selected->cCompiler, "gcc");
     EXPECT_EQ(std::get<UrlSource>(selected->ingot.source).url, "https://example.com/a");
 }
 

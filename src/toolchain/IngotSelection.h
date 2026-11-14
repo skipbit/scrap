@@ -29,6 +29,7 @@ struct SelectedIngot {
     std::string family;
     ToolchainVersion version;
     std::string compiler;
+    std::optional<std::string> cCompiler;  ///< As the index names it, when it does.
     Ingot ingot;
 };
 

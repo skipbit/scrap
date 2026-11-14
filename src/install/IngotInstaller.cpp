@@ -5,6 +5,7 @@
 #include "file/WholeFile.h"
 #include "install/IngotUnpack.h"
 #include "install/UnpackedToolchain.h"
+#include "install/UtcTime.h"
 #include "registry/IngotLocation.h"
 #include "registry/RegistryFetch.h"
 #include "toolchain/IngotSelection.h"
@@ -16,8 +17,10 @@
 #include <cstdint>
 #include <expected>  // IWYU pragma: keep
 #include <filesystem>
+#include <functional>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <system_error>
 #include <unistd.h>
 #include <utility>
@@ -210,11 +213,40 @@ std::expected<void, IngotInstallFailure> fetchChecked(const Toolchain::RegistryS
 }
 
 /**
- * Unpack @p ingot in the new directory @p stage and record what it holds.
+ * Where @p ingot is fetched from: the reference of its image in a registry,
+ * or its URL.
+ */
+std::string sourceOf(const Toolchain::Ingot& ingot)
+{
+    if (const auto* registry = std::get_if<Toolchain::RegistrySource>(&ingot.source)) {
+        return registry->registry + "/" + registry->tag;
+    }
+    return std::get<Toolchain::UrlSource>(ingot.source).url;
+}
+
+/**
+ * The program @p name below bin/ of @p root, or why the ingot does not hold it.
+ */
+std::expected<std::filesystem::path, IngotInstallFailure> programIn(const std::filesystem::path& root, std::string_view name)
+{
+    std::filesystem::path program = std::filesystem::path{ "bin" } / name;
+    std::error_code ec;
+    if (! std::filesystem::exists(root / program, ec)) {
+        return std::unexpected(IngotNotUnpacked{ .reason = "the ingot holds no '" + program.string() + "'", .code = {} });
+    }
+    return program;
+}
+
+/**
+ * Unpack @p ingot in the new directory @p stage and record what it holds, and
+ * the time @p now tells once it is unpacked.
  *
  * @return Where the finished toolchain starts, or what went wrong.
  */
-std::expected<std::filesystem::path, IngotInstallFailure> prepareToolchain(const Toolchain::SelectedIngot& selected, const std::filesystem::path& ingot, const std::filesystem::path& stage)
+std::expected<std::filesystem::path, IngotInstallFailure> prepareToolchain(const Toolchain::SelectedIngot& selected,
+                                                                           const std::function<std::chrono::system_clock::time_point()>& now,
+                                                                           const std::filesystem::path& ingot,
+                                                                           const std::filesystem::path& stage)
 {
     std::error_code ec;
     std::filesystem::create_directory(stage, ec);
@@ -226,14 +258,25 @@ std::expected<std::filesystem::path, IngotInstallFailure> prepareToolchain(const
     }
 
     std::filesystem::path root = contentRoot(stage);
-    const std::filesystem::path compiler = std::filesystem::path{ "bin" } / selected.compiler;
-    if (! std::filesystem::exists(root / compiler, ec)) {
-        return std::unexpected(IngotNotUnpacked{ .reason = "the ingot holds no '" + compiler.string() + "'", .code = {} });
+    auto compiler = programIn(root, selected.compiler);
+    if (! compiler.has_value()) {
+        return std::unexpected(std::move(compiler.error()));
     }
-    const Toolchain::InstallRecord record{ .compiler = compiler,
+    std::optional<std::filesystem::path> cCompiler;
+    if (selected.cCompiler.has_value()) {
+        auto found = programIn(root, *selected.cCompiler);
+        if (! found.has_value()) {
+            return std::unexpected(std::move(found.error()));
+        }
+        cCompiler = std::move(*found);
+    }
+    const Toolchain::InstallRecord record{ .compiler = std::move(*compiler),
                                            .runtimeLibraryDirectories = findRuntimeLibraryDirectories(root),
                                            .arguments = runtimeArgumentsFor(selected.ingot.platform, root),
-                                           .ingotIntegrity = Toolchain::integrityOf(selected.ingot) };
+                                           .ingotIntegrity = Toolchain::integrityOf(selected.ingot),
+                                           .cCompiler = std::move(cCompiler),
+                                           .source = sourceOf(selected.ingot),
+                                           .installedAt = utcText(now()) };
     const std::filesystem::path recordFile = root / Toolchain::InstallRecordName;
     ec = File::writeNewFile(recordFile, Toolchain::renderInstallRecord(record));
     if (ec) {
@@ -280,7 +323,7 @@ std::expected<std::filesystem::path, IngotInstallFailure> installIngot(const Ing
     }
 
     request.announce("Extracting '" + name + "'");
-    auto root = prepareToolchain(selected, ingot, work->path() / "stage");
+    auto root = prepareToolchain(selected, request.now, ingot, work->path() / "stage");
     if (! root.has_value()) {
         return std::unexpected(std::move(root.error()));
     }

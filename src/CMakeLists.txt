@@ -159,6 +159,7 @@ add_library(scrap_install STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/install/IngotInstaller.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/install/IngotUnpack.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/install/UnpackedToolchain.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/install/UtcTime.cpp
 )
 target_include_directories(scrap_install PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(scrap_install

@@ -18,6 +18,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <chrono>
 #include <filesystem>
 #include <map>
@@ -50,6 +51,10 @@ using scrap::Toolchain::UrlSource;
 namespace {
 
 constexpr HostEnvironment TestHost{ .platform = "linux", .arch = "x86_64" };
+
+/// When the tests install, as the record writes it below.
+constexpr std::chrono::sys_seconds InstalledAt = std::chrono::sys_days{ std::chrono::year{ 2026 } / 11 / 12 } + std::chrono::hours{ 11 } + std::chrono::minutes{ 37 } + std::chrono::seconds{ 11 };
+constexpr std::string_view InstalledAtText = "2026-11-12T11:37:11Z";
 
 std::string sha256Of(const std::string_view bytes)
 {
@@ -96,9 +101,14 @@ protected:
                  .selected = SelectedIngot{ .family = "gcc",
                                             .version = ToolchainVersion::parse("15.2.0").value(),
                                             .compiler = "g++",
+                                            .cCompiler = _cCompiler,
                                             .ingot = Ingot{ .platform = "linux", .arch = "x86_64", .source = std::move(source), .glibcVersion = std::nullopt } },
                  .environment = TestHost,
                  .certificateBundle = std::nullopt,
+                 .now = [this] {
+            _compilerUnpackedAtTheTime = compilerUnpacked();
+            return std::chrono::system_clock::time_point{ InstalledAt };
+        },
                  .announce = [this](const std::string_view step) {
             _steps.emplace_back(step);
         } };
@@ -107,6 +117,14 @@ protected:
     [[nodiscard]] std::filesystem::path destination() const
     {
         return _home.path() / "toolchains" / "gcc" / "15.2.0" / "linux-x86_64";
+    }
+
+    /** Whether the compiler of the ingot is unpacked below the work directory. */
+    [[nodiscard]] bool compilerUnpacked() const
+    {
+        return std::ranges::any_of(std::filesystem::recursive_directory_iterator(temporaryDirectory(_home.path())), [](const std::filesystem::directory_entry& entry) {
+            return entry.path().filename() == "g++";
+        });
     }
 
     /** What was left to see of a failed install. */
@@ -118,6 +136,8 @@ protected:
 
     TempDirectory _home;
     std::vector<std::string> _steps;
+    std::optional<bool> _compilerUnpackedAtTheTime;  ///< Whether the compiler was unpacked when the time was taken.
+    std::optional<std::string> _cCompiler;           ///< The C compiler the index names.
 };
 
 }  // anonymous namespace
@@ -147,13 +167,58 @@ TEST_F(IngotInstallerTest, InstallsWhatScrapThenFindsAndCanUse)
 TEST_F(IngotInstallerTest, RecordsWhatTheIndexGaveForIt)
 {
     const std::string ingot = gccIngot();
-    ASSERT_TRUE(install(ingot).has_value());
+    const HttpTestServer server({ { "/ingot", HttpTestResponse{ .status = 200, .headers = {}, .body = ingot, .stalls = false } } });
+    ASSERT_TRUE(installIngot(requestFor(UrlSource{ .url = server.url("/ingot"), .sha256 = sha256Of(ingot) })).has_value());
 
     const auto record = parseInstallRecord(_home.readFile(destination() / InstallRecordName));
 
     ASSERT_TRUE(record.has_value());
     EXPECT_EQ(record->compiler, std::filesystem::path{ "bin/g++" });
     EXPECT_EQ(record->ingotIntegrity, sha256Of(ingot));
+    EXPECT_EQ(record->source, server.url("/ingot"));
+    EXPECT_EQ(record->installedAt, InstalledAtText);
+    EXPECT_FALSE(record->cCompiler.has_value());
+}
+
+/**
+ * The time recorded is taken once the ingot is fetched and unpacked, so it
+ * is not early by however long the transfer took.
+ */
+TEST_F(IngotInstallerTest, TakesTheTimeOfInstallingOnceTheIngotIsUnpacked)
+{
+    ASSERT_TRUE(install(gccIngot()).has_value());
+
+    EXPECT_EQ(_compilerUnpackedAtTheTime, true);
+}
+
+/**
+ * The C compiler the index names is recorded as found below bin/.
+ */
+TEST_F(IngotInstallerTest, RecordsTheCCompilerTheIndexNames)
+{
+    _cCompiler = "gcc";
+    ASSERT_TRUE(install(ingotOf(fileEntry("bin/g++", "compiler", 0755) + fileEntry("bin/gcc", "c compiler", 0755))).has_value());
+
+    const auto record = parseInstallRecord(_home.readFile(destination() / InstallRecordName));
+
+    ASSERT_TRUE(record.has_value());
+    EXPECT_EQ(record->cCompiler, std::filesystem::path{ "bin/gcc" });
+}
+
+/**
+ * An ingot without the C compiler the index names is refused as one without
+ * the compiler is, so a recorded C compiler is always there.
+ */
+TEST_F(IngotInstallerTest, LeavesNothingWhenTheIngotLacksTheCCompilerTheIndexNames)
+{
+    _cCompiler = "gcc";
+    const auto installed = install(gccIngot());
+
+    ASSERT_FALSE(installed.has_value());
+    const auto* failure = std::get_if<IngotNotUnpacked>(&installed.error());
+    ASSERT_NE(failure, nullptr);
+    EXPECT_EQ(failure->reason, "the ingot holds no 'bin/gcc'");
+    expectNothingLeftBehind();
 }
 
 TEST_F(IngotInstallerTest, TakesTheToolchainOutOfTheOneDirectoryItCameIn)
@@ -366,7 +431,10 @@ TEST_F(IngotInstallerTest, InstallsAnIngotFromARegistryAndRecordsItsDigest)
 
     ASSERT_TRUE(installed.has_value());
     EXPECT_EQ(_home.readFile(destination() / "bin" / "g++"), "new compiler");
-    EXPECT_EQ(parseInstallRecord(_home.readFile(destination() / InstallRecordName))->ingotIntegrity, registry.digest);
+    const auto record = parseInstallRecord(_home.readFile(destination() / InstallRecordName));
+    ASSERT_TRUE(record.has_value());
+    EXPECT_EQ(record->ingotIntegrity, registry.digest);
+    EXPECT_EQ(record->source, "127.0.0.1:" + std::to_string(registry.server.port()) + "/example/gcc:15.2.0");
     EXPECT_EQ(_steps, (std::vector<std::string>{ "Downloading 'gcc@15.2.0'", "Extracting 'gcc@15.2.0'" }));
     EXPECT_TRUE(std::filesystem::is_empty(temporaryDirectory(_home.path())));
 }

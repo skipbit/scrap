@@ -102,12 +102,54 @@ TEST(InstallRecordTest, RefusesAnIntegrityValueThatIsNotAString)
     EXPECT_NE(record.error().find("ingot-integrity: must be a string"), std::string::npos);
 }
 
+/**
+ * The C compiler, where the toolchain came from and when it was installed
+ * are read as written.
+ */
+TEST(InstallRecordTest, ReadsTheCCompilerTheSourceAndTheTimeOfInstalling)
+{
+    const auto record = parseInstallRecord("compiler = 'bin/g++'\nc-compiler = 'bin/gcc'\nsource = 'ghcr.io/skipbit/scrap-toolchain/gcc:16.2.0'\ninstalled-at = '2026-11-12T11:37:11Z'\n");
+
+    ASSERT_TRUE(record.has_value()) << record.error();
+    EXPECT_EQ(record->cCompiler, std::filesystem::path("bin/gcc"));
+    EXPECT_EQ(record->source, "ghcr.io/skipbit/scrap-toolchain/gcc:16.2.0");
+    EXPECT_EQ(record->installedAt, "2026-11-12T11:37:11Z");
+}
+
+/**
+ * A record an earlier scrap wrote holds none of the three, and still reads.
+ */
+TEST(InstallRecordTest, HoldsNothingAnEarlierRecordDidNotWrite)
+{
+    const auto record = parseInstallRecord("compiler = 'bin/g++'\nruntime-library-dirs = [ 'lib64' ]\n");
+
+    ASSERT_TRUE(record.has_value()) << record.error();
+    EXPECT_FALSE(record->cCompiler.has_value());
+    EXPECT_FALSE(record->source.has_value());
+    EXPECT_FALSE(record->installedAt.has_value());
+}
+
+/**
+ * A C compiler outside the toolchain is refused as the C++ compiler is, and
+ * the source and the time must be strings.
+ */
+TEST(InstallRecordTest, RefusesACCompilerOutsideTheToolchainAndValuesThatAreNotStrings)
+{
+    EXPECT_EQ(parseInstallRecord("compiler = 'bin/g++'\nc-compiler = '../gcc'\n").error(), "line 2: c-compiler: must be a relative path inside the toolchain");
+    EXPECT_EQ(parseInstallRecord("compiler = 'bin/g++'\nc-compiler = 1\n").error(), "line 2: c-compiler: must be a string");
+    EXPECT_EQ(parseInstallRecord("compiler = 'bin/g++'\nsource = 1\n").error(), "line 2: source: must be a string");
+    EXPECT_EQ(parseInstallRecord("compiler = 'bin/g++'\ninstalled-at = 2026-11-12T11:37:11Z\n").error(), "line 2: installed-at: must be a string");
+}
+
 TEST(InstallRecordTest, ReadsBackWhatItRenders)
 {
     const InstallRecord written{ .compiler = "bin/clang++",
                                  .runtimeLibraryDirectories = { "lib64", "lib/x86_64-unknown-linux-gnu" },
                                  .arguments = { .compile = { "-stdlib=libc++" }, .link = { "-stdlib=libc++", "-fuse-ld=lld" } },
-                                 .ingotIntegrity = "sha256:abc" };
+                                 .ingotIntegrity = "sha256:abc",
+                                 .cCompiler = "bin/clang",
+                                 .source = "https://example.com/llvm.tar.xz",
+                                 .installedAt = "2026-11-12T11:37:11Z" };
 
     const auto read = parseInstallRecord(renderInstallRecord(written));
 
@@ -117,6 +159,24 @@ TEST(InstallRecordTest, ReadsBackWhatItRenders)
     EXPECT_EQ(read->arguments.compile, written.arguments.compile);
     EXPECT_EQ(read->arguments.link, written.arguments.link);
     EXPECT_EQ(read->ingotIntegrity, written.ingotIntegrity);
+    EXPECT_EQ(read->cCompiler, written.cCompiler);
+    EXPECT_EQ(read->source, written.source);
+    EXPECT_EQ(read->installedAt, written.installedAt);
+}
+
+/**
+ * What is not known is left out, so the record reads as one that did not
+ * record it.
+ */
+TEST(InstallRecordTest, RendersNoCCompilerSourceOrTimeWhenThereAreNone)
+{
+    const InstallRecord written{ .compiler = "bin/g++", .runtimeLibraryDirectories = {}, .arguments = { .compile = {}, .link = {} } };
+
+    const std::string text = renderInstallRecord(written);
+
+    EXPECT_EQ(text.find("c-compiler"), std::string::npos);
+    EXPECT_EQ(text.find("source"), std::string::npos);
+    EXPECT_EQ(text.find("installed-at"), std::string::npos);
 }
 
 TEST(InstallRecordTest, RendersNoIntegrityValueWhenThereIsNone)

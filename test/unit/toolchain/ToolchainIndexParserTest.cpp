@@ -82,6 +82,7 @@ status = "deprecated"
 license = "GPL-3.0-or-later WITH GCC-exception-3.1"
 source_type = "build"
 compiler = "g++"
+c_compiler = "gcc"
 origin = "scrap-release"
 min_scrap_version = "0.4.0"
 
@@ -101,6 +102,7 @@ glibc_version = "2.17"
     EXPECT_EQ(gcc.version.text(), "15.2.0");
     EXPECT_EQ(gcc.status, ToolchainStatus::Deprecated);
     EXPECT_EQ(gcc.compiler, "g++");
+    EXPECT_EQ(gcc.cCompiler, "gcc");
     ASSERT_TRUE(gcc.minScrapVersion.has_value());
     EXPECT_EQ(gcc.minScrapVersion->text(), "0.4.0");
     ASSERT_EQ(gcc.ingots.size(), 1U);
@@ -172,6 +174,7 @@ compiler = "g++"
     ASSERT_TRUE(index.has_value()) << index.error().message;
     const IndexedToolchain& gcc = index->toolchains.at(0);
     EXPECT_EQ(gcc.status, ToolchainStatus::Disabled);
+    EXPECT_FALSE(gcc.cCompiler.has_value());
     EXPECT_FALSE(gcc.minScrapVersion.has_value());
     EXPECT_TRUE(gcc.ingots.empty());
 }
@@ -263,6 +266,8 @@ TEST(ToolchainIndexParserTest, RefusesAMalformedToolchain)
     EXPECT_EQ(faultOf(indexWith("[[toolchains]]\nfamily = \"\"\nversion = \"15.2.0\"\nstatus = \"active\"\ncompiler = \"g++\"\n")), "line 7: toolchains[0].family: must not be empty");
     EXPECT_EQ(faultOf(indexWith("[[toolchains]]\nfamily = 1\nversion = \"15.2.0\"\nstatus = \"active\"\ncompiler = \"g++\"\n")), "line 7: toolchains[0].family: must be a string");
     EXPECT_EQ(faultOf(indexWith("[[toolchains]]\nfamily = \"gcc\"\nversion = \"15.2.0\"\nstatus = \"active\"\n")), "line 6: toolchains[0].compiler: is missing");
+    EXPECT_EQ(faultOf(indexWith("[[toolchains]]\nfamily = \"gcc\"\nversion = \"15.2.0\"\nstatus = \"active\"\ncompiler = \"g++\"\nc_compiler = \"../gcc\"\n")), "line 11: toolchains[0].c_compiler: must hold only lowercase letters, digits, '-', '_', '.' and '+', and not be '.' or '..'");
+    EXPECT_EQ(faultOf(indexWith("[[toolchains]]\nfamily = \"gcc\"\nversion = \"15.2.0\"\nstatus = \"active\"\ncompiler = \"g++\"\nc_compiler = 1\n")), "line 11: toolchains[0].c_compiler: must be a string");
     EXPECT_EQ(faultOf(indexWith("[[toolchains]]\nfamily = \"gcc\"\nversion = \"15.2.0\"\nstatus = \"active\"\ncompiler = \"g++\"\nmin_scrap_version = \"0.4.0-rc1\"\n")), "line 11: toolchains[0].min_scrap_version: must be numbers joined by dots");
     EXPECT_EQ(faultOf("toolchains = 1\n" + std::string{ Header }), "line 1: toolchains: must be an array of tables");
     EXPECT_EQ(faultOf("toolchains = [1]\n" + std::string{ Header }), "line 1: toolchains: must be an array of tables");

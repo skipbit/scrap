@@ -22,6 +22,9 @@ constexpr std::string_view RuntimeLibraryDirectoriesKey = "runtime-library-dirs"
 constexpr std::string_view CompileArgumentsKey = "compile-args";
 constexpr std::string_view LinkArgumentsKey = "link-args";
 constexpr std::string_view IngotIntegrityKey = "ingot-integrity";
+constexpr std::string_view CCompilerKey = "c-compiler";
+constexpr std::string_view SourceKey = "source";
+constexpr std::string_view InstalledAtKey = "installed-at";
 
 /**
  * Whether @p path names something inside the directory it is taken against:
@@ -115,19 +118,56 @@ std::expected<std::vector<std::string>, std::string> arguments(const toml::table
 }
 
 /**
- * The integrity value @p table records, nothing when it records none.
+ * The string @p table records under @p key, nothing when it records none.
  */
-std::expected<std::optional<std::string>, std::string> ingotIntegrity(const toml::table& table)
+std::expected<std::optional<std::string>, std::string> optionalString(const toml::table& table, std::string_view key)
 {
-    const toml::node* node = table.get(IngotIntegrityKey);
+    const toml::node* node = table.get(key);
     if (node == nullptr) {
         return std::nullopt;
     }
     std::optional<std::string> text = node->value_exact<std::string>();
     if (! text.has_value()) {
-        return std::unexpected(fault(*node, IngotIntegrityKey, "must be a string"));
+        return std::unexpected(fault(*node, key, "must be a string"));
     }
     return text;
+}
+
+/**
+ * The path inside the toolchain @p table records under @p key, nothing when
+ * it records none.
+ */
+std::expected<std::optional<std::filesystem::path>, std::string> optionalPathInside(const toml::table& table, std::string_view key)
+{
+    const toml::node* node = table.get(key);
+    if (node == nullptr) {
+        return std::nullopt;
+    }
+    auto path = pathInside(*node, key);
+    if (! path.has_value()) {
+        return std::unexpected(std::move(path.error()));
+    }
+    return std::optional<std::filesystem::path>{ std::move(*path) };
+}
+
+/**
+ * Put @p value into @p table under @p key, when there is one.
+ */
+void insertIfKnown(toml::table& table, std::string_view key, const std::optional<std::string>& value)
+{
+    if (value.has_value()) {
+        table.insert(key, *value);
+    }
+}
+
+/**
+ * Put @p path into @p table under @p key, when there is one.
+ */
+void insertIfKnown(toml::table& table, std::string_view key, const std::optional<std::filesystem::path>& path)
+{
+    insertIfKnown(table, key, path.transform([](const std::filesystem::path& known) {
+        return known.generic_string();
+    }));
 }
 
 /**
@@ -174,14 +214,29 @@ std::expected<InstallRecord, std::string> parseInstallRecord(std::string_view te
     if (! linkArguments.has_value()) {
         return std::unexpected(std::move(linkArguments.error()));
     }
-    auto integrity = ingotIntegrity(parsed.table());
+    auto integrity = optionalString(parsed.table(), IngotIntegrityKey);
     if (! integrity.has_value()) {
         return std::unexpected(std::move(integrity.error()));
+    }
+    auto cCompiler = optionalPathInside(parsed.table(), CCompilerKey);
+    if (! cCompiler.has_value()) {
+        return std::unexpected(std::move(cCompiler.error()));
+    }
+    auto source = optionalString(parsed.table(), SourceKey);
+    if (! source.has_value()) {
+        return std::unexpected(std::move(source.error()));
+    }
+    auto installedAt = optionalString(parsed.table(), InstalledAtKey);
+    if (! installedAt.has_value()) {
+        return std::unexpected(std::move(installedAt.error()));
     }
     return InstallRecord{ .compiler = std::move(*compiler),
                           .runtimeLibraryDirectories = std::move(*directories),
                           .arguments = { .compile = std::move(*compileArguments), .link = std::move(*linkArguments) },
-                          .ingotIntegrity = std::move(*integrity) };
+                          .ingotIntegrity = std::move(*integrity),
+                          .cCompiler = std::move(*cCompiler),
+                          .source = std::move(*source),
+                          .installedAt = std::move(*installedAt) };
 }
 
 std::string renderInstallRecord(const InstallRecord& record)
@@ -195,9 +250,10 @@ std::string renderInstallRecord(const InstallRecord& record)
     table.insert(RuntimeLibraryDirectoriesKey, std::move(directories));
     insertArguments(table, CompileArgumentsKey, record.arguments.compile);
     insertArguments(table, LinkArgumentsKey, record.arguments.link);
-    if (record.ingotIntegrity.has_value()) {
-        table.insert(IngotIntegrityKey, *record.ingotIntegrity);
-    }
+    insertIfKnown(table, IngotIntegrityKey, record.ingotIntegrity);
+    insertIfKnown(table, CCompilerKey, record.cCompiler);
+    insertIfKnown(table, SourceKey, record.source);
+    insertIfKnown(table, InstalledAtKey, record.installedAt);
     return tomlText(table);
 }
 
