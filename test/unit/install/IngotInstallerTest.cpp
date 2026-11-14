@@ -18,8 +18,8 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <chrono>
-#include <cstddef>
 #include <filesystem>
 #include <map>
 #include <optional>
@@ -106,7 +106,7 @@ protected:
                  .environment = TestHost,
                  .certificateBundle = std::nullopt,
                  .now = [this] {
-            _stepsBeforeTheTime = _steps.size();
+            _compilerUnpackedAtTheTime = compilerUnpacked();
             return std::chrono::system_clock::time_point{ InstalledAt };
         },
                  .announce = [this](const std::string_view step) {
@@ -119,6 +119,14 @@ protected:
         return _home.path() / "toolchains" / "gcc" / "15.2.0" / "linux-x86_64";
     }
 
+    /** Whether the compiler of the ingot is unpacked below the work directory. */
+    [[nodiscard]] bool compilerUnpacked() const
+    {
+        return std::ranges::any_of(std::filesystem::recursive_directory_iterator(temporaryDirectory(_home.path())), [](const std::filesystem::directory_entry& entry) {
+            return entry.path().filename() == "g++";
+        });
+    }
+
     /** What was left to see of a failed install. */
     void expectNothingLeftBehind() const
     {
@@ -128,7 +136,7 @@ protected:
 
     TempDirectory _home;
     std::vector<std::string> _steps;
-    std::optional<std::size_t> _stepsBeforeTheTime;  ///< How many steps had begun when the time was taken.
+    std::optional<bool> _compilerUnpackedAtTheTime;  ///< Whether the compiler was unpacked when the time was taken.
     std::optional<std::string> _cCompiler;           ///< The C compiler the index names.
 };
 
@@ -180,8 +188,7 @@ TEST_F(IngotInstallerTest, TakesTheTimeOfInstallingOnceTheIngotIsUnpacked)
 {
     ASSERT_TRUE(install(gccIngot()).has_value());
 
-    EXPECT_EQ(_steps, (std::vector<std::string>{ "Downloading 'gcc@15.2.0'", "Extracting 'gcc@15.2.0'" }));
-    EXPECT_EQ(_stepsBeforeTheTime, 2U);
+    EXPECT_EQ(_compilerUnpackedAtTheTime, true);
 }
 
 /**
