@@ -3982,6 +3982,25 @@ TEST_F(CliE2ETest, SaysThereIsNoToolchainToList)
 }
 
 /**
+ * A CXX that cannot be run is warned about, as a build reports it, and the
+ * system's compiler is left out of the listing.
+ */
+TEST_F(CliE2ETest, WarnsAboutACxxThatCannotBeRunAndListsTheRest)
+{
+    installToolchain("gcc", "15.2.0");
+
+    auto result = runScrap({ "toolchain", "list" }, { "CXX=no-such-c++" }, _root);
+
+    EXPECT_EQ(result.exitCode, 0);
+    EXPECT_EQ(result.stdoutText,
+              "TOOLCHAIN   DEFAULT\n"
+              "gcc@15.2.0\n");
+    EXPECT_EQ(result.stderrText,
+              "warning: CXX names 'no-such-c++', which cannot be run\n"
+              "hint: set CXX to the path of a compiler, or unset it to search for one\n");
+}
+
+/**
  * What names the default or the toolchain used here and cannot be read is
  * warned about, as a build reports it, and the rest is listed unmarked.
  */

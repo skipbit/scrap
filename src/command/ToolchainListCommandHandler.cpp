@@ -101,6 +101,9 @@ int ToolchainListCommandHandler::execute(const InvocationContext& ctx)
         return 1;
     }
     auto systemCompiler = Toolchain::detectSystemCompiler(env.preferredCompiler, env.systemSearchPaths);
+    if ((! systemCompiler.has_value()) && (! systemCompiler.error().requested.empty())) {
+        std::cerr << asWarning(renderUnusableCompilerRequest(systemCompiler.error().requested));
+    }
     const auto globalDefault = namedGlobalDefault(env);
     if (! globalDefault.has_value()) {
         std::cerr << asWarning(globalDefault.error());
