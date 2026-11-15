@@ -80,6 +80,19 @@ using IngotSelectionFault = std::variant<NoMatchInIndex, NoIngotForHost, NoLonge
 [[nodiscard]] std::string integrityOf(const Ingot& ingot);
 
 /**
+ * @brief Whether @p toolchain has an ingot for the OS and architecture of
+ *        @p environment.
+ */
+[[nodiscard]] bool hasIngotFor(const IndexedToolchain& toolchain, const HostEnvironment& environment);
+
+/**
+ * @brief Whether @p toolchain can be installed on @p host: it is offered,
+ *        this scrap is new enough for it, and it has an ingot for the host
+ *        that the host's glibc is new enough for.
+ */
+[[nodiscard]] bool canBeInstalled(const IndexedToolchain& toolchain, const InstallingHost& host);
+
+/**
  * @brief Choose what to install for @p specifier: the newest version it names
  *        that can be installed on @p host.
  *

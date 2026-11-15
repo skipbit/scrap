@@ -240,3 +240,33 @@ TEST(IngotSelectionTest, GivesTheValueThatChecksAnIngot)
     ingot.source = RegistrySource{ .registry = "ghcr.io/example", .tag = "gcc:15.2.0", .digest = "sha256:def" };
     EXPECT_EQ(integrityOf(ingot), "sha256:def");
 }
+
+TEST(IngotSelectionTest, TellsWhetherAToolchainHasAnIngotForTheHost)
+{
+    IndexedToolchain elsewhere = toolchain("gcc", "15.2.0");
+    elsewhere.ingots.front().arch = "aarch64";
+
+    EXPECT_TRUE(hasIngotFor(toolchain("gcc", "15.2.0", ToolchainStatus::Disabled), linuxHost().environment));
+    EXPECT_FALSE(hasIngotFor(elsewhere, linuxHost().environment));
+}
+
+/**
+ * A toolchain can be installed as install would take it, and for no reason
+ * else.
+ */
+TEST(IngotSelectionTest, TellsWhetherAToolchainCanBeInstalled)
+{
+    IndexedToolchain needsNewerGlibc = toolchain("gcc", "15.2.0");
+    needsNewerGlibc.ingots.front().glibcVersion = version("2.35");
+    IndexedToolchain needsNewerScrap = toolchain("gcc", "15.2.0");
+    needsNewerScrap.minScrapVersion = version("2.0.0");
+    IndexedToolchain elsewhere = toolchain("gcc", "15.2.0");
+    elsewhere.ingots.front().platform = "darwin";
+
+    EXPECT_TRUE(canBeInstalled(toolchain("gcc", "15.2.0"), linuxHost()));
+    EXPECT_TRUE(canBeInstalled(toolchain("gcc", "15.2.0", ToolchainStatus::Deprecated), linuxHost()));
+    EXPECT_FALSE(canBeInstalled(toolchain("gcc", "15.2.0", ToolchainStatus::Disabled), linuxHost()));
+    EXPECT_FALSE(canBeInstalled(needsNewerGlibc, linuxHost()));
+    EXPECT_FALSE(canBeInstalled(needsNewerScrap, linuxHost()));
+    EXPECT_FALSE(canBeInstalled(elsewhere, linuxHost()));
+}
