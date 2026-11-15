@@ -100,6 +100,29 @@ using InstalledToolchainFault = std::variant<NoToolchainForHost, UnusableInstall
 [[nodiscard]] std::optional<InstalledToolchain> anyInstalledToolchain(const std::filesystem::path& scrapHome, const HostEnvironment& host);
 
 /**
+ * @brief The name of a toolchain installed for a host.
+ */
+struct InstalledName {
+    std::string family;
+    ToolchainVersion version;
+
+    /** The name that selects it, as <family>@<version>. */
+    [[nodiscard]] std::string text() const;
+};
+
+/**
+ * @brief Every toolchain installed below @p scrapHome for @p host, by family
+ *        and then from the oldest version.
+ *
+ * A toolchain counts as installed as for findInstalledToolchain(). Its
+ * record is not read, so one that cannot be used is listed too.
+ *
+ * @return The names, or the directory that cannot be listed.
+ */
+[[nodiscard]] std::expected<std::vector<InstalledName>, CannotListToolchains> listInstalledToolchains(const std::filesystem::path& scrapHome,
+                                                                                                      const HostEnvironment& host);
+
+/**
  * @brief The install record in @p directory, when what it names is there.
  *
  * A directory whose record cannot be looked up counts as holding none. A

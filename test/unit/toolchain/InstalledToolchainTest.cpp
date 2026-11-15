@@ -361,3 +361,104 @@ TEST(InstalledToolchainTest, RefusesAnInstallRecordWhoseRuntimeLibraryDirectoryI
     ASSERT_FALSE(read.has_value());
     EXPECT_NE(read.error().find("names the runtime library directory"), std::string::npos) << read.error();
 }
+
+namespace {
+
+/**
+ * The names of the toolchains listed below @p home, or "<fault>" when the
+ * listing fails.
+ */
+std::vector<std::string> namesListed(const TempDirectory& home)
+{
+    const auto listed = listInstalledToolchains(home.path(), Host);
+    EXPECT_TRUE(listed.has_value());
+    if (! listed.has_value()) {
+        return { "<fault>" };
+    }
+    std::vector<std::string> names;
+    for (const InstalledName& name : *listed) {
+        names.push_back(name.text());
+    }
+    return names;
+}
+
+}  // namespace
+
+/**
+ * Without a toolchains directory, or with an empty one, nothing is listed.
+ */
+TEST(InstalledToolchainTest, ListsNothingWhenNoneIsInstalled)
+{
+    const TempDirectory home;
+    EXPECT_TRUE(namesListed(home).empty());
+
+    home.makeDirectory("toolchains");
+    EXPECT_TRUE(namesListed(home).empty());
+}
+
+/**
+ * The toolchains are listed by family, and within a family from the oldest
+ * version, comparing versions as numbers.
+ */
+TEST(InstalledToolchainTest, ListsByFamilyAndThenFromTheOldestVersion)
+{
+    const TempDirectory home;
+    install(home, "llvm", "22.1.0");
+    install(home, "gcc", "16.2.0");
+    install(home, "gcc", "9.1.0");
+    install(home, "gcc", "15.2.0");
+
+    EXPECT_EQ(namesListed(home), (std::vector<std::string>{ "gcc@9.1.0", "gcc@15.2.0", "gcc@16.2.0", "llvm@22.1.0" }));
+}
+
+/**
+ * What finding a toolchain passes over is not listed either: a version
+ * without an install record, one for another host, a directory whose name
+ * is not a version, and one whose name is not a family.
+ */
+TEST(InstalledToolchainTest, ListsNothingThatIsNotInstalledForTheHost)
+{
+    const TempDirectory home;
+    install(home, "gcc", "15.1.0");
+    home.makeDirectory("toolchains/gcc/15.2.0/linux-x86_64/bin");
+    install(home, "gcc", "15.3.0", "darwin-aarch64");
+    install(home, "gcc", "staging");
+    install(home, "Not A Family", "1.0.0");
+
+    EXPECT_EQ(namesListed(home), (std::vector<std::string>{ "gcc@15.1.0" }));
+}
+
+/**
+ * A toolchain whose record cannot be used is still listed: the listing does
+ * not read the records.
+ */
+TEST(InstalledToolchainTest, ListsAToolchainWhoseRecordCannotBeUsed)
+{
+    const TempDirectory home;
+    home.writeFile("toolchains/gcc/15.2.0/linux-x86_64/" + std::string{ InstallRecordName }, "not a record");
+
+    EXPECT_EQ(namesListed(home), (std::vector<std::string>{ "gcc@15.2.0" }));
+}
+
+/**
+ * A toolchains directory or a family directory that cannot be listed is
+ * reported with where and why, rather than listed as holding nothing.
+ */
+TEST(InstalledToolchainTest, ReportsWhatCannotBeListedWhenListing)
+{
+    const TempDirectory looped;
+    // A link to itself fails to list even for a user every permission lets in.
+    std::filesystem::create_directory_symlink("toolchains", looped.path() / "toolchains");
+    const auto whole = listInstalledToolchains(looped.path(), Host);
+    ASSERT_FALSE(whole.has_value());
+    EXPECT_EQ(whole.error().directory, looped.path() / "toolchains");
+    EXPECT_TRUE(whole.error().code) << whole.error().code.message();
+
+    const TempDirectory home;
+    install(home, "llvm", "22.1.0");
+    std::filesystem::create_directory_symlink("gcc", home.path() / "toolchains" / "gcc");
+    const auto family = listInstalledToolchains(home.path(), Host);
+    ASSERT_FALSE(family.has_value());
+    EXPECT_EQ(family.error().directory, home.path() / "toolchains" / "gcc");
+    EXPECT_TRUE(family.error().code) << family.error().code.message();
+}
