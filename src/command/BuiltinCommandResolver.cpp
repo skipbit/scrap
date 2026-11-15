@@ -18,6 +18,7 @@
 #include "command/ToolchainListCommandHandler.h"
 #include "command/ToolchainSelectCommandHandler.h"
 #include "command/ToolchainUnselectCommandHandler.h"
+#include "command/ToolchainUpdateCommandHandler.h"
 #include "command/VersionRenderer.h"
 #include "project/ProjectFileSystem.h"
 
@@ -310,6 +311,23 @@ CommandEntry makeToolchainUnselectEntry()
     return entry;
 }
 
+/**
+ * Create the entry for "toolchain update", which fetches the toolchain index
+ * and tells what changed.
+ */
+CommandEntry makeToolchainUpdateEntry()
+{
+    CommandEntry entry;
+    entry.spec.name = "update";
+    entry.spec.description = "Fetch the toolchain index and show what changed";
+    entry.spec.category = "Toolchain Commands";
+    entry.source = CommandSource::Builtin;
+    entry.createHandler = [](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
+        return std::make_unique<ToolchainUpdateCommandHandler>();
+    };
+    return entry;
+}
+
 CommandEntry makeToolchainListEntry()
 {
     CommandEntry entry;
@@ -387,6 +405,7 @@ std::vector<CommandEntry> BuiltinCommandResolver::resolve([[maybe_unused]] const
         toolchain.subcommands.push_back(makeToolchainInstallEntry());
         toolchain.subcommands.push_back(makeToolchainSelectEntry());
         toolchain.subcommands.push_back(makeToolchainUnselectEntry());
+        toolchain.subcommands.push_back(makeToolchainUpdateEntry());
         entries.push_back(std::move(toolchain));
     }
 
