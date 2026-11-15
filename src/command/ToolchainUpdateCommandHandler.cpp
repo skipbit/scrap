@@ -1,6 +1,7 @@
 #include "command/ToolchainUpdateCommandHandler.h"
 
 #include "command/IndexUpdateReport.h"
+#include "command/InstallingHostOfScrap.h"
 #include "command/InvocationContext.h"
 #include "command/RuntimeEnvironment.h"
 #include "command/ScrapHome.h"
@@ -10,10 +11,8 @@
 #include "fetch/CertificateBundle.h"
 #include "install/IndexCopy.h"
 #include "toolchain/HostEnvironment.h"
-#include "toolchain/HostGlibc.h"
 #include "toolchain/IndexChanges.h"
 #include "toolchain/IngotSelection.h"
-#include "toolchain/ToolchainVersion.h"
 
 #include <chrono>
 #include <expected>  // IWYU pragma: keep
@@ -39,12 +38,12 @@ int ToolchainUpdateCommandHandler::execute(const InvocationContext& ctx)
     }
 
     const std::string url = toolchainIndexUrl(env);
-    const Toolchain::ToolchainVersion scrapVersion = runningScrapVersion();
+    const Toolchain::InstallingHost host = installingHostOfScrap(*environment);
     // Read before fetching, which replaces it.
-    const auto saved = Install::readSavedIndex(*scrapHome, url, scrapVersion);
+    const auto saved = Install::readSavedIndex(*scrapHome, url, host.scrapVersion);
     const auto now = std::chrono::system_clock::now();
     const auto bundle = Fetch::findCertificateBundle(env.certificateFile, Fetch::knownCertificateBundles());
-    const auto fetched = Install::fetchIndex(*scrapHome, Install::IndexSource{ .url = url, .certificateBundle = bundle }, scrapVersion, now);
+    const auto fetched = Install::fetchIndex(*scrapHome, Install::IndexSource{ .url = url, .certificateBundle = bundle }, host.scrapVersion, now);
     if (! fetched.has_value()) {
         if (const auto* unavailable = std::get_if<Install::IndexUnavailable>(&fetched.error()); unavailable != nullptr) {
             if (! saved.has_value()) {
@@ -62,7 +61,6 @@ int ToolchainUpdateCommandHandler::execute(const InvocationContext& ctx)
     // A copy this scrap cannot read has nothing to compare with.
     const std::optional<Install::SavedIndex> before = saved.value_or(std::nullopt);
 
-    const Toolchain::InstallingHost host{ .environment = *environment, .scrapVersion = scrapVersion, .glibcVersion = Toolchain::hostGlibcVersion() };
     const std::string fetchedAt = fetchTimeText(fetched->fetchedAt);
     if (before.has_value()) {
         std::cout << renderIndexChanges(fetchedAt, environment->directoryName(), Toolchain::compareIndexes(before->index, fetched->index, host));

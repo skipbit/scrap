@@ -1,6 +1,7 @@
 #include "command/ToolchainInstallCommandHandler.h"
 
 #include "command/IndexUpdateReport.h"
+#include "command/InstallingHostOfScrap.h"
 #include "command/InvocationContext.h"
 #include "command/ParsedOptions.h"
 #include "command/PrintableText.h"
@@ -14,7 +15,6 @@
 #include "install/IngotInstaller.h"
 #include "toolchain/GlobalConfigFile.h"
 #include "toolchain/HostEnvironment.h"
-#include "toolchain/HostGlibc.h"
 #include "toolchain/IngotSelection.h"
 #include "toolchain/InstallRecord.h"
 #include "toolchain/InstalledToolchain.h"
@@ -112,8 +112,8 @@ std::expected<Toolchain::SelectedIngot, std::string> chooseIngot(const RuntimeEn
                                                                  const std::string& text,
                                                                  const Toolchain::ToolchainSpecifier& specifier)
 {
-    const Toolchain::ToolchainVersion scrapVersion = runningScrapVersion();
-    const auto obtained = Install::obtainIndex(scrapHome, Install::IndexSource{ .url = toolchainIndexUrl(env), .certificateBundle = bundle }, scrapVersion, std::chrono::system_clock::now());
+    const Toolchain::InstallingHost host = installingHostOfScrap(environment);
+    const auto obtained = Install::obtainIndex(scrapHome, Install::IndexSource{ .url = toolchainIndexUrl(env), .certificateBundle = bundle }, host.scrapVersion, std::chrono::system_clock::now());
     if (! obtained.has_value()) {
         return std::unexpected(renderIndexFault(obtained.error()));
     }
@@ -122,7 +122,6 @@ std::expected<Toolchain::SelectedIngot, std::string> chooseIngot(const RuntimeEn
         std::cerr << "warning: " << printableText(standIn->reason) << "\n"
                   << "warning: cannot fetch the toolchain index; using the copy fetched at " << fetchTimeText(standIn->fetchedAt) << "\n";
     }
-    const Toolchain::InstallingHost host{ .environment = environment, .scrapVersion = scrapVersion, .glibcVersion = Toolchain::hostGlibcVersion() };
     auto selected = Toolchain::selectIngot(obtained->index, specifier, host);
     if (! selected.has_value()) {
         return std::unexpected(renderSelectionFault(text, selected.error()));
