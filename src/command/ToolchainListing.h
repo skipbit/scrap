@@ -38,6 +38,7 @@ using UseReason = std::variant<ChoiceSource, Toolchain::CompilerOrigin>;
  */
 struct ListedToolchain {
     std::string name;                               ///< system, <family>@<version>, or a name as written that is not there.
+    bool isSystem = false;                          ///< Whether it stands for the system's compiler.
     std::optional<std::filesystem::path> compiler;  ///< The system's compiler, when it is found.
     bool present = true;                            ///< Whether it is installed or, for system, found.
     bool isDefault = false;                         ///< Whether the global default names it.

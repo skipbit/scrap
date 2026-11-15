@@ -17,12 +17,13 @@ namespace {
 
 ListedToolchain listed(const std::string& name)
 {
-    return ListedToolchain{ .name = name, .compiler = std::nullopt, .present = true, .isDefault = false, .usedHere = std::nullopt };
+    return ListedToolchain{ .name = name, .isSystem = false, .compiler = std::nullopt, .present = true, .isDefault = false, .usedHere = std::nullopt };
 }
 
 ListedToolchain systemAt(const std::filesystem::path& compiler)
 {
     ListedToolchain toolchain = listed("system");
+    toolchain.isSystem = true;
     toolchain.compiler = compiler;
     return toolchain;
 }
@@ -86,6 +87,7 @@ TEST(ToolchainListingTableTest, SaysWhatANamedToolchainLacks)
     missing.isDefault = true;
     missing.usedHere = ChoiceSource::VariableOverProject;
     ListedToolchain noSystem = listed("system");
+    noSystem.isSystem = true;
     noSystem.present = false;
     noSystem.usedHere = ChoiceSource::GlobalDefault;
 

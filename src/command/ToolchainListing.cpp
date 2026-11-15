@@ -43,8 +43,9 @@ std::optional<std::string> newestNamed(const std::vector<Toolchain::InstalledNam
  */
 ListedToolchain& rowFor(std::vector<ListedToolchain>& toolchains, const std::vector<Toolchain::InstalledName>& installed, const NamedToolchain& named)
 {
+    const bool isSystem = std::holds_alternative<Toolchain::SystemToolchain>(named.choice);
     std::optional<std::string> present;
-    if (std::holds_alternative<Toolchain::SystemToolchain>(named.choice)) {
+    if (isSystem) {
         present = std::string{ SystemName };
     } else {
         present = newestNamed(installed, std::get<Toolchain::ToolchainSpecifier>(named.choice));
@@ -54,7 +55,7 @@ ListedToolchain& rowFor(std::vector<ListedToolchain>& toolchains, const std::vec
     if (found != toolchains.end()) {
         return *found;
     }
-    toolchains.push_back(ListedToolchain{ .name = name, .compiler = std::nullopt, .present = false, .isDefault = false, .usedHere = std::nullopt });
+    toolchains.push_back(ListedToolchain{ .name = name, .isSystem = isSystem, .compiler = std::nullopt, .present = false, .isDefault = false, .usedHere = std::nullopt });
     return toolchains.back();
 }
 
@@ -78,10 +79,10 @@ ToolchainListing listToolchains(const ListingFacts& facts)
 {
     std::vector<ListedToolchain> toolchains;
     if (facts.systemCompiler.has_value()) {
-        toolchains.push_back(ListedToolchain{ .name = std::string{ SystemName }, .compiler = facts.systemCompiler->path, .present = true, .isDefault = false, .usedHere = std::nullopt });
+        toolchains.push_back(ListedToolchain{ .name = std::string{ SystemName }, .isSystem = true, .compiler = facts.systemCompiler->path, .present = true, .isDefault = false, .usedHere = std::nullopt });
     }
     for (const Toolchain::InstalledName& each : facts.installed) {
-        toolchains.push_back(ListedToolchain{ .name = each.text(), .compiler = std::nullopt, .present = true, .isDefault = false, .usedHere = std::nullopt });
+        toolchains.push_back(ListedToolchain{ .name = each.text(), .isSystem = false, .compiler = std::nullopt, .present = true, .isDefault = false, .usedHere = std::nullopt });
     }
     if (facts.globalDefault.has_value()) {
         rowFor(toolchains, facts.installed, *facts.globalDefault).isDefault = true;

@@ -167,9 +167,12 @@ TEST(ToolchainListingTest, MarksSystemWhereverItIsNamed)
                                           .globalDefault = std::nullopt,
                                           .here = named("system", ChoiceSource::Project) });
     EXPECT_EQ(rowsOf(missing), (std::vector<std::string>{ "gcc@16.2.0", "system, not there, used here from scrap.toml" }));
+    EXPECT_EQ(missing.toolchains.front().isSystem, false);
+    EXPECT_EQ(missing.toolchains.back().isSystem, true);
 
     const auto found = listToolchains({ .installed = {}, .systemCompiler = FoundCompiler, .globalDefault = named("system", ChoiceSource::GlobalDefault), .here = std::nullopt });
     EXPECT_EQ(rowsOf(found), (std::vector<std::string>{ "system at /usr/bin/c++, default" }));
+    EXPECT_EQ(found.toolchains.front().isSystem, true);
 }
 
 /**

@@ -23,7 +23,7 @@ constexpr std::string_view ColumnGap = "  ";
  */
 std::string_view absence(const ListedToolchain& toolchain)
 {
-    return toolchain.name == "system" ? ", not found" : ", not installed";
+    return toolchain.isSystem ? ", not found" : ", not installed";
 }
 
 std::string nameCell(const ListedToolchain& toolchain)
