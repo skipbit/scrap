@@ -71,8 +71,8 @@ struct SavedIndex {
  *         or the format it declares when this scrap does not read it.
  */
 [[nodiscard]] std::expected<std::optional<SavedIndex>, IndexFormatUnsupported> readSavedIndex(const std::filesystem::path& scrapHome,
-                                                                                             const std::string& url,
-                                                                                             const Toolchain::ToolchainVersion& scrapVersion);
+                                                                                              const std::string& url,
+                                                                                              const Toolchain::ToolchainVersion& scrapVersion);
 
 /**
  * @brief Fetch the index and save it below @p scrapHome, or fall back on the
