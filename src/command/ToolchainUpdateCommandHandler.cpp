@@ -21,6 +21,7 @@
 #include <iostream>
 #include <optional>
 #include <string>
+#include <variant>
 
 namespace scrap::Command {
 
@@ -40,27 +41,34 @@ int ToolchainUpdateCommandHandler::execute(const InvocationContext& ctx)
 
     const std::string url = toolchainIndexUrl(env);
     const Toolchain::ToolchainVersion scrapVersion = runningScrapVersion();
-    // Read before fetching, which replaces it. A copy this scrap cannot read
-    // has nothing to compare with.
-    const std::optional<Install::SavedIndex> before = Install::readSavedIndex(*scrapHome, url, scrapVersion).value_or(std::nullopt);
+    // Read before fetching, which replaces it.
+    const auto saved = Install::readSavedIndex(*scrapHome, url, scrapVersion);
     const auto now = std::chrono::system_clock::now();
     const auto bundle = Fetch::findCertificateBundle(env.certificateFile, Fetch::knownCertificateBundles());
-    const auto obtained = Install::obtainIndex(*scrapHome, Install::IndexSource{ .url = url, .certificateBundle = bundle }, scrapVersion, now);
-    if (! obtained.has_value()) {
-        std::cerr << renderIndexFault(obtained.error());
+    const auto fetched = Install::fetchIndex(*scrapHome, Install::IndexSource{ .url = url, .certificateBundle = bundle }, scrapVersion, now);
+    if (! fetched.has_value()) {
+        if (const auto* unavailable = std::get_if<Install::IndexUnavailable>(&fetched.error()); unavailable != nullptr) {
+            if (! saved.has_value()) {
+                std::cerr << renderIndexFault(saved.error());
+                return 1;
+            }
+            if (const std::optional<Install::SavedIndex>& copy = *saved; copy.has_value()) {
+                std::cerr << renderCopyKept(unavailable->reason, copy->fetchedAt);
+                return 1;
+            }
+        }
+        std::cerr << renderIndexFault(fetched.error());
         return 1;
     }
-    if (const std::optional<Install::CopyStandingIn>& standIn = obtained->standIn; standIn.has_value()) {
-        std::cerr << renderCopyKept(standIn->reason, standIn->fetchedAt);
-        return 1;
-    }
+    // A copy this scrap cannot read has nothing to compare with.
+    const std::optional<Install::SavedIndex> before = saved.value_or(std::nullopt);
 
     const Toolchain::InstallingHost host{ .environment = *environment, .scrapVersion = scrapVersion, .glibcVersion = Toolchain::hostGlibcVersion() };
     const std::string fetchedAt = Install::utcText(now).value_or("an unknown time");
     if (before.has_value()) {
-        std::cout << renderIndexChanges(fetchedAt, environment->directoryName(), Toolchain::compareIndexes(before->index, obtained->index, host));
+        std::cout << renderIndexChanges(fetchedAt, environment->directoryName(), Toolchain::compareIndexes(before->index, *fetched, host));
     } else {
-        std::cout << renderFirstIndex(fetchedAt, environment->directoryName(), Toolchain::countInstallable(obtained->index, host));
+        std::cout << renderFirstIndex(fetchedAt, environment->directoryName(), Toolchain::countInstallable(*fetched, host));
     }
     return 0;
 }

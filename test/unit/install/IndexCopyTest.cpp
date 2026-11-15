@@ -48,6 +48,17 @@ protected:
         return obtainIndex(_home.path(), IndexSource{ .url = server.url("/index.toml"), .certificateBundle = std::nullopt }, ToolchainVersion::parse("1.0.0").value(), FetchTime);
     }
 
+    auto fetchFrom(HttpTestServer& server, HttpTestResponse response)
+    {
+        server.respond("/index.toml", std::move(response));
+        return fetchIndex(_home.path(), IndexSource{ .url = server.url("/index.toml"), .certificateBundle = std::nullopt }, ToolchainVersion::parse("1.0.0").value(), FetchTime);
+    }
+
+    auto fetch(HttpTestResponse response)
+    {
+        return fetchFrom(_server, std::move(response));
+    }
+
     auto obtain(HttpTestResponse response)
     {
         return obtainFrom(_server, std::move(response));
@@ -63,6 +74,38 @@ protected:
 };
 
 }  // anonymous namespace
+
+TEST_F(IndexCopyTest, FetchesTheIndexAndSavesIt)
+{
+    const auto fetched = fetch(answer(indexOf("15.2.0")));
+
+    ASSERT_TRUE(fetched.has_value());
+    EXPECT_EQ(fetched->toolchains.at(0).version.text(), "15.2.0");
+    EXPECT_EQ(_home.readFile(scrap::Toolchain::indexCopyFile(_home.path())), indexOf("15.2.0"));
+    EXPECT_EQ(_home.readFile(scrap::Toolchain::indexCopySourceFile(_home.path())), _server.url("/index.toml") + "\n2026-11-15T10:00:00Z\n");
+}
+
+TEST_F(IndexCopyTest, DoesNotFallBackOnTheSavedCopyWhenTheFetchFails)
+{
+    ASSERT_TRUE(fetch(answer(indexOf("15.1.0"))).has_value());
+
+    const auto fetched = fetch(HttpTestResponse{ .status = 500, .headers = {}, .body = {}, .stalls = false });
+
+    ASSERT_FALSE(fetched.has_value());
+    EXPECT_TRUE(std::holds_alternative<IndexUnavailable>(fetched.error()));
+    EXPECT_EQ(_home.readFile(scrap::Toolchain::indexCopyFile(_home.path())), indexOf("15.1.0"));
+}
+
+TEST_F(IndexCopyTest, FetchReportsTheTransferThatFailed)
+{
+    const auto fetched = fetch(HttpTestResponse{ .status = 500, .headers = {}, .body = {}, .stalls = false });
+
+    ASSERT_FALSE(fetched.has_value());
+    const auto& failure = std::get<IndexUnavailable>(fetched.error());
+    EXPECT_NE(failure.reason.find("status 500"), std::string::npos);
+    ASSERT_TRUE(failure.fetchError.has_value());
+    EXPECT_TRUE(std::holds_alternative<scrap::Fetch::UnexpectedStatus>(*failure.fetchError));
+}
 
 TEST_F(IndexCopyTest, ReadsWhatItFetchesAndSavesIt)
 {

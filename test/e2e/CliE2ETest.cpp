@@ -4138,6 +4138,23 @@ TEST_F(CliE2ETest, UpdateFailsAndKeepsTheCopyWhenTheIndexCannotBeFetched)
     EXPECT_EQ(readFile("index/toolchain.toml"), copyBefore);
 }
 
+/**
+ * A saved copy in a format this scrap cannot read is not passed over.
+ */
+TEST_F(CliE2ETest, UpdateSaysTheFormatOfASavedCopyItCannotReadWhenTheIndexCannotBeFetched)
+{
+    ToolchainServer server("gcc", { { .version = "15.2.0", .ingot = compilerIngot() } });
+    ASSERT_EQ(runScrap({ "toolchain", "update" }, { server.indexVariable() }, _root).exitCode, 0);
+    writeFile("index/toolchain.toml", "[index]\nschema_version = 2\nchannel = 'official'\n");
+    server.failIndex();
+
+    auto result = runScrap({ "toolchain", "update" }, { server.indexVariable() }, _root);
+
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_EQ(result.stdoutText, "");
+    EXPECT_TRUE(result.stderrText.starts_with("error: the toolchain index has the format ")) << result.stderrText;
+}
+
 TEST_F(CliE2ETest, UpdateFailsWhenTheIndexCannotBeFetchedAndNoCopyIsSaved)
 {
     ToolchainServer server("gcc", {});

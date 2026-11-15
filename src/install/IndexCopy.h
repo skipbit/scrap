@@ -75,6 +75,22 @@ struct SavedIndex {
                                                                                               const Toolchain::ToolchainVersion& scrapVersion);
 
 /**
+ * @brief Fetch the index and save it below @p scrapHome, without falling back
+ *        on the copy saved before.
+ *
+ * What was fetched replaces the saved copy only once it has been read in full,
+ * so a transfer cut short or an index its maker got wrong leaves the previous
+ * copy as it was. The copy is saved with its URL and @p now, the time it was
+ * fetched.
+ *
+ * @return The index, or why it could not be had.
+ */
+[[nodiscard]] std::expected<Toolchain::ToolchainIndex, IndexFault> fetchIndex(const std::filesystem::path& scrapHome,
+                                                                              const IndexSource& source,
+                                                                              const Toolchain::ToolchainVersion& scrapVersion,
+                                                                              std::chrono::system_clock::time_point now);
+
+/**
  * @brief Fetch the index and save it below @p scrapHome, or fall back on the
  *        copy saved before.
  *

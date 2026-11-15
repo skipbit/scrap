@@ -18,6 +18,7 @@
 #include <string>
 #include <system_error>
 #include <utility>
+#include <variant>
 
 namespace scrap::Install {
 
@@ -131,10 +132,10 @@ std::expected<std::optional<SavedIndex>, IndexFormatUnsupported> readSavedIndex(
     return SavedIndex{ .index = std::move(*index), .fetchedAt = std::move(fetchedAt) };
 }
 
-std::expected<ObtainedIndex, IndexFault> obtainIndex(const std::filesystem::path& scrapHome,
-                                                     const IndexSource& source,
-                                                     const Toolchain::ToolchainVersion& scrapVersion,
-                                                     std::chrono::system_clock::time_point now)
+std::expected<Toolchain::ToolchainIndex, IndexFault> fetchIndex(const std::filesystem::path& scrapHome,
+                                                                const IndexSource& source,
+                                                                const Toolchain::ToolchainVersion& scrapVersion,
+                                                                std::chrono::system_clock::time_point now)
 {
     const std::filesystem::path copy = Toolchain::indexCopyFile(scrapHome);
     std::filesystem::path fetched = copy;
@@ -144,7 +145,7 @@ std::expected<ObtainedIndex, IndexFault> obtainIndex(const std::filesystem::path
     std::filesystem::create_directories(copy.parent_path(), ec);
     const auto transfer = Fetch::fetchToFile({ .url = source.url, .destination = fetched, .certificateBundle = source.certificateBundle, .sizeLimit = IndexSizeLimit, .headers = {} });
     if (! transfer.has_value()) {
-        return fallBackOnCopy(scrapHome, source, scrapVersion, IndexUnavailable{ .reason = Fetch::describeFetchError(transfer.error()), .fetchError = transfer.error() });
+        return std::unexpected(IndexUnavailable{ .reason = Fetch::describeFetchError(transfer.error()), .fetchError = transfer.error() });
     }
 
     auto index = readIndexFile(fetched, scrapVersion);
@@ -153,7 +154,7 @@ std::expected<ObtainedIndex, IndexFault> obtainIndex(const std::filesystem::path
         if (index.error().kind == Toolchain::ToolchainIndexErrorKind::UnsupportedFormat) {
             return std::unexpected(IndexFormatUnsupported{ .format = std::move(index.error().message) });
         }
-        return fallBackOnCopy(scrapHome, source, scrapVersion, IndexUnavailable{ .reason = std::move(index.error().message), .fetchError = std::nullopt });
+        return std::unexpected(IndexUnavailable{ .reason = std::move(index.error().message), .fetchError = std::nullopt });
     }
     // An index that cannot be saved still answers this install. The record goes
     // first, so a run stopped part way leaves a copy that stands in for nothing.
@@ -163,7 +164,22 @@ std::expected<ObtainedIndex, IndexFault> obtainIndex(const std::filesystem::path
     if (! ec) {
         ec = File::replaceFile(sourceFile, copyRecordText(source.url, now));
     }
-    return ObtainedIndex{ .index = std::move(*index), .standIn = std::nullopt };
+    return std::move(*index);
+}
+
+std::expected<ObtainedIndex, IndexFault> obtainIndex(const std::filesystem::path& scrapHome,
+                                                     const IndexSource& source,
+                                                     const Toolchain::ToolchainVersion& scrapVersion,
+                                                     std::chrono::system_clock::time_point now)
+{
+    auto fetched = fetchIndex(scrapHome, source, scrapVersion, now);
+    if (fetched.has_value()) {
+        return ObtainedIndex{ .index = std::move(*fetched), .standIn = std::nullopt };
+    }
+    if (auto* unavailable = std::get_if<IndexUnavailable>(&fetched.error()); unavailable != nullptr) {
+        return fallBackOnCopy(scrapHome, source, scrapVersion, std::move(*unavailable));
+    }
+    return std::unexpected(std::move(fetched.error()));
 }
 
 }  // namespace scrap::Install
