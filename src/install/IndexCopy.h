@@ -4,6 +4,7 @@
 #include "toolchain/ToolchainIndex.h"
 #include "toolchain/ToolchainVersion.h"
 
+#include <chrono>
 #include <expected>  // IWYU pragma: keep
 #include <filesystem>
 #include <optional>
@@ -62,9 +63,13 @@ using IndexFault = std::variant<IndexUnavailable, IndexFormatUnsupported>;
  * copy as it was. An index in a format this scrap does not read is not passed
  * over, since an older copy would hide that scrap needs updating. Only a copy
  * fetched from the same URL stands in, so one index never answers for another.
+ * The copy is saved with its URL and @p now, the time it was fetched.
  *
  * @return The index, or why there is none.
  */
-[[nodiscard]] std::expected<ObtainedIndex, IndexFault> obtainIndex(const std::filesystem::path& scrapHome, const IndexSource& source, const Toolchain::ToolchainVersion& scrapVersion);
+[[nodiscard]] std::expected<ObtainedIndex, IndexFault> obtainIndex(const std::filesystem::path& scrapHome,
+                                                                   const IndexSource& source,
+                                                                   const Toolchain::ToolchainVersion& scrapVersion,
+                                                                   std::chrono::system_clock::time_point now);
 
 }  // namespace scrap::Install

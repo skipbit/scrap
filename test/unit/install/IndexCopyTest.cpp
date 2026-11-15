@@ -24,6 +24,12 @@ using scrap::Toolchain::ToolchainVersion;
 
 namespace {
 
+// 2026-11-15T10:00:00Z.
+const std::chrono::system_clock::time_point FetchTime{ std::chrono::seconds{ 1794736800 } };
+
+// 2021-01-01T00:00:00Z.
+const std::chrono::sys_seconds EarlierTime{ std::chrono::seconds{ 1609459200 } };
+
 std::string indexOf(const std::string& version)
 {
     return "[index]\nschema_version = 1\nchannel = 'official'\n\n[[toolchains]]\nfamily = 'gcc'\nversion = '" + version + "'\nstatus = 'active'\ncompiler = 'g++'\nlicense = 'GPL-3.0-or-later'\n";
@@ -39,7 +45,7 @@ protected:
     auto obtainFrom(HttpTestServer& server, HttpTestResponse response)
     {
         server.respond("/index.toml", std::move(response));
-        return obtainIndex(_home.path(), IndexSource{ .url = server.url("/index.toml"), .certificateBundle = std::nullopt }, ToolchainVersion::parse("1.0.0").value());
+        return obtainIndex(_home.path(), IndexSource{ .url = server.url("/index.toml"), .certificateBundle = std::nullopt }, ToolchainVersion::parse("1.0.0").value(), FetchTime);
     }
 
     auto obtain(HttpTestResponse response)
@@ -82,24 +88,38 @@ TEST_F(IndexCopyTest, ReplacesTheSavedCopyWithWhatIsNew)
 TEST_F(IndexCopyTest, FallsBackOnTheSavedCopyAndSaysWhenItWasFetched)
 {
     ASSERT_TRUE(obtain(answer(indexOf("15.1.0"))).has_value());
-    const auto copy = scrap::Toolchain::indexCopyFile(_home.path());
-    // 2021-01-01T00:00:00Z.
-    std::filesystem::last_write_time(copy, std::chrono::file_clock::from_sys(std::chrono::sys_seconds{ std::chrono::seconds{ 1609459200 } }));
 
     const auto obtained = obtain(HttpTestResponse{ .status = 500, .headers = {}, .body = {}, .stalls = false });
 
     ASSERT_TRUE(obtained.has_value());
     EXPECT_EQ(versionIn(*obtained), "15.1.0");
     ASSERT_TRUE(obtained->standIn.has_value());
-    EXPECT_EQ(obtained->standIn->fetchedAt, "2021-01-01T00:00:00Z");
+    EXPECT_EQ(obtained->standIn->fetchedAt, "2026-11-15T10:00:00Z");
     EXPECT_NE(obtained->standIn->reason.find("status 500"), std::string::npos) << obtained->standIn->reason;
 }
 
-TEST_F(IndexCopyTest, RecordsWhereTheSavedCopyCameFrom)
+/**
+ * An earlier scrap recorded only the URL, and the copy was last written when
+ * it was fetched.
+ */
+TEST_F(IndexCopyTest, SaysWhenACopyAnEarlierScrapSavedWasLastWritten)
+{
+    ASSERT_TRUE(obtain(answer(indexOf("15.1.0"))).has_value());
+    _home.writeFile(std::filesystem::relative(scrap::Toolchain::indexCopySourceFile(_home.path()), _home.path()).string(), _server.url("/index.toml") + "\n");
+    std::filesystem::last_write_time(scrap::Toolchain::indexCopyFile(_home.path()), std::chrono::file_clock::from_sys(EarlierTime));
+
+    const auto obtained = obtain(HttpTestResponse{ .status = 500, .headers = {}, .body = {}, .stalls = false });
+
+    ASSERT_TRUE(obtained.has_value());
+    ASSERT_TRUE(obtained->standIn.has_value());
+    EXPECT_EQ(obtained->standIn->fetchedAt, "2021-01-01T00:00:00Z");
+}
+
+TEST_F(IndexCopyTest, RecordsWhereAndWhenTheSavedCopyWasFetched)
 {
     ASSERT_TRUE(obtain(answer(indexOf("15.1.0"))).has_value());
 
-    EXPECT_EQ(_home.readFile(scrap::Toolchain::indexCopySourceFile(_home.path())), _server.url("/index.toml") + "\n");
+    EXPECT_EQ(_home.readFile(scrap::Toolchain::indexCopySourceFile(_home.path())), _server.url("/index.toml") + "\n2026-11-15T10:00:00Z\n");
 }
 
 /**

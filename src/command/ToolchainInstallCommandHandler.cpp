@@ -22,6 +22,7 @@
 #include "toolchain/ToolchainSpecifier.h"
 #include "toolchain/ToolchainVersion.h"
 
+#include <chrono>
 #include <cstddef>
 #include <expected>  // IWYU pragma: keep
 #include <filesystem>
@@ -128,7 +129,7 @@ std::expected<Toolchain::SelectedIngot, std::string> chooseIngot(const RuntimeEn
 {
     const std::string indexUrl = env.toolchainIndexUrl.empty() ? std::string{ OfficialIndexUrl } : env.toolchainIndexUrl;
     const Toolchain::ToolchainVersion scrapVersion = runningVersion();
-    const auto obtained = Install::obtainIndex(scrapHome, Install::IndexSource{ .url = indexUrl, .certificateBundle = bundle }, scrapVersion);
+    const auto obtained = Install::obtainIndex(scrapHome, Install::IndexSource{ .url = indexUrl, .certificateBundle = bundle }, scrapVersion, std::chrono::system_clock::now());
     if (! obtained.has_value()) {
         return std::unexpected(renderIndexFault(obtained.error()));
     }
