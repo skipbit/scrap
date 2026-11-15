@@ -8,14 +8,12 @@
 #include "toolchain/HostEnvironment.h"
 #include "toolchain/InstalledToolchain.h"
 #include "toolchain/SystemCompiler.h"
-#include "toolchain/ToolchainChoice.h"
 #include "toolchain/ToolchainSpecifier.h"
 
 #include <expected>  // IWYU pragma: keep
 #include <filesystem>
 #include <optional>
 #include <string>
-#include <string_view>
 #include <utility>
 #include <variant>
 
