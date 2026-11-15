@@ -226,3 +226,56 @@ TEST_F(IndexCopyTest, RefusesAnIndexPastTheSizeLimit)
     ASSERT_TRUE(failure.fetchError.has_value());
     EXPECT_TRUE(std::holds_alternative<scrap::Fetch::ContentTooLarge>(*failure.fetchError));
 }
+
+TEST_F(IndexCopyTest, ReadsTheSavedCopyAndWhenItWasFetched)
+{
+    ASSERT_TRUE(obtain(answer(indexOf("15.1.0"))).has_value());
+
+    const auto saved = readSavedIndex(_home.path(), _server.url("/index.toml"), ToolchainVersion::parse("1.0.0").value());
+
+    ASSERT_TRUE(saved.has_value());
+    ASSERT_TRUE(saved->has_value());
+    EXPECT_EQ((*saved)->index.toolchains.at(0).version.text(), "15.1.0");
+    EXPECT_EQ((*saved)->fetchedAt, "2026-11-15T10:00:00Z");
+}
+
+TEST_F(IndexCopyTest, ReadsNoCopyWhenNoneIsSaved)
+{
+    const auto saved = readSavedIndex(_home.path(), _server.url("/index.toml"), ToolchainVersion::parse("1.0.0").value());
+
+    ASSERT_TRUE(saved.has_value());
+    EXPECT_FALSE(saved->has_value());
+}
+
+TEST_F(IndexCopyTest, ReadsNoCopyOfAnotherIndex)
+{
+    ASSERT_TRUE(obtain(answer(indexOf("15.1.0"))).has_value());
+    HttpTestServer other{ {} };
+
+    const auto saved = readSavedIndex(_home.path(), other.url("/index.toml"), ToolchainVersion::parse("1.0.0").value());
+
+    ASSERT_TRUE(saved.has_value());
+    EXPECT_FALSE(saved->has_value());
+}
+
+TEST_F(IndexCopyTest, ReadsNoCopyThatCannotBeRead)
+{
+    ASSERT_TRUE(obtain(answer(indexOf("15.1.0"))).has_value());
+    _home.writeFile(std::filesystem::relative(scrap::Toolchain::indexCopyFile(_home.path()), _home.path()).string(), "this is not an index");
+
+    const auto saved = readSavedIndex(_home.path(), _server.url("/index.toml"), ToolchainVersion::parse("1.0.0").value());
+
+    ASSERT_TRUE(saved.has_value());
+    EXPECT_FALSE(saved->has_value());
+}
+
+TEST_F(IndexCopyTest, DoesNotHideASavedCopyInAFormatThisScrapCannotRead)
+{
+    ASSERT_TRUE(obtain(answer(indexOf("15.1.0"))).has_value());
+    _home.writeFile(std::filesystem::relative(scrap::Toolchain::indexCopyFile(_home.path()), _home.path()).string(), "[index]\nschema_version = 2\nchannel = 'official'\n");
+
+    const auto saved = readSavedIndex(_home.path(), _server.url("/index.toml"), ToolchainVersion::parse("1.0.0").value());
+
+    ASSERT_FALSE(saved.has_value());
+    EXPECT_EQ(saved.error().format, "2");
+}

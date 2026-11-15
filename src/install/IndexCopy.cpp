@@ -97,23 +97,39 @@ std::string copyRecordText(const std::string& url, std::chrono::system_clock::ti
  */
 std::expected<ObtainedIndex, IndexFault> fallBackOnCopy(const std::filesystem::path& scrapHome, const IndexSource& source, const Toolchain::ToolchainVersion& scrapVersion, IndexUnavailable failure)
 {
-    const std::filesystem::path copy = Toolchain::indexCopyFile(scrapHome);
-    const auto record = readCopyRecord(scrapHome);
-    std::error_code ec;
-    if ((! std::filesystem::exists(copy, ec)) || (! record.has_value()) || (record->url != source.url)) {
+    auto saved = readSavedIndex(scrapHome, source.url, scrapVersion);
+    if (! saved.has_value()) {
+        return std::unexpected(std::move(saved.error()));
+    }
+    if (! saved->has_value()) {
         return std::unexpected(std::move(failure));
+    }
+    SavedIndex& copy = **saved;
+    return ObtainedIndex{ .index = std::move(copy.index), .standIn = CopyStandingIn{ .fetchedAt = std::move(copy.fetchedAt), .reason = std::move(failure.reason) } };
+}
+
+}  // anonymous namespace
+
+std::expected<std::optional<SavedIndex>, IndexFormatUnsupported> readSavedIndex(const std::filesystem::path& scrapHome,
+                                                                                const std::string& url,
+                                                                                const Toolchain::ToolchainVersion& scrapVersion)
+{
+    const std::filesystem::path copy = Toolchain::indexCopyFile(scrapHome);
+    auto record = readCopyRecord(scrapHome);
+    std::error_code ec;
+    if ((! std::filesystem::exists(copy, ec)) || (! record.has_value()) || (record->url != url)) {
+        return std::nullopt;
     }
     auto index = readIndexFile(copy, scrapVersion);
     if (! index.has_value()) {
         if (index.error().kind == Toolchain::ToolchainIndexErrorKind::UnsupportedFormat) {
             return std::unexpected(IndexFormatUnsupported{ .format = std::move(index.error().message) });
         }
-        return std::unexpected(std::move(failure));
+        return std::nullopt;
     }
-    return ObtainedIndex{ .index = std::move(*index), .standIn = CopyStandingIn{ .fetchedAt = record->fetchedAt.value_or(modificationTimeInUtc(copy)), .reason = std::move(failure.reason) } };
+    std::string fetchedAt = record->fetchedAt.has_value() ? std::move(*record->fetchedAt) : modificationTimeInUtc(copy);
+    return SavedIndex{ .index = std::move(*index), .fetchedAt = std::move(fetchedAt) };
 }
-
-}  // anonymous namespace
 
 std::expected<ObtainedIndex, IndexFault> obtainIndex(const std::filesystem::path& scrapHome,
                                                      const IndexSource& source,

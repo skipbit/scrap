@@ -55,6 +55,26 @@ struct IndexFormatUnsupported {
 using IndexFault = std::variant<IndexUnavailable, IndexFormatUnsupported>;
 
 /**
+ * @brief The copy of the index saved when it was last fetched.
+ */
+struct SavedIndex {
+    Toolchain::ToolchainIndex index;
+    std::string fetchedAt;  ///< When it was fetched, in UTC.
+};
+
+/**
+ * @brief Read the copy of the index from @p url saved below @p scrapHome,
+ *        without fetching anything.
+ *
+ * @return The copy; nothing when none is saved, when it was fetched from
+ *         another URL or nothing says where from, or when it cannot be read;
+ *         or the format it declares when this scrap does not read it.
+ */
+[[nodiscard]] std::expected<std::optional<SavedIndex>, IndexFormatUnsupported> readSavedIndex(const std::filesystem::path& scrapHome,
+                                                                                             const std::string& url,
+                                                                                             const Toolchain::ToolchainVersion& scrapVersion);
+
+/**
  * @brief Fetch the index and save it below @p scrapHome, or fall back on the
  *        copy saved before.
  *
