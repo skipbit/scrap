@@ -212,6 +212,10 @@ add_library(scrap_command STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/command/CommandPath.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/CommandResolver.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/CompilerChoice.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainNaming.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainListing.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainListingTable.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainListCommandHandler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/DefaultHelpRenderer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/DefaultVersionRenderer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ExternalCommandResolver.cpp

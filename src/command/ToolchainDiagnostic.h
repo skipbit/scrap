@@ -75,6 +75,11 @@ enum class ToolchainNamedIn : std::uint8_t {
 [[nodiscard]] std::string renderInstalledToolchainFault(std::string_view specifier, ToolchainNamedIn namedIn, const Toolchain::InstalledToolchainFault& fault);
 
 /**
+ * @brief Report a directory of installed toolchains that cannot be listed.
+ */
+[[nodiscard]] std::string renderCannotListToolchains(const Toolchain::CannotListToolchains& fault);
+
+/**
  * @brief Report a system with no C++ compiler, and what to do next.
  */
 [[nodiscard]] std::string renderNoCompilerFound();

@@ -1075,7 +1075,7 @@ TEST_F(CliE2ETest, UsageErrorsInTheCommandLineEndWithStatus2)
 
 TEST_F(CliE2ETest, RealCli11Nested)
 {
-    auto result = runScrap({ "toolchain", "list" }, {}, _root);
+    auto result = runScrap({ "template", "list" }, {}, _root);
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
@@ -3891,4 +3891,171 @@ TEST_F(CliE2ETest, BuildsWithAToolchainItInstalled)
 
     EXPECT_EQ(built.exitCode, 0) << built.stderrText;
     EXPECT_NE(built.stderrText.find("Using the toolchain 'gcc@15.2.0'"), std::string::npos) << built.stderrText;
+}
+
+/**
+ * The installed toolchains are listed with the global default marked and,
+ * in a project, the one it uses marked with where it was named; outside a
+ * project there is nothing used here to mark.
+ */
+TEST_F(CliE2ETest, ListsTheDefaultAndTheToolchainTheProjectUses)
+{
+    installToolchain("gcc", "15.2.0");
+    installToolchain("gcc", "16.2.0");
+    ASSERT_EQ(runScrap({ "toolchain", "select", "gcc@16.2.0" }, {}, _root).exitCode, 0);
+    writeFile("hello/scrap.toml", std::string{ ValidManifest } + "[toolchain]\nname = \"gcc@15.2.0\"\n");
+    std::filesystem::create_directories(_root / "empty");
+    const std::string noSystemCompiler = "PATH=" + (_root / "empty").string();
+
+    auto inProject = runScrap({ "toolchain", "list" }, { noSystemCompiler }, _root / "hello");
+    EXPECT_EQ(inProject.exitCode, 0) << inProject.stderrText;
+    EXPECT_EQ(inProject.stdoutText,
+              "TOOLCHAIN   DEFAULT  USED HERE\n"
+              "gcc@15.2.0           from scrap.toml\n"
+              "gcc@16.2.0  yes\n");
+    EXPECT_EQ(inProject.stderrText, "");
+
+    auto outside = runScrap({ "toolchain", "list" }, { noSystemCompiler }, _root);
+    EXPECT_EQ(outside.exitCode, 0) << outside.stderrText;
+    EXPECT_EQ(outside.stdoutText,
+              "TOOLCHAIN   DEFAULT\n"
+              "gcc@15.2.0\n"
+              "gcc@16.2.0  yes\n");
+    EXPECT_EQ(outside.stderrText, "");
+}
+
+/**
+ * The system's compiler comes first, with its path, and is the one used
+ * where nothing names a toolchain, as a build would find it.
+ */
+TEST_F(CliE2ETest, ListsTheSystemCompilerFirst)
+{
+    installToolchain("gcc", "15.2.0");
+    writeFile("hello/scrap.toml", ValidManifest);
+    const std::string compiler = dummyCompiler();
+    const std::string name = "system (" + compiler.substr(std::string_view{ "CXX=" }.size()) + ")";
+    const std::string headingGap(name.size() - std::string_view{ "TOOLCHAIN" }.size(), ' ');
+
+    auto result = runScrap({ "toolchain", "list" }, { compiler }, _root / "hello");
+
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_EQ(result.stdoutText,
+              "TOOLCHAIN" + headingGap + "  DEFAULT  USED HERE\n"
+                  + name + "           from CXX\n"
+                  + "gcc@15.2.0\n");
+}
+
+/**
+ * A toolchain the project names that is not installed is added at the end,
+ * so the listing shows where a build here would stop.
+ */
+TEST_F(CliE2ETest, ListsTheToolchainAProjectNamesThatIsNotInstalled)
+{
+    installToolchain("gcc", "16.2.0");
+    writeFile("hello/scrap.toml", std::string{ ValidManifest } + "[toolchain]\nname = \"gcc@15.2.0\"\n");
+    std::filesystem::create_directories(_root / "empty");
+
+    auto result = runScrap({ "toolchain", "list" }, { "PATH=" + (_root / "empty").string() }, _root / "hello");
+
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_EQ(result.stdoutText,
+              "TOOLCHAIN   DEFAULT  USED HERE\n"
+              "gcc@16.2.0\n"
+              "gcc@15.2.0           from scrap.toml, not installed\n");
+}
+
+/**
+ * With nothing installed and no compiler on the system there is nothing to
+ * choose from, which is said with how to install one, and is no failure.
+ */
+TEST_F(CliE2ETest, SaysThereIsNoToolchainToList)
+{
+    std::filesystem::create_directories(_root / "empty");
+
+    auto result = runScrap({ "toolchain", "list" }, { "PATH=" + (_root / "empty").string() }, _root);
+
+    EXPECT_EQ(result.exitCode, 0);
+    EXPECT_EQ(result.stdoutText, "");
+    EXPECT_EQ(result.stderrText,
+              "no toolchain is installed\n"
+              "hint: run 'scrap toolchain install <toolchain>', such as 'gcc'\n");
+}
+
+/**
+ * A CXX that cannot be run is warned about, as a build reports it, and the
+ * system's compiler is left out of the listing.
+ */
+TEST_F(CliE2ETest, WarnsAboutACxxThatCannotBeRunAndListsTheRest)
+{
+    installToolchain("gcc", "15.2.0");
+
+    auto result = runScrap({ "toolchain", "list" }, { "CXX=no-such-c++" }, _root);
+
+    EXPECT_EQ(result.exitCode, 0);
+    EXPECT_EQ(result.stdoutText,
+              "TOOLCHAIN   DEFAULT\n"
+              "gcc@15.2.0\n");
+    EXPECT_EQ(result.stderrText,
+              "warning: CXX names 'no-such-c++', which cannot be run\n"
+              "hint: set CXX to the path of a compiler, or unset it to search for one\n");
+}
+
+/**
+ * What names the default or the toolchain used here and cannot be read is
+ * warned about, as a build reports it, and the rest is listed unmarked.
+ */
+TEST_F(CliE2ETest, ListsTheRestWhenANameCannotBeRead)
+{
+    installToolchain("gcc", "15.2.0");
+    writeFile("hello/scrap.toml", ValidManifest);
+    _temp->writeFile("config.toml", "not = toml =");
+    std::filesystem::create_directories(_root / "empty");
+
+    auto result = runScrap({ "toolchain", "list" }, { "PATH=" + (_root / "empty").string(), "SCRAP_TOOLCHAIN=gcc@" }, _root / "hello");
+
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_EQ(result.stdoutText,
+              "TOOLCHAIN   DEFAULT  USED HERE\n"
+              "gcc@15.2.0\n");
+    EXPECT_NE(result.stderrText.find(": warning: "), std::string::npos) << result.stderrText;
+    EXPECT_NE(result.stderrText.find("warning: SCRAP_TOOLCHAIN holds 'gcc@'"), std::string::npos) << result.stderrText;
+    EXPECT_EQ(result.stderrText.find("error:"), std::string::npos) << result.stderrText;
+}
+
+/**
+ * A scrap.toml that cannot be read is warned about as a build reports it,
+ * and the toolchains are listed with nothing marked as used here.
+ */
+TEST_F(CliE2ETest, ListsTheToolchainsInAProjectItCannotRead)
+{
+    installToolchain("gcc", "15.2.0");
+    writeFile("hello/scrap.toml", "[package\n");
+    std::filesystem::create_directories(_root / "empty");
+
+    auto result = runScrap({ "toolchain", "list" }, { "PATH=" + (_root / "empty").string() }, _root / "hello");
+
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_EQ(result.stdoutText,
+              "TOOLCHAIN   DEFAULT  USED HERE\n"
+              "gcc@15.2.0\n");
+    EXPECT_NE(result.stderrText.find("scrap.toml:1:"), std::string::npos) << result.stderrText;
+    EXPECT_NE(result.stderrText.find(": warning: "), std::string::npos) << result.stderrText;
+    EXPECT_EQ(result.stderrText.find("error:"), std::string::npos) << result.stderrText;
+}
+
+/**
+ * Installed toolchains that cannot be listed stop the listing, rather than
+ * being shown as none.
+ */
+TEST_F(CliE2ETest, StopsWhenTheInstalledToolchainsCannotBeListed)
+{
+    // A link to itself fails to list even for a user every permission lets in.
+    std::filesystem::create_directory_symlink("toolchains", _root / "toolchains");
+
+    auto result = runScrap({ "toolchain", "list" }, {}, _root);
+
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_EQ(result.stdoutText, "");
+    EXPECT_EQ(result.stderrText.rfind("error: cannot list '", 0), 0U) << result.stderrText;
+    EXPECT_NE(result.stderrText.find("hint: check the permissions of the path\n"), std::string::npos) << result.stderrText;
 }
