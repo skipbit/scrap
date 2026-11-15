@@ -80,7 +80,8 @@ TEST_F(IndexCopyTest, FetchesTheIndexAndSavesIt)
     const auto fetched = fetch(answer(indexOf("15.2.0")));
 
     ASSERT_TRUE(fetched.has_value());
-    EXPECT_EQ(fetched->toolchains.at(0).version.text(), "15.2.0");
+    EXPECT_EQ(fetched->index.toolchains.at(0).version.text(), "15.2.0");
+    EXPECT_EQ(fetched->fetchedAt, "2026-11-15T10:00:00Z");
     EXPECT_EQ(_home.readFile(scrap::Toolchain::indexCopyFile(_home.path())), indexOf("15.2.0"));
     EXPECT_EQ(_home.readFile(scrap::Toolchain::indexCopySourceFile(_home.path())), _server.url("/index.toml") + "\n2026-11-15T10:00:00Z\n");
 }

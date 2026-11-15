@@ -25,8 +25,8 @@ struct IndexSource {
  * @brief The saved copy in use, in place of an index that could not be had.
  */
 struct CopyStandingIn {
-    std::string fetchedAt;  ///< When it was fetched, in UTC.
-    std::string reason;     ///< Why the index could not be had.
+    std::optional<std::string> fetchedAt;  ///< When it was fetched, in UTC. Nothing when unknown.
+    std::string reason;                    ///< Why the index could not be had.
 };
 
 /**
@@ -55,11 +55,19 @@ struct IndexFormatUnsupported {
 using IndexFault = std::variant<IndexUnavailable, IndexFormatUnsupported>;
 
 /**
+ * @brief The index just fetched.
+ */
+struct FetchedIndex {
+    Toolchain::ToolchainIndex index;
+    std::optional<std::string> fetchedAt;  ///< When it was fetched, in UTC, as recorded beside the copy. Nothing when it cannot be told.
+};
+
+/**
  * @brief The copy of the index saved when it was last fetched.
  */
 struct SavedIndex {
     Toolchain::ToolchainIndex index;
-    std::string fetchedAt;  ///< When it was fetched, in UTC.
+    std::optional<std::string> fetchedAt;  ///< When it was fetched, in UTC. Nothing when unknown.
 };
 
 /**
@@ -83,12 +91,12 @@ struct SavedIndex {
  * copy as it was. The copy is saved with its URL and @p now, the time it was
  * fetched.
  *
- * @return The index, or why it could not be had.
+ * @return The index and when it was fetched, or why it could not be had.
  */
-[[nodiscard]] std::expected<Toolchain::ToolchainIndex, IndexFault> fetchIndex(const std::filesystem::path& scrapHome,
-                                                                              const IndexSource& source,
-                                                                              const Toolchain::ToolchainVersion& scrapVersion,
-                                                                              std::chrono::system_clock::time_point now);
+[[nodiscard]] std::expected<FetchedIndex, IndexFault> fetchIndex(const std::filesystem::path& scrapHome,
+                                                                 const IndexSource& source,
+                                                                 const Toolchain::ToolchainVersion& scrapVersion,
+                                                                 std::chrono::system_clock::time_point now);
 
 /**
  * @brief Fetch the index and save it below @p scrapHome, or fall back on the

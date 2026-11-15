@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -49,6 +50,11 @@ std::string changedLines(const Toolchain::IndexChanges& changes)
 }
 
 }  // anonymous namespace
+
+std::string fetchTimeText(const std::optional<std::string>& fetchedAt)
+{
+    return fetchedAt.value_or("an unknown time");
+}
 
 std::string renderIndexChanges(std::string_view fetchedAt, std::string_view hostName, const Toolchain::IndexChanges& changes)
 {

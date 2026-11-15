@@ -9,7 +9,6 @@
 #include "command/ToolchainInstallDiagnostic.h"
 #include "fetch/CertificateBundle.h"
 #include "install/IndexCopy.h"
-#include "install/UtcTime.h"
 #include "toolchain/HostEnvironment.h"
 #include "toolchain/HostGlibc.h"
 #include "toolchain/IndexChanges.h"
@@ -53,7 +52,7 @@ int ToolchainUpdateCommandHandler::execute(const InvocationContext& ctx)
                 return 1;
             }
             if (const std::optional<Install::SavedIndex>& copy = *saved; copy.has_value()) {
-                std::cerr << renderCopyKept(unavailable->reason, copy->fetchedAt);
+                std::cerr << renderCopyKept(unavailable->reason, fetchTimeText(copy->fetchedAt));
                 return 1;
             }
         }
@@ -64,11 +63,11 @@ int ToolchainUpdateCommandHandler::execute(const InvocationContext& ctx)
     const std::optional<Install::SavedIndex> before = saved.value_or(std::nullopt);
 
     const Toolchain::InstallingHost host{ .environment = *environment, .scrapVersion = scrapVersion, .glibcVersion = Toolchain::hostGlibcVersion() };
-    const std::string fetchedAt = Install::utcText(now).value_or("an unknown time");
+    const std::string fetchedAt = fetchTimeText(fetched->fetchedAt);
     if (before.has_value()) {
-        std::cout << renderIndexChanges(fetchedAt, environment->directoryName(), Toolchain::compareIndexes(before->index, *fetched, host));
+        std::cout << renderIndexChanges(fetchedAt, environment->directoryName(), Toolchain::compareIndexes(before->index, fetched->index, host));
     } else {
-        std::cout << renderFirstIndex(fetchedAt, environment->directoryName(), Toolchain::countInstallable(*fetched, host));
+        std::cout << renderFirstIndex(fetchedAt, environment->directoryName(), Toolchain::countInstallable(fetched->index, host));
     }
     return 0;
 }

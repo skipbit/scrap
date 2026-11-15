@@ -3,10 +3,17 @@
 #include "toolchain/IndexChanges.h"
 
 #include <cstddef>
+#include <optional>
 #include <string>
 #include <string_view>
 
 namespace scrap::Command {
+
+/**
+ * @brief The words that tell when an index was fetched: @p fetchedAt, or
+ *        that the time is unknown.
+ */
+[[nodiscard]] std::string fetchTimeText(const std::optional<std::string>& fetchedAt);
 
 /**
  * @brief Report the index fetched at @p fetchedAt, and what changed for the

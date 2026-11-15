@@ -31,14 +31,14 @@ constexpr std::uint64_t IndexSizeLimit = std::uint64_t{ 16 } * 1024 * 1024;
  * writes the copy, so this is when it was fetched by a scrap that did not record
  * the time.
  */
-std::string modificationTimeInUtc(const std::filesystem::path& file)
+std::optional<std::string> modificationTimeInUtc(const std::filesystem::path& file)
 {
     std::error_code ec;
     const auto written = std::filesystem::last_write_time(file, ec);
     if (ec) {
-        return "an unknown time";
+        return std::nullopt;
     }
-    return utcText(std::chrono::time_point_cast<std::chrono::system_clock::duration>(std::chrono::file_clock::to_sys(written))).value_or("an unknown time");
+    return utcText(std::chrono::time_point_cast<std::chrono::system_clock::duration>(std::chrono::file_clock::to_sys(written)));
 }
 
 std::expected<Toolchain::ToolchainIndex, Toolchain::ToolchainIndexError> readIndexFile(const std::filesystem::path& file, const Toolchain::ToolchainVersion& scrapVersion)
@@ -81,12 +81,12 @@ std::optional<CopyRecord> readCopyRecord(const std::filesystem::path& scrapHome)
 }
 
 /**
- * The text of the record beside a copy fetched from @p url at @p now.
+ * The text of the record beside a copy fetched from @p url at @p fetchedAt.
  */
-std::string copyRecordText(const std::string& url, std::chrono::system_clock::time_point now)
+std::string copyRecordText(const std::string& url, const std::optional<std::string>& fetchedAt)
 {
     std::string text = url + "\n";
-    if (const auto fetchedAt = utcText(now); fetchedAt.has_value()) {
+    if (fetchedAt.has_value()) {
         text += *fetchedAt + "\n";
     }
     return text;
@@ -128,14 +128,14 @@ std::expected<std::optional<SavedIndex>, IndexFormatUnsupported> readSavedIndex(
         }
         return std::nullopt;
     }
-    std::string fetchedAt = record->fetchedAt.has_value() ? std::move(*record->fetchedAt) : modificationTimeInUtc(copy);
+    std::optional<std::string> fetchedAt = record->fetchedAt.has_value() ? std::move(record->fetchedAt) : modificationTimeInUtc(copy);
     return SavedIndex{ .index = std::move(*index), .fetchedAt = std::move(fetchedAt) };
 }
 
-std::expected<Toolchain::ToolchainIndex, IndexFault> fetchIndex(const std::filesystem::path& scrapHome,
-                                                                const IndexSource& source,
-                                                                const Toolchain::ToolchainVersion& scrapVersion,
-                                                                std::chrono::system_clock::time_point now)
+std::expected<FetchedIndex, IndexFault> fetchIndex(const std::filesystem::path& scrapHome,
+                                                   const IndexSource& source,
+                                                   const Toolchain::ToolchainVersion& scrapVersion,
+                                                   std::chrono::system_clock::time_point now)
 {
     const std::filesystem::path copy = Toolchain::indexCopyFile(scrapHome);
     std::filesystem::path fetched = copy;
@@ -158,13 +158,14 @@ std::expected<Toolchain::ToolchainIndex, IndexFault> fetchIndex(const std::files
     }
     // An index that cannot be saved still answers this install. The record goes
     // first, so a run stopped part way leaves a copy that stands in for nothing.
+    const std::optional<std::string> fetchedAt = utcText(now);
     const std::filesystem::path sourceFile = Toolchain::indexCopySourceFile(scrapHome);
     std::filesystem::remove(sourceFile, ec);
     std::filesystem::rename(fetched, copy, ec);
     if (! ec) {
-        ec = File::replaceFile(sourceFile, copyRecordText(source.url, now));
+        ec = File::replaceFile(sourceFile, copyRecordText(source.url, fetchedAt));
     }
-    return std::move(*index);
+    return FetchedIndex{ .index = std::move(*index), .fetchedAt = fetchedAt };
 }
 
 std::expected<ObtainedIndex, IndexFault> obtainIndex(const std::filesystem::path& scrapHome,
@@ -174,7 +175,7 @@ std::expected<ObtainedIndex, IndexFault> obtainIndex(const std::filesystem::path
 {
     auto fetched = fetchIndex(scrapHome, source, scrapVersion, now);
     if (fetched.has_value()) {
-        return ObtainedIndex{ .index = std::move(*fetched), .standIn = std::nullopt };
+        return ObtainedIndex{ .index = std::move(fetched->index), .standIn = std::nullopt };
     }
     if (auto* unavailable = std::get_if<IndexUnavailable>(&fetched.error()); unavailable != nullptr) {
         return fallBackOnCopy(scrapHome, source, scrapVersion, std::move(*unavailable));

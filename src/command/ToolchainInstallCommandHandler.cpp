@@ -1,5 +1,6 @@
 #include "command/ToolchainInstallCommandHandler.h"
 
+#include "command/IndexUpdateReport.h"
 #include "command/InvocationContext.h"
 #include "command/ParsedOptions.h"
 #include "command/PrintableText.h"
@@ -119,7 +120,7 @@ std::expected<Toolchain::SelectedIngot, std::string> chooseIngot(const RuntimeEn
     const std::optional<Install::CopyStandingIn>& standIn = obtained->standIn;
     if (standIn.has_value()) {
         std::cerr << "warning: " << printableText(standIn->reason) << "\n"
-                  << "warning: cannot fetch the toolchain index; using the copy fetched at " << standIn->fetchedAt << "\n";
+                  << "warning: cannot fetch the toolchain index; using the copy fetched at " << fetchTimeText(standIn->fetchedAt) << "\n";
     }
     const Toolchain::InstallingHost host{ .environment = environment, .scrapVersion = scrapVersion, .glibcVersion = Toolchain::hostGlibcVersion() };
     auto selected = Toolchain::selectIngot(obtained->index, specifier, host);
