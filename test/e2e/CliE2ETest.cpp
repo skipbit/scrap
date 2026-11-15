@@ -4004,6 +4004,27 @@ TEST_F(CliE2ETest, ListsTheRestWhenANameCannotBeRead)
 }
 
 /**
+ * A scrap.toml that cannot be read is warned about as a build reports it,
+ * and the toolchains are listed with nothing marked as used here.
+ */
+TEST_F(CliE2ETest, ListsTheToolchainsInAProjectItCannotRead)
+{
+    installToolchain("gcc", "15.2.0");
+    writeFile("hello/scrap.toml", "[package\n");
+    std::filesystem::create_directories(_root / "empty");
+
+    auto result = runScrap({ "toolchain", "list" }, { "PATH=" + (_root / "empty").string() }, _root / "hello");
+
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_EQ(result.stdoutText,
+              "TOOLCHAIN   DEFAULT  USED HERE\n"
+              "gcc@15.2.0\n");
+    EXPECT_NE(result.stderrText.find("scrap.toml:1:"), std::string::npos) << result.stderrText;
+    EXPECT_NE(result.stderrText.find(": warning: "), std::string::npos) << result.stderrText;
+    EXPECT_EQ(result.stderrText.find("error:"), std::string::npos) << result.stderrText;
+}
+
+/**
  * Installed toolchains that cannot be listed stop the listing, rather than
  * being shown as none.
  */
