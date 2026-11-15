@@ -30,9 +30,14 @@ TEST(ToolchainIndexDiagnosticTest, AsksForAnUpdateWhenTheIndexFormatIsUnknown)
 
 TEST(ToolchainIndexDiagnosticTest, SaysTheCopyIsKeptWhenTheIndexCannotBeFetched)
 {
-    EXPECT_EQ(renderCopyKept("the server answered with status 500", "2026-11-14T09:00:00Z"),
-              "error: cannot fetch the toolchain index: the server answered with status 500\n"
-              "hint: the copy fetched at 2026-11-14T09:00:00Z is kept as it was\n");
+    EXPECT_EQ(renderCopyKept(IndexUnavailable{ .reason = "no certificates", .fetchError = NoCertificateBundle{ .url = "https://example.com" } }, "2026-11-14T09:00:00Z"),
+              "error: cannot fetch the toolchain index: no certificates\n"
+              "hint: the copy fetched at 2026-11-14T09:00:00Z is kept as it was\n"
+              "hint: install the root certificates of the system, such as the ca-certificates package, or set SSL_CERT_FILE to a file holding them\n");
+    EXPECT_EQ(renderCopyKept(IndexUnavailable{ .reason = "the index cannot be read", .fetchError = std::nullopt }, "2026-11-14T09:00:00Z"),
+              "error: cannot fetch the toolchain index: the index cannot be read\n"
+              "hint: the copy fetched at 2026-11-14T09:00:00Z is kept as it was\n"
+              "hint: run the command again; if it keeps failing, report it\n");
 }
 
 TEST(ToolchainIndexDiagnosticTest, SaysWhenTheFetchTimeIsKnownOrNot)

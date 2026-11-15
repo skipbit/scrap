@@ -51,7 +51,7 @@ int ToolchainUpdateCommandHandler::execute(const InvocationContext& ctx)
                 return 1;
             }
             if (const std::optional<Install::SavedIndex>& copy = *saved; copy.has_value()) {
-                std::cerr << renderCopyKept(unavailable->reason, fetchTimeText(copy->fetchedAt));
+                std::cerr << renderCopyKept(*unavailable, fetchTimeText(copy->fetchedAt));
                 return 1;
             }
         }

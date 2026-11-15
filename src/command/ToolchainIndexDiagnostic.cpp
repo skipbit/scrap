@@ -23,13 +23,20 @@ std::string render(const Install::IndexFormatUnsupported& fault)
     return "error: the toolchain index has the format " + printableText(fault.format) + ", which this scrap cannot read\nhint: update scrap and run the command again\n";
 }
 
+/**
+ * The hint for what kept the index from being fetched.
+ */
+std::string hintFor(const Install::IndexUnavailable& fault)
+{
+    if (fault.fetchError.has_value()) {
+        return hintForFetchError(*fault.fetchError);
+    }
+    return std::string{ RetryHint };
+}
+
 std::string render(const Install::IndexUnavailable& fault)
 {
-    const std::string text = cannotFetchIndex(fault.reason);
-    if (fault.fetchError.has_value()) {
-        return text + hintForFetchError(*fault.fetchError);
-    }
-    return text + std::string{ RetryHint };
+    return cannotFetchIndex(fault.reason) + hintFor(fault);
 }
 
 }  // anonymous namespace
@@ -46,9 +53,9 @@ std::string renderIndexFault(const Install::IndexFault& fault)
     }, fault);
 }
 
-std::string renderCopyKept(const std::string_view reason, const std::string_view fetchedAt)
+std::string renderCopyKept(const Install::IndexUnavailable& fault, const std::string_view fetchedAt)
 {
-    return cannotFetchIndex(reason) + "hint: the copy fetched at " + std::string{ fetchedAt } + " is kept as it was\n";
+    return cannotFetchIndex(fault.reason) + "hint: the copy fetched at " + std::string{ fetchedAt } + " is kept as it was\n" + hintFor(fault);
 }
 
 }  // namespace scrap::Command

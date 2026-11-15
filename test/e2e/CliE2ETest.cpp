@@ -4119,8 +4119,8 @@ TEST_F(CliE2ETest, UpdateTellsWhatChangedAndLeavesTheInstalledToolchainsAlone)
 }
 
 /**
- * An index that cannot be fetched fails the update, and the copy fetched
- * before is kept as it was.
+ * An index that cannot be fetched fails the update with what to do about
+ * it, and the copy fetched before is kept as it was.
  */
 TEST_F(CliE2ETest, UpdateFailsAndKeepsTheCopyWhenTheIndexCannotBeFetched)
 {
@@ -4134,7 +4134,8 @@ TEST_F(CliE2ETest, UpdateFailsAndKeepsTheCopyWhenTheIndexCannotBeFetched)
     EXPECT_EQ(result.exitCode, 1);
     EXPECT_EQ(result.stdoutText, "");
     EXPECT_TRUE(result.stderrText.starts_with("error: cannot fetch the toolchain index: ")) << result.stderrText;
-    EXPECT_EQ(withoutTimes(lastLineOf(result.stderrText)), "hint: the copy fetched at <time> is kept as it was") << result.stderrText;
+    EXPECT_NE(withoutTimes(result.stderrText).find("\nhint: the copy fetched at <time> is kept as it was\n"), std::string::npos) << result.stderrText;
+    EXPECT_EQ(lastLineOf(result.stderrText), "hint: check the network connection and run the command again") << result.stderrText;
     EXPECT_EQ(readFile("index/toolchain.toml"), copyBefore);
 }
 
