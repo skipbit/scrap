@@ -111,6 +111,10 @@ scrap toolchain select llvm@18
 
 # Remove the global default
 scrap toolchain unselect
+
+# List the system's compiler and the installed toolchains, with the default
+# and the one used in the project here marked
+scrap toolchain list
 ```
 
 A project can name its own toolchain in `scrap.toml`, which comes before the global default; `system` names the compiler of the system, found through `CXX` or on `PATH`:
@@ -136,13 +140,13 @@ scrap is in early alpha development.
 - **Settings per target** - include directories, defines and flags, as shown in [Simple Configuration](#-simple-configuration)
 - **Running** - `scrap run` builds the executable and starts it with the arguments after `--`, and exits with its exit code. `--bin <name>` chooses the executable when there is more than one
 - **Cleaning** - `scrap clean` removes `build/`
-- **Toolchains** - `scrap toolchain install`, `select` and `unselect`, and a toolchain per project in `scrap.toml`, as shown in [Integrated Toolchain Management](#-integrated-toolchain-management)
+- **Toolchains** - `scrap toolchain install`, `select`, `unselect` and `list`, and a toolchain per project in `scrap.toml`, as shown in [Integrated Toolchain Management](#-integrated-toolchain-management)
 - **External commands** - an executable named `scrap-<name>` on `PATH` runs as `scrap <name>` and is listed in `scrap --help`
 
 🚧 **In Progress**
 - Choosing a template with `--template`, and templates from Git repositories
 - `scrap template list` and `scrap template update`
-- `scrap toolchain list`
+- `scrap toolchain list --remote`, to list the toolchains the index offers
 - Choosing the number of parallel jobs
 - `[dependencies]` in `scrap.toml`, which is accepted and not yet read
 
