@@ -5,8 +5,6 @@
 
 #include <gtest/gtest.h>
 
-#include <optional>
-
 using namespace scrap::Command;
 using scrap::Toolchain::ChangedToolchain;
 using scrap::Toolchain::IndexChanges;
@@ -52,17 +50,4 @@ TEST(IndexUpdateReportTest, CountsWhatTheHostCanInstallFromTheFirstIndex)
 {
     EXPECT_EQ(renderFirstIndex("2026-11-15T10:00:00Z", "linux-x86_64", 40), "fetched the toolchain index at 2026-11-15T10:00:00Z: 40 toolchains for linux-x86_64\n");
     EXPECT_EQ(renderFirstIndex("2026-11-15T10:00:00Z", "linux-x86_64", 1), "fetched the toolchain index at 2026-11-15T10:00:00Z: 1 toolchain for linux-x86_64\n");
-}
-
-TEST(IndexUpdateReportTest, SaysTheCopyIsKeptWhenTheIndexCannotBeFetched)
-{
-    EXPECT_EQ(renderCopyKept("the server answered with status 500", "2026-11-14T09:00:00Z"),
-              "error: cannot fetch the toolchain index: the server answered with status 500\n"
-              "hint: the copy fetched at 2026-11-14T09:00:00Z is kept as it was\n");
-}
-
-TEST(IndexUpdateReportTest, SaysWhenTheFetchTimeIsKnownOrNot)
-{
-    EXPECT_EQ(fetchTimeText("2026-11-15T10:00:00Z"), "2026-11-15T10:00:00Z");
-    EXPECT_EQ(fetchTimeText(std::nullopt), "an unknown time");
 }

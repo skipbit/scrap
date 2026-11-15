@@ -1,12 +1,10 @@
 #include "command/IndexUpdateReport.h"
 
-#include "command/PrintableText.h"
 #include "toolchain/IndexChanges.h"
 #include "toolchain/ToolchainIndex.h"
 
 #include <algorithm>
 #include <cstddef>
-#include <optional>
 #include <string>
 #include <string_view>
 
@@ -51,11 +49,6 @@ std::string changedLines(const Toolchain::IndexChanges& changes)
 
 }  // anonymous namespace
 
-std::string fetchTimeText(const std::optional<std::string>& fetchedAt)
-{
-    return fetchedAt.value_or("an unknown time");
-}
-
 std::string renderIndexChanges(std::string_view fetchedAt, std::string_view hostName, const Toolchain::IndexChanges& changes)
 {
     if (changes.added.empty() && changes.changed.empty()) {
@@ -78,11 +71,6 @@ std::string renderFirstIndex(std::string_view fetchedAt, std::string_view hostNa
 {
     const std::string count = std::to_string(installable) + ((installable == 1) ? " toolchain" : " toolchains");
     return fetchedLine(fetchedAt) + ": " + count + " for " + std::string{ hostName } + "\n";
-}
-
-std::string renderCopyKept(std::string_view reason, std::string_view fetchedAt)
-{
-    return "error: cannot fetch the toolchain index: " + printableText(reason) + "\n" + "hint: the copy fetched at " + std::string{ fetchedAt } + " is kept as it was\n";
 }
 
 }  // namespace scrap::Command

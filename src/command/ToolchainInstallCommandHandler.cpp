@@ -1,6 +1,5 @@
 #include "command/ToolchainInstallCommandHandler.h"
 
-#include "command/IndexUpdateReport.h"
 #include "command/InstallingHostOfScrap.h"
 #include "command/InvocationContext.h"
 #include "command/ParsedOptions.h"
@@ -8,6 +7,7 @@
 #include "command/RuntimeEnvironment.h"
 #include "command/ScrapHome.h"
 #include "command/ToolchainDiagnostic.h"
+#include "command/ToolchainIndexDiagnostic.h"
 #include "command/ToolchainIndexLocation.h"
 #include "command/ToolchainInstallDiagnostic.h"
 #include "fetch/CertificateBundle.h"

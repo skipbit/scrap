@@ -62,6 +62,7 @@ scrap_add_unit_test(command SOURCES
     unit/command/ProjectDiagnosticTest.cpp
     unit/command/RuntimeEnvironmentFactoryTest.cpp
     unit/command/ToolchainDiagnosticTest.cpp
+    unit/command/ToolchainIndexDiagnosticTest.cpp
     unit/command/ToolchainInstallDiagnosticTest.cpp
     unit/command/ToolchainListingTest.cpp
     unit/command/ToolchainListingTableTest.cpp
