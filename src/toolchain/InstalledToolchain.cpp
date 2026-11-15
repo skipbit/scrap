@@ -176,6 +176,32 @@ std::expected<std::vector<InstalledVersion>, CannotListToolchains> installedVers
     return versions;
 }
 
+/**
+ * The families of toolchains installed below @p scrapHome, sorted. None
+ * are there when the toolchains directory is not.
+ */
+std::expected<std::vector<std::string>, CannotListToolchains> installedFamilies(const std::filesystem::path& scrapHome)
+{
+    const std::filesystem::path directory = toolchainsDirectory(scrapHome);
+    std::vector<std::string> families;
+    std::error_code ec;
+    std::filesystem::directory_iterator entries(directory, ec);
+    if (ec == std::errc::no_such_file_or_directory || ec == std::errc::not_a_directory) {
+        return families;
+    }
+    for (const std::filesystem::directory_iterator end; (! ec) && (entries != end); entries.increment(ec)) {
+        std::string name = entries->path().filename().string();
+        if (isToolchainName(name)) {
+            families.push_back(std::move(name));
+        }
+    }
+    if (ec) {
+        return std::unexpected(CannotListToolchains{ .directory = directory, .code = ec });
+    }
+    std::ranges::sort(families);
+    return families;
+}
+
 }  // anonymous namespace
 
 std::expected<std::optional<InstallRecord>, std::string> usableInstallRecord(const std::filesystem::path& directory)
@@ -239,16 +265,11 @@ std::expected<InstalledToolchain, InstalledToolchainFault> findInstalledToolchai
 
 std::optional<InstalledToolchain> anyInstalledToolchain(const std::filesystem::path& scrapHome, const HostEnvironment& host)
 {
-    std::vector<std::string> families;
-    std::error_code ec;
-    for (std::filesystem::directory_iterator it(toolchainsDirectory(scrapHome), ec), end; (! ec) && (it != end); it.increment(ec)) {
-        const std::string name = it->path().filename().string();
-        if (isToolchainName(name)) {
-            families.push_back(name);
-        }
+    const auto families = installedFamilies(scrapHome);
+    if (! families.has_value()) {
+        return std::nullopt;
     }
-    std::ranges::sort(families);
-    for (const std::string& family : families) {
+    for (const std::string& family : *families) {
         const auto found = findInstalledToolchain(scrapHome, host, ToolchainSpecifier{ .family = family, .version = std::nullopt });
         if (! found.has_value()) {
             continue;
@@ -268,26 +289,12 @@ std::string InstalledName::text() const
 
 std::expected<std::vector<InstalledName>, CannotListToolchains> listInstalledToolchains(const std::filesystem::path& scrapHome, const HostEnvironment& host)
 {
-    const std::filesystem::path directory = toolchainsDirectory(scrapHome);
-    std::vector<std::string> families;
-    std::error_code ec;
-    std::filesystem::directory_iterator entries(directory, ec);
-    if (ec == std::errc::no_such_file_or_directory || ec == std::errc::not_a_directory) {
-        return std::vector<InstalledName>{};
+    auto families = installedFamilies(scrapHome);
+    if (! families.has_value()) {
+        return std::unexpected(std::move(families.error()));
     }
-    for (const std::filesystem::directory_iterator end; (! ec) && (entries != end); entries.increment(ec)) {
-        std::string name = entries->path().filename().string();
-        if (isToolchainName(name)) {
-            families.push_back(std::move(name));
-        }
-    }
-    if (ec) {
-        return std::unexpected(CannotListToolchains{ .directory = directory, .code = ec });
-    }
-    std::ranges::sort(families);
-
     std::vector<InstalledName> names;
-    for (const std::string& family : families) {
+    for (const std::string& family : *families) {
         auto versions = installedVersions(scrapHome, host, family);
         if (! versions.has_value()) {
             return std::unexpected(std::move(versions.error()));
