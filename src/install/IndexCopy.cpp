@@ -55,7 +55,7 @@ std::expected<Toolchain::ToolchainIndex, Toolchain::ToolchainIndexError> readInd
  */
 struct CopyRecord {
     std::string url;                       ///< Where it was fetched from.
-    std::optional<std::string> fetchedAt;  ///< When, in UTC. An earlier scrap did not record it.
+    std::optional<std::string> fetchedAt;  ///< When, in UTC. An earlier scrap did not record it; a time of another shape counts as none.
 };
 
 /**
@@ -74,8 +74,11 @@ std::optional<CopyRecord> readCopyRecord(const std::filesystem::path& scrapHome)
     }
     CopyRecord record{ .url = text->substr(0, urlEnd), .fetchedAt = std::nullopt };
     const std::size_t timeEnd = text->find('\n', urlEnd + 1);
-    if ((timeEnd != std::string::npos) && (timeEnd > (urlEnd + 1))) {
-        record.fetchedAt = text->substr(urlEnd + 1, timeEnd - (urlEnd + 1));
+    if (timeEnd != std::string::npos) {
+        std::string fetchedAt = text->substr(urlEnd + 1, timeEnd - (urlEnd + 1));
+        if (isUtcText(fetchedAt)) {
+            record.fetchedAt = std::move(fetchedAt);
+        }
     }
     return record;
 }

@@ -3,6 +3,7 @@
 #include <chrono>
 #include <optional>
 #include <string>
+#include <string_view>
 
 namespace scrap::Install {
 
@@ -11,5 +12,10 @@ namespace scrap::Install {
  *        when the system cannot break it into a date.
  */
 [[nodiscard]] std::optional<std::string> utcText(std::chrono::system_clock::time_point time);
+
+/**
+ * @brief Whether @p text has the shape utcText gives a time.
+ */
+[[nodiscard]] bool isUtcText(std::string_view text);
 
 }  // namespace scrap::Install

@@ -159,6 +159,25 @@ TEST_F(IndexCopyTest, SaysWhenACopyAnEarlierScrapSavedWasLastWritten)
     EXPECT_EQ(obtained->standIn->fetchedAt, "2021-01-01T00:00:00Z");
 }
 
+/**
+ * A recorded time of another shape is not shown; the copy says when it was
+ * last written instead.
+ */
+TEST_F(IndexCopyTest, SaysWhenTheCopyWasLastWrittenWhenTheRecordedTimeIsNotATime)
+{
+    for (const std::string recorded : { "\x1b]0;title\x07", "2026-11-15T10:00:00Z later", "2026-11-15 10:00:00Z" }) {
+        ASSERT_TRUE(obtain(answer(indexOf("15.1.0"))).has_value());
+        _home.writeFile(std::filesystem::relative(scrap::Toolchain::indexCopySourceFile(_home.path()), _home.path()).string(), _server.url("/index.toml") + "\n" + recorded + "\n");
+        std::filesystem::last_write_time(scrap::Toolchain::indexCopyFile(_home.path()), std::chrono::file_clock::from_sys(EarlierTime));
+
+        const auto obtained = obtain(HttpTestResponse{ .status = 500, .headers = {}, .body = {}, .stalls = false });
+
+        ASSERT_TRUE(obtained.has_value());
+        ASSERT_TRUE(obtained->standIn.has_value());
+        EXPECT_EQ(obtained->standIn->fetchedAt, "2021-01-01T00:00:00Z") << recorded;
+    }
+}
+
 TEST_F(IndexCopyTest, RecordsWhereAndWhenTheSavedCopyWasFetched)
 {
     ASSERT_TRUE(obtain(answer(indexOf("15.1.0"))).has_value());
