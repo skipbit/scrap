@@ -237,6 +237,7 @@ add_library(scrap_command STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ScriptsReader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/StubScriptsReader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainDiagnostic.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainIndexLocation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainInstallCommandHandler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainInstallDiagnostic.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainSelectCommandHandler.cpp

@@ -6,11 +6,11 @@
 #include "command/RuntimeEnvironment.h"
 #include "command/ScrapHome.h"
 #include "command/ToolchainDiagnostic.h"
+#include "command/ToolchainIndexLocation.h"
 #include "command/ToolchainInstallDiagnostic.h"
 #include "fetch/CertificateBundle.h"
 #include "install/IndexCopy.h"
 #include "install/IngotInstaller.h"
-#include "shared/constants/version.h"
 #include "toolchain/GlobalConfigFile.h"
 #include "toolchain/HostEnvironment.h"
 #include "toolchain/HostGlibc.h"
@@ -23,7 +23,6 @@
 #include "toolchain/ToolchainVersion.h"
 
 #include <chrono>
-#include <cstddef>
 #include <expected>  // IWYU pragma: keep
 #include <filesystem>
 #include <iostream>
@@ -36,21 +35,6 @@
 namespace scrap::Command {
 
 namespace {
-
-constexpr std::string_view OfficialIndexUrl = "https://raw.githubusercontent.com/skipbit/scrap-toolchain/main/index.toml";
-
-/**
- * The version of this scrap, read from its banner: "scrap 0.1.0" or
- * "scrap 0.1.0 (v0.1.0-2-g2a761c0)". A banner that holds none gives the lowest
- * version, which then meets no requirement of the index.
- */
-Toolchain::ToolchainVersion runningVersion()
-{
-    const std::string banner = version();
-    const std::size_t start = banner.find(' ') + 1;
-    const std::string text = banner.substr(start, banner.find(' ', start) - start);
-    return Toolchain::ToolchainVersion::parse(text).value_or(Toolchain::ToolchainVersion::lowest());
-}
 
 bool asksToReplace(const ParsedOptions& options)
 {
@@ -127,9 +111,8 @@ std::expected<Toolchain::SelectedIngot, std::string> chooseIngot(const RuntimeEn
                                                                  const std::string& text,
                                                                  const Toolchain::ToolchainSpecifier& specifier)
 {
-    const std::string indexUrl = env.toolchainIndexUrl.empty() ? std::string{ OfficialIndexUrl } : env.toolchainIndexUrl;
-    const Toolchain::ToolchainVersion scrapVersion = runningVersion();
-    const auto obtained = Install::obtainIndex(scrapHome, Install::IndexSource{ .url = indexUrl, .certificateBundle = bundle }, scrapVersion, std::chrono::system_clock::now());
+    const Toolchain::ToolchainVersion scrapVersion = runningScrapVersion();
+    const auto obtained = Install::obtainIndex(scrapHome, Install::IndexSource{ .url = toolchainIndexUrl(env), .certificateBundle = bundle }, scrapVersion, std::chrono::system_clock::now());
     if (! obtained.has_value()) {
         return std::unexpected(renderIndexFault(obtained.error()));
     }
