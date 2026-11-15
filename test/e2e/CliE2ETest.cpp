@@ -895,7 +895,7 @@ TEST_F(CliE2ETest, HelpForANestedCommandShowsItsUsage)
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
     EXPECT_TRUE(result.stderrText.empty()) << result.stderrText;
-    EXPECT_EQ(result.stdoutText, "USAGE: scrap toolchain list\n\nDisplay installed toolchains\n");
+    EXPECT_EQ(result.stdoutText, "USAGE: scrap toolchain list\n\nDisplay the toolchains to choose from\n");
     ASSERT_TRUE(shortFlag.exitedNormally);
     EXPECT_EQ(shortFlag.exitCode, 0);
     EXPECT_EQ(shortFlag.stdoutText, "USAGE: scrap template update\n\nUpdate template sources\n");
@@ -909,7 +909,7 @@ TEST_F(CliE2ETest, HelpForANestedCommandTakesItsWords)
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
     EXPECT_TRUE(result.stderrText.empty()) << result.stderrText;
-    EXPECT_EQ(result.stdoutText, "USAGE: scrap toolchain list\n\nDisplay installed toolchains\n");
+    EXPECT_EQ(result.stdoutText, "USAGE: scrap toolchain list\n\nDisplay the toolchains to choose from\n");
     EXPECT_EQ(result.stdoutText, flag.stdoutText);
 }
 

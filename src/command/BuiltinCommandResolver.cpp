@@ -332,7 +332,7 @@ CommandEntry makeToolchainListEntry()
 {
     CommandEntry entry;
     entry.spec.name = "list";
-    entry.spec.description = "Display installed toolchains";
+    entry.spec.description = "Display the toolchains to choose from";
     entry.spec.category = "Toolchain Commands";
     entry.source = CommandSource::Builtin;
     entry.createHandler = [](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {

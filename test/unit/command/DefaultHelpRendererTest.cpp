@@ -417,9 +417,9 @@ TEST(DefaultHelpRendererTest, RenderCommand_WritesThePathInUsage)
     DefaultHelpRenderer renderer;
     CommandSpec spec;
     spec.name = "list";
-    spec.description = "Display installed toolchains";
+    spec.description = "Display the toolchains to choose from";
 
     auto result = renderer.renderCommand("toolchain list", spec);
 
-    EXPECT_EQ(result, "USAGE: scrap toolchain list\n\nDisplay installed toolchains\n");
+    EXPECT_EQ(result, "USAGE: scrap toolchain list\n\nDisplay the toolchains to choose from\n");
 }
