@@ -42,7 +42,7 @@ int ToolchainUpdateCommandHandler::execute(const InvocationContext& ctx)
     const Toolchain::ToolchainVersion scrapVersion = runningScrapVersion();
     // Read before fetching, which replaces it. A copy this scrap cannot read
     // has nothing to compare with.
-    const auto before = Install::readSavedIndex(*scrapHome, url, scrapVersion);
+    const std::optional<Install::SavedIndex> before = Install::readSavedIndex(*scrapHome, url, scrapVersion).value_or(std::nullopt);
     const auto now = std::chrono::system_clock::now();
     const auto bundle = Fetch::findCertificateBundle(env.certificateFile, Fetch::knownCertificateBundles());
     const auto obtained = Install::obtainIndex(*scrapHome, Install::IndexSource{ .url = url, .certificateBundle = bundle }, scrapVersion, now);
@@ -57,8 +57,8 @@ int ToolchainUpdateCommandHandler::execute(const InvocationContext& ctx)
 
     const Toolchain::InstallingHost host{ .environment = *environment, .scrapVersion = scrapVersion, .glibcVersion = Toolchain::hostGlibcVersion() };
     const std::string fetchedAt = Install::utcText(now).value_or("an unknown time");
-    if (before.has_value() && before->has_value()) {
-        std::cout << renderIndexChanges(fetchedAt, environment->directoryName(), Toolchain::compareIndexes((*before)->index, obtained->index, host));
+    if (before.has_value()) {
+        std::cout << renderIndexChanges(fetchedAt, environment->directoryName(), Toolchain::compareIndexes(before->index, obtained->index, host));
     } else {
         std::cout << renderFirstIndex(fetchedAt, environment->directoryName(), Toolchain::countInstallable(obtained->index, host));
     }

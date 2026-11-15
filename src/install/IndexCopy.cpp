@@ -101,11 +101,11 @@ std::expected<ObtainedIndex, IndexFault> fallBackOnCopy(const std::filesystem::p
     if (! saved.has_value()) {
         return std::unexpected(std::move(saved.error()));
     }
-    if (! saved->has_value()) {
+    std::optional<SavedIndex>& copy = *saved;
+    if (! copy.has_value()) {
         return std::unexpected(std::move(failure));
     }
-    SavedIndex& copy = **saved;
-    return ObtainedIndex{ .index = std::move(copy.index), .standIn = CopyStandingIn{ .fetchedAt = std::move(copy.fetchedAt), .reason = std::move(failure.reason) } };
+    return ObtainedIndex{ .index = std::move(copy->index), .standIn = CopyStandingIn{ .fetchedAt = std::move(copy->fetchedAt), .reason = std::move(failure.reason) } };
 }
 
 }  // anonymous namespace
