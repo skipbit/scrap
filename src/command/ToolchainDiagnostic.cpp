@@ -79,10 +79,15 @@ std::string render(const std::string_view specifier, ToolchainNamedIn, const Too
 
 std::string render(std::string_view, ToolchainNamedIn, const Toolchain::CannotListToolchains& fault)
 {
-    return "error: cannot list '" + printablePath(fault.directory) + "': " + fault.code.message() + "\n" + std::string{ PermissionHint };
+    return renderCannotListToolchains(fault);
 }
 
 }  // anonymous namespace
+
+std::string renderCannotListToolchains(const Toolchain::CannotListToolchains& fault)
+{
+    return "error: cannot list '" + printablePath(fault.directory) + "': " + fault.code.message() + "\n" + std::string{ PermissionHint };
+}
 
 std::string renderNotASpecifier(std::string_view text, std::string_view reason)
 {

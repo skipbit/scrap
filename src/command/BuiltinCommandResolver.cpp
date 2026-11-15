@@ -15,6 +15,7 @@
 #include "command/RunCommandHandler.h"
 #include "command/RuntimeEnvironment.h"
 #include "command/ToolchainInstallCommandHandler.h"
+#include "command/ToolchainListCommandHandler.h"
 #include "command/ToolchainSelectCommandHandler.h"
 #include "command/ToolchainUnselectCommandHandler.h"
 #include "command/VersionRenderer.h"
@@ -309,6 +310,19 @@ CommandEntry makeToolchainUnselectEntry()
     return entry;
 }
 
+CommandEntry makeToolchainListEntry()
+{
+    CommandEntry entry;
+    entry.spec.name = "list";
+    entry.spec.description = "Display installed toolchains";
+    entry.spec.category = "Toolchain Commands";
+    entry.source = CommandSource::Builtin;
+    entry.createHandler = [](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
+        return std::make_unique<ToolchainListCommandHandler>();
+    };
+    return entry;
+}
+
 }  // anonymous namespace
 
 /**
@@ -369,7 +383,7 @@ std::vector<CommandEntry> BuiltinCommandResolver::resolve([[maybe_unused]] const
     // Toolchain commands
     {
         auto toolchain = makePlaceholder("toolchain", "Manage toolchains", "Toolchain Commands");
-        toolchain.subcommands.push_back(makePlaceholder("list", "Display installed toolchains", "Toolchain Commands"));
+        toolchain.subcommands.push_back(makeToolchainListEntry());
         toolchain.subcommands.push_back(makeToolchainInstallEntry());
         toolchain.subcommands.push_back(makeToolchainSelectEntry());
         toolchain.subcommands.push_back(makeToolchainUnselectEntry());
