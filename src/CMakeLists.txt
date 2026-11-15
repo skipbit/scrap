@@ -131,6 +131,7 @@ add_library(scrap_toolchain STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/GlobalConfigFile.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/HostEnvironment.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/HostGlibc.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/IndexChanges.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/IngotSelection.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/InstallRecord.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/InstalledToolchain.cpp
