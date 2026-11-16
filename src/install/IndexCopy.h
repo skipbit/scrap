@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <system_error>
 #include <variant>
 
 namespace scrap::Install {
@@ -24,8 +25,8 @@ struct IndexSource {
  * @brief The saved copy in use, in place of an index that could not be had.
  */
 struct CopyStandingIn {
-    std::string fetchedAt;  ///< When it was fetched, in UTC.
-    std::string reason;     ///< Why the index could not be had.
+    std::optional<std::string> fetchedAt;  ///< When it was fetched, in UTC. Nothing when unknown.
+    std::string reason;                    ///< Why the index could not be had.
 };
 
 /**
@@ -54,6 +55,59 @@ struct IndexFormatUnsupported {
 using IndexFault = std::variant<IndexUnavailable, IndexFormatUnsupported>;
 
 /**
+ * @brief The index fetched could not be saved where @p file is.
+ */
+struct IndexNotSaved {
+    std::filesystem::path file;
+    std::error_code code;
+};
+
+/**
+ * @brief The index just fetched.
+ */
+struct FetchedIndex {
+    Toolchain::ToolchainIndex index;
+    std::optional<std::string> fetchedAt;   ///< When it was fetched, in UTC, as the saved copy will tell it. Nothing when it cannot be told.
+    std::optional<IndexNotSaved> notSaved;  ///< Why it was not saved, when it was not.
+};
+
+/**
+ * @brief The copy of the index saved when it was last fetched.
+ */
+struct SavedIndex {
+    Toolchain::ToolchainIndex index;
+    std::optional<std::string> fetchedAt;  ///< When it was fetched, in UTC. Nothing when unknown.
+};
+
+/**
+ * @brief Read the copy of the index from @p url saved below @p scrapHome,
+ *        without fetching anything.
+ *
+ * @return The copy; nothing when none is saved, when it was fetched from
+ *         another URL or nothing says where from, or when it cannot be read;
+ *         or the format it declares when this scrap does not read it.
+ */
+[[nodiscard]] std::expected<std::optional<SavedIndex>, IndexFormatUnsupported> readSavedIndex(const std::filesystem::path& scrapHome,
+                                                                                              const std::string& url,
+                                                                                              const Toolchain::ToolchainVersion& scrapVersion);
+
+/**
+ * @brief Fetch the index and save it below @p scrapHome, without falling back
+ *        on the copy saved before.
+ *
+ * What was fetched replaces the saved copy only once it has been read in full,
+ * so a transfer cut short or an index its maker got wrong leaves the previous
+ * copy as it was. The copy is saved with its URL, and the time it was last
+ * written tells when it was fetched.
+ *
+ * @return The index, when it was fetched and whether it was saved, or why it
+ *         could not be had.
+ */
+[[nodiscard]] std::expected<FetchedIndex, IndexFault> fetchIndex(const std::filesystem::path& scrapHome,
+                                                                 const IndexSource& source,
+                                                                 const Toolchain::ToolchainVersion& scrapVersion);
+
+/**
  * @brief Fetch the index and save it below @p scrapHome, or fall back on the
  *        copy saved before.
  *
@@ -62,9 +116,12 @@ using IndexFault = std::variant<IndexUnavailable, IndexFormatUnsupported>;
  * copy as it was. An index in a format this scrap does not read is not passed
  * over, since an older copy would hide that scrap needs updating. Only a copy
  * fetched from the same URL stands in, so one index never answers for another.
+ * The copy is saved with its URL.
  *
  * @return The index, or why there is none.
  */
-[[nodiscard]] std::expected<ObtainedIndex, IndexFault> obtainIndex(const std::filesystem::path& scrapHome, const IndexSource& source, const Toolchain::ToolchainVersion& scrapVersion);
+[[nodiscard]] std::expected<ObtainedIndex, IndexFault> obtainIndex(const std::filesystem::path& scrapHome,
+                                                                   const IndexSource& source,
+                                                                   const Toolchain::ToolchainVersion& scrapVersion);
 
 }  // namespace scrap::Install

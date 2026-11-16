@@ -131,6 +131,7 @@ add_library(scrap_toolchain STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/GlobalConfigFile.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/HostEnvironment.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/HostGlibc.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/IndexChanges.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/IngotSelection.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/InstallRecord.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/InstalledToolchain.cpp
@@ -220,8 +221,11 @@ add_library(scrap_command STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/command/DefaultVersionRenderer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ExternalCommandResolver.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ExternalMetadataProvider.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/FetchFailureHint.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/HelpRenderer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/HelpRequest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/IndexUpdateReport.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/InstallingHostOfScrap.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/MetadataProtocolProvider.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/NewCommandHandler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ParserAdapter.cpp
@@ -236,10 +240,13 @@ add_library(scrap_command STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ScriptsReader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/StubScriptsReader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainDiagnostic.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainIndexDiagnostic.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainIndexLocation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainInstallCommandHandler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainInstallDiagnostic.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainSelectCommandHandler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainUnselectCommandHandler.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainUpdateCommandHandler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/VersionRenderer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/WriteFailureHint.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/driver/CLI11ParserAdapter.cpp

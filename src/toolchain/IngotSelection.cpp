@@ -86,15 +86,6 @@ bool isOffered(const IndexedToolchain& toolchain)
     return toolchain.status != ToolchainStatus::Disabled;
 }
 
-bool canBeInstalled(const IndexedToolchain& toolchain, const InstallingHost& host)
-{
-    if (needsNewerScrap(toolchain, host) || (! isOffered(toolchain))) {
-        return false;
-    }
-    const Ingot* ingot = ingotFor(toolchain, host.environment);
-    return (ingot != nullptr) && (! needsNewerGlibc(*ingot, host));
-}
-
 /**
  * What stops @p toolchain, which cannot be installed on @p host. A toolchain
  * needing a newer scrap comes first, since nothing past that was read of it.
@@ -128,6 +119,20 @@ std::string integrityOf(const Ingot& ingot)
         return registry->digest;
     }
     return std::get<UrlSource>(ingot.source).sha256;
+}
+
+bool hasIngotFor(const IndexedToolchain& toolchain, const HostEnvironment& environment)
+{
+    return ingotFor(toolchain, environment) != nullptr;
+}
+
+bool canBeInstalled(const IndexedToolchain& toolchain, const InstallingHost& host)
+{
+    if (needsNewerScrap(toolchain, host) || (! isOffered(toolchain))) {
+        return false;
+    }
+    const Ingot* ingot = ingotFor(toolchain, host.environment);
+    return (ingot != nullptr) && (! needsNewerGlibc(*ingot, host));
 }
 
 std::expected<SelectedIngot, IngotSelectionFault> selectIngot(const ToolchainIndex& index, const ToolchainSpecifier& specifier, const InstallingHost& host)

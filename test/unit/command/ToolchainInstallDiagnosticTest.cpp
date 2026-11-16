@@ -16,7 +16,6 @@ using namespace scrap::Install;
 using scrap::Fetch::CannotWriteDestination;
 using scrap::Fetch::CertificateFailure;
 using scrap::Fetch::ContentTooLarge;
-using scrap::Fetch::NoCertificateBundle;
 using scrap::Fetch::TooManyRedirects;
 using scrap::Fetch::TransferFailure;
 using scrap::Fetch::UrlRefused;
@@ -65,15 +64,6 @@ TEST(ToolchainInstallDiagnosticTest, EscapesWhatTheUserTyped)
 
     EXPECT_EQ(text.find('\x1b'), std::string::npos);
     EXPECT_NE(text.find("gcc\\x1B"), std::string::npos) << text;
-}
-
-TEST(ToolchainInstallDiagnosticTest, SendsAMissingCertificateBundleToTheCertificates)
-{
-    const std::string text = renderIndexFault(IndexUnavailable{ .reason = "no certificates", .fetchError = NoCertificateBundle{ .url = "https://example.com" } });
-
-    EXPECT_EQ(text,
-              "error: cannot fetch the toolchain index: no certificates\n"
-              "hint: install the root certificates of the system, such as the ca-certificates package, or set SSL_CERT_FILE to a file holding them\n");
 }
 
 TEST(ToolchainInstallDiagnosticTest, SendsACertificateThatDoesNotVerifyToTheCertificates)
@@ -139,13 +129,6 @@ TEST(ToolchainInstallDiagnosticTest, ChoosesTheHintForAPathRefusedByWhatTheSyste
     const std::error_code refused = std::make_error_code(std::errc::permission_denied);
 
     EXPECT_NE(renderInstallFailure("gcc", IngotNotPlaced{ .path = "/home/me/.scrap", .code = refused }).find("hint: check the permissions of the path\n"), std::string::npos);
-}
-
-TEST(ToolchainInstallDiagnosticTest, AsksForAnUpdateWhenTheIndexFormatIsUnknown)
-{
-    const std::string text = renderIndexFault(IndexFormatUnsupported{ .format = "2" });
-
-    EXPECT_EQ(text, "error: the toolchain index has the format 2, which this scrap cannot read\nhint: update scrap and run the command again\n");
 }
 
 TEST(ToolchainInstallDiagnosticTest, SaysWhatOfTheRegistryCannotBeUsed)

@@ -895,7 +895,7 @@ TEST_F(CliE2ETest, HelpForANestedCommandShowsItsUsage)
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
     EXPECT_TRUE(result.stderrText.empty()) << result.stderrText;
-    EXPECT_EQ(result.stdoutText, "USAGE: scrap toolchain list\n\nDisplay installed toolchains\n");
+    EXPECT_EQ(result.stdoutText, "USAGE: scrap toolchain list\n\nDisplay the toolchains to choose from\n");
     ASSERT_TRUE(shortFlag.exitedNormally);
     EXPECT_EQ(shortFlag.exitCode, 0);
     EXPECT_EQ(shortFlag.stdoutText, "USAGE: scrap template update\n\nUpdate template sources\n");
@@ -909,7 +909,7 @@ TEST_F(CliE2ETest, HelpForANestedCommandTakesItsWords)
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
     EXPECT_TRUE(result.stderrText.empty()) << result.stderrText;
-    EXPECT_EQ(result.stdoutText, "USAGE: scrap toolchain list\n\nDisplay installed toolchains\n");
+    EXPECT_EQ(result.stdoutText, "USAGE: scrap toolchain list\n\nDisplay the toolchains to choose from\n");
     EXPECT_EQ(result.stdoutText, flag.stdoutText);
 }
 
@@ -4058,4 +4058,132 @@ TEST_F(CliE2ETest, StopsWhenTheInstalledToolchainsCannotBeListed)
     EXPECT_EQ(result.stdoutText, "");
     EXPECT_EQ(result.stderrText.rfind("error: cannot list '", 0), 0U) << result.stderrText;
     EXPECT_NE(result.stderrText.find("hint: check the permissions of the path\n"), std::string::npos) << result.stderrText;
+}
+
+namespace {
+
+/** @p text with each time in UTC written as <time>. */
+std::string withoutTimes(const std::string& text)
+{
+    static const std::regex Time{ R"([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z)" };
+    return std::regex_replace(text, Time, "<time>");
+}
+
+}  // anonymous namespace
+
+/**
+ * With no copy saved before, the first index is told by how many toolchains
+ * the host can install from it.
+ */
+TEST_F(CliE2ETest, UpdateCountsWhatTheHostCanInstallFromTheFirstIndex)
+{
+    const ToolchainServer server("gcc", { { .version = "15.1.0", .ingot = compilerIngot() }, { .version = "15.2.0", .status = "disabled", .ingot = compilerIngot() } });
+
+    auto result = runScrap({ "toolchain", "update" }, { server.indexVariable() }, _root);
+
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_EQ(withoutTimes(result.stdoutText), "fetched the toolchain index at <time>: 1 toolchain for " + hostDirectoryName() + "\n");
+    EXPECT_EQ(result.stderrText, "");
+    EXPECT_FALSE(readFile("index/toolchain.toml").empty());
+}
+
+/**
+ * An update tells what is new and what changed since the index was last
+ * fetched, here by install, and leaves what is installed and the default
+ * alone. Updated again, it says that nothing changed.
+ */
+TEST_F(CliE2ETest, UpdateTellsWhatChangedAndLeavesTheInstalledToolchainsAlone)
+{
+    ToolchainServer server("gcc", { { .version = "15.2.0", .ingot = compilerIngot("the installed compiler") } });
+    ASSERT_EQ(runScrap({ "toolchain", "install", "gcc@15.2.0" }, { server.indexVariable() }, _root).exitCode, 0);
+    const std::string defaultBefore = readFile("config.toml");
+    ASSERT_NE(defaultBefore.find("gcc@15.2.0"), std::string::npos) << defaultBefore;
+    server.offer("gcc", { { .version = "15.2.0", .status = "deprecated", .ingot = compilerIngot() }, { .version = "16.1.0", .ingot = compilerIngot() } });
+
+    auto changed = runScrap({ "toolchain", "update" }, { server.indexVariable() }, _root);
+    EXPECT_EQ(changed.exitCode, 0) << changed.stderrText;
+    EXPECT_EQ(withoutTimes(changed.stdoutText),
+              "fetched the toolchain index at <time>\n"
+              "new:\n"
+              "  gcc@16.1.0\n"
+              "changed:\n"
+              "  gcc@15.2.0  active -> deprecated\n");
+    EXPECT_EQ(changed.stderrText, "");
+    EXPECT_EQ(readFile("toolchains/gcc/15.2.0/" + hostDirectoryName() + "/bin/g++"), "the installed compiler");
+    EXPECT_FALSE(std::filesystem::exists(_root / "toolchains/gcc/16.1.0"));
+    EXPECT_EQ(readFile("config.toml"), defaultBefore);
+
+    auto again = runScrap({ "toolchain", "update" }, { server.indexVariable() }, _root);
+    EXPECT_EQ(again.exitCode, 0) << again.stderrText;
+    EXPECT_EQ(withoutTimes(again.stdoutText), "fetched the toolchain index at <time>; nothing has changed for " + hostDirectoryName() + "\n");
+}
+
+/**
+ * An index that cannot be fetched fails the update with what to do about
+ * it, and the copy fetched before is kept as it was.
+ */
+TEST_F(CliE2ETest, UpdateFailsAndKeepsTheCopyWhenTheIndexCannotBeFetched)
+{
+    ToolchainServer server("gcc", { { .version = "15.2.0", .ingot = compilerIngot() } });
+    ASSERT_EQ(runScrap({ "toolchain", "update" }, { server.indexVariable() }, _root).exitCode, 0);
+    const std::string copyBefore = readFile("index/toolchain.toml");
+    server.failIndex();
+
+    auto result = runScrap({ "toolchain", "update" }, { server.indexVariable() }, _root);
+
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_EQ(result.stdoutText, "");
+    EXPECT_TRUE(result.stderrText.starts_with("error: cannot fetch the toolchain index: ")) << result.stderrText;
+    EXPECT_NE(withoutTimes(result.stderrText).find("\nhint: the copy fetched at <time> is kept as it was\n"), std::string::npos) << result.stderrText;
+    EXPECT_EQ(lastLineOf(result.stderrText), "hint: check the network connection and run the command again") << result.stderrText;
+    EXPECT_EQ(readFile("index/toolchain.toml"), copyBefore);
+}
+
+/**
+ * A saved copy in a format this scrap cannot read does not hide why the index
+ * cannot be fetched.
+ */
+TEST_F(CliE2ETest, UpdateSaysWhyTheIndexCannotBeFetchedWhenTheSavedCopyCannotBeRead)
+{
+    ToolchainServer server("gcc", { { .version = "15.2.0", .ingot = compilerIngot() } });
+    ASSERT_EQ(runScrap({ "toolchain", "update" }, { server.indexVariable() }, _root).exitCode, 0);
+    writeFile("index/toolchain.toml", "[index]\nschema_version = 2\nchannel = 'official'\n");
+    server.failIndex();
+
+    auto result = runScrap({ "toolchain", "update" }, { server.indexVariable() }, _root);
+
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_EQ(result.stdoutText, "");
+    EXPECT_TRUE(result.stderrText.starts_with("error: cannot fetch the toolchain index: ")) << result.stderrText;
+    EXPECT_EQ(lastLineOf(result.stderrText), "hint: check the network connection and run the command again") << result.stderrText;
+    EXPECT_EQ(std::ranges::count(result.stderrText, '\n'), 2) << result.stderrText;
+}
+
+/**
+ * An update whose index cannot be saved fails, since saving it is what an
+ * update is for.
+ */
+TEST_F(CliE2ETest, UpdateFailsWhenTheIndexCannotBeSaved)
+{
+    ToolchainServer server("gcc", { { .version = "15.2.0", .ingot = compilerIngot() } });
+    writeFile("index/toolchain.toml/in-the-way", "");
+
+    auto result = runScrap({ "toolchain", "update" }, { server.indexVariable() }, _root);
+
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_EQ(result.stdoutText, "");
+    EXPECT_TRUE(result.stderrText.starts_with("error: cannot save the toolchain index to '" + (_root / "index/toolchain.toml").string() + "': ")) << result.stderrText;
+}
+
+TEST_F(CliE2ETest, UpdateFailsWhenTheIndexCannotBeFetchedAndNoCopyIsSaved)
+{
+    ToolchainServer server("gcc", {});
+    server.failIndex();
+
+    auto result = runScrap({ "toolchain", "update" }, { server.indexVariable() }, _root);
+
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_EQ(result.stdoutText, "");
+    EXPECT_TRUE(result.stderrText.starts_with("error: cannot fetch the toolchain index: ")) << result.stderrText;
+    EXPECT_EQ(result.stderrText.find("copy"), std::string::npos) << result.stderrText;
 }

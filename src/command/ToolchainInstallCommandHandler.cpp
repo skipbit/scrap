@@ -1,19 +1,20 @@
 #include "command/ToolchainInstallCommandHandler.h"
 
+#include "command/InstallingHostOfScrap.h"
 #include "command/InvocationContext.h"
 #include "command/ParsedOptions.h"
 #include "command/PrintableText.h"
 #include "command/RuntimeEnvironment.h"
 #include "command/ScrapHome.h"
 #include "command/ToolchainDiagnostic.h"
+#include "command/ToolchainIndexDiagnostic.h"
+#include "command/ToolchainIndexLocation.h"
 #include "command/ToolchainInstallDiagnostic.h"
 #include "fetch/CertificateBundle.h"
 #include "install/IndexCopy.h"
 #include "install/IngotInstaller.h"
-#include "shared/constants/version.h"
 #include "toolchain/GlobalConfigFile.h"
 #include "toolchain/HostEnvironment.h"
-#include "toolchain/HostGlibc.h"
 #include "toolchain/IngotSelection.h"
 #include "toolchain/InstallRecord.h"
 #include "toolchain/InstalledToolchain.h"
@@ -22,7 +23,6 @@
 #include "toolchain/ToolchainSpecifier.h"
 #include "toolchain/ToolchainVersion.h"
 
-#include <cstddef>
 #include <expected>  // IWYU pragma: keep
 #include <filesystem>
 #include <iostream>
@@ -35,21 +35,6 @@
 namespace scrap::Command {
 
 namespace {
-
-constexpr std::string_view OfficialIndexUrl = "https://raw.githubusercontent.com/skipbit/scrap-toolchain/main/index.toml";
-
-/**
- * The version of this scrap, read from its banner: "scrap 0.1.0" or
- * "scrap 0.1.0 (v0.1.0-2-g2a761c0)". A banner that holds none gives the lowest
- * version, which then meets no requirement of the index.
- */
-Toolchain::ToolchainVersion runningVersion()
-{
-    const std::string banner = version();
-    const std::size_t start = banner.find(' ') + 1;
-    const std::string text = banner.substr(start, banner.find(' ', start) - start);
-    return Toolchain::ToolchainVersion::parse(text).value_or(Toolchain::ToolchainVersion::lowest());
-}
 
 bool asksToReplace(const ParsedOptions& options)
 {
@@ -126,18 +111,16 @@ std::expected<Toolchain::SelectedIngot, std::string> chooseIngot(const RuntimeEn
                                                                  const std::string& text,
                                                                  const Toolchain::ToolchainSpecifier& specifier)
 {
-    const std::string indexUrl = env.toolchainIndexUrl.empty() ? std::string{ OfficialIndexUrl } : env.toolchainIndexUrl;
-    const Toolchain::ToolchainVersion scrapVersion = runningVersion();
-    const auto obtained = Install::obtainIndex(scrapHome, Install::IndexSource{ .url = indexUrl, .certificateBundle = bundle }, scrapVersion);
+    const Toolchain::InstallingHost host = installingHostOfScrap(environment);
+    const auto obtained = Install::obtainIndex(scrapHome, Install::IndexSource{ .url = toolchainIndexUrl(env), .certificateBundle = bundle }, host.scrapVersion);
     if (! obtained.has_value()) {
         return std::unexpected(renderIndexFault(obtained.error()));
     }
     const std::optional<Install::CopyStandingIn>& standIn = obtained->standIn;
     if (standIn.has_value()) {
         std::cerr << "warning: " << printableText(standIn->reason) << "\n"
-                  << "warning: cannot fetch the toolchain index; using the copy fetched at " << standIn->fetchedAt << "\n";
+                  << "warning: cannot fetch the toolchain index; using the copy fetched at " << fetchTimeText(standIn->fetchedAt) << "\n";
     }
-    const Toolchain::InstallingHost host{ .environment = environment, .scrapVersion = scrapVersion, .glibcVersion = Toolchain::hostGlibcVersion() };
     auto selected = Toolchain::selectIngot(obtained->index, specifier, host);
     if (! selected.has_value()) {
         return std::unexpected(renderSelectionFault(text, selected.error()));
