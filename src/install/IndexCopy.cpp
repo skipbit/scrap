@@ -10,7 +10,6 @@
 #include "toolchain/ToolchainVersion.h"
 
 #include <chrono>
-#include <cstddef>
 #include <cstdint>
 #include <expected>  // IWYU pragma: keep
 #include <filesystem>
@@ -28,8 +27,7 @@ constexpr std::uint64_t IndexSizeLimit = std::uint64_t{ 16 } * 1024 * 1024;
 
 /**
  * When @p file was last written, in UTC. Saving the index is the only thing that
- * writes the copy, so this is when it was fetched by a scrap that did not record
- * the time.
+ * writes the copy, so this is when it was fetched.
  */
 std::optional<std::string> modificationTimeInUtc(const std::filesystem::path& file)
 {
@@ -51,48 +49,12 @@ std::expected<Toolchain::ToolchainIndex, Toolchain::ToolchainIndexError> readInd
 }
 
 /**
- * What the record beside the saved copy says of it.
+ * Whether the saved copy came from @p url, as the record beside it says.
  */
-struct CopyRecord {
-    std::string url;                       ///< Where it was fetched from.
-    std::optional<std::string> fetchedAt;  ///< When, in UTC. An earlier scrap did not record it; a time of another shape counts as none.
-};
-
-/**
- * The record beside the saved copy: its URL on the first line, and the time
- * it was fetched on the second.
- */
-std::optional<CopyRecord> readCopyRecord(const std::filesystem::path& scrapHome)
+bool isCopyFrom(const std::filesystem::path& scrapHome, const std::string& url)
 {
-    const auto text = File::readWholeFile(Toolchain::indexCopySourceFile(scrapHome));
-    if (! text.has_value()) {
-        return std::nullopt;
-    }
-    const std::size_t urlEnd = text->find('\n');
-    if (urlEnd == std::string::npos) {
-        return std::nullopt;
-    }
-    CopyRecord record{ .url = text->substr(0, urlEnd), .fetchedAt = std::nullopt };
-    const std::size_t timeEnd = text->find('\n', urlEnd + 1);
-    if (timeEnd != std::string::npos) {
-        std::string fetchedAt = text->substr(urlEnd + 1, timeEnd - (urlEnd + 1));
-        if (isUtcText(fetchedAt)) {
-            record.fetchedAt = std::move(fetchedAt);
-        }
-    }
-    return record;
-}
-
-/**
- * The text of the record beside a copy fetched from @p url at @p fetchedAt.
- */
-std::string copyRecordText(const std::string& url, const std::optional<std::string>& fetchedAt)
-{
-    std::string text = url + "\n";
-    if (fetchedAt.has_value()) {
-        text += *fetchedAt + "\n";
-    }
-    return text;
+    const auto recorded = File::readWholeFile(Toolchain::indexCopySourceFile(scrapHome));
+    return recorded.has_value() && (*recorded == (url + "\n"));
 }
 
 /**
@@ -119,9 +81,8 @@ std::expected<std::optional<SavedIndex>, IndexFormatUnsupported> readSavedIndex(
                                                                                 const Toolchain::ToolchainVersion& scrapVersion)
 {
     const std::filesystem::path copy = Toolchain::indexCopyFile(scrapHome);
-    auto record = readCopyRecord(scrapHome);
     std::error_code ec;
-    if ((! std::filesystem::exists(copy, ec)) || (! record.has_value()) || (record->url != url)) {
+    if ((! std::filesystem::exists(copy, ec)) || (! isCopyFrom(scrapHome, url))) {
         return std::nullopt;
     }
     auto index = readIndexFile(copy, scrapVersion);
@@ -131,14 +92,12 @@ std::expected<std::optional<SavedIndex>, IndexFormatUnsupported> readSavedIndex(
         }
         return std::nullopt;
     }
-    std::optional<std::string> fetchedAt = record->fetchedAt.has_value() ? std::move(record->fetchedAt) : modificationTimeInUtc(copy);
-    return SavedIndex{ .index = std::move(*index), .fetchedAt = std::move(fetchedAt) };
+    return SavedIndex{ .index = std::move(*index), .fetchedAt = modificationTimeInUtc(copy) };
 }
 
 std::expected<FetchedIndex, IndexFault> fetchIndex(const std::filesystem::path& scrapHome,
                                                    const IndexSource& source,
-                                                   const Toolchain::ToolchainVersion& scrapVersion,
-                                                   std::chrono::system_clock::time_point now)
+                                                   const Toolchain::ToolchainVersion& scrapVersion)
 {
     const std::filesystem::path copy = Toolchain::indexCopyFile(scrapHome);
     std::filesystem::path fetched = copy;
@@ -161,22 +120,20 @@ std::expected<FetchedIndex, IndexFault> fetchIndex(const std::filesystem::path& 
     }
     // An index that cannot be saved still answers this install. The record goes
     // first, so a run stopped part way leaves a copy that stands in for nothing.
-    const std::optional<std::string> fetchedAt = utcText(now);
     const std::filesystem::path sourceFile = Toolchain::indexCopySourceFile(scrapHome);
     std::filesystem::remove(sourceFile, ec);
     std::filesystem::rename(fetched, copy, ec);
     if (! ec) {
-        ec = File::replaceFile(sourceFile, copyRecordText(source.url, fetchedAt));
+        ec = File::replaceFile(sourceFile, source.url + "\n");
     }
-    return FetchedIndex{ .index = std::move(*index), .fetchedAt = fetchedAt };
+    return FetchedIndex{ .index = std::move(*index), .fetchedAt = modificationTimeInUtc(copy) };
 }
 
 std::expected<ObtainedIndex, IndexFault> obtainIndex(const std::filesystem::path& scrapHome,
                                                      const IndexSource& source,
-                                                     const Toolchain::ToolchainVersion& scrapVersion,
-                                                     std::chrono::system_clock::time_point now)
+                                                     const Toolchain::ToolchainVersion& scrapVersion)
 {
-    auto fetched = fetchIndex(scrapHome, source, scrapVersion, now);
+    auto fetched = fetchIndex(scrapHome, source, scrapVersion);
     if (fetched.has_value()) {
         return ObtainedIndex{ .index = std::move(fetched->index), .standIn = std::nullopt };
     }

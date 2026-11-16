@@ -14,7 +14,6 @@
 #include "toolchain/IndexChanges.h"
 #include "toolchain/IngotSelection.h"
 
-#include <chrono>
 #include <expected>  // IWYU pragma: keep
 #include <iostream>
 #include <optional>
@@ -41,9 +40,8 @@ int ToolchainUpdateCommandHandler::execute(const InvocationContext& ctx)
     const Toolchain::InstallingHost host = installingHostOfScrap(*environment);
     // Read before fetching, which replaces it.
     const auto saved = Install::readSavedIndex(*scrapHome, url, host.scrapVersion);
-    const auto now = std::chrono::system_clock::now();
     const auto bundle = Fetch::findCertificateBundle(env.certificateFile, Fetch::knownCertificateBundles());
-    const auto fetched = Install::fetchIndex(*scrapHome, Install::IndexSource{ .url = url, .certificateBundle = bundle }, host.scrapVersion, now);
+    const auto fetched = Install::fetchIndex(*scrapHome, Install::IndexSource{ .url = url, .certificateBundle = bundle }, host.scrapVersion);
     if (! fetched.has_value()) {
         if (const auto* unavailable = std::get_if<Install::IndexUnavailable>(&fetched.error()); unavailable != nullptr) {
             if (! saved.has_value()) {

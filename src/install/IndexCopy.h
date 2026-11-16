@@ -4,7 +4,6 @@
 #include "toolchain/ToolchainIndex.h"
 #include "toolchain/ToolchainVersion.h"
 
-#include <chrono>
 #include <expected>  // IWYU pragma: keep
 #include <filesystem>
 #include <optional>
@@ -59,7 +58,7 @@ using IndexFault = std::variant<IndexUnavailable, IndexFormatUnsupported>;
  */
 struct FetchedIndex {
     Toolchain::ToolchainIndex index;
-    std::optional<std::string> fetchedAt;  ///< When it was fetched, in UTC, as recorded beside the copy. Nothing when it cannot be told.
+    std::optional<std::string> fetchedAt;  ///< When it was fetched, in UTC, as the saved copy will tell it. Nothing when it cannot be told.
 };
 
 /**
@@ -88,15 +87,14 @@ struct SavedIndex {
  *
  * What was fetched replaces the saved copy only once it has been read in full,
  * so a transfer cut short or an index its maker got wrong leaves the previous
- * copy as it was. The copy is saved with its URL and @p now, the time it was
- * fetched.
+ * copy as it was. The copy is saved with its URL, and the time it was last
+ * written tells when it was fetched.
  *
  * @return The index and when it was fetched, or why it could not be had.
  */
 [[nodiscard]] std::expected<FetchedIndex, IndexFault> fetchIndex(const std::filesystem::path& scrapHome,
                                                                  const IndexSource& source,
-                                                                 const Toolchain::ToolchainVersion& scrapVersion,
-                                                                 std::chrono::system_clock::time_point now);
+                                                                 const Toolchain::ToolchainVersion& scrapVersion);
 
 /**
  * @brief Fetch the index and save it below @p scrapHome, or fall back on the
@@ -107,13 +105,12 @@ struct SavedIndex {
  * copy as it was. An index in a format this scrap does not read is not passed
  * over, since an older copy would hide that scrap needs updating. Only a copy
  * fetched from the same URL stands in, so one index never answers for another.
- * The copy is saved with its URL and @p now, the time it was fetched.
+ * The copy is saved with its URL.
  *
  * @return The index, or why there is none.
  */
 [[nodiscard]] std::expected<ObtainedIndex, IndexFault> obtainIndex(const std::filesystem::path& scrapHome,
                                                                    const IndexSource& source,
-                                                                   const Toolchain::ToolchainVersion& scrapVersion,
-                                                                   std::chrono::system_clock::time_point now);
+                                                                   const Toolchain::ToolchainVersion& scrapVersion);
 
 }  // namespace scrap::Install
