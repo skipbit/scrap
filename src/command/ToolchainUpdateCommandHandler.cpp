@@ -42,22 +42,18 @@ int ToolchainUpdateCommandHandler::execute(const InvocationContext& ctx)
     const auto saved = Install::readSavedIndex(*scrapHome, url, host.scrapVersion);
     const auto bundle = Fetch::findCertificateBundle(env.certificateFile, Fetch::knownCertificateBundles());
     const auto fetched = Install::fetchIndex(*scrapHome, Install::IndexSource{ .url = url, .certificateBundle = bundle }, host.scrapVersion);
+    // A copy this scrap cannot read has nothing to compare with, and an update
+    // never falls back on the copy, so its format is no cause of a failure.
+    const std::optional<Install::SavedIndex> before = saved.value_or(std::nullopt);
     if (! fetched.has_value()) {
-        if (const auto* unavailable = std::get_if<Install::IndexUnavailable>(&fetched.error()); unavailable != nullptr) {
-            if (! saved.has_value()) {
-                std::cerr << renderIndexFault(saved.error());
-                return 1;
-            }
-            if (const std::optional<Install::SavedIndex>& copy = *saved; copy.has_value()) {
-                std::cerr << renderCopyKept(*unavailable, fetchTimeText(copy->fetchedAt));
-                return 1;
-            }
+        const auto* unavailable = std::get_if<Install::IndexUnavailable>(&fetched.error());
+        if ((unavailable != nullptr) && before.has_value()) {
+            std::cerr << renderCopyKept(*unavailable, fetchTimeText(before->fetchedAt));
+        } else {
+            std::cerr << renderIndexFault(fetched.error());
         }
-        std::cerr << renderIndexFault(fetched.error());
         return 1;
     }
-    // A copy this scrap cannot read has nothing to compare with.
-    const std::optional<Install::SavedIndex> before = saved.value_or(std::nullopt);
 
     const std::string fetchedAt = fetchTimeText(fetched->fetchedAt);
     if (before.has_value()) {

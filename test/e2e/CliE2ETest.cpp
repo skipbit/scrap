@@ -4140,9 +4140,10 @@ TEST_F(CliE2ETest, UpdateFailsAndKeepsTheCopyWhenTheIndexCannotBeFetched)
 }
 
 /**
- * A saved copy in a format this scrap cannot read is not passed over.
+ * A saved copy in a format this scrap cannot read does not hide why the index
+ * cannot be fetched.
  */
-TEST_F(CliE2ETest, UpdateSaysTheFormatOfASavedCopyItCannotReadWhenTheIndexCannotBeFetched)
+TEST_F(CliE2ETest, UpdateSaysWhyTheIndexCannotBeFetchedWhenTheSavedCopyCannotBeRead)
 {
     ToolchainServer server("gcc", { { .version = "15.2.0", .ingot = compilerIngot() } });
     ASSERT_EQ(runScrap({ "toolchain", "update" }, { server.indexVariable() }, _root).exitCode, 0);
@@ -4153,7 +4154,9 @@ TEST_F(CliE2ETest, UpdateSaysTheFormatOfASavedCopyItCannotReadWhenTheIndexCannot
 
     EXPECT_EQ(result.exitCode, 1);
     EXPECT_EQ(result.stdoutText, "");
-    EXPECT_TRUE(result.stderrText.starts_with("error: the toolchain index has the format ")) << result.stderrText;
+    EXPECT_TRUE(result.stderrText.starts_with("error: cannot fetch the toolchain index: ")) << result.stderrText;
+    EXPECT_EQ(lastLineOf(result.stderrText), "hint: check the network connection and run the command again") << result.stderrText;
+    EXPECT_EQ(std::ranges::count(result.stderrText, '\n'), 2) << result.stderrText;
 }
 
 TEST_F(CliE2ETest, UpdateFailsWhenTheIndexCannotBeFetchedAndNoCopyIsSaved)
