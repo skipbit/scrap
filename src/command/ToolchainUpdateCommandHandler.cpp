@@ -54,8 +54,8 @@ int ToolchainUpdateCommandHandler::execute(const InvocationContext& ctx)
         }
         return 1;
     }
-    if (fetched->notSaved.has_value()) {
-        std::cerr << renderIndexNotSaved(*fetched->notSaved);
+    if (const std::optional<Install::IndexNotSaved>& notSaved = fetched->notSaved; notSaved.has_value()) {
+        std::cerr << renderIndexNotSaved(*notSaved);
         return 1;
     }
 
