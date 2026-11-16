@@ -118,15 +118,20 @@ std::expected<FetchedIndex, IndexFault> fetchIndex(const std::filesystem::path& 
         }
         return std::unexpected(IndexUnavailable{ .reason = std::move(index.error().message), .fetchError = std::nullopt });
     }
-    // An index that cannot be saved still answers this install. The record goes
-    // first, so a run stopped part way leaves a copy that stands in for nothing.
+    // An index that cannot be saved is still returned, for an install to use.
+    // The record goes first, so a run stopped part way leaves a copy that
+    // stands in for nothing.
     const std::filesystem::path sourceFile = Toolchain::indexCopySourceFile(scrapHome);
     std::filesystem::remove(sourceFile, ec);
     std::filesystem::rename(fetched, copy, ec);
-    if (! ec) {
-        ec = File::replaceFile(sourceFile, source.url + "\n");
+    if (ec) {
+        return FetchedIndex{ .index = std::move(*index), .fetchedAt = std::nullopt, .notSaved = IndexNotSaved{ .file = copy, .code = ec } };
     }
-    return FetchedIndex{ .index = std::move(*index), .fetchedAt = modificationTimeInUtc(copy) };
+    ec = File::replaceFile(sourceFile, source.url + "\n");
+    if (ec) {
+        return FetchedIndex{ .index = std::move(*index), .fetchedAt = std::nullopt, .notSaved = IndexNotSaved{ .file = sourceFile, .code = ec } };
+    }
+    return FetchedIndex{ .index = std::move(*index), .fetchedAt = modificationTimeInUtc(copy), .notSaved = std::nullopt };
 }
 
 std::expected<ObtainedIndex, IndexFault> obtainIndex(const std::filesystem::path& scrapHome,

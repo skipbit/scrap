@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <system_error>
 #include <variant>
 
 namespace scrap::Install {
@@ -54,11 +55,20 @@ struct IndexFormatUnsupported {
 using IndexFault = std::variant<IndexUnavailable, IndexFormatUnsupported>;
 
 /**
+ * @brief The index fetched could not be saved where @p file is.
+ */
+struct IndexNotSaved {
+    std::filesystem::path file;
+    std::error_code code;
+};
+
+/**
  * @brief The index just fetched.
  */
 struct FetchedIndex {
     Toolchain::ToolchainIndex index;
-    std::optional<std::string> fetchedAt;  ///< When it was fetched, in UTC, as the saved copy will tell it. Nothing when it cannot be told.
+    std::optional<std::string> fetchedAt;   ///< When it was fetched, in UTC, as the saved copy will tell it. Nothing when it cannot be told.
+    std::optional<IndexNotSaved> notSaved;  ///< Why it was not saved, when it was not.
 };
 
 /**
@@ -90,7 +100,8 @@ struct SavedIndex {
  * copy as it was. The copy is saved with its URL, and the time it was last
  * written tells when it was fetched.
  *
- * @return The index and when it was fetched, or why it could not be had.
+ * @return The index, when it was fetched and whether it was saved, or why it
+ *         could not be had.
  */
 [[nodiscard]] std::expected<FetchedIndex, IndexFault> fetchIndex(const std::filesystem::path& scrapHome,
                                                                  const IndexSource& source,

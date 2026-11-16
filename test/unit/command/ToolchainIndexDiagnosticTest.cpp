@@ -7,6 +7,7 @@
 
 #include <optional>
 #include <string>
+#include <system_error>
 
 using namespace scrap::Command;
 using namespace scrap::Install;
@@ -44,4 +45,13 @@ TEST(ToolchainIndexDiagnosticTest, SaysWhenTheFetchTimeIsKnownOrNot)
 {
     EXPECT_EQ(fetchTimeText("2026-11-15T10:00:00Z"), "2026-11-15T10:00:00Z");
     EXPECT_EQ(fetchTimeText(std::nullopt), "an unknown time");
+}
+
+TEST(ToolchainIndexDiagnosticTest, SaysWhereTheIndexCannotBeSaved)
+{
+    const auto code = std::make_error_code(std::errc::permission_denied);
+
+    EXPECT_EQ(renderIndexNotSaved(IndexNotSaved{ .file = "/home/me/.scrap/index/toolchain.toml", .code = code }),
+              "error: cannot save the toolchain index to '/home/me/.scrap/index/toolchain.toml': " + code.message() + "\n"
+                                                                                                                      "hint: check the permissions of the path\n");
 }

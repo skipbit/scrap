@@ -257,6 +257,39 @@ TEST_F(IndexCopyTest, DoesNotHideAFormatThisScrapCannotRead)
     EXPECT_EQ(_home.readFile(scrap::Toolchain::indexCopyFile(_home.path())), indexOf("15.1.0"));
 }
 
+/**
+ * An index that cannot be saved is still returned, with where it could not be
+ * saved.
+ */
+TEST_F(IndexCopyTest, ReportsAnIndexItCannotSave)
+{
+    const auto copy = scrap::Toolchain::indexCopyFile(_home.path());
+    _home.writeFile((std::filesystem::relative(copy, _home.path()) / "in-the-way").string(), "");
+
+    const auto fetched = fetch(answer(indexOf("15.2.0")));
+
+    ASSERT_TRUE(fetched.has_value());
+    EXPECT_EQ(fetched->index.toolchains.at(0).version.text(), "15.2.0");
+    EXPECT_FALSE(fetched->fetchedAt.has_value());
+    ASSERT_TRUE(fetched->notSaved.has_value());
+    EXPECT_EQ(fetched->notSaved->file, copy);
+    EXPECT_TRUE(fetched->notSaved->code);
+}
+
+/**
+ * An install still uses an index it cannot save.
+ */
+TEST_F(IndexCopyTest, AnswersWithAnIndexItCannotSave)
+{
+    _home.writeFile((std::filesystem::relative(scrap::Toolchain::indexCopyFile(_home.path()), _home.path()) / "in-the-way").string(), "");
+
+    const auto obtained = obtain(answer(indexOf("15.2.0")));
+
+    ASSERT_TRUE(obtained.has_value());
+    EXPECT_EQ(versionIn(*obtained), "15.2.0");
+    EXPECT_FALSE(obtained->standIn.has_value());
+}
+
 TEST_F(IndexCopyTest, RefusesAnIndexPastTheSizeLimit)
 {
     const std::size_t pastLimit = (std::size_t{ 16 } * 1024 * 1024) + 1;

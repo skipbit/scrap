@@ -54,6 +54,10 @@ int ToolchainUpdateCommandHandler::execute(const InvocationContext& ctx)
         }
         return 1;
     }
+    if (fetched->notSaved.has_value()) {
+        std::cerr << renderIndexNotSaved(*fetched->notSaved);
+        return 1;
+    }
 
     const std::string fetchedAt = fetchTimeText(fetched->fetchedAt);
     if (before.has_value()) {

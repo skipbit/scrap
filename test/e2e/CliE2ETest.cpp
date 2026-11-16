@@ -4159,6 +4159,22 @@ TEST_F(CliE2ETest, UpdateSaysWhyTheIndexCannotBeFetchedWhenTheSavedCopyCannotBeR
     EXPECT_EQ(std::ranges::count(result.stderrText, '\n'), 2) << result.stderrText;
 }
 
+/**
+ * An update whose index cannot be saved fails, since saving it is what an
+ * update is for.
+ */
+TEST_F(CliE2ETest, UpdateFailsWhenTheIndexCannotBeSaved)
+{
+    ToolchainServer server("gcc", { { .version = "15.2.0", .ingot = compilerIngot() } });
+    writeFile("index/toolchain.toml/in-the-way", "");
+
+    auto result = runScrap({ "toolchain", "update" }, { server.indexVariable() }, _root);
+
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_EQ(result.stdoutText, "");
+    EXPECT_TRUE(result.stderrText.starts_with("error: cannot save the toolchain index to '" + (_root / "index/toolchain.toml").string() + "': ")) << result.stderrText;
+}
+
 TEST_F(CliE2ETest, UpdateFailsWhenTheIndexCannotBeFetchedAndNoCopyIsSaved)
 {
     ToolchainServer server("gcc", {});

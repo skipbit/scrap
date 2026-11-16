@@ -58,4 +58,9 @@ std::string renderCopyKept(const Install::IndexUnavailable& fault, const std::st
     return cannotFetchIndex(fault.reason) + "hint: the copy fetched at " + std::string{ fetchedAt } + " is kept as it was\n" + hintFor(fault);
 }
 
+std::string renderIndexNotSaved(const Install::IndexNotSaved& failure)
+{
+    return "error: cannot save the toolchain index to '" + printablePath(failure.file) + "': " + failure.code.message() + "\n" + hintForWriteFailure(failure.code);
+}
+
 }  // namespace scrap::Command

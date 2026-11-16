@@ -26,4 +26,9 @@ namespace scrap::Command {
  */
 [[nodiscard]] std::string renderCopyKept(const Install::IndexUnavailable& fault, std::string_view fetchedAt);
 
+/**
+ * @brief Report an index that was fetched but could not be saved.
+ */
+[[nodiscard]] std::string renderIndexNotSaved(const Install::IndexNotSaved& failure);
+
 }  // namespace scrap::Command
