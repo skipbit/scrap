@@ -24,6 +24,11 @@ namespace scrap::Command {
 [[nodiscard]] std::string renderNothingInstallableHere(std::string_view environment);
 
 /**
+ * @brief The line that says the index lists no toolchain at all.
+ */
+[[nodiscard]] std::string renderIndexListsNoToolchain();
+
+/**
  * @brief The error and hint lines for a listing of an index that was never
  *        fetched.
  */

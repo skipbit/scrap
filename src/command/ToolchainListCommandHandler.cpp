@@ -73,6 +73,10 @@ int listRemote(const RuntimeEnvironment& env, const std::filesystem::path& scrap
         return 1;
     }
     const auto listed = listRemoteToolchains(copy->index, *installed, host);
+    if (listed.empty()) {
+        std::cerr << renderIndexListsNoToolchain();
+        return 0;
+    }
     const auto rows = all ? listed : installableOnly(listed);
     if (rows.empty() && (! all)) {
         std::cerr << renderNothingInstallableHere(environment->directoryName());

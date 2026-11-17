@@ -57,6 +57,7 @@ TEST(RemoteListingTextTest, SaysWhatToDoWhenNothingIsListed)
     EXPECT_EQ(renderIndexNotFetched(),
               "error: the toolchain index has not been fetched\n"
               "hint: run 'scrap toolchain update' to fetch it\n");
+    EXPECT_EQ(renderIndexListsNoToolchain(), "the toolchain index lists no toolchain\n");
     EXPECT_EQ(renderAllWithoutRemote(),
               "error: '--all' is used with '--remote'\n"
               "hint: run 'scrap toolchain list --remote --all'\n");

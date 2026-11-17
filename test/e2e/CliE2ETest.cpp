@@ -4675,6 +4675,25 @@ TEST_F(CliE2ETest, SaysNothingOfTheIndexCanBeInstalledHere)
                                                                                        "hint: run 'scrap toolchain list --remote --all' to list them all\n");
 }
 
+/**
+ * An index that lists no toolchain says so, rather than sending to --all.
+ */
+TEST_F(CliE2ETest, SaysTheIndexListsNoToolchain)
+{
+    const ToolchainServer server("gcc", {});
+    ASSERT_EQ(runScrap({ "toolchain", "update" }, { server.indexVariable() }, _root).exitCode, 0);
+
+    auto installable = runScrap({ "toolchain", "list", "--remote" }, { server.indexVariable() }, _root);
+    auto all = runScrap({ "toolchain", "list", "--remote", "--all" }, { server.indexVariable() }, _root);
+
+    EXPECT_EQ(installable.exitCode, 0) << installable.stderrText;
+    EXPECT_EQ(installable.stdoutText, "");
+    EXPECT_EQ(installable.stderrText, "the toolchain index lists no toolchain\n");
+    EXPECT_EQ(all.exitCode, 0) << all.stderrText;
+    EXPECT_EQ(all.stdoutText, "");
+    EXPECT_EQ(all.stderrText, "the toolchain index lists no toolchain\n");
+}
+
 TEST_F(CliE2ETest, ListRemoteAsksForAnUpdateWhenNoIndexIsSaved)
 {
     auto result = runScrap({ "toolchain", "list", "--remote" }, {}, _root);

@@ -41,6 +41,11 @@ std::string renderNothingInstallableHere(const std::string_view environment)
     return rendered;
 }
 
+std::string renderIndexListsNoToolchain()
+{
+    return "the toolchain index lists no toolchain\n";
+}
+
 std::string renderIndexNotFetched()
 {
     return "error: the toolchain index has not been fetched\n"
