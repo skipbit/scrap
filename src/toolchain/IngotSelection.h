@@ -115,6 +115,13 @@ struct IndexedLookup {
 [[nodiscard]] std::optional<IngotSelectionFault> barrierTo(const IndexedToolchain& toolchain, const ToolchainIndex& index, const InstallingHost& host);
 
 /**
+ * @brief Whether the status of a toolchain that @p barrier stops, if any,
+ *        was read from the index. A toolchain needing a newer scrap is
+ *        read no further, so its status is a stand-in.
+ */
+[[nodiscard]] bool isStatusRead(const std::optional<IngotSelectionFault>& barrier);
+
+/**
  * @brief Choose what to install for @p specifier: the newest version it names
  *        that can be installed on @p host.
  *

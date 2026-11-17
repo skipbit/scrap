@@ -14,8 +14,8 @@ namespace scrap::Command {
  * @brief A toolchain of the index, as a listing of the index shows it.
  */
 struct RemoteToolchain {
-    std::string name;  ///< <family>@<version>
-    Toolchain::ToolchainStatus status = Toolchain::ToolchainStatus::Active;
+    std::string name;                                       ///< <family>@<version>
+    std::optional<Toolchain::ToolchainStatus> status;       ///< Nothing when the index was not read that far.
     bool installed = false;                                 ///< Whether it is installed for the host.
     std::optional<Toolchain::IngotSelectionFault> barrier;  ///< What stops the host installing it; nothing when it can.
 };

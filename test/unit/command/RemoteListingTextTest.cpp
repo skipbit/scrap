@@ -20,7 +20,8 @@ std::vector<RemoteToolchain> rows()
     return { { .name = "gcc@16.2.0", .status = ToolchainStatus::Active, .installed = false, .barrier = std::nullopt },
              { .name = "gcc@15.3.0", .status = ToolchainStatus::Disabled, .installed = false, .barrier = NoLongerOffered{ .family = "gcc", .alternative = std::nullopt } },
              { .name = "gcc@15.2.0", .status = ToolchainStatus::Deprecated, .installed = true, .barrier = std::nullopt },
-             { .name = "llvm@17.0.1", .status = ToolchainStatus::Active, .installed = false, .barrier = NoIngotForHost{ .environment = "linux-x86_64", .versions = {} } } };
+             { .name = "llvm@17.0.1", .status = ToolchainStatus::Active, .installed = false, .barrier = NoIngotForHost{ .environment = "linux-x86_64", .versions = {} } },
+             { .name = "llvm@22.1.0", .status = std::nullopt, .installed = false, .barrier = NeedsNewerScrap{ .required = "2.0.0" } } };
 }
 
 }  // anonymous namespace
@@ -43,6 +44,7 @@ TEST(RemoteListingTextTest, ShowsWhyTheHostCannotInstallAVersionInTheNotes)
               "gcc@15.3.0   disabled               no longer provided\n"
               "gcc@15.2.0   deprecated  yes\n"
               "llvm@17.0.1  active                 not built for linux-x86_64\n"
+              "llvm@22.1.0                         needs scrap 2.0.0 or later\n"
               "\n"
               "index fetched at an unknown time\n");
 }

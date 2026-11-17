@@ -33,7 +33,7 @@ std::vector<RemoteToolchain> listRemoteToolchains(const Toolchain::ToolchainInde
             return (each.family == toolchain->family) && (each.version == toolchain->version);
         });
         rows.push_back(RemoteToolchain{ .name = toolchain->text(),
-                                        .status = toolchain->status,
+                                        .status = Toolchain::isStatusRead(barrier) ? std::optional{ toolchain->status } : std::nullopt,
                                         .installed = isInstalled,
                                         .barrier = std::move(barrier) });
     }

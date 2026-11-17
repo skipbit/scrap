@@ -312,6 +312,13 @@ TEST(IngotSelectionTest, TellsWhatStopsOneVersionBeingInstalled)
     EXPECT_TRUE(std::holds_alternative<NoLongerOffered>(*disabled));
 }
 
+TEST(IngotSelectionTest, ReadsNoStatusOfAToolchainNeedingANewerScrap)
+{
+    EXPECT_TRUE(isStatusRead(std::nullopt));
+    EXPECT_TRUE(isStatusRead(NoLongerOffered{ .family = "gcc", .alternative = std::nullopt }));
+    EXPECT_FALSE(isStatusRead(NeedsNewerScrap{ .required = "2.0.0" }));
+}
+
 TEST(IngotSelectionTest, LooksUpTheNewestVersionWhenNoneCanBeInstalled)
 {
     ToolchainIndex index{ .toolchains = { toolchain("gcc", "15.1.0"), toolchain("gcc", "15.2.0") } };

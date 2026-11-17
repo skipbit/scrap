@@ -108,3 +108,20 @@ TEST(RemoteListingTest, NamesAnIndexedToolchainByFamilyAndVersion)
 {
     EXPECT_EQ(toolchain("gcc", "15.2.0").text(), "gcc@15.2.0");
 }
+
+/**
+ * A version needing a newer scrap was not read as far as its status, so it
+ * is listed with none.
+ */
+TEST(RemoteListingTest, ListsNoStatusForAVersionNeedingANewerScrap)
+{
+    ToolchainIndex index{ .toolchains = { toolchain("gcc", "16.1.0", ToolchainStatus::Disabled) } };
+    index.toolchains.front().minScrapVersion = version("2.0.0");
+
+    const auto rows = listRemoteToolchains(index, {}, linuxHost());
+
+    ASSERT_EQ(rows.size(), 1);
+    EXPECT_FALSE(rows.front().status.has_value());
+    ASSERT_TRUE(rows.front().barrier.has_value());
+    EXPECT_TRUE(std::holds_alternative<NeedsNewerScrap>(*rows.front().barrier));
+}

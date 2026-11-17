@@ -183,6 +183,11 @@ std::optional<IngotSelectionFault> barrierTo(const IndexedToolchain& toolchain, 
     return faultOf(toolchain, index, host);
 }
 
+bool isStatusRead(const std::optional<IngotSelectionFault>& barrier)
+{
+    return ! (barrier.has_value() && std::holds_alternative<NeedsNewerScrap>(*barrier));
+}
+
 std::expected<IndexedLookup, NoMatchInIndex> lookUpInIndex(const ToolchainIndex& index, const ToolchainSpecifier& specifier, const InstallingHost& host)
 {
     const IndexedToolchain* const chosen = chooseNamed(index, specifier, host);

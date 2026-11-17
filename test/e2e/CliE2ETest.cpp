@@ -4639,6 +4639,28 @@ TEST_F(CliE2ETest, ListsEveryToolchainOfTheIndexWithWhyTheHostCannotInstallIt)
  * When nothing in the index can be installed on the host, that is said
  * with how to list it all, and is no failure.
  */
+/**
+ * A version needing a newer scrap is not read as far as its status, so
+ * neither the listing nor info tells one for it.
+ */
+TEST_F(CliE2ETest, TellsNoStatusForAToolchainNeedingANewerScrap)
+{
+    const ToolchainServer server("gcc", { { .version = "15.2.0", .ingot = compilerIngot() }, { .version = "16.1.0", .ingot = compilerIngot(), .extraToolchainKeys = "min_scrap_version = '999.0.0'\n" } });
+    ASSERT_EQ(runScrap({ "toolchain", "update" }, { server.indexVariable() }, _root).exitCode, 0);
+
+    auto listed = runScrap({ "toolchain", "list", "--remote", "--all" }, { server.indexVariable() }, _root);
+    auto info = runScrap({ "toolchain", "info", "gcc@16.1.0" }, { server.indexVariable() }, _root);
+
+    EXPECT_EQ(listed.exitCode, 0) << listed.stderrText;
+    EXPECT_TRUE(listed.stdoutText.starts_with("TOOLCHAIN   STATUS  INSTALLED  NOTE\n"
+                                              "gcc@16.1.0                     needs scrap 999.0.0 or later\n"
+                                              "gcc@15.2.0  active\n"))
+        << listed.stdoutText;
+    EXPECT_EQ(info.exitCode, 0) << info.stderrText;
+    EXPECT_EQ(info.stdoutText.find("status:"), std::string::npos) << info.stdoutText;
+    EXPECT_TRUE(hasLine(info.stdoutText, "cannot be installed here:  needs scrap 999.0.0 or later")) << info.stdoutText;
+}
+
 TEST_F(CliE2ETest, SaysNothingOfTheIndexCanBeInstalledHere)
 {
     const ToolchainServer server("gcc", { { .version = "15.3.0", .status = "disabled", .ingot = compilerIngot() } });

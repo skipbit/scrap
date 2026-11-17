@@ -122,9 +122,12 @@ std::vector<DetailLine> linesOf(const IndexedDetails& details)
     std::vector<DetailLine> lines{
         line("name", printableText(toolchain.family + "@" + toolchain.version.text())),
         line("installed", "no"),
-        line("status", std::string{ Toolchain::statusName(toolchain.status) }),
     };
-    if (const std::optional<Toolchain::IngotSelectionFault>& barrier = details.lookup.barrier; barrier.has_value()) {
+    const std::optional<Toolchain::IngotSelectionFault>& barrier = details.lookup.barrier;
+    if (Toolchain::isStatusRead(barrier)) {
+        lines.push_back(line("status", std::string{ Toolchain::statusName(toolchain.status) }));
+    }
+    if (barrier.has_value()) {
         lines.push_back(line("cannot be installed here", renderInstallBarrier(*barrier)));
     }
     if (! toolchain.compiler.empty()) {

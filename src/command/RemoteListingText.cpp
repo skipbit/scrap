@@ -22,7 +22,7 @@ std::string renderRemoteListingTable(const std::vector<RemoteToolchain>& rows, c
         table.back().emplace_back("NOTE");
     }
     for (const RemoteToolchain& row : rows) {
-        table.push_back({ printableText(row.name), std::string{ Toolchain::statusName(row.status) }, row.installed ? "yes" : "" });
+        table.push_back({ printableText(row.name), row.status.has_value() ? std::string{ Toolchain::statusName(*row.status) } : std::string{}, row.installed ? "yes" : "" });
         if (withNotes) {
             table.back().push_back(row.barrier.has_value() ? renderInstallBarrier(*row.barrier) : std::string{});
         }
