@@ -88,25 +88,40 @@ void addSelection(std::vector<DetailLine>& lines, const ToolchainSelection& sele
     }
 }
 
+std::string reasonText(const Toolchain::NoMatchInIndex& /*barrier*/)
+{
+    return "not in the toolchain index";
+}
+
+std::string reasonText(const Toolchain::NoIngotForHost& barrier)
+{
+    return "not built for " + printableText(barrier.environment);
+}
+
+std::string reasonText(const Toolchain::NoLongerOffered& /*barrier*/)
+{
+    return "no longer provided";
+}
+
+std::string reasonText(const Toolchain::NeedsNewerGlibc& barrier)
+{
+    return "needs glibc " + printableText(barrier.required) + " or later; this host has " + printableText(barrier.host);
+}
+
+std::string reasonText(const Toolchain::NeedsNewerScrap& barrier)
+{
+    return "needs scrap " + printableText(barrier.required) + " or later";
+}
+
 /**
  * Why a toolchain the index holds cannot be installed on the host, as
  * install tells it.
  */
 std::string barrierText(const Toolchain::IngotSelectionFault& barrier)
 {
-    if (const auto* noIngot = std::get_if<Toolchain::NoIngotForHost>(&barrier)) {
-        return "not built for " + printableText(noIngot->environment);
-    }
-    if (std::holds_alternative<Toolchain::NoLongerOffered>(barrier)) {
-        return "no longer provided";
-    }
-    if (const auto* glibc = std::get_if<Toolchain::NeedsNewerGlibc>(&barrier)) {
-        return "needs glibc " + printableText(glibc->required) + " or later; this host has " + printableText(glibc->host);
-    }
-    if (const auto* scrap = std::get_if<Toolchain::NeedsNewerScrap>(&barrier)) {
-        return "needs scrap " + printableText(scrap->required) + " or later";
-    }
-    return "not in the toolchain index";
+    return std::visit([](const auto& alternative) -> std::string {
+        return reasonText(alternative);
+    }, barrier);
 }
 
 std::vector<DetailLine> linesOf(const InstalledDetails& details)
