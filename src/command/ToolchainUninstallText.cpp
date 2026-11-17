@@ -5,6 +5,7 @@
 #include "command/ToolchainNaming.h"
 #include "install/ToolchainRemoval.h"
 
+#include <cstddef>
 #include <filesystem>
 #include <string>
 #include <string_view>
@@ -54,12 +55,16 @@ std::string renderGlobalDefaultAfterUninstall(const NamedToolchain& named, const
 std::string renderUsedHereAfterUninstall(const NamedToolchain& named, const NameAfterUninstall& after)
 {
     const std::string shown = printableText(named.text);
-    const std::string names = std::string{ namer(named.source) } + " names '" + shown + "'";
+    std::string names{ namer(named.source) };
+    names += " names '" + shown + "'";
     if (const auto* elsewhere = std::get_if<LeadsElsewhere>(&after)) {
         return names + ", which now leads to '" + printableText(elsewhere->name) + "'\n";
     }
-    return "warning: " + names + ", which is no longer installed; builds here stop until it is installed again\n"
-         + "hint: run 'scrap toolchain install " + shown + "'\n";
+    std::string rendered = "warning: " + names;
+    rendered += ", which is no longer installed; builds here stop until it is installed again\nhint: run 'scrap toolchain install ";
+    rendered += shown;
+    rendered += "'\n";
+    return rendered;
 }
 
 std::string renderCannotUninstallSystem()
@@ -69,19 +74,23 @@ std::string renderCannotUninstallSystem()
 
 std::string renderNothingToUninstall(const std::string_view specifier)
 {
-    return "error: toolchain '" + printableTypedEcho(specifier) + "' is not installed\n"
-         + "hint: run 'scrap toolchain list' to see what is installed\n";
+    std::string rendered = "error: toolchain '" + printableTypedEcho(specifier);
+    rendered += "' is not installed\nhint: run 'scrap toolchain list' to see what is installed\n";
+    return rendered;
 }
 
 std::string renderNamesMoreThanOneToUninstall(const std::string_view specifier, const std::vector<std::string>& names)
 {
-    std::string listed;
-    for (const std::string& name : names) {
-        listed += (listed.empty() ? "" : ", ") + printableText(name);
+    std::string rendered = "error: '" + printableTypedEcho(specifier);
+    rendered += "' names more than one installed toolchain: ";
+    for (std::size_t i = 0; i < names.size(); ++i) {
+        rendered += (i == 0) ? "" : ", ";
+        rendered += printableText(names[i]);
     }
-    const std::string example = names.empty() ? std::string{} : printableText(names.back());
-    return "error: '" + printableTypedEcho(specifier) + "' names more than one installed toolchain: " + listed + "\n"
-         + "hint: name one with its full version, as in 'scrap toolchain uninstall " + example + "'\n";
+    rendered += "\nhint: name one with its full version, as in 'scrap toolchain uninstall ";
+    rendered += names.empty() ? std::string{} : printableText(names.back());
+    rendered += "'\n";
+    return rendered;
 }
 
 std::string renderNotRemoved(const Install::ToolchainNotRemoved& failure)

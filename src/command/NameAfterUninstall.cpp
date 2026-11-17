@@ -5,9 +5,10 @@
 #include "toolchain/ToolchainSpecifier.h"
 
 #include <algorithm>
+#include <iterator>
 #include <optional>
-#include <string>
 #include <string_view>
+#include <utility>
 #include <variant>
 #include <vector>
 

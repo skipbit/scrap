@@ -27,6 +27,6 @@ struct ToolchainNotRemoved {
  * @return Nothing, or what could not be moved away and why.
  */
 [[nodiscard]] std::expected<void, ToolchainNotRemoved> removeInstalledToolchain(const std::filesystem::path& scrapHome,
-                                                                               const std::filesystem::path& directory);
+                                                                                const std::filesystem::path& directory);
 
 }  // namespace scrap::Install
