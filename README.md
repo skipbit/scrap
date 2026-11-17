@@ -116,6 +116,10 @@ scrap toolchain unselect
 # and the one used in the project here marked
 scrap toolchain list
 
+# Show where a toolchain came from, where it is, what it is made of and
+# whether it is chosen; one that is not installed is shown as the index has it
+scrap toolchain info llvm@18
+
 # Fetch the index of toolchains, and show what is new and what changed since
 # it was last fetched; nothing installed changes
 scrap toolchain update
@@ -144,7 +148,7 @@ scrap is in early alpha development.
 - **Settings per target** - include directories, defines and flags, as shown in [Simple Configuration](#-simple-configuration)
 - **Running** - `scrap run` builds the executable and starts it with the arguments after `--`, and exits with its exit code. `--bin <name>` chooses the executable when there is more than one
 - **Cleaning** - `scrap clean` removes `build/`
-- **Toolchains** - `scrap toolchain install`, `select`, `unselect`, `list` and `update`, and a toolchain per project in `scrap.toml`, as shown in [Integrated Toolchain Management](#-integrated-toolchain-management)
+- **Toolchains** - `scrap toolchain install`, `select`, `unselect`, `list`, `info` and `update`, and a toolchain per project in `scrap.toml`, as shown in [Integrated Toolchain Management](#-integrated-toolchain-management)
 - **External commands** - an executable named `scrap-<name>` on `PATH` runs as `scrap <name>` and is listed in `scrap --help`
 
 🚧 **In Progress**
