@@ -16,7 +16,7 @@ namespace scrap::Command {
 struct RemoteToolchain {
     std::string name;  ///< <family>@<version>
     Toolchain::ToolchainStatus status = Toolchain::ToolchainStatus::Active;
-    bool installed = false;                                  ///< Whether it is installed for the host.
+    bool installed = false;                                 ///< Whether it is installed for the host.
     std::optional<Toolchain::IngotSelectionFault> barrier;  ///< What stops the host installing it; nothing when it can.
 };
 

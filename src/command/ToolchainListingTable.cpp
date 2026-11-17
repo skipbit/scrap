@@ -4,7 +4,6 @@
 #include "command/TextColumns.h"
 #include "command/ToolchainListing.h"
 
-#include <algorithm>
 #include <cstddef>
 #include <string>
 #include <string_view>

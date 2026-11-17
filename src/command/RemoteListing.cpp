@@ -16,6 +16,7 @@ std::vector<RemoteToolchain> listRemoteToolchains(const Toolchain::ToolchainInde
                                                   const bool all)
 {
     std::vector<const Toolchain::IndexedToolchain*> listed;
+    listed.reserve(index.toolchains.size());
     for (const Toolchain::IndexedToolchain& toolchain : index.toolchains) {
         listed.push_back(&toolchain);
     }
