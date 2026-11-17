@@ -21,23 +21,6 @@ namespace {
 constexpr std::string_view SystemName = "system";
 
 /**
- * The name of the newest installed toolchain @p specifier names, if any.
- */
-std::optional<std::string> newestNamed(const std::vector<Toolchain::InstalledName>& installed, const Toolchain::ToolchainSpecifier& specifier)
-{
-    const Toolchain::InstalledName* newest = nullptr;
-    for (const Toolchain::InstalledName& each : installed) {
-        if (specifier.matches(each.family, each.version) && ((newest == nullptr) || (each.version > newest->version))) {
-            newest = &each;
-        }
-    }
-    if (newest == nullptr) {
-        return std::nullopt;
-    }
-    return newest->text();
-}
-
-/**
  * The row of @p toolchains that @p named stands for, added at the end, as
  * not there, when there is none.
  */
@@ -48,7 +31,7 @@ ListedToolchain& rowFor(std::vector<ListedToolchain>& toolchains, const std::vec
     if (isSystem) {
         present = std::string{ SystemName };
     } else {
-        present = newestNamed(installed, std::get<Toolchain::ToolchainSpecifier>(named.choice));
+        present = Toolchain::newestNamedBy(installed, std::get<Toolchain::ToolchainSpecifier>(named.choice));
     }
     const std::string& name = present.value_or(named.text);
     const auto found = std::ranges::find(toolchains, name, &ListedToolchain::name);

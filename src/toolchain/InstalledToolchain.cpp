@@ -12,7 +12,9 @@
 #include <algorithm>
 #include <expected>  // IWYU pragma: keep
 #include <filesystem>
+#include <functional>
 #include <optional>
+#include <ranges>
 #include <string>
 #include <system_error>
 #include <utility>
@@ -202,6 +204,23 @@ std::expected<std::vector<std::string>, CannotListToolchains> installedFamilies(
     return families;
 }
 
+/**
+ * The newest of @p installed that @p specifier names, nothing when it names
+ * none. @p familyOf and @p versionOf read the family and the version of an
+ * element.
+ */
+template <typename Range, typename FamilyOf, typename VersionOf>
+const std::ranges::range_value_t<Range>* newestMatching(const Range& installed, const ToolchainSpecifier& specifier, FamilyOf familyOf, VersionOf versionOf)
+{
+    const std::ranges::range_value_t<Range>* newest = nullptr;
+    for (const auto& each : installed) {
+        if (specifier.matches(std::invoke(familyOf, each), std::invoke(versionOf, each)) && ((newest == nullptr) || (std::invoke(versionOf, each) > std::invoke(versionOf, *newest)))) {
+            newest = &each;
+        }
+    }
+    return newest;
+}
+
 }  // anonymous namespace
 
 std::expected<std::optional<InstallRecord>, std::string> usableInstallRecord(const std::filesystem::path& directory)
@@ -229,12 +248,9 @@ std::expected<std::optional<InstalledToolchain>, InstalledToolchainFault> findIn
     if (! versions.has_value()) {
         return std::unexpected(versions.error());
     }
-    const InstalledVersion* newest = nullptr;
-    for (const InstalledVersion& installed : *versions) {
-        if (specifier.matches(specifier.family, installed.version) && ((newest == nullptr) || (installed.version > newest->version))) {
-            newest = &installed;
-        }
-    }
+    const InstalledVersion* newest = newestMatching(*versions, specifier, [&specifier](const InstalledVersion&) -> const std::string& {
+        return specifier.family;
+    }, &InstalledVersion::version);
     if (newest == nullptr) {
         return std::nullopt;
     }
@@ -280,6 +296,26 @@ std::optional<InstalledToolchain> anyInstalledToolchain(const std::filesystem::p
         }
     }
     return std::nullopt;
+}
+
+std::optional<std::string> newestNamedBy(const std::vector<InstalledName>& installed, const ToolchainSpecifier& specifier)
+{
+    const InstalledName* newest = newestMatching(installed, specifier, &InstalledName::family, &InstalledName::version);
+    if (newest == nullptr) {
+        return std::nullopt;
+    }
+    return newest->text();
+}
+
+std::vector<InstalledName> namedBy(const std::vector<InstalledName>& installed, const ToolchainSpecifier& specifier)
+{
+    std::vector<InstalledName> named;
+    for (const InstalledName& each : installed) {
+        if (specifier.matches(each.family, each.version)) {
+            named.push_back(each);
+        }
+    }
+    return named;
 }
 
 std::string InstalledName::text() const

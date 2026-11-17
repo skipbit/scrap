@@ -6,6 +6,7 @@
 #include "install/IngotUnpack.h"
 #include "install/UnpackedToolchain.h"
 #include "install/UtcTime.h"
+#include "install/WorkDirectory.h"
 #include "registry/IngotLocation.h"
 #include "registry/RegistryFetch.h"
 #include "toolchain/IngotSelection.h"
@@ -22,7 +23,6 @@
 #include <string>
 #include <string_view>
 #include <system_error>
-#include <unistd.h>
 #include <utility>
 #include <variant>
 
@@ -31,81 +31,6 @@ namespace scrap::Install {
 namespace {
 
 constexpr std::uint64_t IngotSizeLimit = std::uint64_t{ 8 } * 1024 * 1024 * 1024;
-constexpr std::chrono::hours AbandonedAfter{ 24 };
-
-/**
- * A directory of its own for one run, removed however the run ends unless the
- * run asks to keep part of it.
- */
-class WorkDirectory {
-public:
-    /**
-     * A new directory below @p parent. Its name holds this process's id and a
-     * count that moves on when another process, one in another container with
-     * the same id among them, holds the name.
-     */
-    [[nodiscard]] static std::expected<WorkDirectory, IngotNotPlaced> below(const std::filesystem::path& parent)
-    {
-        std::error_code ec;
-        std::filesystem::create_directories(parent, ec);
-        if (ec) {
-            return std::unexpected(IngotNotPlaced{ .path = parent, .code = ec });
-        }
-        const std::string prefix = "install-" + std::to_string(::getpid()) + "-";
-        for (unsigned count = 0;; ++count) {
-            std::filesystem::path candidate = parent / (prefix + std::to_string(count));
-            if (std::filesystem::create_directory(candidate, ec)) {
-                return WorkDirectory{ std::move(candidate) };
-            }
-            if (ec) {
-                return std::unexpected(IngotNotPlaced{ .path = candidate, .code = ec });
-            }
-        }
-    }
-
-    WorkDirectory(const WorkDirectory&) = delete;
-    WorkDirectory& operator=(const WorkDirectory&) = delete;
-    WorkDirectory(WorkDirectory&& other) noexcept
-        : _path(std::exchange(other._path, {}))
-    {
-    }
-    WorkDirectory& operator=(WorkDirectory&&) = delete;
-    ~WorkDirectory()
-    {
-        if (! _path.empty()) {
-            std::error_code ec;
-            std::filesystem::remove_all(_path, ec);
-        }
-    }
-
-    [[nodiscard]] const std::filesystem::path& path() const
-    {
-        return _path;
-    }
-
-    /**
-     * Leave @p kept behind when the run ends, and nothing else of the run.
-     */
-    void keepOnly(const std::filesystem::path& kept)
-    {
-        std::error_code ec;
-        for (std::filesystem::directory_iterator it(_path, ec), end; (! ec) && (it != end); it.increment(ec)) {
-            if (it->path() != kept) {
-                std::error_code entryError;
-                std::filesystem::remove_all(it->path(), entryError);
-            }
-        }
-        _path.clear();
-    }
-
-private:
-    explicit WorkDirectory(std::filesystem::path path)
-        : _path(std::move(path))
-    {
-    }
-
-    std::filesystem::path _path;
-};
 
 /**
  * Put @p finished at @p destination, moving aside what is there to
@@ -275,26 +200,14 @@ std::expected<std::filesystem::path, IngotInstallFailure> prepareToolchain(const
 
 }  // anonymous namespace
 
-void discardAbandonedWork(const std::filesystem::path& workDirectory, const std::filesystem::file_time_type now)
-{
-    std::error_code ec;
-    for (std::filesystem::directory_iterator it(workDirectory, ec), end; (! ec) && (it != end); it.increment(ec)) {
-        std::error_code entryError;
-        const auto written = std::filesystem::last_write_time(it->path(), entryError);
-        if ((! entryError) && ((now - written) >= AbandonedAfter)) {
-            std::filesystem::remove_all(it->path(), entryError);
-        }
-    }
-}
-
 std::expected<std::filesystem::path, IngotInstallFailure> installIngot(const IngotInstallRequest& request)
 {
     const Toolchain::SelectedIngot& selected = request.selected;
     const std::filesystem::path workRoot = Toolchain::temporaryDirectory(request.scrapHome);
     discardAbandonedWork(workRoot, std::filesystem::file_time_type::clock::now());
-    auto work = WorkDirectory::below(workRoot);
+    auto work = WorkDirectory::below(workRoot, "install");
     if (! work.has_value()) {
-        return std::unexpected(std::move(work.error()));
+        return std::unexpected(IngotNotPlaced{ .path = std::move(work.error().path), .code = work.error().code });
     }
 
     const std::string name = selected.family + "@" + selected.version.text();

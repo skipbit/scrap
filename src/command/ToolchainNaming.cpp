@@ -1,7 +1,9 @@
 #include "command/ToolchainNaming.h"
 
+#include "command/ProjectDiagnostic.h"
 #include "command/RuntimeEnvironment.h"
 #include "command/ToolchainDiagnostic.h"
+#include "project/ProjectLoader.h"
 #include "toolchain/GlobalConfigFile.h"
 #include "toolchain/ScrapHomeLayout.h"
 #include "toolchain/SystemCompiler.h"
@@ -13,6 +15,7 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <variant>
 
 namespace scrap::Command {
 
@@ -82,6 +85,22 @@ std::expected<std::optional<NamedToolchain>, std::string> namedAboveGlobalDefaul
         return parseNamed(*projectToolchain, ChoiceSource::Project);
     }
     return std::nullopt;
+}
+
+std::expected<NamedAboveHere, std::string> namedAboveGlobalDefaultHere(const RuntimeEnvironment& env)
+{
+    const auto project = Project::loadProject(env.workingDirectory);
+    if (! project.has_value() && ! std::holds_alternative<Project::ProjectNotFound>(project.error())) {
+        return std::unexpected(renderProjectError(project.error()));
+    }
+    auto above = namedAboveGlobalDefault(env, project.has_value() ? project->manifest.toolchain : std::nullopt);
+    if (! above.has_value()) {
+        if (! project.has_value()) {
+            return NamedAboveHere{};
+        }
+        return std::unexpected(std::move(above.error()));
+    }
+    return NamedAboveHere{ .named = std::move(*above), .inProject = project.has_value() };
 }
 
 std::expected<std::optional<NamedToolchain>, std::string> namedGlobalDefault(const RuntimeEnvironment& env)

@@ -66,6 +66,8 @@ scrap_add_unit_test(command SOURCES
     unit/command/ToolchainInstallDiagnosticTest.cpp
     unit/command/ToolchainListingTest.cpp
     unit/command/ToolchainListingTableTest.cpp
+    unit/command/NameAfterUninstallTest.cpp
+    unit/command/ToolchainUninstallTextTest.cpp
     unit/command/ToolchainDetailsTest.cpp
     unit/command/ToolchainDetailsTextTest.cpp
     unit/command/IndexUpdateReportTest.cpp
@@ -149,6 +151,8 @@ scrap_add_unit_test(registry SOURCES
 scrap_add_unit_test(install SOURCES
     unit/install/IndexCopyTest.cpp
     unit/install/IngotInstallerTest.cpp
+    unit/install/ToolchainRemovalTest.cpp
+    unit/install/WorkDirectoryTest.cpp
     unit/install/UnpackedToolchainTest.cpp
     PROPERTIES TIMEOUT 120
 )

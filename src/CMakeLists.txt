@@ -158,9 +158,11 @@ scrap_apply_compile_settings(scrap_toolchain WARNINGS_AS_ERRORS)
 add_library(scrap_install STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/install/IndexCopy.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/install/IngotInstaller.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/install/ToolchainRemoval.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/install/IngotUnpack.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/install/UnpackedToolchain.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/install/UtcTime.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/install/WorkDirectory.cpp
 )
 target_include_directories(scrap_install PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(scrap_install
@@ -216,6 +218,9 @@ add_library(scrap_command STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainNaming.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainListing.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainListingFacts.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/NameAfterUninstall.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainUninstallText.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainUninstallCommandHandler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainDetails.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainDetailsText.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainListingTable.cpp

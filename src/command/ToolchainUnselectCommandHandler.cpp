@@ -1,7 +1,6 @@
 #include "command/ToolchainUnselectCommandHandler.h"
 
 #include "command/InvocationContext.h"
-#include "command/PrintableText.h"
 #include "command/ScrapHome.h"
 #include "command/ToolchainDiagnostic.h"
 #include "toolchain/GlobalConfigFile.h"
@@ -36,7 +35,7 @@ int ToolchainUnselectCommandHandler::execute(const InvocationContext& ctx)
         std::cerr << renderGlobalConfigFileError(file, written.error());
         return 1;
     }
-    std::cerr << "Unselected '" << printableText(*selected) << "'; no toolchain is selected globally\n";
+    std::cerr << renderUnselected(*selected);
     return 0;
 }
 

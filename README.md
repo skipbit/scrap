@@ -123,6 +123,10 @@ scrap toolchain info llvm@18
 # Fetch the index of toolchains, and show what is new and what changed since
 # it was last fetched; nothing installed changes
 scrap toolchain update
+
+# Remove the one installed version a specifier names, unselecting it if it was
+# the global default and leaving the other versions of the series
+scrap toolchain uninstall llvm@18.1.8
 ```
 
 A project can name its own toolchain in `scrap.toml`, which comes before the global default; `system` names the compiler of the system, found through `CXX` or on `PATH`:
@@ -148,7 +152,7 @@ scrap is in early alpha development.
 - **Settings per target** - include directories, defines and flags, as shown in [Simple Configuration](#-simple-configuration)
 - **Running** - `scrap run` builds the executable and starts it with the arguments after `--`, and exits with its exit code. `--bin <name>` chooses the executable when there is more than one
 - **Cleaning** - `scrap clean` removes `build/`
-- **Toolchains** - `scrap toolchain install`, `select`, `unselect`, `list`, `info` and `update`, and a toolchain per project in `scrap.toml`, as shown in [Integrated Toolchain Management](#-integrated-toolchain-management)
+- **Toolchains** - `scrap toolchain install`, `select`, `unselect`, `list`, `info`, `update` and `uninstall`, and a toolchain per project in `scrap.toml`, as shown in [Integrated Toolchain Management](#-integrated-toolchain-management)
 - **External commands** - an executable named `scrap-<name>` on `PATH` runs as `scrap <name>` and is listed in `scrap --help`
 
 🚧 **In Progress**

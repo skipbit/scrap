@@ -462,3 +462,62 @@ TEST(InstalledToolchainTest, ReportsWhatCannotBeListedWhenListing)
     EXPECT_EQ(family.error().directory, home.path() / "toolchains" / "gcc");
     EXPECT_TRUE(family.error().code) << family.error().code.message();
 }
+
+namespace {
+
+/**
+ * The names of the toolchains of @p installed that @p specifier names, in
+ * the order kept.
+ */
+std::vector<std::string> keptBy(const std::vector<InstalledName>& installed, std::string_view specifier)
+{
+    std::vector<std::string> names;
+    for (const InstalledName& name : namedBy(installed, parseToolchainSpecifier(specifier).value())) {
+        names.push_back(name.text());
+    }
+    return names;
+}
+
+}  // namespace
+
+/**
+ * Every version the specifier names is kept in the order given, and nothing
+ * of another family or version.
+ */
+TEST(InstalledToolchainTest, KeepsEveryVersionTheSpecifierNamesInOrder)
+{
+    const std::vector<InstalledName> installed{ { .family = "gcc", .version = ToolchainVersion::parse("15.2.0").value() },
+                                                { .family = "gcc", .version = ToolchainVersion::parse("15.10.0").value() },
+                                                { .family = "gcc", .version = ToolchainVersion::parse("16.2.0").value() },
+                                                { .family = "llvm", .version = ToolchainVersion::parse("15.0.0").value() } };
+
+    EXPECT_EQ(keptBy(installed, "gcc@15"), (std::vector<std::string>{ "gcc@15.2.0", "gcc@15.10.0" }));
+    EXPECT_EQ(keptBy(installed, "gcc@16.2.0"), (std::vector<std::string>{ "gcc@16.2.0" }));
+    EXPECT_EQ(keptBy(installed, "gcc"), (std::vector<std::string>{ "gcc@15.2.0", "gcc@15.10.0", "gcc@16.2.0" }));
+}
+
+/**
+ * A specifier that names none keeps none.
+ */
+TEST(InstalledToolchainTest, KeepsNothingWhenTheSpecifierNamesNone)
+{
+    const std::vector<InstalledName> installed{ { .family = "gcc", .version = ToolchainVersion::parse("15.2.0").value() } };
+
+    EXPECT_TRUE(keptBy(installed, "gcc@14").empty());
+    EXPECT_TRUE(keptBy(installed, "llvm").empty());
+    EXPECT_TRUE(keptBy({}, "gcc").empty());
+}
+
+/**
+ * Of the listed toolchains, the newest the specifier names is the one a
+ * build would use, comparing versions as numbers.
+ */
+TEST(InstalledToolchainTest, NamesTheNewestListedToolchainASpecifierNames)
+{
+    const std::vector<InstalledName> installed{ { .family = "gcc", .version = ToolchainVersion::parse("15.10.0").value() },
+                                                { .family = "gcc", .version = ToolchainVersion::parse("15.2.0").value() },
+                                                { .family = "gcc", .version = ToolchainVersion::parse("16.2.0").value() } };
+
+    EXPECT_EQ(newestNamedBy(installed, parseToolchainSpecifier("gcc@15").value()), std::optional<std::string>{ "gcc@15.10.0" });
+    EXPECT_EQ(newestNamedBy(installed, parseToolchainSpecifier("gcc@14").value()), std::nullopt);
+}

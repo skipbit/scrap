@@ -123,6 +123,18 @@ struct InstalledName {
                                                                                                       const HostEnvironment& host);
 
 /**
+ * @brief The name of the newest of @p installed that @p specifier names,
+ *        as a build would use it, or nothing when it names none.
+ */
+[[nodiscard]] std::optional<std::string> newestNamedBy(const std::vector<InstalledName>& installed, const ToolchainSpecifier& specifier);
+
+/**
+ * @brief The names in @p installed that @p specifier names, in the order
+ *        given.
+ */
+[[nodiscard]] std::vector<InstalledName> namedBy(const std::vector<InstalledName>& installed, const ToolchainSpecifier& specifier);
+
+/**
  * @brief The install record in @p directory, when what it names is there.
  *
  * A directory whose record cannot be looked up counts as holding none. A

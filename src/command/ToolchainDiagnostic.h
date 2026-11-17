@@ -80,6 +80,12 @@ enum class ToolchainNamedIn : std::uint8_t {
 [[nodiscard]] std::string renderCannotListToolchains(const Toolchain::CannotListToolchains& fault);
 
 /**
+ * @brief Report that the global default @p name is unselected, so no
+ *        toolchain is selected globally.
+ */
+[[nodiscard]] std::string renderUnselected(std::string_view name);
+
+/**
  * @brief Report a system with no C++ compiler, and what to do next.
  */
 [[nodiscard]] std::string renderNoCompilerFound();
@@ -97,5 +103,11 @@ enum class ToolchainNamedIn : std::uint8_t {
  *        @p example.
  */
 [[nodiscard]] std::string renderNoCompilerWithInstalled(std::string_view example);
+
+/**
+ * @brief The error lines @p rendered as a warning, for what a command goes
+ *        on without.
+ */
+[[nodiscard]] std::string asWarning(std::string rendered);
 
 }  // namespace scrap::Command

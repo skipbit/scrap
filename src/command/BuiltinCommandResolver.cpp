@@ -18,6 +18,7 @@
 #include "command/ToolchainInstallCommandHandler.h"
 #include "command/ToolchainListCommandHandler.h"
 #include "command/ToolchainSelectCommandHandler.h"
+#include "command/ToolchainUninstallCommandHandler.h"
 #include "command/ToolchainUnselectCommandHandler.h"
 #include "command/ToolchainUpdateCommandHandler.h"
 #include "command/VersionRenderer.h"
@@ -361,6 +362,21 @@ CommandEntry makeToolchainInfoEntry()
     return entry;
 }
 
+CommandEntry makeToolchainUninstallEntry()
+{
+    CommandEntry entry;
+    entry.spec.name = "uninstall";
+    entry.spec.description = "Remove an installed toolchain";
+    entry.spec.category = "Toolchain Commands";
+    entry.spec.options.positional.push_back(
+        PositionalDef{ .name = "specifier", .description = "Toolchain to remove, as <family>[@<version>] naming one installed version", .required = true });
+    entry.source = CommandSource::Builtin;
+    entry.createHandler = [](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
+        return std::make_unique<ToolchainUninstallCommandHandler>();
+    };
+    return entry;
+}
+
 }  // anonymous namespace
 
 /**
@@ -424,6 +440,7 @@ std::vector<CommandEntry> BuiltinCommandResolver::resolve([[maybe_unused]] const
         toolchain.subcommands.push_back(makeToolchainListEntry());
         toolchain.subcommands.push_back(makeToolchainInfoEntry());
         toolchain.subcommands.push_back(makeToolchainInstallEntry());
+        toolchain.subcommands.push_back(makeToolchainUninstallEntry());
         toolchain.subcommands.push_back(makeToolchainSelectEntry());
         toolchain.subcommands.push_back(makeToolchainUnselectEntry());
         toolchain.subcommands.push_back(makeToolchainUpdateEntry());

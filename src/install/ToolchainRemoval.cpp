@@ -1,0 +1,60 @@
+#include "install/ToolchainRemoval.h"
+
+#include "install/WorkDirectory.h"
+#include "toolchain/ScrapHomeLayout.h"
+
+#include <expected>  // IWYU pragma: keep
+#include <filesystem>
+#include <system_error>
+#include <utility>
+
+namespace scrap::Install {
+
+namespace {
+
+/**
+ * Remove @p directory and the parents above it up to @p top while each is
+ * empty.
+ */
+void removeEmptyUpTo(std::filesystem::path directory, const std::filesystem::path& top)
+{
+    while (directory != top && directory.has_relative_path()) {
+        std::error_code ec;
+        if (! std::filesystem::is_empty(directory, ec) || ec) {
+            return;
+        }
+        std::filesystem::remove(directory, ec);
+        if (ec) {
+            return;
+        }
+        directory = directory.parent_path();
+    }
+}
+
+}  // anonymous namespace
+
+std::expected<ToolchainRemoved, ToolchainNotRemoved> removeInstalledToolchain(const std::filesystem::path& scrapHome, const std::filesystem::path& directory)
+{
+    const std::filesystem::path workRoot = Toolchain::temporaryDirectory(scrapHome);
+    discardAbandonedWork(workRoot, std::filesystem::file_time_type::clock::now());
+    auto work = WorkDirectory::below(workRoot, "uninstall");
+    if (! work.has_value()) {
+        return std::unexpected(ToolchainNotRemoved{ .path = directory, .code = work.error().code, .workDirectory = work.error().path });
+    }
+    const std::filesystem::path removed = work->path() / "removed";
+    std::error_code ec;
+    std::filesystem::rename(directory, removed, ec);
+    if (ec) {
+        return std::unexpected(ToolchainNotRemoved{ .path = directory, .code = ec });
+    }
+    removeEmptyUpTo(directory.parent_path(), Toolchain::toolchainsDirectory(scrapHome));
+    std::filesystem::remove_all(removed, ec);
+    if (ec) {
+        std::filesystem::path leftAt = work->path();
+        work->keepOnly(removed);
+        return ToolchainRemoved{ .leftAt = std::move(leftAt) };
+    }
+    return ToolchainRemoved{};
+}
+
+}  // namespace scrap::Install

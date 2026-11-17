@@ -89,13 +89,4 @@ struct IngotInstallRequest {
  */
 [[nodiscard]] std::expected<std::filesystem::path, IngotInstallFailure> installIngot(const IngotInstallRequest& request);
 
-/**
- * @brief Remove what stopped runs left in @p workDirectory, when older than
- *        @p now by a day.
- *
- * A younger one may belong to a run still going. Failures are passed over: this
- * only reclaims space.
- */
-void discardAbandonedWork(const std::filesystem::path& workDirectory, std::filesystem::file_time_type now);
-
 }  // namespace scrap::Install

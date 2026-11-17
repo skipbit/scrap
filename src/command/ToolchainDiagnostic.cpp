@@ -170,6 +170,11 @@ std::string renderGlobalConfigFileError(const std::filesystem::path& file, const
         error);
 }
 
+std::string renderUnselected(const std::string_view name)
+{
+    return "Unselected '" + printableText(name) + "'; no toolchain is selected globally\n";
+}
+
 std::string renderNoCompilerFound()
 {
     return "error: no C++ compiler found\n"
@@ -194,6 +199,15 @@ std::string renderNoCompilerWithInstalled(std::string_view example)
     std::string rendered = "error: no C++ compiler found\nhint: select an installed toolchain with 'scrap toolchain select <toolchain>', such as '";
     rendered += printableText(example);
     rendered += "'\n";
+    return rendered;
+}
+
+std::string asWarning(std::string rendered)
+{
+    constexpr std::string_view Error = "error: ";
+    if (const auto at = rendered.find(Error); at != std::string::npos) {
+        rendered.replace(at, Error.size(), "warning: ");
+    }
     return rendered;
 }
 
