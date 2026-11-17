@@ -462,3 +462,56 @@ TEST(InstalledToolchainTest, ReportsWhatCannotBeListedWhenListing)
     EXPECT_EQ(family.error().directory, home.path() / "toolchains" / "gcc");
     EXPECT_TRUE(family.error().code) << family.error().code.message();
 }
+
+namespace {
+
+/**
+ * The names and directories of the toolchains @p specifier names below
+ * @p home, as "<name> in <directory below home>", or "<fault>".
+ */
+std::vector<std::string> placesNamed(const TempDirectory& home, std::string_view specifier)
+{
+    const auto named = installedNamedBy(home.path(), Host, parseToolchainSpecifier(specifier).value());
+    EXPECT_TRUE(named.has_value());
+    if (! named.has_value()) {
+        return { "<fault>" };
+    }
+    std::vector<std::string> places;
+    for (const InstalledPlace& place : *named) {
+        places.push_back(place.name.text() + " in " + place.directory.lexically_relative(home.path()).string());
+    }
+    return places;
+}
+
+}  // namespace
+
+/**
+ * Every installed version the specifier names is found, from the oldest,
+ * with where it is, and nothing of another family or version.
+ */
+TEST(InstalledToolchainTest, FindsEveryInstalledVersionTheSpecifierNames)
+{
+    const TempDirectory home;
+    install(home, "gcc", "15.2.0");
+    install(home, "gcc", "15.10.0");
+    install(home, "gcc", "16.2.0");
+    install(home, "llvm", "15.0.0");
+
+    EXPECT_EQ(placesNamed(home, "gcc@15"),
+              (std::vector<std::string>{ "gcc@15.2.0 in toolchains/gcc/15.2.0/linux-x86_64", "gcc@15.10.0 in toolchains/gcc/15.10.0/linux-x86_64" }));
+    EXPECT_EQ(placesNamed(home, "gcc@16.2.0"), (std::vector<std::string>{ "gcc@16.2.0 in toolchains/gcc/16.2.0/linux-x86_64" }));
+    EXPECT_TRUE(placesNamed(home, "gcc@14").empty());
+}
+
+/**
+ * A toolchain whose record cannot be used is found too, and one for
+ * another host is not.
+ */
+TEST(InstalledToolchainTest, FindsAnInstalledVersionWhoseRecordCannotBeUsed)
+{
+    const TempDirectory home;
+    home.writeFile("toolchains/gcc/15.2.0/linux-x86_64/" + std::string{ InstallRecordName }, "not a record");
+    install(home, "gcc", "15.3.0", "darwin-aarch64");
+
+    EXPECT_EQ(placesNamed(home, "gcc"), (std::vector<std::string>{ "gcc@15.2.0 in toolchains/gcc/15.2.0/linux-x86_64" }));
+}

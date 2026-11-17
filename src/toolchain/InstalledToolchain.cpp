@@ -282,6 +282,25 @@ std::optional<InstalledToolchain> anyInstalledToolchain(const std::filesystem::p
     return std::nullopt;
 }
 
+std::expected<std::vector<InstalledPlace>, CannotListToolchains> installedNamedBy(const std::filesystem::path& scrapHome,
+                                                                                  const HostEnvironment& host,
+                                                                                  const ToolchainSpecifier& specifier)
+{
+    auto versions = installedVersions(scrapHome, host, specifier.family);
+    if (! versions.has_value()) {
+        return std::unexpected(std::move(versions.error()));
+    }
+    std::ranges::sort(*versions, {}, &InstalledVersion::version);
+    std::vector<InstalledPlace> named;
+    for (InstalledVersion& installed : *versions) {
+        if (specifier.matches(specifier.family, installed.version)) {
+            named.push_back(InstalledPlace{ .name = InstalledName{ .family = specifier.family, .version = std::move(installed.version) },
+                                            .directory = std::move(installed.directory) });
+        }
+    }
+    return named;
+}
+
 std::string InstalledName::text() const
 {
     return family + "@" + version.text();

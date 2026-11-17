@@ -123,6 +123,27 @@ struct InstalledName {
                                                                                                       const HostEnvironment& host);
 
 /**
+ * @brief A toolchain installed for a host, and where it is.
+ */
+struct InstalledPlace {
+    InstalledName name;
+    std::filesystem::path directory;
+};
+
+/**
+ * @brief Every toolchain installed below @p scrapHome for @p host that
+ *        @p specifier names, from the oldest version.
+ *
+ * A toolchain counts as installed as for listInstalledToolchains(), so one
+ * whose record cannot be used is there too.
+ *
+ * @return The toolchains, or the directory that cannot be listed.
+ */
+[[nodiscard]] std::expected<std::vector<InstalledPlace>, CannotListToolchains> installedNamedBy(const std::filesystem::path& scrapHome,
+                                                                                                const HostEnvironment& host,
+                                                                                                const ToolchainSpecifier& specifier);
+
+/**
  * @brief The install record in @p directory, when what it names is there.
  *
  * A directory whose record cannot be looked up counts as holding none. A
