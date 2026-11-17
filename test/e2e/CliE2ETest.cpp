@@ -4390,3 +4390,136 @@ TEST_F(CliE2ETest, InfoReportsASystemWithoutACompiler)
               "error: no C++ compiler found\n"
               "hint: install a C++ compiler, or set CXX to the one to use\n");
 }
+
+/**
+ * One version is taken away, and another version of the family stays and
+ * can still be used.
+ */
+TEST_F(CliE2ETest, UninstallTakesAwayOneVersionAndLeavesTheOthers)
+{
+    installToolchain("gcc", "15.2.0");
+    installToolchain("gcc", "16.2.0");
+    const std::filesystem::path directory = _root / "toolchains/gcc/15.2.0" / hostDirectoryName();
+
+    auto result = runScrap({ "toolchain", "uninstall", "gcc@15.2.0" }, {}, _root);
+
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_EQ(result.stdoutText, "");
+    EXPECT_EQ(result.stderrText, "Uninstalled 'gcc@15.2.0' from '" + directory.string() + "'\n");
+    EXPECT_FALSE(std::filesystem::exists(directory));
+    EXPECT_EQ(runScrap({ "toolchain", "info", "gcc@16.2.0" }, {}, _root).exitCode, 0);
+    EXPECT_EQ(runScrap({ "toolchain", "uninstall", "gcc@15.2.0" }, {}, _root).exitCode, 1);
+}
+
+/**
+ * Taking away the global default unselects it, and says so.
+ */
+TEST_F(CliE2ETest, UninstallUnselectsTheGlobalDefault)
+{
+    installToolchain("gcc", "16.2.0");
+    ASSERT_EQ(runScrap({ "toolchain", "select", "gcc@16.2.0" }, {}, _root).exitCode, 0);
+    std::filesystem::create_directories(_root / "empty");
+
+    auto result = runScrap({ "toolchain", "uninstall", "gcc@16.2.0" }, {}, _root);
+
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_EQ(lastLineOf(result.stderrText), "Unselected 'gcc@16.2.0'; no toolchain is selected globally") << result.stderrText;
+    EXPECT_EQ(readFile("config.toml").find("toolchain"), std::string::npos) << readFile("config.toml");
+    auto listed = runScrap({ "toolchain", "list" }, { "PATH=" + (_root / "empty").string() }, _root);
+    EXPECT_EQ(listed.stdoutText.find("yes"), std::string::npos) << listed.stdoutText;
+}
+
+/**
+ * A global default that still leads to a version left stays, and where it
+ * leads now is said.
+ */
+TEST_F(CliE2ETest, UninstallTellsWhereTheGlobalDefaultLeadsNow)
+{
+    installToolchain("gcc", "15.2.0");
+    installToolchain("gcc", "16.2.0");
+    writeFile("config.toml", "[defaults]\ntoolchain = 'gcc'\n");
+
+    auto result = runScrap({ "toolchain", "uninstall", "gcc@16.2.0" }, {}, _root);
+
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_EQ(lastLineOf(result.stderrText), "The global default 'gcc' now leads to 'gcc@15.2.0'") << result.stderrText;
+    EXPECT_NE(readFile("config.toml").find("toolchain = 'gcc'"), std::string::npos) << readFile("config.toml");
+}
+
+/**
+ * When what the project names leads to nothing installed any more, builds
+ * there are said to stop, with how to go on.
+ */
+TEST_F(CliE2ETest, UninstallWarnsThatBuildsInTheProjectStop)
+{
+    installToolchain("gcc", "16.2.0");
+    writeFile("hello/scrap.toml", std::string{ ValidManifest } + "[toolchain]\nname = \"gcc@16\"\n");
+
+    auto result = runScrap({ "toolchain", "uninstall", "gcc@16.2.0" }, {}, _root / "hello");
+
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_TRUE(result.stderrText.ends_with("warning: scrap.toml names 'gcc@16', which is no longer installed; builds here stop until it is installed again\n"
+                                            "hint: run 'scrap toolchain install gcc@16'\n"))
+        << result.stderrText;
+}
+
+/**
+ * When SCRAP_TOOLCHAIN leads to another version left, builds here use it,
+ * and that is said.
+ */
+TEST_F(CliE2ETest, UninstallTellsWhatBuildsHereUseNow)
+{
+    installToolchain("gcc", "15.2.0");
+    installToolchain("gcc", "16.2.0");
+
+    auto result = runScrap({ "toolchain", "uninstall", "gcc@16.2.0" }, { "SCRAP_TOOLCHAIN=gcc" }, _root);
+
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_EQ(lastLineOf(result.stderrText), "SCRAP_TOOLCHAIN names 'gcc', which now leads to 'gcc@15.2.0'") << result.stderrText;
+}
+
+/**
+ * The system's compiler, a toolchain that is not installed, and a
+ * specifier naming more than one installed version are refused, and
+ * nothing is taken away.
+ */
+TEST_F(CliE2ETest, UninstallRefusesWhatItCannotTakeAway)
+{
+    installToolchain("gcc", "15.1.0");
+    installToolchain("gcc", "15.2.0");
+
+    auto system = runScrap({ "toolchain", "uninstall", "system" }, {}, _root);
+    auto absent = runScrap({ "toolchain", "uninstall", "gcc@14.2.0" }, {}, _root);
+    auto many = runScrap({ "toolchain", "uninstall", "gcc@15" }, {}, _root);
+
+    EXPECT_EQ(system.exitCode, 1);
+    EXPECT_EQ(system.stderrText, "error: 'system' cannot be uninstalled; it is the system's compiler, which scrap does not install\n");
+    EXPECT_EQ(absent.exitCode, 1);
+    EXPECT_EQ(absent.stderrText,
+              "error: toolchain 'gcc@14.2.0' is not installed\n"
+              "hint: run 'scrap toolchain list' to see what is installed\n");
+    EXPECT_EQ(many.exitCode, 1);
+    EXPECT_EQ(many.stderrText,
+              "error: 'gcc@15' names more than one installed toolchain: gcc@15.1.0, gcc@15.2.0\n"
+              "hint: name one with its full version, as in 'scrap toolchain uninstall gcc@15.2.0'\n");
+    EXPECT_TRUE(std::filesystem::exists(_root / "toolchains/gcc/15.1.0" / hostDirectoryName()));
+    EXPECT_TRUE(std::filesystem::exists(_root / "toolchains/gcc/15.2.0" / hostDirectoryName()));
+}
+
+/**
+ * A global default that cannot be read stops the uninstall before anything
+ * is taken away.
+ */
+TEST_F(CliE2ETest, UninstallTakesNothingAwayWhenTheGlobalDefaultCannotBeRead)
+{
+    installToolchain("gcc", "15.2.0");
+    writeFile("config.toml", "[defaults\n");
+
+    auto result = runScrap({ "toolchain", "uninstall", "gcc@15.2.0" }, {}, _root);
+
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_TRUE(result.stderrText.starts_with((_root / "config.toml").string() + ":")) << result.stderrText;
+    EXPECT_NE(result.stderrText.find(": error: "), std::string::npos) << result.stderrText;
+    EXPECT_EQ(result.stderrText.find("Uninstalled"), std::string::npos) << result.stderrText;
+    EXPECT_TRUE(std::filesystem::exists(_root / "toolchains/gcc/15.2.0" / hostDirectoryName()));
+}

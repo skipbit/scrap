@@ -219,6 +219,7 @@ add_library(scrap_command STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainListingFacts.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/NameAfterUninstall.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainUninstallText.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainUninstallCommandHandler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainDetails.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainDetailsText.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainListingTable.cpp
