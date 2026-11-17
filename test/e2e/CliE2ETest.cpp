@@ -895,7 +895,14 @@ TEST_F(CliE2ETest, HelpForANestedCommandShowsItsUsage)
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
     EXPECT_TRUE(result.stderrText.empty()) << result.stderrText;
-    EXPECT_EQ(result.stdoutText, "USAGE: scrap toolchain list\n\nDisplay the toolchains to choose from\n");
+    EXPECT_EQ(result.stdoutText,
+              "USAGE: scrap toolchain list [OPTIONS]\n"
+              "\n"
+              "Display the toolchains to choose from\n"
+              "\n"
+              "OPTIONS:\n"
+              "    --remote    Display the toolchains of the index the host can install, as last fetched\n"
+              "    --all       With --remote, display every toolchain of the index, with why the host cannot install one\n");
     ASSERT_TRUE(shortFlag.exitedNormally);
     EXPECT_EQ(shortFlag.exitCode, 0);
     EXPECT_EQ(shortFlag.stdoutText, "USAGE: scrap template update\n\nUpdate template sources\n");
@@ -909,7 +916,14 @@ TEST_F(CliE2ETest, HelpForANestedCommandTakesItsWords)
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0);
     EXPECT_TRUE(result.stderrText.empty()) << result.stderrText;
-    EXPECT_EQ(result.stdoutText, "USAGE: scrap toolchain list\n\nDisplay the toolchains to choose from\n");
+    EXPECT_EQ(result.stdoutText,
+              "USAGE: scrap toolchain list [OPTIONS]\n"
+              "\n"
+              "Display the toolchains to choose from\n"
+              "\n"
+              "OPTIONS:\n"
+              "    --remote    Display the toolchains of the index the host can install, as last fetched\n"
+              "    --all       With --remote, display every toolchain of the index, with why the host cannot install one\n");
     EXPECT_EQ(result.stdoutText, flag.stdoutText);
 }
 
@@ -4573,4 +4587,92 @@ TEST_F(CliE2ETest, UninstallWarnsOfAProjectItCannotRead)
     EXPECT_EQ(result.stderrText.find("hint:"), std::string::npos) << result.stderrText;
     EXPECT_EQ(std::ranges::count(result.stderrText, '\n'), 2) << result.stderrText;
     EXPECT_FALSE(std::filesystem::exists(_root / "toolchains/gcc/15.2.0" / hostDirectoryName()));
+}
+
+/**
+ * The toolchains of the saved index the host can install are listed from
+ * the newest, marked as installed or not, with when the index was fetched,
+ * and the index is not fetched again.
+ */
+TEST_F(CliE2ETest, ListsTheToolchainsOfTheIndexTheHostCanInstall)
+{
+    ToolchainServer server("gcc", { { .version = "15.1.0", .ingot = compilerIngot() }, { .version = "15.2.0", .ingot = compilerIngot() } });
+    ASSERT_EQ(runScrap({ "toolchain", "update" }, { server.indexVariable() }, _root).exitCode, 0);
+    installToolchain("gcc", "15.2.0");
+    server.failIndex();
+    const std::size_t requestsBefore = server.requests();
+
+    auto result = runScrap({ "toolchain", "list", "--remote" }, { server.indexVariable() }, _root);
+
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_EQ(result.stderrText, "");
+    EXPECT_EQ(withoutTimes(result.stdoutText),
+              "TOOLCHAIN   STATUS  INSTALLED\n"
+              "gcc@15.2.0  active  yes\n"
+              "gcc@15.1.0  active\n"
+              "\n"
+              "index fetched at <time>\n");
+    EXPECT_EQ(server.requests(), requestsBefore);
+}
+
+/**
+ * Asked for all, what the host cannot install is listed too, with why.
+ */
+TEST_F(CliE2ETest, ListsEveryToolchainOfTheIndexWithWhyTheHostCannotInstallIt)
+{
+    const ToolchainServer server("gcc", { { .version = "15.2.0", .ingot = compilerIngot() }, { .version = "15.3.0", .status = "disabled", .ingot = compilerIngot() } });
+    ASSERT_EQ(runScrap({ "toolchain", "update" }, { server.indexVariable() }, _root).exitCode, 0);
+
+    auto installable = runScrap({ "toolchain", "list", "--remote" }, { server.indexVariable() }, _root);
+    auto all = runScrap({ "toolchain", "list", "--remote", "--all" }, { server.indexVariable() }, _root);
+
+    EXPECT_EQ(installable.exitCode, 0) << installable.stderrText;
+    EXPECT_FALSE(hasLine(installable.stdoutText, "gcc@15.3.0  disabled")) << installable.stdoutText;
+    EXPECT_EQ(all.exitCode, 0) << all.stderrText;
+    EXPECT_TRUE(all.stdoutText.starts_with("TOOLCHAIN   STATUS    INSTALLED  NOTE\n"
+                                           "gcc@15.3.0  disabled             no longer provided\n"
+                                           "gcc@15.2.0  active\n"))
+        << all.stdoutText;
+}
+
+/**
+ * When nothing in the index can be installed on the host, that is said
+ * with how to list it all, and is no failure.
+ */
+TEST_F(CliE2ETest, SaysNothingOfTheIndexCanBeInstalledHere)
+{
+    const ToolchainServer server("gcc", { { .version = "15.3.0", .status = "disabled", .ingot = compilerIngot() } });
+    ASSERT_EQ(runScrap({ "toolchain", "update" }, { server.indexVariable() }, _root).exitCode, 0);
+
+    auto result = runScrap({ "toolchain", "list", "--remote" }, { server.indexVariable() }, _root);
+
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_EQ(result.stdoutText, "");
+    EXPECT_EQ(result.stderrText,
+              "no toolchain in the index can be installed on " + hostDirectoryName() + "\n"
+                                                                                       "hint: run 'scrap toolchain list --remote --all' to list them all\n");
+}
+
+TEST_F(CliE2ETest, ListRemoteAsksForAnUpdateWhenNoIndexIsSaved)
+{
+    auto result = runScrap({ "toolchain", "list", "--remote" }, {}, _root);
+
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_EQ(result.stdoutText, "");
+    EXPECT_EQ(result.stderrText,
+              "error: the toolchain index has not been fetched\n"
+              "hint: run 'scrap toolchain update' to fetch it\n");
+}
+
+TEST_F(CliE2ETest, ListRefusesAllWithoutRemote)
+{
+    installToolchain("gcc", "15.2.0");
+
+    auto result = runScrap({ "toolchain", "list", "--all" }, {}, _root);
+
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_EQ(result.stdoutText, "");
+    EXPECT_EQ(result.stderrText,
+              "error: '--all' is used with '--remote'\n"
+              "hint: run 'scrap toolchain list --remote --all'\n");
 }

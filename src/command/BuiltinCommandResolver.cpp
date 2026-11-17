@@ -336,6 +336,20 @@ CommandEntry makeToolchainListEntry()
     entry.spec.name = "list";
     entry.spec.description = "Display the toolchains to choose from";
     entry.spec.category = "Toolchain Commands";
+    entry.spec.options.named.push_back(OptionDef{ .longName = std::string{ RemoteOption },
+                                                  .shortName = std::nullopt,
+                                                  .type = OptionValueType::Bool,
+                                                  .required = false,
+                                                  .description = "Display the toolchains of the index the host can install, as last fetched",
+                                                  .defaultValue = std::nullopt,
+                                                  .choices = {} });
+    entry.spec.options.named.push_back(OptionDef{ .longName = std::string{ AllOption },
+                                                  .shortName = std::nullopt,
+                                                  .type = OptionValueType::Bool,
+                                                  .required = false,
+                                                  .description = "With --remote, display every toolchain of the index, with why the host cannot install one",
+                                                  .defaultValue = std::nullopt,
+                                                  .choices = {} });
     entry.source = CommandSource::Builtin;
     entry.createHandler = [](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
         return std::make_unique<ToolchainListCommandHandler>();
