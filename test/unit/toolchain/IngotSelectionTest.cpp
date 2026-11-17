@@ -7,6 +7,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -290,6 +291,25 @@ TEST(IngotSelectionTest, LooksUpADisabledVersionWithWhatStopsIt)
     EXPECT_TRUE(found->ingot.has_value());
     ASSERT_TRUE(found->barrier.has_value());
     EXPECT_EQ(std::get<NoLongerOffered>(*found->barrier).alternative, "150.1.0");
+}
+
+/**
+ * Nothing stops a version the host can install, and a version it cannot is
+ * stopped as install would say.
+ */
+TEST(IngotSelectionTest, TellsWhatStopsOneVersionBeingInstalled)
+{
+    const ToolchainIndex index = gccIndex();
+    const auto versionOf = [&index](const std::string_view version) -> const IndexedToolchain& {
+        return *std::ranges::find_if(index.toolchains, [version](const IndexedToolchain& each) {
+            return each.version.text() == version;
+        });
+    };
+
+    EXPECT_FALSE(barrierTo(versionOf("15.2.0"), index, linuxHost()).has_value());
+    const auto disabled = barrierTo(versionOf("15.3.0"), index, linuxHost());
+    ASSERT_TRUE(disabled.has_value());
+    EXPECT_TRUE(std::holds_alternative<NoLongerOffered>(*disabled));
 }
 
 TEST(IngotSelectionTest, LooksUpTheNewestVersionWhenNoneCanBeInstalled)

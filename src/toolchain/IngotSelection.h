@@ -109,6 +109,12 @@ struct IndexedLookup {
 [[nodiscard]] bool canBeInstalled(const IndexedToolchain& toolchain, const InstallingHost& host);
 
 /**
+ * @brief What stops @p toolchain of @p index being installed on @p host,
+ *        as install would say it, or nothing when it can be installed.
+ */
+[[nodiscard]] std::optional<IngotSelectionFault> barrierTo(const IndexedToolchain& toolchain, const ToolchainIndex& index, const InstallingHost& host);
+
+/**
  * @brief Choose what to install for @p specifier: the newest version it names
  *        that can be installed on @p host.
  *

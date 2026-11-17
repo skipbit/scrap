@@ -185,6 +185,14 @@ bool canBeInstalled(const IndexedToolchain& toolchain, const InstallingHost& hos
     return (ingot != nullptr) && (! needsNewerGlibc(*ingot, host));
 }
 
+std::optional<IngotSelectionFault> barrierTo(const IndexedToolchain& toolchain, const ToolchainIndex& index, const InstallingHost& host)
+{
+    if (canBeInstalled(toolchain, host)) {
+        return std::nullopt;
+    }
+    return faultOf(toolchain, index, host);
+}
+
 std::expected<IndexedLookup, NoMatchInIndex> lookUpInIndex(const ToolchainIndex& index, const ToolchainSpecifier& specifier, const InstallingHost& host)
 {
     const auto choice = chooseNamed(index, specifier, host);
