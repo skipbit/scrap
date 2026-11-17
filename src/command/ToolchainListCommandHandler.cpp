@@ -22,24 +22,11 @@
 #include <filesystem>
 #include <iostream>
 #include <optional>
-#include <string>
-#include <string_view>
 #include <utility>
-#include <variant>
 
 namespace scrap::Command {
 
 namespace {
-
-bool isGiven(const ParsedOptions& options, const std::string_view name)
-{
-    const auto option = options.named.find(std::string{ name });
-    if (option == options.named.end()) {
-        return false;
-    }
-    const bool* const given = std::get_if<bool>(&option->second);
-    return (given != nullptr) && *given;
-}
 
 int listInstalled(const RuntimeEnvironment& env, const std::filesystem::path& scrapHome)
 {

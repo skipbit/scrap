@@ -38,12 +38,7 @@ namespace {
 
 bool asksToReplace(const ParsedOptions& options)
 {
-    const auto option = options.named.find(std::string{ ForceOption });
-    if (option == options.named.end()) {
-        return false;
-    }
-    const bool* const force = std::get_if<bool>(&option->second);
-    return (force != nullptr) && *force;
+    return isGiven(options, ForceOption);
 }
 
 /**
