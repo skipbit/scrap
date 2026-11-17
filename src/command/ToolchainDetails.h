@@ -6,6 +6,7 @@
 #include "toolchain/SystemCompiler.h"
 
 #include <filesystem>
+#include <functional>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -42,6 +43,7 @@ struct InstalledDetails {
 struct IndexedDetails {
     Toolchain::IndexedLookup lookup;
     std::optional<std::string> fetchedAt;  ///< When the copy was fetched, in UTC. Nothing when unknown.
+    ToolchainSelection selection;
 };
 
 /**
@@ -62,5 +64,13 @@ using ToolchainDetails = std::variant<InstalledDetails, IndexedDetails, SystemDe
  *        <family>@<version>. A toolchain it does not list is not marked.
  */
 [[nodiscard]] ToolchainSelection selectionIn(const ToolchainListing& listing, std::string_view name);
+
+/**
+ * @brief How @p listing marks a toolchain that is not installed: as each
+ *        name it has as not there and @p leadsToIt holds for is marked.
+ *
+ * @param leadsToIt Whether a name, as written, leads to the toolchain.
+ */
+[[nodiscard]] ToolchainSelection selectionOfNotInstalled(const ToolchainListing& listing, const std::function<bool(std::string_view)>& leadsToIt);
 
 }  // namespace scrap::Command

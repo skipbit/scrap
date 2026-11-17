@@ -19,6 +19,7 @@
 #include "toolchain/InstalledToolchain.h"
 #include "toolchain/SystemCompiler.h"
 #include "toolchain/ToolchainChoice.h"
+#include "toolchain/ToolchainIndex.h"
 #include "toolchain/ToolchainSpecifier.h"
 
 #include <expected>  // IWYU pragma: keep
@@ -45,6 +46,24 @@ std::expected<ToolchainSelection, std::string> selectionHere(const RuntimeEnviro
         return std::unexpected(facts.error());
     }
     return selectionIn(listToolchains(*facts), name);
+}
+
+/**
+ * Whether @p written, a name as a listing has it, leads in @p index to the
+ * toolchain named @p name, as install would choose it on @p host.
+ */
+bool leadsTo(const Toolchain::ToolchainIndex& index, const Toolchain::InstallingHost& host, std::string_view written, std::string_view name)
+{
+    const auto choice = Toolchain::parseToolchainChoice(written);
+    if (! choice.has_value()) {
+        return false;
+    }
+    const auto* specifier = std::get_if<Toolchain::ToolchainSpecifier>(&*choice);
+    if (specifier == nullptr) {
+        return false;
+    }
+    const auto found = Toolchain::lookUpInIndex(index, *specifier, host);
+    return found.has_value() && ((found->toolchain.family + "@" + found->toolchain.version.text()) == name);
 }
 
 int tellSystem(const RuntimeEnvironment& env, const std::filesystem::path& scrapHome)
@@ -113,7 +132,17 @@ int tellIndexed(const RuntimeEnvironment& env,
                   << "hint: run 'scrap toolchain update' to fetch the latest index\n";
         return 1;
     }
-    std::cout << renderToolchainDetails(IndexedDetails{ .lookup = std::move(*found), .fetchedAt = std::move(copy->fetchedAt) });
+    const auto facts = readListingFacts(env, scrapHome);
+    if (! facts.has_value()) {
+        std::cerr << facts.error();
+        return 1;
+    }
+    const std::string name = found->toolchain.family + "@" + found->toolchain.version.text();
+    const Toolchain::ToolchainIndex& index = copy->index;
+    const ToolchainSelection selection = selectionOfNotInstalled(listToolchains(*facts), [&index, &host, &name](std::string_view written) {
+        return leadsTo(index, host, written, name);
+    });
+    std::cout << renderToolchainDetails(IndexedDetails{ .lookup = std::move(*found), .fetchedAt = std::move(copy->fetchedAt), .selection = selection });
     return 0;
 }
 

@@ -143,7 +143,8 @@ TEST(ToolchainDetailsTextTest, SaysItIsUnknownWhetherAToolchainIsUsedHereWhenThe
 TEST(ToolchainDetailsTextTest, TellsAToolchainNotInstalledAsTheIndexTellsIt)
 {
     const IndexedDetails details{ .lookup = { .toolchain = indexed(ToolchainStatus::Active), .ingot = registryIngot(), .barrier = std::nullopt },
-                                  .fetchedAt = "2026-11-16T10:09:01Z" };
+                                  .fetchedAt = "2026-11-16T10:09:01Z",
+                                  .selection = { .isDefault = true, .usedHere = ChoiceSource::Project, .inProject = true, .hereUnreadable = false } };
 
     EXPECT_EQ(renderToolchainDetails(details),
               "name:              llvm@22.1.0\n"
@@ -153,7 +154,9 @@ TEST(ToolchainDetailsTextTest, TellsAToolchainNotInstalledAsTheIndexTellsIt)
               "C compiler:        clang\n"
               "source:            ghcr.io/example/llvm:22.1.0\n"
               "integrity:         sha256:def\n"
-              "index fetched at:  2026-11-16T10:09:01Z\n");
+              "index fetched at:  2026-11-16T10:09:01Z\n"
+              "default:           yes\n"
+              "used here:         from scrap.toml\n");
 }
 
 TEST(ToolchainDetailsTextTest, TellsWhyAToolchainCannotBeInstalledHere)
@@ -161,7 +164,8 @@ TEST(ToolchainDetailsTextTest, TellsWhyAToolchainCannotBeInstalledHere)
     const IndexedDetails details{ .lookup = { .toolchain = indexed(ToolchainStatus::Disabled),
                                               .ingot = std::nullopt,
                                               .barrier = NoIngotForHost{ .environment = "linux-x86_64", .versions = {} } },
-                                  .fetchedAt = std::nullopt };
+                                  .fetchedAt = std::nullopt,
+                                  .selection = {} };
 
     const std::string text = renderToolchainDetails(details);
 
@@ -175,7 +179,8 @@ TEST(ToolchainDetailsTextTest, TellsWhyAToolchainCannotBeInstalledHere)
 TEST(ToolchainDetailsTextTest, TellsEachReasonAToolchainCannotBeInstalled)
 {
     IndexedDetails details{ .lookup = { .toolchain = indexed(ToolchainStatus::Disabled), .ingot = registryIngot(), .barrier = NoLongerOffered{ .family = "llvm", .alternative = std::nullopt } },
-                            .fetchedAt = std::nullopt };
+                            .fetchedAt = std::nullopt,
+                            .selection = {} };
     EXPECT_NE(renderToolchainDetails(details).find(":  no longer provided\n"), std::string::npos);
 
     details.lookup.barrier = NeedsNewerGlibc{ .required = "2.34", .host = "2.31" };

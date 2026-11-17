@@ -7,6 +7,7 @@
 
 #include <optional>
 #include <string>
+#include <string_view>
 
 using namespace scrap::Command;
 
@@ -53,4 +54,40 @@ TEST(ToolchainDetailsTest, PassesOverANameTheListingHasAsNotThere)
     EXPECT_FALSE(selection.isDefault);
     EXPECT_FALSE(selection.usedHere.has_value());
     EXPECT_FALSE(selection.inProject);
+}
+
+TEST(ToolchainDetailsTest, MarksAToolchainNotInstalledAsTheNamesLeadingToItAreMarked)
+{
+    ListedToolchain byDefault = listed("gcc");
+    byDefault.present = false;
+    byDefault.isDefault = true;
+    ListedToolchain byProject = listed("gcc@15");
+    byProject.present = false;
+    byProject.usedHere = ChoiceSource::Project;
+    const ToolchainListing listing{ .toolchains = { listed("gcc@15.2.0"), byDefault, byProject }, .inProject = true, .hereUnreadable = false };
+
+    const ToolchainSelection selection = selectionOfNotInstalled(listing, [](std::string_view) {
+        return true;
+    });
+
+    EXPECT_TRUE(selection.isDefault);
+    EXPECT_EQ(selection.usedHere, std::optional<UseReason>{ ChoiceSource::Project });
+    EXPECT_TRUE(selection.inProject);
+}
+
+TEST(ToolchainDetailsTest, PassesOverNamesThatLeadElsewhereAndInstalledToolchains)
+{
+    ListedToolchain elsewhere = listed("gcc@14");
+    elsewhere.present = false;
+    elsewhere.isDefault = true;
+    ListedToolchain installedHere = listed("gcc@15.2.0");
+    installedHere.usedHere = ChoiceSource::Project;
+    const ToolchainListing listing{ .toolchains = { elsewhere, installedHere }, .inProject = true, .hereUnreadable = false };
+
+    const ToolchainSelection selection = selectionOfNotInstalled(listing, [](std::string_view name) {
+        return name != "gcc@14";
+    });
+
+    EXPECT_FALSE(selection.isDefault);
+    EXPECT_FALSE(selection.usedHere.has_value());
 }

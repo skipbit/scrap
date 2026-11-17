@@ -173,6 +173,7 @@ std::vector<DetailLine> linesOf(const IndexedDetails& details)
         lines.push_back(line("integrity", printableText(Toolchain::integrityOf(*ingot))));
     }
     lines.push_back(line("index fetched at", details.fetchedAt.has_value() ? printableText(*details.fetchedAt) : "unknown"));
+    addSelection(lines, details.selection);
     return lines;
 }
 

@@ -4272,9 +4272,30 @@ TEST_F(CliE2ETest, InfoTellsAToolchainNotInstalledFromTheSavedIndex)
                                "integrity:         "
                                + sha256Of(compilerIngot())
                                + "\n"
-                                 "index fetched at:  <time>\n"))
+                                 "index fetched at:  <time>\n"
+                                 "default:           no\n"))
         << text;
     EXPECT_EQ(server.requests(), requestsBefore);
+}
+
+/**
+ * A toolchain that is not installed is marked as used here when what the
+ * project names leads to it, as install would choose it, and not otherwise.
+ */
+TEST_F(CliE2ETest, InfoTellsThatAProjectNamesAToolchainNotInstalled)
+{
+    const ToolchainServer server("gcc", { { .version = "15.1.0", .ingot = compilerIngot() }, { .version = "15.2.0", .ingot = compilerIngot() } });
+    ASSERT_EQ(runScrap({ "toolchain", "update" }, { server.indexVariable() }, _root).exitCode, 0);
+    writeFile("hello/scrap.toml", std::string{ ValidManifest } + "[toolchain]\nname = \"gcc@15\"\n");
+    std::filesystem::create_directories(_root / "empty");
+
+    auto named = runScrap({ "toolchain", "info", "gcc@15.2.0" }, { server.indexVariable(), "PATH=" + (_root / "empty").string() }, _root / "hello");
+    auto older = runScrap({ "toolchain", "info", "gcc@15.1.0" }, { server.indexVariable(), "PATH=" + (_root / "empty").string() }, _root / "hello");
+
+    EXPECT_EQ(named.exitCode, 0) << named.stderrText;
+    EXPECT_TRUE(hasLine(named.stdoutText, "used here:         from scrap.toml")) << named.stdoutText;
+    EXPECT_EQ(older.exitCode, 0) << older.stderrText;
+    EXPECT_TRUE(hasLine(older.stdoutText, "used here:         no")) << older.stdoutText;
 }
 
 /**
