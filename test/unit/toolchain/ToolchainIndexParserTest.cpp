@@ -420,3 +420,10 @@ TEST(ToolchainIndexParserTest, RefusesAControlCharacter)
     EXPECT_EQ(faultOf(gccWithIngot("registry = \"r\\t\"\ntag = \"t\"\ndigest = \"" + std::string{ Digest } + "\"\n")), "line 16: toolchains[0].ingots[0].registry: " + rule);
     EXPECT_EQ(faultOf(gccWithIngot("registry = \"r\"\ntag = \"gcc:15\\r\"\ndigest = \"" + std::string{ Digest } + "\"\n")), "line 17: toolchains[0].ingots[0].tag: " + rule);
 }
+
+TEST(ToolchainIndexParserTest, NamesEachStatusAsTheIndexWritesIt)
+{
+    EXPECT_EQ(statusName(ToolchainStatus::Active), "active");
+    EXPECT_EQ(statusName(ToolchainStatus::Deprecated), "deprecated");
+    EXPECT_EQ(statusName(ToolchainStatus::Disabled), "disabled");
+}

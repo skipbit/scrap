@@ -187,5 +187,6 @@ TEST(ToolchainListingTest, MarksNothingUsedWhenTheNameCannotBeRead)
                                           .here = NameHereUnreadable{} });
 
     EXPECT_TRUE(listing.inProject);
+    EXPECT_TRUE(listing.hereUnreadable);
     EXPECT_EQ(rowsOf(listing), (std::vector<std::string>{ "system at /usr/bin/c++", "gcc@16.2.0, default" }));
 }

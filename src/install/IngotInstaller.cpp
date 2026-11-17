@@ -213,18 +213,6 @@ std::expected<void, IngotInstallFailure> fetchChecked(const Toolchain::RegistryS
 }
 
 /**
- * Where @p ingot is fetched from: the reference of its image in a registry,
- * or its URL.
- */
-std::string sourceOf(const Toolchain::Ingot& ingot)
-{
-    if (const auto* registry = std::get_if<Toolchain::RegistrySource>(&ingot.source)) {
-        return registry->registry + "/" + registry->tag;
-    }
-    return std::get<Toolchain::UrlSource>(ingot.source).url;
-}
-
-/**
  * The program @p name below bin/ of @p root, or why the ingot does not hold it.
  */
 std::expected<std::filesystem::path, IngotInstallFailure> programIn(const std::filesystem::path& root, std::string_view name)
@@ -275,7 +263,7 @@ std::expected<std::filesystem::path, IngotInstallFailure> prepareToolchain(const
                                            .arguments = runtimeArgumentsFor(selected.ingot.platform, root),
                                            .ingotIntegrity = Toolchain::integrityOf(selected.ingot),
                                            .cCompiler = std::move(cCompiler),
-                                           .source = sourceOf(selected.ingot),
+                                           .source = Toolchain::sourceOf(selected.ingot),
                                            .installedAt = utcText(now()) };
     const std::filesystem::path recordFile = root / Toolchain::InstallRecordName;
     ec = File::writeNewFile(recordFile, Toolchain::renderInstallRecord(record));

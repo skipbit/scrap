@@ -2,14 +2,11 @@
 
 #include "command/PrintableText.h"
 #include "command/ToolchainListing.h"
-#include "command/ToolchainNaming.h"
-#include "toolchain/SystemCompiler.h"
 
 #include <algorithm>
 #include <cstddef>
 #include <string>
 #include <string_view>
-#include <variant>
 #include <vector>
 
 namespace scrap::Command {
@@ -52,12 +49,7 @@ std::string usedHereCell(const ListedToolchain& toolchain)
     if (! toolchain.usedHere.has_value()) {
         return {};
     }
-    std::string cell;
-    if (const auto* source = std::get_if<ChoiceSource>(&*toolchain.usedHere)) {
-        cell = describeSource(*source);
-    } else {
-        cell = describeOrigin(std::get<Toolchain::CompilerOrigin>(*toolchain.usedHere));
-    }
+    std::string cell{ describeUseReason(*toolchain.usedHere) };
     if (! toolchain.present) {
         cell += absence(toolchain);
     }

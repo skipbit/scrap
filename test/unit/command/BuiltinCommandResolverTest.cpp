@@ -117,8 +117,9 @@ TEST(BuiltinCommandResolverTest, ToolchainHasSubcommands)
 
     const auto* toolchain = findByName(entries, "toolchain");
     ASSERT_NE(toolchain, nullptr);
-    EXPECT_EQ(toolchain->subcommands.size(), 5);
+    EXPECT_EQ(toolchain->subcommands.size(), 6);
     EXPECT_NE(findByName(toolchain->subcommands, "list"), nullptr);
+    EXPECT_NE(findByName(toolchain->subcommands, "info"), nullptr);
     EXPECT_NE(findByName(toolchain->subcommands, "install"), nullptr);
     EXPECT_NE(findByName(toolchain->subcommands, "select"), nullptr);
     EXPECT_NE(findByName(toolchain->subcommands, "unselect"), nullptr);

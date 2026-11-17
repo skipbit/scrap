@@ -73,7 +73,24 @@ void markUsedHere(std::vector<ListedToolchain>& toolchains, const ListingFacts& 
     }
 }
 
+std::string_view describe(const ChoiceSource source)
+{
+    return describeSource(source);
+}
+
+std::string_view describe(const Toolchain::CompilerOrigin origin)
+{
+    return describeOrigin(origin);
+}
+
 }  // anonymous namespace
+
+std::string_view describeUseReason(const UseReason& reason)
+{
+    return std::visit([](const auto& alternative) -> std::string_view {
+        return describe(alternative);
+    }, reason);
+}
 
 ToolchainListing listToolchains(const ListingFacts& facts)
 {
@@ -90,7 +107,9 @@ ToolchainListing listToolchains(const ListingFacts& facts)
     if (facts.here.has_value()) {
         markUsedHere(toolchains, facts, *facts.here);
     }
-    return ToolchainListing{ .toolchains = std::move(toolchains), .inProject = facts.here.has_value() };
+    return ToolchainListing{ .toolchains = std::move(toolchains),
+                             .inProject = facts.here.has_value(),
+                             .hereUnreadable = facts.here.has_value() && std::holds_alternative<NameHereUnreadable>(*facts.here) };
 }
 
 }  // namespace scrap::Command

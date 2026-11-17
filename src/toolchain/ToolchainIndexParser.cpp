@@ -440,4 +440,17 @@ std::expected<ToolchainIndex, ToolchainIndexError> parseToolchainIndex(std::stri
     return index;
 }
 
+std::string_view statusName(const ToolchainStatus status)
+{
+    switch (status) {
+    case ToolchainStatus::Active:
+        return "active";
+    case ToolchainStatus::Deprecated:
+        return "deprecated";
+    case ToolchainStatus::Disabled:
+        return "disabled";
+    }
+    return "unknown";
+}
+
 }  // namespace scrap::Toolchain

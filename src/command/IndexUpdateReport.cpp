@@ -1,7 +1,7 @@
 #include "command/IndexUpdateReport.h"
 
 #include "toolchain/IndexChanges.h"
-#include "toolchain/ToolchainIndex.h"
+#include "toolchain/ToolchainIndexParser.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -11,19 +11,6 @@
 namespace scrap::Command {
 
 namespace {
-
-std::string_view statusText(const Toolchain::ToolchainStatus status)
-{
-    switch (status) {
-    case Toolchain::ToolchainStatus::Active:
-        return "active";
-    case Toolchain::ToolchainStatus::Deprecated:
-        return "deprecated";
-    case Toolchain::ToolchainStatus::Disabled:
-        return "disabled";
-    }
-    return "unknown";
-}
 
 std::string fetchedLine(std::string_view fetchedAt)
 {
@@ -42,7 +29,7 @@ std::string changedLines(const Toolchain::IndexChanges& changes)
     }
     std::string text = "changed:\n";
     for (const Toolchain::ChangedToolchain& each : changes.changed) {
-        text += "  " + each.name + std::string(width - each.name.size() + 2, ' ') + std::string{ statusText(each.before) } + " -> " + std::string{ statusText(each.after) } + "\n";
+        text += "  " + each.name + std::string(width - each.name.size() + 2, ' ') + std::string{ Toolchain::statusName(each.before) } + " -> " + std::string{ Toolchain::statusName(each.after) } + "\n";
     }
     return text;
 }

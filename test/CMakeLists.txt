@@ -66,6 +66,8 @@ scrap_add_unit_test(command SOURCES
     unit/command/ToolchainInstallDiagnosticTest.cpp
     unit/command/ToolchainListingTest.cpp
     unit/command/ToolchainListingTableTest.cpp
+    unit/command/ToolchainDetailsTest.cpp
+    unit/command/ToolchainDetailsTextTest.cpp
     unit/command/IndexUpdateReportTest.cpp
     unit/command/ApplicationTest.cpp
     PROPERTIES TIMEOUT 60

@@ -270,3 +270,56 @@ TEST(IngotSelectionTest, TellsWhetherAToolchainCanBeInstalled)
     EXPECT_FALSE(canBeInstalled(needsNewerScrap, linuxHost()));
     EXPECT_FALSE(canBeInstalled(elsewhere, linuxHost()));
 }
+
+TEST(IngotSelectionTest, LooksUpTheToolchainItWouldInstall)
+{
+    const auto found = lookUpInIndex(gccIndex(), specifier("gcc@15"), linuxHost());
+
+    ASSERT_TRUE(found.has_value());
+    EXPECT_EQ(found->toolchain.version.text(), "15.2.0");
+    EXPECT_TRUE(found->ingot.has_value());
+    EXPECT_FALSE(found->barrier.has_value());
+}
+
+TEST(IngotSelectionTest, LooksUpADisabledVersionWithWhatStopsIt)
+{
+    const auto found = lookUpInIndex(gccIndex(), specifier("gcc@15.3.0"), linuxHost());
+
+    ASSERT_TRUE(found.has_value());
+    EXPECT_EQ(found->toolchain.status, ToolchainStatus::Disabled);
+    EXPECT_TRUE(found->ingot.has_value());
+    ASSERT_TRUE(found->barrier.has_value());
+    EXPECT_EQ(std::get<NoLongerOffered>(*found->barrier).alternative, "150.1.0");
+}
+
+TEST(IngotSelectionTest, LooksUpTheNewestVersionWhenNoneCanBeInstalled)
+{
+    ToolchainIndex index{ .toolchains = { toolchain("gcc", "15.1.0"), toolchain("gcc", "15.2.0") } };
+    index.toolchains[0].ingots.clear();
+    index.toolchains[1].ingots.clear();
+
+    const auto found = lookUpInIndex(index, specifier("gcc"), linuxHost());
+
+    ASSERT_TRUE(found.has_value());
+    EXPECT_EQ(found->toolchain.version.text(), "15.2.0");
+    EXPECT_FALSE(found->ingot.has_value());
+    ASSERT_TRUE(found->barrier.has_value());
+    EXPECT_EQ(std::get<NoIngotForHost>(*found->barrier).environment, "linux-x86_64");
+}
+
+TEST(IngotSelectionTest, FindsNothingToLookUpForAVersionNotInTheIndex)
+{
+    const auto found = lookUpInIndex(gccIndex(), specifier("gcc@1.0.0"), linuxHost());
+
+    ASSERT_FALSE(found.has_value());
+    EXPECT_EQ(found.error().families, (std::vector<std::string>{ "gcc", "llvm" }));
+}
+
+TEST(IngotSelectionTest, TellsWhereAnIngotIsFetchedFrom)
+{
+    Ingot ingot = hostIngot();
+    EXPECT_EQ(sourceOf(ingot), "https://example.com/a");
+
+    ingot.source = RegistrySource{ .registry = "ghcr.io/example", .tag = "gcc:15.2.0", .digest = "sha256:def" };
+    EXPECT_EQ(sourceOf(ingot), "ghcr.io/example/gcc:15.2.0");
+}

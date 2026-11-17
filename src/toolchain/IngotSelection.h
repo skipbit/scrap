@@ -75,9 +75,25 @@ struct NeedsNewerScrap {
 using IngotSelectionFault = std::variant<NoMatchInIndex, NoIngotForHost, NoLongerOffered, NeedsNewerGlibc, NeedsNewerScrap>;
 
 /**
+ * @brief The toolchain of an index a specifier names, as it stands for a
+ *        host.
+ */
+struct IndexedLookup {
+    IndexedToolchain toolchain;
+    std::optional<Ingot> ingot;                  ///< Its ingot for the host, when it has one.
+    std::optional<IngotSelectionFault> barrier;  ///< Why it cannot be installed on the host, when it cannot.
+};
+
+/**
  * @brief The value the index gives to check @p ingot by: its digest or SHA-256.
  */
 [[nodiscard]] std::string integrityOf(const Ingot& ingot);
+
+/**
+ * @brief Where @p ingot is fetched from: a registry reference, as
+ *        <registry>/<tag>, or a URL.
+ */
+[[nodiscard]] std::string sourceOf(const Ingot& ingot);
 
 /**
  * @brief Whether @p toolchain has an ingot for the OS and architecture of
@@ -102,5 +118,14 @@ using IngotSelectionFault = std::variant<NoMatchInIndex, NoIngotForHost, NoLonge
  * @return The toolchain and ingot, or why there is none.
  */
 [[nodiscard]] std::expected<SelectedIngot, IngotSelectionFault> selectIngot(const ToolchainIndex& index, const ToolchainSpecifier& specifier, const InstallingHost& host);
+
+/**
+ * @brief Look up what @p specifier names in @p index: the toolchain
+ *        selectIngot() chooses or, when none can be installed on @p host,
+ *        the newest version it names, with the fault that stops it.
+ *
+ * @return The toolchain, or the index holds nothing it names.
+ */
+[[nodiscard]] std::expected<IndexedLookup, NoMatchInIndex> lookUpInIndex(const ToolchainIndex& index, const ToolchainSpecifier& specifier, const InstallingHost& host);
 
 }  // namespace scrap::Toolchain

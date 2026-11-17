@@ -4187,3 +4187,206 @@ TEST_F(CliE2ETest, UpdateFailsWhenTheIndexCannotBeFetchedAndNoCopyIsSaved)
     EXPECT_TRUE(result.stderrText.starts_with("error: cannot fetch the toolchain index: ")) << result.stderrText;
     EXPECT_EQ(result.stderrText.find("copy"), std::string::npos) << result.stderrText;
 }
+
+namespace {
+
+/** Whether @p text holds @p line as a line of its own. */
+bool hasLine(const std::string& text, const std::string& line)
+{
+    return ("\n" + text).find("\n" + line + "\n") != std::string::npos;
+}
+
+}  // anonymous namespace
+
+/**
+ * An installed toolchain is told with where it came from, when it was
+ * installed, where it is, what it is made of and how it is chosen here.
+ */
+TEST_F(CliE2ETest, InfoTellsAnInstalledToolchainAndHowItIsChosen)
+{
+    const ToolchainServer server("gcc", { { .version = "15.2.0", .ingot = compilerIngot() } });
+    ASSERT_EQ(runScrap({ "toolchain", "install", "gcc@15.2.0" }, { server.indexVariable() }, _root).exitCode, 0);
+    writeFile("hello/scrap.toml", std::string{ ValidManifest } + "[toolchain]\nname = \"gcc@15\"\n");
+    std::filesystem::create_directories(_root / "empty");
+    const std::string directory = (_root / "toolchains/gcc/15.2.0" / hostDirectoryName()).string();
+    const std::string url = server.indexVariable().substr(std::string_view{ "SCRAP_TOOLCHAIN_INDEX=" }.size());
+
+    auto result = runScrap({ "toolchain", "info", "gcc@15" }, { "PATH=" + (_root / "empty").string() }, _root / "hello");
+
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_EQ(result.stderrText, "");
+    const std::string text = withoutTimes(result.stdoutText);
+    EXPECT_TRUE(text.starts_with("name:")) << text;
+    EXPECT_TRUE(hasLine(text, "name:               gcc@15.2.0")) << text;
+    EXPECT_TRUE(hasLine(text, "installed:          yes")) << text;
+    EXPECT_TRUE(hasLine(text, "directory:          " + directory)) << text;
+    EXPECT_TRUE(hasLine(text, "source:             " + url.substr(0, url.size() - IndexPath.size()) + "/ingot-15.2.0")) << text;
+    EXPECT_TRUE(hasLine(text, "integrity:          " + sha256Of(compilerIngot()))) << text;
+    EXPECT_TRUE(hasLine(text, "installed at:       <time>")) << text;
+    EXPECT_TRUE(hasLine(text, "compiler:           " + directory + "/bin/g++")) << text;
+    EXPECT_TRUE(hasLine(text, "default:            yes")) << text;
+    EXPECT_TRUE(hasLine(text, "used here:          from scrap.toml")) << text;
+}
+
+/**
+ * A toolchain an earlier scrap installed says that where it came from and
+ * when it was installed were not recorded, with how to record them, and is
+ * no failure.
+ */
+TEST_F(CliE2ETest, InfoSaysWhatAnEarlierScrapDidNotRecord)
+{
+    installToolchain("gcc", "15.2.0");
+
+    auto result = runScrap({ "toolchain", "info", "gcc@15.2.0" }, {}, _root);
+
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_TRUE(hasLine(result.stdoutText, "source:             not recorded")) << result.stdoutText;
+    EXPECT_TRUE(hasLine(result.stdoutText, "installed at:       not recorded")) << result.stdoutText;
+    EXPECT_FALSE(hasLine(result.stdoutText, "used here")) << result.stdoutText;
+    EXPECT_EQ(result.stderrText, "hint: reinstall it with 'scrap toolchain install --force gcc@15.2.0' to record them\n");
+}
+
+/**
+ * A toolchain that is not installed is told as the saved copy of the index
+ * holds it, without fetching the index again.
+ */
+TEST_F(CliE2ETest, InfoTellsAToolchainNotInstalledFromTheSavedIndex)
+{
+    ToolchainServer server("gcc", { { .version = "15.1.0", .ingot = compilerIngot() }, { .version = "15.2.0", .ingot = compilerIngot() } });
+    ASSERT_EQ(runScrap({ "toolchain", "update" }, { server.indexVariable() }, _root).exitCode, 0);
+    server.failIndex();
+    const std::size_t requestsBefore = server.requests();
+
+    auto result = runScrap({ "toolchain", "info", "gcc@15" }, { server.indexVariable() }, _root);
+
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_EQ(result.stderrText, "");
+    const std::string text = withoutTimes(result.stdoutText);
+    EXPECT_TRUE(text.starts_with("name:              gcc@15.2.0\n"
+                                 "installed:         no\n"
+                                 "status:            active\n"
+                                 "compiler:          g++\n"
+                                 "source:            "))
+        << text;
+    EXPECT_TRUE(text.ends_with("/ingot-15.2.0\n"
+                               "integrity:         "
+                               + sha256Of(compilerIngot())
+                               + "\n"
+                                 "index fetched at:  <time>\n"
+                                 "default:           no\n"))
+        << text;
+    EXPECT_EQ(server.requests(), requestsBefore);
+}
+
+/**
+ * A toolchain that is not installed is marked as used here when what the
+ * project names leads to it, as install would choose it, and not otherwise.
+ */
+TEST_F(CliE2ETest, InfoTellsThatAProjectNamesAToolchainNotInstalled)
+{
+    const ToolchainServer server("gcc", { { .version = "15.1.0", .ingot = compilerIngot() }, { .version = "15.2.0", .ingot = compilerIngot() } });
+    ASSERT_EQ(runScrap({ "toolchain", "update" }, { server.indexVariable() }, _root).exitCode, 0);
+    writeFile("hello/scrap.toml", std::string{ ValidManifest } + "[toolchain]\nname = \"gcc@15\"\n");
+    std::filesystem::create_directories(_root / "empty");
+
+    auto named = runScrap({ "toolchain", "info", "gcc@15.2.0" }, { server.indexVariable(), "PATH=" + (_root / "empty").string() }, _root / "hello");
+    auto older = runScrap({ "toolchain", "info", "gcc@15.1.0" }, { server.indexVariable(), "PATH=" + (_root / "empty").string() }, _root / "hello");
+
+    EXPECT_EQ(named.exitCode, 0) << named.stderrText;
+    EXPECT_TRUE(hasLine(named.stdoutText, "used here:         from scrap.toml")) << named.stdoutText;
+    EXPECT_EQ(older.exitCode, 0) << older.stderrText;
+    EXPECT_TRUE(hasLine(older.stdoutText, "used here:         no")) << older.stdoutText;
+}
+
+/**
+ * When the project here cannot be read, whether a toolchain is used here
+ * is unknown, and is said to be.
+ */
+TEST_F(CliE2ETest, InfoSaysItIsUnknownWhetherAToolchainIsUsedInAProjectItCannotRead)
+{
+    installToolchain("gcc", "15.2.0");
+    writeFile("hello/scrap.toml", "[package\n");
+    std::filesystem::create_directories(_root / "empty");
+
+    auto result = runScrap({ "toolchain", "info", "gcc@15.2.0" }, { "PATH=" + (_root / "empty").string() }, _root / "hello");
+
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_TRUE(hasLine(result.stdoutText, "used here:          unknown")) << result.stdoutText;
+    EXPECT_NE(result.stderrText.find(": warning: "), std::string::npos) << result.stderrText;
+}
+
+/**
+ * A version the index holds and the host cannot install is told with why.
+ */
+TEST_F(CliE2ETest, InfoTellsWhyAToolchainInTheIndexCannotBeInstalledHere)
+{
+    const ToolchainServer server("gcc", { { .version = "15.2.0", .ingot = compilerIngot() }, { .version = "15.3.0", .status = "disabled", .ingot = compilerIngot() } });
+    ASSERT_EQ(runScrap({ "toolchain", "update" }, { server.indexVariable() }, _root).exitCode, 0);
+
+    auto result = runScrap({ "toolchain", "info", "gcc@15.3.0" }, { server.indexVariable() }, _root);
+
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_TRUE(hasLine(result.stdoutText, "status:                    disabled")) << result.stdoutText;
+    EXPECT_TRUE(hasLine(result.stdoutText, "cannot be installed here:  no longer provided")) << result.stdoutText;
+}
+
+TEST_F(CliE2ETest, InfoFailsForAToolchainNeitherInstalledNorInTheIndex)
+{
+    const ToolchainServer server("gcc", { { .version = "15.2.0", .ingot = compilerIngot() } });
+    ASSERT_EQ(runScrap({ "toolchain", "update" }, { server.indexVariable() }, _root).exitCode, 0);
+
+    auto result = runScrap({ "toolchain", "info", "gcc@1.0.0" }, { server.indexVariable() }, _root);
+
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_EQ(result.stdoutText, "");
+    EXPECT_EQ(result.stderrText,
+              "error: 'gcc@1.0.0' is neither installed nor in the toolchain index\n"
+              "hint: run 'scrap toolchain update' to fetch the latest index\n");
+}
+
+TEST_F(CliE2ETest, InfoAsksForAnUpdateWhenNoIndexIsSaved)
+{
+    const ToolchainServer server("gcc", { { .version = "15.2.0", .ingot = compilerIngot() } });
+
+    auto result = runScrap({ "toolchain", "info", "gcc@15.2.0" }, { server.indexVariable() }, _root);
+
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_EQ(result.stdoutText, "");
+    EXPECT_EQ(result.stderrText,
+              "error: 'gcc@15.2.0' is not installed, and the toolchain index has not been fetched\n"
+              "hint: run 'scrap toolchain update' to fetch it\n");
+    EXPECT_EQ(server.requests(), 0U);
+}
+
+TEST_F(CliE2ETest, InfoTellsTheSystemCompilerAndHowItWasFound)
+{
+    const std::string compiler = dummyCompiler();
+    const std::string path = compiler.substr(std::string_view{ "CXX=" }.size());
+
+    auto result = runScrap({ "toolchain", "info", "system" }, { compiler }, _root);
+
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_EQ(result.stdoutText,
+              "name:      system\n"
+              "found:     yes\n"
+              "compiler:  "
+                  + path
+                  + " (from CXX)\n"
+                    "default:   no\n");
+}
+
+/**
+ * A system without a compiler is reported as a build reports it.
+ */
+TEST_F(CliE2ETest, InfoReportsASystemWithoutACompiler)
+{
+    std::filesystem::create_directories(_root / "empty");
+
+    auto result = runScrap({ "toolchain", "info", "system" }, { "PATH=" + (_root / "empty").string() }, _root);
+
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_EQ(result.stdoutText, "");
+    EXPECT_EQ(result.stderrText,
+              "error: no C++ compiler found\n"
+              "hint: install a C++ compiler, or set CXX to the one to use\n");
+}
