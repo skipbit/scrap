@@ -104,4 +104,10 @@ enum class ToolchainNamedIn : std::uint8_t {
  */
 [[nodiscard]] std::string renderNoCompilerWithInstalled(std::string_view example);
 
+/**
+ * @brief The error lines @p rendered as a warning, for what a command goes
+ *        on without.
+ */
+[[nodiscard]] std::string asWarning(std::string rendered);
+
 }  // namespace scrap::Command

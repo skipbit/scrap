@@ -202,4 +202,13 @@ std::string renderNoCompilerWithInstalled(std::string_view example)
     return rendered;
 }
 
+std::string asWarning(std::string rendered)
+{
+    constexpr std::string_view Error = "error: ";
+    if (const auto at = rendered.find(Error); at != std::string::npos) {
+        rendered.replace(at, Error.size(), "warning: ");
+    }
+    return rendered;
+}
+
 }  // namespace scrap::Command

@@ -13,26 +13,12 @@
 #include <iostream>
 #include <optional>
 #include <string>
-#include <string_view>
 #include <utility>
 #include <vector>
 
 namespace scrap::Command {
 
 namespace {
-
-/**
- * The error lines @p rendered as a warning, for what a listing goes on
- * without.
- */
-std::string asWarning(std::string rendered)
-{
-    constexpr std::string_view Error = "error: ";
-    if (const auto at = rendered.find(Error); at != std::string::npos) {
-        rendered.replace(at, Error.size(), "warning: ");
-    }
-    return rendered;
-}
 
 /**
  * The toolchains installed for the host, none when scrap runs on a host

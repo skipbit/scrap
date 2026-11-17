@@ -4554,3 +4554,23 @@ TEST_F(CliE2ETest, UninstallPointsAtWhatItCouldNotDelete)
         std::filesystem::permissions(entry.path(), std::filesystem::perms::owner_all, ec);
     }
 }
+
+/**
+ * When the project here cannot be read, uninstall warns of it as a listing
+ * does, since whether builds here stop is then unknown.
+ */
+TEST_F(CliE2ETest, UninstallWarnsOfAProjectItCannotRead)
+{
+    installToolchain("gcc", "15.2.0");
+    writeFile("hello/scrap.toml", "[package\n");
+
+    auto result = runScrap({ "toolchain", "uninstall", "gcc@15.2.0" }, {}, _root / "hello");
+
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_NE(result.stderrText.find("scrap.toml:1:"), std::string::npos) << result.stderrText;
+    EXPECT_NE(result.stderrText.find(": warning: "), std::string::npos) << result.stderrText;
+    EXPECT_EQ(result.stderrText.find("error:"), std::string::npos) << result.stderrText;
+    EXPECT_EQ(result.stderrText.find("hint:"), std::string::npos) << result.stderrText;
+    EXPECT_EQ(std::ranges::count(result.stderrText, '\n'), 2) << result.stderrText;
+    EXPECT_FALSE(std::filesystem::exists(_root / "toolchains/gcc/15.2.0" / hostDirectoryName()));
+}

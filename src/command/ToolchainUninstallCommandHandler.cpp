@@ -31,12 +31,15 @@ namespace {
 /**
  * What SCRAP_TOOLCHAIN or the project here names for builds, in place of
  * the global default. Nothing when neither does, or when what names it
- * cannot be read, since then a build here stops whatever is installed.
+ * cannot be read, which is warned about as a listing warns about it, but
+ * without the hint to run the command again: the uninstall is done.
  */
 std::optional<NamedToolchain> namedAboveHere(const RuntimeEnvironment& env)
 {
     auto above = namedAboveGlobalDefaultHere(env);
     if (! above.has_value()) {
+        const std::string warning = asWarning(std::move(above.error()));
+        std::cerr << warning.substr(0, warning.find('\n') + 1);
         return std::nullopt;
     }
     return std::move(above->named);
