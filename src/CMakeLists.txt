@@ -143,6 +143,7 @@ add_library(scrap_toolchain STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/SystemArchiver.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/SystemCompiler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/ToolchainChoice.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/ToolchainIndex.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/ToolchainIndexParser.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/ToolchainName.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/ToolchainSpecifier.cpp

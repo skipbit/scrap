@@ -106,3 +106,8 @@ TEST(RemoteListingTest, MarksWhatIsInstalled)
     EXPECT_TRUE(rows[1].installed);
     EXPECT_FALSE(rows[2].installed);
 }
+
+TEST(RemoteListingTest, NamesAnIndexedToolchainByFamilyAndVersion)
+{
+    EXPECT_EQ(toolchain("gcc", "15.2.0").text(), "gcc@15.2.0");
+}

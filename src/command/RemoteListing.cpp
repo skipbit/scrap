@@ -35,7 +35,7 @@ std::vector<RemoteToolchain> listRemoteToolchains(const Toolchain::ToolchainInde
         const bool isInstalled = std::ranges::any_of(installed, [toolchain](const Toolchain::InstalledName& each) {
             return (each.family == toolchain->family) && (each.version == toolchain->version);
         });
-        rows.push_back(RemoteToolchain{ .name = toolchain->family + "@" + toolchain->version.text(),
+        rows.push_back(RemoteToolchain{ .name = toolchain->text(),
                                         .status = toolchain->status,
                                         .installed = isInstalled,
                                         .barrier = std::move(barrier) });
