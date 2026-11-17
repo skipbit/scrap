@@ -1,5 +1,6 @@
 #include "install/WorkDirectory.h"
 
+#include <chrono>
 #include <expected>  // IWYU pragma: keep
 #include <filesystem>
 #include <string>
@@ -62,6 +63,24 @@ void WorkDirectory::keepOnly(const std::filesystem::path& kept)
 WorkDirectory::WorkDirectory(std::filesystem::path path)
     : _path(std::move(path))
 {
+}
+
+namespace {
+
+constexpr std::chrono::hours AbandonedAfter{ 24 };
+
+}  // anonymous namespace
+
+void discardAbandonedWork(const std::filesystem::path& workDirectory, const std::filesystem::file_time_type now)
+{
+    std::error_code ec;
+    for (std::filesystem::directory_iterator it(workDirectory, ec), end; (! ec) && (it != end); it.increment(ec)) {
+        std::error_code entryError;
+        const auto written = std::filesystem::last_write_time(it->path(), entryError);
+        if ((! entryError) && ((now - written) >= AbandonedAfter)) {
+            std::filesystem::remove_all(it->path(), entryError);
+        }
+    }
 }
 
 }  // namespace scrap::Install

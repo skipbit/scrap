@@ -31,7 +31,6 @@ namespace scrap::Install {
 namespace {
 
 constexpr std::uint64_t IngotSizeLimit = std::uint64_t{ 8 } * 1024 * 1024 * 1024;
-constexpr std::chrono::hours AbandonedAfter{ 24 };
 
 /**
  * Put @p finished at @p destination, moving aside what is there to
@@ -200,18 +199,6 @@ std::expected<std::filesystem::path, IngotInstallFailure> prepareToolchain(const
 }
 
 }  // anonymous namespace
-
-void discardAbandonedWork(const std::filesystem::path& workDirectory, const std::filesystem::file_time_type now)
-{
-    std::error_code ec;
-    for (std::filesystem::directory_iterator it(workDirectory, ec), end; (! ec) && (it != end); it.increment(ec)) {
-        std::error_code entryError;
-        const auto written = std::filesystem::last_write_time(it->path(), entryError);
-        if ((! entryError) && ((now - written) >= AbandonedAfter)) {
-            std::filesystem::remove_all(it->path(), entryError);
-        }
-    }
-}
 
 std::expected<std::filesystem::path, IngotInstallFailure> installIngot(const IngotInstallRequest& request)
 {

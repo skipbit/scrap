@@ -6,6 +6,7 @@
 #include <expected>  // IWYU pragma: keep
 #include <filesystem>
 #include <system_error>
+#include <utility>
 
 namespace scrap::Install {
 
@@ -35,7 +36,8 @@ void removeEmptyUpTo(std::filesystem::path directory, const std::filesystem::pat
 std::expected<ToolchainRemoved, ToolchainNotRemoved> removeInstalledToolchain(const std::filesystem::path& scrapHome, const std::filesystem::path& directory)
 {
     const std::filesystem::path workRoot = Toolchain::temporaryDirectory(scrapHome);
-    const auto work = WorkDirectory::below(workRoot, "uninstall");
+    discardAbandonedWork(workRoot, std::filesystem::file_time_type::clock::now());
+    auto work = WorkDirectory::below(workRoot, "uninstall");
     if (! work.has_value()) {
         return std::unexpected(ToolchainNotRemoved{ .path = directory, .code = work.error().code, .workDirectory = work.error().path });
     }
@@ -48,7 +50,9 @@ std::expected<ToolchainRemoved, ToolchainNotRemoved> removeInstalledToolchain(co
     removeEmptyUpTo(directory.parent_path(), Toolchain::toolchainsDirectory(scrapHome));
     std::filesystem::remove_all(removed, ec);
     if (ec) {
-        return ToolchainRemoved{ .leftAt = work->path() };
+        std::filesystem::path leftAt = work->path();
+        work->keepOnly(removed);
+        return ToolchainRemoved{ .leftAt = std::move(leftAt) };
     }
     return ToolchainRemoved{};
 }

@@ -33,7 +33,8 @@ struct ToolchainRemoved {
  * from where toolchains are found at once and nothing half removed is left
  * there. What the move leaves empty of the version and the family is
  * removed too. What cannot be deleted is left below the work directory,
- * and where is told.
+ * and where is told; what earlier runs left there a day ago or more is
+ * discarded first.
  *
  * @return What was left behind, or what could not be moved away and why.
  */

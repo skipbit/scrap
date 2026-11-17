@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <optional>
@@ -136,6 +137,27 @@ TEST(ToolchainRemovalTest, TellsWhereWhatCannotBeDeletedIsLeft)
     ASSERT_TRUE(removed->leftAt.has_value());
     EXPECT_EQ(removed->leftAt->parent_path(), home.path() / "toolchains/.work");
     EXPECT_FALSE(std::filesystem::exists(home.path() / "toolchains/gcc/15.2.0"));
+    EXPECT_TRUE(std::filesystem::exists(*removed->leftAt / "removed/lib/libstdc++.so"));
     std::filesystem::permissions(*removed->leftAt / "removed/lib", std::filesystem::perms::owner_all, ec);
     EXPECT_FALSE(ec) << ec.message();
+}
+
+/**
+ * What earlier runs left in the work directory a day ago or more is
+ * discarded, and what is younger stays.
+ */
+TEST(ToolchainRemovalTest, DiscardsWhatEarlierRunsLeftADayAgo)
+{
+    const TempDirectory home;
+    lay(home, "toolchains/gcc/15.2.0/linux-x86_64");
+    const auto now = std::filesystem::file_time_type::clock::now();
+    const std::filesystem::path old = home.makeDirectory("toolchains/.work/uninstall-1-0");
+    const std::filesystem::path young = home.makeDirectory("toolchains/.work/uninstall-2-0");
+    std::filesystem::last_write_time(old, now - std::chrono::hours{ 25 });
+    std::filesystem::last_write_time(young, now - std::chrono::hours{ 1 });
+
+    ASSERT_TRUE(removeInstalledToolchain(home.path(), home.path() / "toolchains/gcc/15.2.0/linux-x86_64").has_value());
+
+    EXPECT_FALSE(std::filesystem::exists(old));
+    EXPECT_TRUE(std::filesystem::exists(young));
 }
