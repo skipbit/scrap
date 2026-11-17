@@ -166,11 +166,15 @@ int ToolchainUninstallCommandHandler::execute(const InvocationContext& ctx)
         return 1;
     }
     const std::string removed = chosen->name.text();
-    if (auto taken = Install::removeInstalledToolchain(*scrapHome, chosen->directory); ! taken.has_value()) {
+    const auto taken = Install::removeInstalledToolchain(*scrapHome, chosen->directory);
+    if (! taken.has_value()) {
         std::cerr << renderNotRemoved(taken.error());
         return 1;
     }
     std::cerr << renderUninstalled(removed, chosen->directory);
+    if (const std::optional<std::filesystem::path>& leftAt = taken->leftAt; leftAt.has_value()) {
+        std::cerr << renderLeftBehind(*leftAt);
+    }
     return tellWhereNamesLead(env, *scrapHome, *globalDefault, chosen->installed, removed) ? 0 : 1;
 }
 

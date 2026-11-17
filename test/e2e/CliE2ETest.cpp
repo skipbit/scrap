@@ -4523,3 +4523,34 @@ TEST_F(CliE2ETest, UninstallTakesNothingAwayWhenTheGlobalDefaultCannotBeRead)
     EXPECT_EQ(result.stderrText.find("Uninstalled"), std::string::npos) << result.stderrText;
     EXPECT_TRUE(std::filesystem::exists(_root / "toolchains/gcc/15.2.0" / hostDirectoryName()));
 }
+
+/**
+ * What cannot be deleted is left below the work directory and pointed at,
+ * and the toolchain is uninstalled all the same.
+ */
+TEST_F(CliE2ETest, UninstallPointsAtWhatItCouldNotDelete)
+{
+    installToolchain("gcc", "15.2.0");
+    const std::filesystem::path locked = _root / "toolchains/gcc/15.2.0" / hostDirectoryName() / "bin";
+    std::error_code ec;
+    std::filesystem::permissions(locked, std::filesystem::perms::owner_read | std::filesystem::perms::owner_exec, ec);
+    ASSERT_FALSE(ec) << ec.message();
+    // A user who writes the directory anyway, root among them, cannot observe
+    // the failure; the fixture is restored before skipping so it can be removed.
+    if (std::ofstream{ locked / "probe" }) {
+        std::filesystem::permissions(locked, std::filesystem::perms::owner_all, ec);
+        GTEST_SKIP() << "this user writes a directory with no write permission";
+    }
+
+    auto result = runScrap({ "toolchain", "uninstall", "gcc@15.2.0" }, {}, _root);
+
+    const std::string prefix = "warning: could not delete everything in '" + (_root / "toolchains/.work").string() + "/uninstall-";
+    const std::string lastLine = lastLineOf(result.stderrText);
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_TRUE(lastLine.starts_with(prefix)) << result.stderrText;
+    EXPECT_TRUE(lastLine.ends_with("'; it can be removed by hand")) << result.stderrText;
+    EXPECT_FALSE(std::filesystem::exists(_root / "toolchains/gcc/15.2.0" / hostDirectoryName()));
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(_root / "toolchains/.work", ec)) {
+        std::filesystem::permissions(entry.path(), std::filesystem::perms::owner_all, ec);
+    }
+}

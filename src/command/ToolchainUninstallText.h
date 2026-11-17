@@ -48,6 +48,11 @@ namespace scrap::Command {
 [[nodiscard]] std::string renderNamesMoreThanOneToUninstall(std::string_view specifier, const std::vector<std::string>& names);
 
 /**
+ * @brief The warning that what could not be deleted is left at @p path.
+ */
+[[nodiscard]] std::string renderLeftBehind(const std::filesystem::path& path);
+
+/**
  * @brief The error line for a toolchain that could not be taken away.
  */
 [[nodiscard]] std::string renderNotRemoved(const Install::ToolchainNotRemoved& failure);

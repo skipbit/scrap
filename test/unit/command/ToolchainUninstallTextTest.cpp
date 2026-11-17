@@ -67,4 +67,12 @@ TEST(ToolchainUninstallTextTest, SaysWhatCouldNotBeRemovedAndWhy)
     const std::error_code denied = std::make_error_code(std::errc::permission_denied);
     EXPECT_EQ(renderNotRemoved({ .path = "/home/u/.scrap/toolchains/gcc/15.2.0/linux-x86_64", .code = denied }),
               "error: cannot remove '/home/u/.scrap/toolchains/gcc/15.2.0/linux-x86_64': " + denied.message() + "\n");
+    EXPECT_EQ(renderNotRemoved({ .path = "/home/u/.scrap/toolchains/gcc/15.2.0/linux-x86_64", .code = denied, .workDirectory = "/home/u/.scrap/toolchains/.work" }),
+              "error: cannot remove '/home/u/.scrap/toolchains/gcc/15.2.0/linux-x86_64': cannot make '/home/u/.scrap/toolchains/.work': " + denied.message() + "\n");
+}
+
+TEST(ToolchainUninstallTextTest, SaysWhereWhatCouldNotBeDeletedIsLeft)
+{
+    EXPECT_EQ(renderLeftBehind("/home/u/.scrap/toolchains/.work/uninstall-42-0"),
+              "warning: could not delete everything in '/home/u/.scrap/toolchains/.work/uninstall-42-0'; it can be removed by hand\n");
 }

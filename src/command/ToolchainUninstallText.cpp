@@ -94,9 +94,20 @@ std::string renderNamesMoreThanOneToUninstall(const std::string_view specifier, 
     return rendered;
 }
 
+std::string renderLeftBehind(const std::filesystem::path& path)
+{
+    return "warning: could not delete everything in '" + printablePath(path) + "'; it can be removed by hand\n";
+}
+
 std::string renderNotRemoved(const Install::ToolchainNotRemoved& failure)
 {
-    return "error: cannot remove '" + printablePath(failure.path) + "': " + printableText(failure.code.message()) + "\n";
+    std::string rendered = "error: cannot remove '" + printablePath(failure.path) + "': ";
+    if (failure.workDirectory.has_value()) {
+        rendered += "cannot make '" + printablePath(*failure.workDirectory) + "': ";
+    }
+    rendered += printableText(failure.code.message());
+    rendered += "\n";
+    return rendered;
 }
 
 }  // namespace scrap::Command
