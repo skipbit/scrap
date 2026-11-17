@@ -158,6 +158,7 @@ scrap_apply_compile_settings(scrap_toolchain WARNINGS_AS_ERRORS)
 add_library(scrap_install STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/install/IndexCopy.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/install/IngotInstaller.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/install/ToolchainRemoval.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/install/IngotUnpack.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/install/UnpackedToolchain.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/install/UtcTime.cpp
