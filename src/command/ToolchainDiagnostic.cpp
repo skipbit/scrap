@@ -170,6 +170,11 @@ std::string renderGlobalConfigFileError(const std::filesystem::path& file, const
         error);
 }
 
+std::string renderUnselected(const std::string_view name)
+{
+    return "Unselected '" + printableText(name) + "'; no toolchain is selected globally\n";
+}
+
 std::string renderNoCompilerFound()
 {
     return "error: no C++ compiler found\n"

@@ -2,6 +2,7 @@
 
 #include "command/NameAfterUninstall.h"
 #include "command/PrintableText.h"
+#include "command/ToolchainDiagnostic.h"
 #include "command/ToolchainNaming.h"
 #include "install/ToolchainRemoval.h"
 
@@ -49,7 +50,7 @@ std::string renderGlobalDefaultAfterUninstall(const NamedToolchain& named, const
     if (const auto* elsewhere = std::get_if<LeadsElsewhere>(&after)) {
         return "The global default '" + shown + "' now leads to '" + printableText(elsewhere->name) + "'\n";
     }
-    return "Unselected '" + shown + "'; no toolchain is selected globally\n";
+    return renderUnselected(named.text);
 }
 
 std::string renderUsedHereAfterUninstall(const NamedToolchain& named, const NameAfterUninstall& after)

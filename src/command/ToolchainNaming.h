@@ -56,6 +56,26 @@ struct NamedToolchain {
                                                                                                 const std::optional<std::string>& projectToolchain);
 
 /**
+ * @brief What names a toolchain above the global default for the working
+ *        directory, and whether a project is there.
+ */
+struct NamedAboveHere {
+    std::optional<NamedToolchain> named;  ///< Nothing when nothing above the global default names one.
+    bool inProject = false;
+};
+
+/**
+ * @brief The toolchain SCRAP_TOOLCHAIN or the project in the working
+ *        directory names, before the global default is read.
+ *
+ * Outside a project, a SCRAP_TOOLCHAIN that is no choice names nothing.
+ *
+ * @return What names it, or the error lines for a project or a name that
+ *         cannot be read.
+ */
+[[nodiscard]] std::expected<NamedAboveHere, std::string> namedAboveGlobalDefaultHere(const RuntimeEnvironment& env);
+
+/**
  * @brief The toolchain the global default names.
  *
  * @return The toolchain, nothing when SCRAP_HOME is not known or no

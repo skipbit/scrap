@@ -129,25 +129,10 @@ struct InstalledName {
 [[nodiscard]] std::optional<std::string> newestNamedBy(const std::vector<InstalledName>& installed, const ToolchainSpecifier& specifier);
 
 /**
- * @brief A toolchain installed for a host, and where it is.
+ * @brief The names in @p installed that @p specifier names, in the order
+ *        given.
  */
-struct InstalledPlace {
-    InstalledName name;
-    std::filesystem::path directory;
-};
-
-/**
- * @brief Every toolchain installed below @p scrapHome for @p host that
- *        @p specifier names, from the oldest version.
- *
- * A toolchain counts as installed as for listInstalledToolchains(), so one
- * whose record cannot be used is there too.
- *
- * @return The toolchains, or the directory that cannot be listed.
- */
-[[nodiscard]] std::expected<std::vector<InstalledPlace>, CannotListToolchains> installedNamedBy(const std::filesystem::path& scrapHome,
-                                                                                                const HostEnvironment& host,
-                                                                                                const ToolchainSpecifier& specifier);
+[[nodiscard]] std::vector<InstalledName> namedBy(const std::vector<InstalledName>& installed, const ToolchainSpecifier& specifier);
 
 /**
  * @brief The install record in @p directory, when what it names is there.

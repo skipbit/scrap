@@ -466,54 +466,46 @@ TEST(InstalledToolchainTest, ReportsWhatCannotBeListedWhenListing)
 namespace {
 
 /**
- * The names and directories of the toolchains @p specifier names below
- * @p home, as "<name> in <directory below home>", or "<fault>".
+ * The names of the toolchains of @p installed that @p specifier names, in
+ * the order kept.
  */
-std::vector<std::string> placesNamed(const TempDirectory& home, std::string_view specifier)
+std::vector<std::string> keptBy(const std::vector<InstalledName>& installed, std::string_view specifier)
 {
-    const auto named = installedNamedBy(home.path(), Host, parseToolchainSpecifier(specifier).value());
-    EXPECT_TRUE(named.has_value());
-    if (! named.has_value()) {
-        return { "<fault>" };
+    std::vector<std::string> names;
+    for (const InstalledName& name : namedBy(installed, parseToolchainSpecifier(specifier).value())) {
+        names.push_back(name.text());
     }
-    std::vector<std::string> places;
-    for (const InstalledPlace& place : *named) {
-        places.push_back(place.name.text() + " in " + place.directory.lexically_relative(home.path()).string());
-    }
-    return places;
+    return names;
 }
 
 }  // namespace
 
 /**
- * Every installed version the specifier names is found, from the oldest,
- * with where it is, and nothing of another family or version.
+ * Every version the specifier names is kept in the order given, and nothing
+ * of another family or version.
  */
-TEST(InstalledToolchainTest, FindsEveryInstalledVersionTheSpecifierNames)
+TEST(InstalledToolchainTest, KeepsEveryVersionTheSpecifierNamesInOrder)
 {
-    const TempDirectory home;
-    install(home, "gcc", "15.2.0");
-    install(home, "gcc", "15.10.0");
-    install(home, "gcc", "16.2.0");
-    install(home, "llvm", "15.0.0");
+    const std::vector<InstalledName> installed{ { .family = "gcc", .version = ToolchainVersion::parse("15.2.0").value() },
+                                                { .family = "gcc", .version = ToolchainVersion::parse("15.10.0").value() },
+                                                { .family = "gcc", .version = ToolchainVersion::parse("16.2.0").value() },
+                                                { .family = "llvm", .version = ToolchainVersion::parse("15.0.0").value() } };
 
-    EXPECT_EQ(placesNamed(home, "gcc@15"),
-              (std::vector<std::string>{ "gcc@15.2.0 in toolchains/gcc/15.2.0/linux-x86_64", "gcc@15.10.0 in toolchains/gcc/15.10.0/linux-x86_64" }));
-    EXPECT_EQ(placesNamed(home, "gcc@16.2.0"), (std::vector<std::string>{ "gcc@16.2.0 in toolchains/gcc/16.2.0/linux-x86_64" }));
-    EXPECT_TRUE(placesNamed(home, "gcc@14").empty());
+    EXPECT_EQ(keptBy(installed, "gcc@15"), (std::vector<std::string>{ "gcc@15.2.0", "gcc@15.10.0" }));
+    EXPECT_EQ(keptBy(installed, "gcc@16.2.0"), (std::vector<std::string>{ "gcc@16.2.0" }));
+    EXPECT_EQ(keptBy(installed, "gcc"), (std::vector<std::string>{ "gcc@15.2.0", "gcc@15.10.0", "gcc@16.2.0" }));
 }
 
 /**
- * A toolchain whose record cannot be used is found too, and one for
- * another host is not.
+ * A specifier that names none keeps none.
  */
-TEST(InstalledToolchainTest, FindsAnInstalledVersionWhoseRecordCannotBeUsed)
+TEST(InstalledToolchainTest, KeepsNothingWhenTheSpecifierNamesNone)
 {
-    const TempDirectory home;
-    home.writeFile("toolchains/gcc/15.2.0/linux-x86_64/" + std::string{ InstallRecordName }, "not a record");
-    install(home, "gcc", "15.3.0", "darwin-aarch64");
+    const std::vector<InstalledName> installed{ { .family = "gcc", .version = ToolchainVersion::parse("15.2.0").value() } };
 
-    EXPECT_EQ(placesNamed(home, "gcc"), (std::vector<std::string>{ "gcc@15.2.0 in toolchains/gcc/15.2.0/linux-x86_64" }));
+    EXPECT_TRUE(keptBy(installed, "gcc@14").empty());
+    EXPECT_TRUE(keptBy(installed, "llvm").empty());
+    EXPECT_TRUE(keptBy({}, "gcc").empty());
 }
 
 /**

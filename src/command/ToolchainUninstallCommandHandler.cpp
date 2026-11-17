@@ -8,7 +8,6 @@
 #include "command/ToolchainNaming.h"
 #include "command/ToolchainUninstallText.h"
 #include "install/ToolchainRemoval.h"
-#include "project/ProjectLoader.h"
 #include "toolchain/GlobalConfigFile.h"
 #include "toolchain/HostEnvironment.h"
 #include "toolchain/InstalledToolchain.h"
@@ -36,17 +35,11 @@ namespace {
  */
 std::optional<NamedToolchain> namedAboveHere(const RuntimeEnvironment& env)
 {
-    std::optional<std::string> projectToolchain;
-    if (const auto project = Project::loadProject(env.workingDirectory); project.has_value()) {
-        projectToolchain = project->manifest.toolchain;
-    } else if (! std::holds_alternative<Project::ProjectNotFound>(project.error())) {
-        return std::nullopt;
-    }
-    auto above = namedAboveGlobalDefault(env, projectToolchain);
+    auto above = namedAboveGlobalDefaultHere(env);
     if (! above.has_value()) {
         return std::nullopt;
     }
-    return std::move(*above);
+    return std::move(above->named);
 }
 
 /**
@@ -74,7 +67,8 @@ bool settleGlobalDefault(const std::filesystem::path& scrapHome, const NamedTool
  */
 struct ToUninstall {
     std::vector<Toolchain::InstalledName> installed;
-    Toolchain::InstalledPlace place;
+    Toolchain::InstalledName name;
+    std::filesystem::path directory;
 };
 
 /**
@@ -90,21 +84,21 @@ std::expected<ToUninstall, std::string> oneToUninstall(const std::filesystem::pa
     if (! installed.has_value()) {
         return std::unexpected(renderCannotListToolchains(installed.error()));
     }
-    auto named = Toolchain::installedNamedBy(scrapHome, host, specifier);
-    if (! named.has_value()) {
-        return std::unexpected(renderCannotListToolchains(named.error()));
-    }
-    if (named->empty()) {
+    const auto named = Toolchain::namedBy(*installed, specifier);
+    if (named.empty()) {
         return std::unexpected(renderNothingToUninstall(text));
     }
-    if (named->size() > 1) {
+    if (named.size() > 1) {
         std::vector<std::string> names;
-        for (const Toolchain::InstalledPlace& place : *named) {
-            names.push_back(place.name.text());
+        names.reserve(named.size());
+        for (const Toolchain::InstalledName& each : named) {
+            names.push_back(each.text());
         }
         return std::unexpected(renderNamesMoreThanOneToUninstall(text, names));
     }
-    return ToUninstall{ .installed = std::move(*installed), .place = std::move(named->front()) };
+    const Toolchain::InstalledName& only = named.front();
+    std::filesystem::path directory = Toolchain::toolchainDirectory(scrapHome, only.family, only.version.text(), host.directoryName());
+    return ToUninstall{ .installed = std::move(*installed), .name = only, .directory = std::move(directory) };
 }
 
 /**
@@ -171,12 +165,12 @@ int ToolchainUninstallCommandHandler::execute(const InvocationContext& ctx)
         std::cerr << chosen.error();
         return 1;
     }
-    const std::string removed = chosen->place.name.text();
-    if (auto taken = Install::removeInstalledToolchain(*scrapHome, chosen->place.directory); ! taken.has_value()) {
+    const std::string removed = chosen->name.text();
+    if (auto taken = Install::removeInstalledToolchain(*scrapHome, chosen->directory); ! taken.has_value()) {
         std::cerr << renderNotRemoved(taken.error());
         return 1;
     }
-    std::cerr << renderUninstalled(removed, chosen->place.directory);
+    std::cerr << renderUninstalled(removed, chosen->directory);
     return tellWhereNamesLead(env, *scrapHome, *globalDefault, chosen->installed, removed) ? 0 : 1;
 }
 

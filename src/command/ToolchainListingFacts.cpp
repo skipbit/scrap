@@ -1,11 +1,9 @@
 #include "command/ToolchainListingFacts.h"
 
-#include "command/ProjectDiagnostic.h"
 #include "command/RuntimeEnvironment.h"
 #include "command/ToolchainDiagnostic.h"
 #include "command/ToolchainListing.h"
 #include "command/ToolchainNaming.h"
-#include "project/ProjectLoader.h"
 #include "toolchain/HostEnvironment.h"
 #include "toolchain/InstalledToolchain.h"
 #include "toolchain/SystemCompiler.h"
@@ -17,7 +15,6 @@
 #include <string>
 #include <string_view>
 #include <utility>
-#include <variant>
 #include <vector>
 
 namespace scrap::Command {
@@ -57,20 +54,15 @@ std::expected<std::vector<Toolchain::InstalledName>, Toolchain::CannotListToolch
  */
 std::optional<NamedHere> readNamedHere(const RuntimeEnvironment& env, const std::expected<std::optional<NamedToolchain>, std::string>& globalDefault)
 {
-    const auto project = Project::loadProject(env.workingDirectory);
-    if (! project.has_value()) {
-        if (std::holds_alternative<Project::ProjectNotFound>(project.error())) {
-            return std::nullopt;
-        }
-        std::cerr << asWarning(renderProjectError(project.error()));
-        return NameHereUnreadable{};
-    }
-    auto above = namedAboveGlobalDefault(env, project->manifest.toolchain);
+    auto above = namedAboveGlobalDefaultHere(env);
     if (! above.has_value()) {
         std::cerr << asWarning(std::move(above.error()));
         return NameHereUnreadable{};
     }
-    if (const std::optional<NamedToolchain>& named = *above; named.has_value()) {
+    if (! above->inProject) {
+        return std::nullopt;
+    }
+    if (const std::optional<NamedToolchain>& named = above->named; named.has_value()) {
         return *named;
     }
     if (! globalDefault.has_value()) {

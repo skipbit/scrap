@@ -1,31 +1,15 @@
 #include "install/ToolchainRemoval.h"
 
+#include "install/WorkDirectory.h"
 #include "toolchain/ScrapHomeLayout.h"
 
 #include <expected>  // IWYU pragma: keep
 #include <filesystem>
-#include <string>
 #include <system_error>
-#include <unistd.h>
 
 namespace scrap::Install {
 
 namespace {
-
-/**
- * A name below @p workRoot that nothing holds, for this process.
- */
-std::filesystem::path unusedName(const std::filesystem::path& workRoot)
-{
-    const std::string prefix = "uninstall-" + std::to_string(::getpid()) + "-";
-    for (unsigned count = 0;; ++count) {
-        std::filesystem::path candidate = workRoot / (prefix + std::to_string(count));
-        std::error_code ec;
-        if (! std::filesystem::exists(std::filesystem::symlink_status(candidate, ec))) {
-            return candidate;
-        }
-    }
-}
 
 /**
  * Remove @p directory and the parents above it up to @p top while each is
@@ -51,17 +35,15 @@ void removeEmptyUpTo(std::filesystem::path directory, const std::filesystem::pat
 std::expected<void, ToolchainNotRemoved> removeInstalledToolchain(const std::filesystem::path& scrapHome, const std::filesystem::path& directory)
 {
     const std::filesystem::path workRoot = Toolchain::temporaryDirectory(scrapHome);
-    std::error_code ec;
-    std::filesystem::create_directories(workRoot, ec);
-    if (ec) {
-        return std::unexpected(ToolchainNotRemoved{ .path = workRoot, .code = ec });
+    const auto work = WorkDirectory::below(workRoot, "uninstall");
+    if (! work.has_value()) {
+        return std::unexpected(ToolchainNotRemoved{ .path = workRoot, .code = work.error().code });
     }
-    const std::filesystem::path setAside = unusedName(workRoot);
-    std::filesystem::rename(directory, setAside, ec);
+    std::error_code ec;
+    std::filesystem::rename(directory, work->path() / "removed", ec);
     if (ec) {
         return std::unexpected(ToolchainNotRemoved{ .path = directory, .code = ec });
     }
-    std::filesystem::remove_all(setAside, ec);
     removeEmptyUpTo(directory.parent_path(), Toolchain::toolchainsDirectory(scrapHome));
     return {};
 }
