@@ -126,6 +126,33 @@ NoMatchInIndex noMatch(const ToolchainIndex& index, const ToolchainSpecifier& sp
     return NoMatchInIndex{ .versions = versionTexts(newestFirst(index, specifier.family, isOffered)), .families = familyNames(index) };
 }
 
+/**
+ * What a specifier chooses among the toolchains it names.
+ */
+struct Choice {
+    const IndexedToolchain* toolchain;
+    bool installable;  ///< Whether it can be installed on the host.
+};
+
+/**
+ * The newest toolchain @p specifier names that can be installed on @p host
+ * or, when none can, the newest it names. Nothing when it names none.
+ */
+std::optional<Choice> chooseNamed(const ToolchainIndex& index, const ToolchainSpecifier& specifier, const InstallingHost& host)
+{
+    const auto named = namedBy(index, specifier);
+    if (named.empty()) {
+        return std::nullopt;
+    }
+    const auto installable = std::ranges::find_if(named, [&host](const IndexedToolchain* toolchain) {
+        return canBeInstalled(*toolchain, host);
+    });
+    if (installable == named.end()) {
+        return Choice{ .toolchain = named.front(), .installable = false };
+    }
+    return Choice{ .toolchain = *installable, .installable = true };
+}
+
 }  // anonymous namespace
 
 std::string integrityOf(const Ingot& ingot)
@@ -160,33 +187,27 @@ bool canBeInstalled(const IndexedToolchain& toolchain, const InstallingHost& hos
 
 std::expected<IndexedLookup, NoMatchInIndex> lookUpInIndex(const ToolchainIndex& index, const ToolchainSpecifier& specifier, const InstallingHost& host)
 {
-    const auto named = namedBy(index, specifier);
-    if (named.empty()) {
+    const auto choice = chooseNamed(index, specifier, host);
+    if (! choice.has_value()) {
         return std::unexpected(noMatch(index, specifier));
     }
-    const auto chosen = std::ranges::find_if(named, [&host](const IndexedToolchain* toolchain) {
-        return canBeInstalled(*toolchain, host);
-    });
-    const IndexedToolchain& toolchain = (chosen == named.end()) ? *named.front() : **chosen;
+    const IndexedToolchain& toolchain = *choice->toolchain;
     const Ingot* ingot = ingotFor(toolchain, host.environment);
     return IndexedLookup{ .toolchain = toolchain,
                           .ingot = (ingot == nullptr) ? std::nullopt : std::optional{ *ingot },
-                          .barrier = (chosen == named.end()) ? std::optional{ faultOf(toolchain, index, host) } : std::nullopt };
+                          .barrier = choice->installable ? std::nullopt : std::optional{ faultOf(toolchain, index, host) } };
 }
 
 std::expected<SelectedIngot, IngotSelectionFault> selectIngot(const ToolchainIndex& index, const ToolchainSpecifier& specifier, const InstallingHost& host)
 {
-    const auto named = namedBy(index, specifier);
-    if (named.empty()) {
+    const auto choice = chooseNamed(index, specifier, host);
+    if (! choice.has_value()) {
         return std::unexpected(noMatch(index, specifier));
     }
-    const auto chosen = std::ranges::find_if(named, [&host](const IndexedToolchain* toolchain) {
-        return canBeInstalled(*toolchain, host);
-    });
-    if (chosen == named.end()) {
-        return std::unexpected(faultOf(*named.front(), index, host));
+    const IndexedToolchain& toolchain = *choice->toolchain;
+    if (! choice->installable) {
+        return std::unexpected(faultOf(toolchain, index, host));
     }
-    const IndexedToolchain& toolchain = **chosen;
     return SelectedIngot{ .family = toolchain.family, .version = toolchain.version, .compiler = toolchain.compiler, .cCompiler = toolchain.cCompiler, .ingot = *ingotFor(toolchain, host.environment) };
 }
 
