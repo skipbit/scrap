@@ -123,6 +123,12 @@ struct InstalledName {
                                                                                                       const HostEnvironment& host);
 
 /**
+ * @brief The name of the newest of @p installed that @p specifier names,
+ *        as a build would use it, or nothing when it names none.
+ */
+[[nodiscard]] std::optional<std::string> newestNamedBy(const std::vector<InstalledName>& installed, const ToolchainSpecifier& specifier);
+
+/**
  * @brief A toolchain installed for a host, and where it is.
  */
 struct InstalledPlace {

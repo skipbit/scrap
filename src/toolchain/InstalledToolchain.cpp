@@ -282,6 +282,20 @@ std::optional<InstalledToolchain> anyInstalledToolchain(const std::filesystem::p
     return std::nullopt;
 }
 
+std::optional<std::string> newestNamedBy(const std::vector<InstalledName>& installed, const ToolchainSpecifier& specifier)
+{
+    const InstalledName* newest = nullptr;
+    for (const InstalledName& each : installed) {
+        if (specifier.matches(each.family, each.version) && ((newest == nullptr) || (each.version > newest->version))) {
+            newest = &each;
+        }
+    }
+    if (newest == nullptr) {
+        return std::nullopt;
+    }
+    return newest->text();
+}
+
 std::expected<std::vector<InstalledPlace>, CannotListToolchains> installedNamedBy(const std::filesystem::path& scrapHome,
                                                                                   const HostEnvironment& host,
                                                                                   const ToolchainSpecifier& specifier)

@@ -515,3 +515,17 @@ TEST(InstalledToolchainTest, FindsAnInstalledVersionWhoseRecordCannotBeUsed)
 
     EXPECT_EQ(placesNamed(home, "gcc"), (std::vector<std::string>{ "gcc@15.2.0 in toolchains/gcc/15.2.0/linux-x86_64" }));
 }
+
+/**
+ * Of the listed toolchains, the newest the specifier names is the one a
+ * build would use, comparing versions as numbers.
+ */
+TEST(InstalledToolchainTest, NamesTheNewestListedToolchainASpecifierNames)
+{
+    const std::vector<InstalledName> installed{ { .family = "gcc", .version = ToolchainVersion::parse("15.10.0").value() },
+                                                { .family = "gcc", .version = ToolchainVersion::parse("15.2.0").value() },
+                                                { .family = "gcc", .version = ToolchainVersion::parse("16.2.0").value() } };
+
+    EXPECT_EQ(newestNamedBy(installed, parseToolchainSpecifier("gcc@15").value()), std::optional<std::string>{ "gcc@15.10.0" });
+    EXPECT_EQ(newestNamedBy(installed, parseToolchainSpecifier("gcc@14").value()), std::nullopt);
+}
