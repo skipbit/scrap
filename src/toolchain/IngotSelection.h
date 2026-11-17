@@ -90,6 +90,12 @@ struct IndexedLookup {
 [[nodiscard]] std::string integrityOf(const Ingot& ingot);
 
 /**
+ * @brief Where @p ingot is fetched from: a registry reference, as
+ *        <registry>/<tag>, or a URL.
+ */
+[[nodiscard]] std::string sourceOf(const Ingot& ingot);
+
+/**
  * @brief Whether @p toolchain has an ingot for the OS and architecture of
  *        @p environment.
  */

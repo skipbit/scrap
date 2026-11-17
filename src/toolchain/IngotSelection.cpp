@@ -122,6 +122,14 @@ std::string integrityOf(const Ingot& ingot)
     return std::get<UrlSource>(ingot.source).sha256;
 }
 
+std::string sourceOf(const Ingot& ingot)
+{
+    if (const auto* registry = std::get_if<RegistrySource>(&ingot.source)) {
+        return registry->registry + "/" + registry->tag;
+    }
+    return std::get<UrlSource>(ingot.source).url;
+}
+
 bool hasIngotFor(const IndexedToolchain& toolchain, const HostEnvironment& environment)
 {
     return ingotFor(toolchain, environment) != nullptr;

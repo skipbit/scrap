@@ -314,3 +314,12 @@ TEST(IngotSelectionTest, FindsNothingToLookUpForAVersionNotInTheIndex)
     ASSERT_FALSE(found.has_value());
     EXPECT_EQ(found.error().families, (std::vector<std::string>{ "gcc", "llvm" }));
 }
+
+TEST(IngotSelectionTest, TellsWhereAnIngotIsFetchedFrom)
+{
+    Ingot ingot = hostIngot();
+    EXPECT_EQ(sourceOf(ingot), "https://example.com/a");
+
+    ingot.source = RegistrySource{ .registry = "ghcr.io/example", .tag = "gcc:15.2.0", .digest = "sha256:def" };
+    EXPECT_EQ(sourceOf(ingot), "ghcr.io/example/gcc:15.2.0");
+}
