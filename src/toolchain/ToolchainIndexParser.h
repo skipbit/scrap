@@ -44,4 +44,9 @@ struct ToolchainIndexError {
  */
 [[nodiscard]] std::expected<ToolchainIndex, ToolchainIndexError> parseToolchainIndex(std::string_view text, const ToolchainVersion& scrapVersion);
 
+/**
+ * @brief The word index.toml writes @p status as, such as "deprecated".
+ */
+[[nodiscard]] std::string_view statusName(ToolchainStatus status);
+
 }  // namespace scrap::Toolchain
