@@ -1,6 +1,7 @@
 #include "command/ToolchainListingTable.h"
 
 #include "command/PrintableText.h"
+#include "command/TextColumns.h"
 #include "command/ToolchainListing.h"
 
 #include <algorithm>
@@ -12,8 +13,6 @@
 namespace scrap::Command {
 
 namespace {
-
-constexpr std::string_view ColumnGap = "  ";
 
 /**
  * What @p toolchain lacks, to follow a mark on it.
@@ -56,33 +55,6 @@ std::string usedHereCell(const ListedToolchain& toolchain)
     return cell;
 }
 
-/**
- * @p rows laid out in columns, each as wide as its widest cell.
- */
-std::string layOut(const std::vector<std::vector<std::string>>& rows)
-{
-    std::vector<std::size_t> widths(rows.front().size(), 0);
-    for (const auto& row : rows) {
-        for (std::size_t column = 0; column < row.size(); ++column) {
-            widths[column] = std::max(widths[column], row[column].size());
-        }
-    }
-    std::string text;
-    for (const auto& row : rows) {
-        std::string line;
-        for (std::size_t column = 0; column < row.size(); ++column) {
-            if (column > 0) {
-                line += ColumnGap;
-            }
-            line += row[column];
-            line.append(widths[column] - row[column].size(), ' ');
-        }
-        line.erase(line.find_last_not_of(' ') + 1);
-        text += line + "\n";
-    }
-    return text;
-}
-
 }  // anonymous namespace
 
 std::string renderToolchainListingTable(const ToolchainListing& listing)
@@ -98,7 +70,7 @@ std::string renderToolchainListingTable(const ToolchainListing& listing)
             rows.back().push_back(usedHereCell(toolchain));
         }
     }
-    return layOut(rows);
+    return layOutColumns(rows);
 }
 
 }  // namespace scrap::Command
