@@ -27,12 +27,7 @@ std::vector<RemoteToolchain> rows()
 
 TEST(RemoteListingTextTest, ListsTheToolchainsAndWhenTheIndexWasFetched)
 {
-    std::vector<RemoteToolchain> installable = rows();
-    std::erase_if(installable, [](const RemoteToolchain& row) {
-        return row.barrier.has_value();
-    });
-
-    EXPECT_EQ(renderRemoteListingTable(installable, "2026-11-17T06:06:44Z", false),
+    EXPECT_EQ(renderRemoteListingTable(installableOnly(rows()), "2026-11-17T06:06:44Z", false),
               "TOOLCHAIN   STATUS      INSTALLED\n"
               "gcc@16.2.0  active\n"
               "gcc@15.2.0  deprecated  yes\n"
@@ -40,7 +35,7 @@ TEST(RemoteListingTextTest, ListsTheToolchainsAndWhenTheIndexWasFetched)
               "index fetched at 2026-11-17T06:06:44Z\n");
 }
 
-TEST(RemoteListingTextTest, NotesWhyTheHostCannotInstallAVersionWhenListingAll)
+TEST(RemoteListingTextTest, ShowsWhyTheHostCannotInstallAVersionInTheNotes)
 {
     EXPECT_EQ(renderRemoteListingTable(rows(), std::nullopt, true),
               "TOOLCHAIN    STATUS      INSTALLED  NOTE\n"

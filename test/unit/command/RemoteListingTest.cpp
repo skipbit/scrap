@@ -67,25 +67,12 @@ std::vector<std::string> namesOf(const std::vector<RemoteToolchain>& rows)
 }  // anonymous namespace
 
 /**
- * By default only what the host can install is listed, by family and then
- * from the newest version.
+ * Every version is listed, by family and then from the newest, with what
+ * stops the host installing it.
  */
-TEST(RemoteListingTest, ListsWhatTheHostCanInstallFromTheNewest)
+TEST(RemoteListingTest, ListsEveryVersionWithWhatStopsTheHost)
 {
-    const auto rows = listRemoteToolchains(mixedIndex(), {}, linuxHost(), false);
-
-    EXPECT_EQ(namesOf(rows), (std::vector<std::string>{ "gcc@15.10.0", "gcc@15.2.0", "llvm@20.1.0" }));
-    EXPECT_EQ(rows.front().status, ToolchainStatus::Deprecated);
-    EXPECT_FALSE(rows.front().barrier.has_value());
-}
-
-/**
- * Asked for all, what the host cannot install is listed too, with what
- * stops it.
- */
-TEST(RemoteListingTest, ListsAllWithWhatStopsTheHost)
-{
-    const auto rows = listRemoteToolchains(mixedIndex(), {}, linuxHost(), true);
+    const auto rows = listRemoteToolchains(mixedIndex(), {}, linuxHost());
 
     EXPECT_EQ(namesOf(rows), (std::vector<std::string>{ "gcc@15.10.0", "gcc@15.3.0", "gcc@15.2.0", "llvm@20.1.0", "llvm@17.0.1" }));
     ASSERT_TRUE(rows[1].barrier.has_value());
@@ -93,13 +80,23 @@ TEST(RemoteListingTest, ListsAllWithWhatStopsTheHost)
     ASSERT_TRUE(rows[4].barrier.has_value());
     EXPECT_TRUE(std::holds_alternative<NoIngotForHost>(*rows[4].barrier));
     EXPECT_FALSE(rows[2].barrier.has_value());
+    EXPECT_EQ(rows.front().status, ToolchainStatus::Deprecated);
+}
+
+TEST(RemoteListingTest, KeepsOnlyWhatTheHostCanInstall)
+{
+    const auto rows = installableOnly(listRemoteToolchains(mixedIndex(), {}, linuxHost()));
+
+    EXPECT_EQ(namesOf(rows), (std::vector<std::string>{ "gcc@15.10.0", "gcc@15.2.0", "llvm@20.1.0" }));
+    EXPECT_EQ(rows.front().status, ToolchainStatus::Deprecated);
+    EXPECT_FALSE(rows.front().barrier.has_value());
 }
 
 TEST(RemoteListingTest, MarksWhatIsInstalled)
 {
     const std::vector<InstalledName> installed{ { .family = "gcc", .version = version("15.2.0") }, { .family = "llvm", .version = version("17.0.1") } };
 
-    const auto rows = listRemoteToolchains(mixedIndex(), installed, linuxHost(), false);
+    const auto rows = installableOnly(listRemoteToolchains(mixedIndex(), installed, linuxHost()));
 
     ASSERT_EQ(rows.size(), 3);
     EXPECT_FALSE(rows[0].installed);

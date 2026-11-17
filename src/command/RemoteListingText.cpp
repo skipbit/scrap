@@ -14,16 +14,16 @@
 
 namespace scrap::Command {
 
-std::string renderRemoteListingTable(const std::vector<RemoteToolchain>& rows, const std::optional<std::string>& fetchedAt, const bool all)
+std::string renderRemoteListingTable(const std::vector<RemoteToolchain>& rows, const std::optional<std::string>& fetchedAt, const bool withNotes)
 {
     std::vector<std::vector<std::string>> table;
     table.push_back({ "TOOLCHAIN", "STATUS", "INSTALLED" });
-    if (all) {
+    if (withNotes) {
         table.back().emplace_back("NOTE");
     }
     for (const RemoteToolchain& row : rows) {
         table.push_back({ printableText(row.name), std::string{ Toolchain::statusName(row.status) }, row.installed ? "yes" : "" });
-        if (all) {
+        if (withNotes) {
             table.back().push_back(row.barrier.has_value() ? renderInstallBarrier(*row.barrier) : std::string{});
         }
     }

@@ -22,14 +22,16 @@ struct RemoteToolchain {
 
 /**
  * @brief The toolchains of @p index, by family and then from the newest
- *        version, each marked as installed when @p installed holds it.
- *
- * @param all Whether to list those the host cannot install too, rather
- *            than only those it can.
+ *        version, each marked as installed when @p installed holds it and
+ *        with what stops @p host installing it.
  */
 [[nodiscard]] std::vector<RemoteToolchain> listRemoteToolchains(const Toolchain::ToolchainIndex& index,
                                                                 const std::vector<Toolchain::InstalledName>& installed,
-                                                                const Toolchain::InstallingHost& host,
-                                                                bool all);
+                                                                const Toolchain::InstallingHost& host);
+
+/**
+ * @brief The rows of @p rows that the host can install.
+ */
+[[nodiscard]] std::vector<RemoteToolchain> installableOnly(const std::vector<RemoteToolchain>& rows);
 
 }  // namespace scrap::Command

@@ -11,12 +11,11 @@ namespace scrap::Command {
 
 /**
  * @brief @p rows as a table, with a note of why the host cannot install a
- *        version when @p all lists those too, followed by when the index
- *        was fetched.
+ *        version when @p withNotes, followed by when the index was fetched.
  *
  * @param fetchedAt When the index was fetched, in UTC; nothing when unknown.
  */
-[[nodiscard]] std::string renderRemoteListingTable(const std::vector<RemoteToolchain>& rows, const std::optional<std::string>& fetchedAt, bool all);
+[[nodiscard]] std::string renderRemoteListingTable(const std::vector<RemoteToolchain>& rows, const std::optional<std::string>& fetchedAt, bool withNotes);
 
 /**
  * @brief The lines that say no toolchain of the index can be installed on
