@@ -1,7 +1,6 @@
 #include "command/IndexUpdateReport.h"
 
 #include "toolchain/IndexChanges.h"
-#include "toolchain/ToolchainIndex.h"
 #include "toolchain/ToolchainIndexParser.h"
 
 #include <algorithm>

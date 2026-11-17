@@ -2,14 +2,16 @@
 
 #include "command/PrintableText.h"
 #include "command/ToolchainDetails.h"
+#include "command/ToolchainListing.h"
 #include "command/ToolchainNaming.h"
 #include "toolchain/IngotSelection.h"
 #include "toolchain/InstallRecord.h"
+#include "toolchain/SystemCompiler.h"
+#include "toolchain/ToolchainIndex.h"
 #include "toolchain/ToolchainIndexParser.h"
 
 #include <algorithm>
 #include <cstddef>
-#include <filesystem>
 #include <optional>
 #include <string>
 #include <string_view>

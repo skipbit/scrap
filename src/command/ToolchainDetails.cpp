@@ -3,6 +3,7 @@
 #include "command/ToolchainListing.h"
 
 #include <algorithm>
+#include <optional>
 #include <string_view>
 
 namespace scrap::Command {
