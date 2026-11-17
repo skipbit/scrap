@@ -223,6 +223,7 @@ add_library(scrap_command STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainUninstallCommandHandler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/InstallBarrierText.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/RemoteListing.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/RemoteListingText.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/TextColumns.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainDetails.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainDetailsText.cpp
