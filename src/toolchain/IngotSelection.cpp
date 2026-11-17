@@ -10,6 +10,7 @@
 #include <optional>
 #include <ranges>
 #include <string>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -135,7 +136,7 @@ bool canBeInstalled(const IndexedToolchain& toolchain, const InstallingHost& hos
     return (ingot != nullptr) && (! needsNewerGlibc(*ingot, host));
 }
 
-std::expected<SelectedIngot, IngotSelectionFault> selectIngot(const ToolchainIndex& index, const ToolchainSpecifier& specifier, const InstallingHost& host)
+std::expected<IndexedLookup, NoMatchInIndex> lookUpInIndex(const ToolchainIndex& index, const ToolchainSpecifier& specifier, const InstallingHost& host)
 {
     const auto named = newestFirst(index, specifier.family, [&specifier](const IndexedToolchain& toolchain) {
         return specifier.matches(toolchain.family, toolchain.version);
@@ -146,11 +147,28 @@ std::expected<SelectedIngot, IngotSelectionFault> selectIngot(const ToolchainInd
     const auto chosen = std::ranges::find_if(named, [&host](const IndexedToolchain* toolchain) {
         return canBeInstalled(*toolchain, host);
     });
-    if (chosen == named.end()) {
-        return std::unexpected(faultOf(*named.front(), index, host));
+    const IndexedToolchain& toolchain = (chosen == named.end()) ? *named.front() : **chosen;
+    const Ingot* ingot = ingotFor(toolchain, host.environment);
+    return IndexedLookup{ .toolchain = toolchain,
+                          .ingot = (ingot == nullptr) ? std::nullopt : std::optional{ *ingot },
+                          .barrier = (chosen == named.end()) ? std::optional{ faultOf(toolchain, index, host) } : std::nullopt };
+}
+
+std::expected<SelectedIngot, IngotSelectionFault> selectIngot(const ToolchainIndex& index, const ToolchainSpecifier& specifier, const InstallingHost& host)
+{
+    auto found = lookUpInIndex(index, specifier, host);
+    if (! found.has_value()) {
+        return std::unexpected(std::move(found.error()));
     }
-    const IndexedToolchain& toolchain = **chosen;
-    return SelectedIngot{ .family = toolchain.family, .version = toolchain.version, .compiler = toolchain.compiler, .cCompiler = toolchain.cCompiler, .ingot = *ingotFor(toolchain, host.environment) };
+    if (found->barrier.has_value()) {
+        return std::unexpected(std::move(*found->barrier));
+    }
+    IndexedToolchain& toolchain = found->toolchain;
+    return SelectedIngot{ .family = std::move(toolchain.family),
+                          .version = std::move(toolchain.version),
+                          .compiler = std::move(toolchain.compiler),
+                          .cCompiler = std::move(toolchain.cCompiler),
+                          .ingot = std::move(*found->ingot) };
 }
 
 }  // namespace scrap::Toolchain
