@@ -4278,6 +4278,23 @@ TEST_F(CliE2ETest, InfoTellsAToolchainNotInstalledFromTheSavedIndex)
 }
 
 /**
+ * When the project here cannot be read, whether a toolchain is used here
+ * is unknown, and is said to be.
+ */
+TEST_F(CliE2ETest, InfoSaysItIsUnknownWhetherAToolchainIsUsedInAProjectItCannotRead)
+{
+    installToolchain("gcc", "15.2.0");
+    writeFile("hello/scrap.toml", "[package\n");
+    std::filesystem::create_directories(_root / "empty");
+
+    auto result = runScrap({ "toolchain", "info", "gcc@15.2.0" }, { "PATH=" + (_root / "empty").string() }, _root / "hello");
+
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_TRUE(hasLine(result.stdoutText, "used here:          unknown")) << result.stdoutText;
+    EXPECT_NE(result.stderrText.find(": warning: "), std::string::npos) << result.stderrText;
+}
+
+/**
  * A version the index holds and the host cannot install is told with why.
  */
 TEST_F(CliE2ETest, InfoTellsWhyAToolchainInTheIndexCannotBeInstalledHere)

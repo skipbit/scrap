@@ -34,6 +34,13 @@ TEST(ToolchainDetailsTest, MarksAToolchainAsTheListingMarksIt)
     EXPECT_FALSE(selectionIn(listing, "gcc@14.1.0").isDefault);
 }
 
+TEST(ToolchainDetailsTest, CarriesWhetherWhatNamesTheToolchainHereCanBeRead)
+{
+    const ToolchainListing listing{ .toolchains = { listed("gcc@15.2.0") }, .inProject = true, .hereUnreadable = true };
+
+    EXPECT_TRUE(selectionIn(listing, "gcc@15.2.0").hereUnreadable);
+}
+
 TEST(ToolchainDetailsTest, PassesOverANameTheListingHasAsNotThere)
 {
     ListedToolchain missing = listed("gcc@15.2.0");

@@ -72,11 +72,19 @@ std::string joined(const std::vector<std::string>& arguments)
     return text;
 }
 
+std::string usedHereText(const ToolchainSelection& selection)
+{
+    if (selection.usedHere.has_value()) {
+        return std::string{ describeUseReason(*selection.usedHere) };
+    }
+    return selection.hereUnreadable ? "unknown" : "no";
+}
+
 void addSelection(std::vector<DetailLine>& lines, const ToolchainSelection& selection)
 {
     lines.push_back(line("default", selection.isDefault ? "yes" : "no"));
     if (selection.inProject) {
-        lines.push_back(line("used here", selection.usedHere.has_value() ? std::string{ describeUseReason(*selection.usedHere) } : "no"));
+        lines.push_back(line("used here", usedHereText(selection)));
     }
 }
 

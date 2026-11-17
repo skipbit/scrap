@@ -107,7 +107,9 @@ ToolchainListing listToolchains(const ListingFacts& facts)
     if (facts.here.has_value()) {
         markUsedHere(toolchains, facts, *facts.here);
     }
-    return ToolchainListing{ .toolchains = std::move(toolchains), .inProject = facts.here.has_value() };
+    return ToolchainListing{ .toolchains = std::move(toolchains),
+                             .inProject = facts.here.has_value(),
+                             .hereUnreadable = facts.here.has_value() && std::holds_alternative<NameHereUnreadable>(*facts.here) };
 }
 
 }  // namespace scrap::Command

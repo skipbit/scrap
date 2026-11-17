@@ -56,7 +56,8 @@ struct ListedToolchain {
  */
 struct ToolchainListing {
     std::vector<ListedToolchain> toolchains;
-    bool inProject = false;  ///< Whether there is a project here to use one in.
+    bool inProject = false;       ///< Whether there is a project here to use one in.
+    bool hereUnreadable = false;  ///< Whether what names the toolchain used here cannot be read.
 };
 
 /**

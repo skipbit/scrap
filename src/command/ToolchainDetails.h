@@ -21,6 +21,7 @@ struct ToolchainSelection {
     bool isDefault = false;
     std::optional<UseReason> usedHere;  ///< Why it is used here, when it is.
     bool inProject = false;             ///< Whether there is a project here to use one in.
+    bool hereUnreadable = false;        ///< Whether what names the toolchain used here cannot be read.
 };
 
 /**

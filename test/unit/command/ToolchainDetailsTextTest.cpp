@@ -132,6 +132,14 @@ TEST(ToolchainDetailsTextTest, SaysAToolchainIsNotUsedHereInAProject)
     EXPECT_NE(renderToolchainDetails(details).find("used here:          no\n"), std::string::npos);
 }
 
+TEST(ToolchainDetailsTextTest, SaysItIsUnknownWhetherAToolchainIsUsedHereWhenTheNameCannotBeRead)
+{
+    InstalledDetails details = installed(fullRecord());
+    details.selection = { .isDefault = false, .usedHere = std::nullopt, .inProject = true, .hereUnreadable = true };
+
+    EXPECT_NE(renderToolchainDetails(details).find("used here:          unknown\n"), std::string::npos);
+}
+
 TEST(ToolchainDetailsTextTest, TellsAToolchainNotInstalledAsTheIndexTellsIt)
 {
     const IndexedDetails details{ .lookup = { .toolchain = indexed(ToolchainStatus::Active), .ingot = registryIngot(), .barrier = std::nullopt },

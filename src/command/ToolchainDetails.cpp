@@ -14,9 +14,9 @@ ToolchainSelection selectionIn(const ToolchainListing& listing, const std::strin
         return toolchain.present && (toolchain.name == name);
     });
     if (listed == listing.toolchains.end()) {
-        return ToolchainSelection{ .isDefault = false, .usedHere = std::nullopt, .inProject = listing.inProject };
+        return ToolchainSelection{ .isDefault = false, .usedHere = std::nullopt, .inProject = listing.inProject, .hereUnreadable = listing.hereUnreadable };
     }
-    return ToolchainSelection{ .isDefault = listed->isDefault, .usedHere = listed->usedHere, .inProject = listing.inProject };
+    return ToolchainSelection{ .isDefault = listed->isDefault, .usedHere = listed->usedHere, .inProject = listing.inProject, .hereUnreadable = listing.hereUnreadable };
 }
 
 }  // namespace scrap::Command
