@@ -14,6 +14,7 @@
 #include "command/ProjectBuild.h"
 #include "command/RunCommandHandler.h"
 #include "command/RuntimeEnvironment.h"
+#include "command/ToolchainInfoCommandHandler.h"
 #include "command/ToolchainInstallCommandHandler.h"
 #include "command/ToolchainListCommandHandler.h"
 #include "command/ToolchainSelectCommandHandler.h"
@@ -341,6 +342,25 @@ CommandEntry makeToolchainListEntry()
     return entry;
 }
 
+/**
+ * Create the entry for "toolchain info", which takes the specifier of the
+ * toolchain to tell.
+ */
+CommandEntry makeToolchainInfoEntry()
+{
+    CommandEntry entry;
+    entry.spec.name = "info";
+    entry.spec.description = "Display the details of a toolchain";
+    entry.spec.category = "Toolchain Commands";
+    entry.spec.options.positional.push_back(
+        PositionalDef{ .name = "specifier", .description = "Toolchain to display, as <family>[@<version>] or system", .required = true });
+    entry.source = CommandSource::Builtin;
+    entry.createHandler = [](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
+        return std::make_unique<ToolchainInfoCommandHandler>();
+    };
+    return entry;
+}
+
 }  // anonymous namespace
 
 /**
@@ -402,6 +422,7 @@ std::vector<CommandEntry> BuiltinCommandResolver::resolve([[maybe_unused]] const
     {
         auto toolchain = makePlaceholder("toolchain", "Manage toolchains", "Toolchain Commands");
         toolchain.subcommands.push_back(makeToolchainListEntry());
+        toolchain.subcommands.push_back(makeToolchainInfoEntry());
         toolchain.subcommands.push_back(makeToolchainInstallEntry());
         toolchain.subcommands.push_back(makeToolchainSelectEntry());
         toolchain.subcommands.push_back(makeToolchainUnselectEntry());
