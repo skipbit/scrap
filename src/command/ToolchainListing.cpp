@@ -73,7 +73,24 @@ void markUsedHere(std::vector<ListedToolchain>& toolchains, const ListingFacts& 
     }
 }
 
+std::string_view describe(const ChoiceSource source)
+{
+    return describeSource(source);
+}
+
+std::string_view describe(const Toolchain::CompilerOrigin origin)
+{
+    return describeOrigin(origin);
+}
+
 }  // anonymous namespace
+
+std::string_view describeUseReason(const UseReason& reason)
+{
+    return std::visit([](const auto& alternative) -> std::string_view {
+        return describe(alternative);
+    }, reason);
+}
 
 ToolchainListing listToolchains(const ListingFacts& facts)
 {

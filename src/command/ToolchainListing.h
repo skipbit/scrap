@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <variant>
 #include <vector>
 
@@ -32,6 +33,11 @@ using NamedHere = std::variant<NothingNamedHere, NameHereUnreadable, NamedToolch
  *        nothing names one, how the system's compiler was found.
  */
 using UseReason = std::variant<ChoiceSource, Toolchain::CompilerOrigin>;
+
+/**
+ * @brief How @p reason reads in a listing or in the details of a toolchain.
+ */
+[[nodiscard]] std::string_view describeUseReason(const UseReason& reason);
 
 /**
  * @brief One toolchain to choose from, or one named that is not there.
