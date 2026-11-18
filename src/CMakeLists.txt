@@ -140,6 +140,7 @@ add_library(scrap_toolchain STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/ProgramSearch.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/RuntimeLibraryName.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/ScrapHomeLayout.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/StatusWarning.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/SystemArchiver.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/SystemCompiler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/ToolchainChoice.cpp

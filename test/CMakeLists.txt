@@ -97,6 +97,7 @@ scrap_add_unit_test(toolchain SOURCES
     unit/toolchain/InstalledToolchainTest.cpp
     unit/toolchain/MacSdkTest.cpp
     unit/toolchain/ScrapHomeLayoutTest.cpp
+    unit/toolchain/StatusWarningTest.cpp
     unit/toolchain/SystemArchiverTest.cpp
     unit/toolchain/SystemCompilerTest.cpp
     unit/toolchain/ToolchainChoiceTest.cpp
