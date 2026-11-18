@@ -10,6 +10,36 @@
 
 namespace scrap::Command {
 
+namespace {
+
+std::string statusPhrase(const Toolchain::ToolchainStatus status)
+{
+    switch (status) {
+    case Toolchain::ToolchainStatus::Active:
+        return {};
+    case Toolchain::ToolchainStatus::Deprecated:
+        return "is deprecated";
+    case Toolchain::ToolchainStatus::Disabled:
+        return "is no longer provided";
+    }
+    return {};
+}
+
+std::string hintOf(const Toolchain::ToolchainStatus status, const std::string& alternative)
+{
+    switch (status) {
+    case Toolchain::ToolchainStatus::Active:
+        return {};
+    case Toolchain::ToolchainStatus::Deprecated:
+        return "hint: install a newer version, such as '" + printableText(alternative) + "'\n";
+    case Toolchain::ToolchainStatus::Disabled:
+        return anotherVersionHint(alternative);
+    }
+    return {};
+}
+
+}  // anonymous namespace
+
 std::string anotherVersionHint(const std::string& name)
 {
     return "hint: install another version, such as '" + printableText(name) + "'\n";
@@ -17,10 +47,9 @@ std::string anotherVersionHint(const std::string& name)
 
 std::string renderStatusWarning(const Toolchain::StatusWarning& warning)
 {
-    const bool deprecated = (warning.status == Toolchain::ToolchainStatus::Deprecated);
-    std::string rendered = "warning: '" + printableText(warning.name) + (deprecated ? "' is deprecated\n" : "' is no longer provided\n");
+    std::string rendered = "warning: '" + printableText(warning.name) + "' " + statusPhrase(warning.status) + "\n";
     if (warning.alternative.has_value()) {
-        rendered += deprecated ? "hint: install a newer version, such as '" + printableText(*warning.alternative) + "'\n" : anotherVersionHint(*warning.alternative);
+        rendered += hintOf(warning.status, *warning.alternative);
     }
     return rendered;
 }
