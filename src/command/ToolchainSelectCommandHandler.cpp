@@ -55,7 +55,6 @@ int ToolchainSelectCommandHandler::execute(const InvocationContext& ctx)
         return 1;
     }
 
-    std::string selected = "system";
     std::optional<Toolchain::InstalledToolchain> toolchain;
     if (const auto* specifier = std::get_if<Toolchain::ToolchainSpecifier>(&*choice)) {
         auto installed = installedChoice(*scrapHome, text, *specifier);
@@ -63,10 +62,10 @@ int ToolchainSelectCommandHandler::execute(const InvocationContext& ctx)
             std::cerr << installed.error();
             return 1;
         }
-        selected = installed->name();
         toolchain = std::move(*installed);
     }
 
+    const std::string selected = toolchain.has_value() ? toolchain->name() : std::string{ "system" };
     const std::filesystem::path file = Toolchain::globalConfigFile(*scrapHome);
     if (auto written = Toolchain::writeGlobalDefaultFile(file, selected); ! written.has_value()) {
         std::cerr << renderGlobalConfigFileError(file, written.error());
