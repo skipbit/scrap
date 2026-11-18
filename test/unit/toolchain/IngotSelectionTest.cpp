@@ -342,6 +342,22 @@ TEST(IngotSelectionTest, FindsNothingToLookUpForAVersionNotInTheIndex)
     EXPECT_EQ(found.error().families, (std::vector<std::string>{ "gcc", "llvm" }));
 }
 
+TEST(IngotSelectionTest, SuggestsTheNewestInstallableVersionOfAFamily)
+{
+    const ToolchainIndex index{ .toolchains = { toolchain("gcc", "15.1.0"), toolchain("gcc", "15.2.0", ToolchainStatus::Deprecated), toolchain("llvm", "20.1.0") } };
+
+    EXPECT_EQ(newestInstallable(index, "gcc", linuxHost(), SuggestedStatus::ActiveOrDeprecated)->version.text(), "15.2.0");
+    EXPECT_EQ(newestInstallable(index, "gcc", linuxHost(), SuggestedStatus::ActiveOnly)->version.text(), "15.1.0");
+}
+
+TEST(IngotSelectionTest, SuggestsNothingWhenNoVersionOfAFamilyCanBeInstalled)
+{
+    ToolchainIndex index{ .toolchains = { toolchain("gcc", "15.1.0", ToolchainStatus::Disabled), toolchain("gcc", "15.2.0", ToolchainStatus::Deprecated) } };
+
+    EXPECT_EQ(newestInstallable(index, "gcc", linuxHost(), SuggestedStatus::ActiveOnly), nullptr);
+    EXPECT_EQ(newestInstallable(index, "llvm", linuxHost(), SuggestedStatus::ActiveOrDeprecated), nullptr);
+}
+
 TEST(IngotSelectionTest, TellsWhereAnIngotIsFetchedFrom)
 {
     Ingot ingot = hostIngot();

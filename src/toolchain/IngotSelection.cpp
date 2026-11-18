@@ -97,11 +97,9 @@ IngotSelectionFault faultOf(const IndexedToolchain& toolchain, const ToolchainIn
         return NeedsNewerScrap{ .required = textOf(toolchain.minScrapVersion) };
     }
     if (! isOffered(toolchain)) {
-        const auto installable = newestFirst(index, toolchain.family, [&host](const IndexedToolchain& other) {
-            return canBeInstalled(other, host);
-        });
+        const IndexedToolchain* alternative = newestInstallable(index, toolchain.family, host, SuggestedStatus::ActiveOrDeprecated);
         return NoLongerOffered{ .family = toolchain.family,
-                                .alternative = installable.empty() ? std::nullopt : std::optional{ installable.front()->version.text() } };
+                                .alternative = (alternative == nullptr) ? std::nullopt : std::optional{ alternative->version.text() } };
     }
     const Ingot* ingot = ingotFor(toolchain, host.environment);
     if (ingot == nullptr) {
@@ -173,6 +171,14 @@ bool canBeInstalled(const IndexedToolchain& toolchain, const InstallingHost& hos
     }
     const Ingot* ingot = ingotFor(toolchain, host.environment);
     return (ingot != nullptr) && (! needsNewerGlibc(*ingot, host));
+}
+
+const IndexedToolchain* newestInstallable(const ToolchainIndex& index, const std::string& family, const InstallingHost& host, const SuggestedStatus accepted)
+{
+    const auto installable = newestFirst(index, family, [&host, accepted](const IndexedToolchain& toolchain) {
+        return canBeInstalled(toolchain, host) && ((accepted == SuggestedStatus::ActiveOrDeprecated) || (toolchain.status == ToolchainStatus::Active));
+    });
+    return installable.empty() ? nullptr : installable.front();
 }
 
 std::optional<IngotSelectionFault> barrierTo(const IndexedToolchain& toolchain, const ToolchainIndex& index, const InstallingHost& host)

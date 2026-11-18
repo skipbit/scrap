@@ -10,6 +10,12 @@
 namespace scrap::Command {
 
 /**
+ * @brief The hint to install @p name, another version of what is no longer
+ *        provided.
+ */
+[[nodiscard]] std::string anotherVersionHint(const std::string& name);
+
+/**
  * @brief The warning that a toolchain is deprecated or no longer provided,
  *        with what to install instead when there is something.
  */

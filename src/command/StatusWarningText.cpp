@@ -10,13 +10,17 @@
 
 namespace scrap::Command {
 
+std::string anotherVersionHint(const std::string& name)
+{
+    return "hint: install another version, such as '" + printableText(name) + "'\n";
+}
+
 std::string renderStatusWarning(const Toolchain::StatusWarning& warning)
 {
     const bool deprecated = (warning.status == Toolchain::ToolchainStatus::Deprecated);
     std::string rendered = "warning: '" + printableText(warning.name) + (deprecated ? "' is deprecated\n" : "' is no longer provided\n");
     if (warning.alternative.has_value()) {
-        rendered += deprecated ? "hint: install a newer version, such as '" : "hint: install another version, such as '";
-        rendered += printableText(*warning.alternative) + "'\n";
+        rendered += deprecated ? "hint: install a newer version, such as '" + printableText(*warning.alternative) + "'\n" : anotherVersionHint(*warning.alternative);
     }
     return rendered;
 }
