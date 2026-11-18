@@ -122,15 +122,12 @@ std::expected<Toolchain::ToolchainIndex, std::string> indexToInstallFrom(const R
  * What @p index offers for @p specifier on @p host, or the report of why it
  * offers nothing.
  */
-std::expected<Toolchain::SelectedIngot, std::string> chooseIngot(const std::expected<Toolchain::ToolchainIndex, std::string>& index,
+std::expected<Toolchain::SelectedIngot, std::string> chooseIngot(const Toolchain::ToolchainIndex& index,
                                                                  const Toolchain::InstallingHost& host,
                                                                  const std::string& text,
                                                                  const Toolchain::ToolchainSpecifier& specifier)
 {
-    if (! index.has_value()) {
-        return std::unexpected(index.error());
-    }
-    auto selected = Toolchain::selectIngot(*index, specifier, host);
+    auto selected = Toolchain::selectIngot(index, specifier, host);
     if (! selected.has_value()) {
         return std::unexpected(renderSelectionFault(text, selected.error()));
     }
@@ -138,16 +135,21 @@ std::expected<Toolchain::SelectedIngot, std::string> chooseIngot(const std::expe
 }
 
 /**
- * Warn of @p family at @p version as @p index has it, when there is an index.
+ * Warn of @p installed as @p index has it, when there is an index, and select
+ * it when no toolchain is selected.
+ *
+ * @return Whether the selection went without a failure.
  */
-void warnOfStatus(const std::expected<Toolchain::ToolchainIndex, std::string>& index,
-                  const Toolchain::InstallingHost& host,
-                  const std::string& family,
-                  const Toolchain::ToolchainVersion& version)
+bool settleOn(const std::filesystem::path& scrapHome,
+              const std::optional<std::string>& current,
+              const Toolchain::ToolchainIndex* const index,
+              const Toolchain::InstallingHost& host,
+              const Toolchain::InstalledName& installed)
 {
-    if (index.has_value()) {
-        std::cerr << renderStatusWarningOf(*index, family, version, host);
+    if (index != nullptr) {
+        std::cerr << renderStatusWarningOf(*index, installed.family, installed.version, host);
     }
+    return selectWhenNoneIs(scrapHome, current, installed.text());
 }
 
 /**
@@ -183,7 +185,7 @@ bool bringIn(const std::filesystem::path& scrapHome,
              const Toolchain::SelectedIngot& selected,
              const bool replace)
 {
-    const std::string name = selected.family + "@" + selected.version.text();
+    const std::string name = Toolchain::InstalledName{ .family = selected.family, .version = selected.version }.text();
     const std::filesystem::path directory = Toolchain::toolchainDirectory(scrapHome, selected.family, selected.version.text(), environment.directoryName());
     std::optional<Toolchain::InstallRecord> installed;
     if (! replace) {
@@ -245,12 +247,13 @@ int ToolchainInstallCommandHandler::execute(const InvocationContext& ctx)
     const auto bundle = Fetch::findCertificateBundle(ctx.env->certificateFile, Fetch::knownCertificateBundles());
     const Toolchain::InstallingHost host = installingHostOfScrap(*environment);
     const auto index = indexToInstallFrom(*ctx.env, *scrapHome, host, bundle);
-    const auto selected = chooseIngot(index, host, text, *specifier);
+    const Toolchain::ToolchainIndex* const indexOrNull = index.has_value() ? &*index : nullptr;
+    const auto selected = index.has_value() ? chooseIngot(*index, host, text, *specifier)
+                                            : std::expected<Toolchain::SelectedIngot, std::string>{ std::unexpected(index.error()) };
     if (! selected.has_value()) {
         if (! asksToReplace(ctx.options)) {
             if (const auto installed = reportExactlyInstalled(*scrapHome, *environment, *specifier); installed.has_value()) {
-                warnOfStatus(index, host, installed->family, installed->version);
-                return selectWhenNoneIs(*scrapHome, *current, installed->text()) ? 0 : 1;
+                return settleOn(*scrapHome, *current, indexOrNull, host, *installed) ? 0 : 1;
             }
         }
         std::cerr << selected.error();
@@ -260,8 +263,8 @@ int ToolchainInstallCommandHandler::execute(const InvocationContext& ctx)
     if (! bringIn(*scrapHome, *environment, bundle, text, *selected, asksToReplace(ctx.options))) {
         return 1;
     }
-    warnOfStatus(index, host, selected->family, selected->version);
-    return selectWhenNoneIs(*scrapHome, *current, selected->family + "@" + selected->version.text()) ? 0 : 1;
+    const Toolchain::InstalledName installed{ .family = selected->family, .version = selected->version };
+    return settleOn(*scrapHome, *current, indexOrNull, host, installed) ? 0 : 1;
 }
 
 }  // namespace scrap::Command
