@@ -31,10 +31,14 @@ public:
     [[nodiscard]] std::string linesFor(const std::string& family, const Toolchain::ToolchainVersion& version) const;
 
 private:
-    SavedStatusWarning(std::optional<Toolchain::ToolchainIndex> index, std::optional<Toolchain::InstallingHost> host);
+    struct Copy {
+        Toolchain::ToolchainIndex index;
+        Toolchain::InstallingHost host;
+    };
 
-    std::optional<Toolchain::ToolchainIndex> _index;
-    std::optional<Toolchain::InstallingHost> _host;
+    explicit SavedStatusWarning(std::optional<Copy> copy);
+
+    std::optional<Copy> _copy;
 };
 
 }  // namespace scrap::Command

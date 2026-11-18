@@ -7,7 +7,6 @@
 #include "install/IndexCopy.h"
 #include "toolchain/HostEnvironment.h"
 #include "toolchain/IngotSelection.h"
-#include "toolchain/ToolchainIndex.h"
 #include "toolchain/ToolchainVersion.h"
 
 #include <filesystem>
@@ -17,9 +16,8 @@
 
 namespace scrap::Command {
 
-SavedStatusWarning::SavedStatusWarning(std::optional<Toolchain::ToolchainIndex> index, std::optional<Toolchain::InstallingHost> host)
-    : _index(std::move(index))
-    , _host(std::move(host))
+SavedStatusWarning::SavedStatusWarning(std::optional<Copy> copy)
+    : _copy(std::move(copy))
 {
 }
 
@@ -27,26 +25,26 @@ SavedStatusWarning SavedStatusWarning::read(const RuntimeEnvironment& env, const
 {
     const auto environment = Toolchain::hostEnvironment();
     if (! environment.has_value()) {
-        return SavedStatusWarning{ std::nullopt, std::nullopt };
+        return SavedStatusWarning{ std::nullopt };
     }
     Toolchain::InstallingHost host = installingHostOfScrap(*environment);
     auto saved = Install::readSavedIndex(scrapHome, toolchainIndexUrl(env), host.scrapVersion);
     if (! saved.has_value()) {
-        return SavedStatusWarning{ std::nullopt, std::nullopt };
+        return SavedStatusWarning{ std::nullopt };
     }
     std::optional<Install::SavedIndex>& copy = *saved;
     if (! copy.has_value()) {
-        return SavedStatusWarning{ std::nullopt, std::nullopt };
+        return SavedStatusWarning{ std::nullopt };
     }
-    return SavedStatusWarning{ std::move(copy->index), std::move(host) };
+    return SavedStatusWarning{ Copy{ .index = std::move(copy->index), .host = std::move(host) } };
 }
 
 std::string SavedStatusWarning::linesFor(const std::string& family, const Toolchain::ToolchainVersion& version) const
 {
-    if ((! _index.has_value()) || (! _host.has_value())) {
+    if (! _copy.has_value()) {
         return {};
     }
-    return renderStatusWarningOf(*_index, family, version, *_host);
+    return renderStatusWarningOf(_copy->index, family, version, _copy->host);
 }
 
 }  // namespace scrap::Command
