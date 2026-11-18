@@ -1,5 +1,6 @@
 #include "command/ToolchainDetailsText.h"
 
+#include "command/InstallBarrierText.h"
 #include "command/PrintableText.h"
 #include "command/ToolchainDetails.h"
 #include "command/ToolchainListing.h"
@@ -88,42 +89,6 @@ void addSelection(std::vector<DetailLine>& lines, const ToolchainSelection& sele
     }
 }
 
-std::string reasonText(const Toolchain::NoMatchInIndex& /*barrier*/)
-{
-    return "not in the toolchain index";
-}
-
-std::string reasonText(const Toolchain::NoIngotForHost& barrier)
-{
-    return "not built for " + printableText(barrier.environment);
-}
-
-std::string reasonText(const Toolchain::NoLongerOffered& /*barrier*/)
-{
-    return "no longer provided";
-}
-
-std::string reasonText(const Toolchain::NeedsNewerGlibc& barrier)
-{
-    return "needs glibc " + printableText(barrier.required) + " or later; this host has " + printableText(barrier.host);
-}
-
-std::string reasonText(const Toolchain::NeedsNewerScrap& barrier)
-{
-    return "needs scrap " + printableText(barrier.required) + " or later";
-}
-
-/**
- * Why a toolchain the index holds cannot be installed on the host, as
- * install tells it.
- */
-std::string barrierText(const Toolchain::IngotSelectionFault& barrier)
-{
-    return std::visit([](const auto& alternative) -> std::string {
-        return reasonText(alternative);
-    }, barrier);
-}
-
 std::vector<DetailLine> linesOf(const InstalledDetails& details)
 {
     const Toolchain::InstallRecord& record = details.record;
@@ -157,10 +122,13 @@ std::vector<DetailLine> linesOf(const IndexedDetails& details)
     std::vector<DetailLine> lines{
         line("name", printableText(toolchain.family + "@" + toolchain.version.text())),
         line("installed", "no"),
-        line("status", std::string{ Toolchain::statusName(toolchain.status) }),
     };
-    if (const std::optional<Toolchain::IngotSelectionFault>& barrier = details.lookup.barrier; barrier.has_value()) {
-        lines.push_back(line("cannot be installed here", barrierText(*barrier)));
+    const std::optional<Toolchain::IngotSelectionFault>& barrier = details.lookup.barrier;
+    if (Toolchain::isStatusRead(barrier)) {
+        lines.push_back(line("status", std::string{ Toolchain::statusName(toolchain.status) }));
+    }
+    if (barrier.has_value()) {
+        lines.push_back(line("cannot be installed here", renderInstallBarrier(*barrier)));
     }
     if (! toolchain.compiler.empty()) {
         lines.push_back(line("compiler", printableText(toolchain.compiler)));

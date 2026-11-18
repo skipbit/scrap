@@ -176,6 +176,24 @@ TEST(ToolchainDetailsTextTest, TellsWhyAToolchainCannotBeInstalledHere)
     EXPECT_NE(text.find("index fetched at:          unknown\n"), std::string::npos);
 }
 
+/**
+ * A toolchain needing a newer scrap was not read as far as its status, so
+ * no status is told for it.
+ */
+TEST(ToolchainDetailsTextTest, TellsNoStatusForAToolchainNeedingANewerScrap)
+{
+    const IndexedDetails details{ .lookup = { .toolchain = indexed(ToolchainStatus::Disabled),
+                                              .ingot = std::nullopt,
+                                              .barrier = NeedsNewerScrap{ .required = "2.0.0" } },
+                                  .fetchedAt = std::nullopt,
+                                  .selection = {} };
+
+    const std::string text = renderToolchainDetails(details);
+
+    EXPECT_EQ(text.find("status"), std::string::npos);
+    EXPECT_NE(text.find("cannot be installed here:  needs scrap 2.0.0 or later\n"), std::string::npos);
+}
+
 TEST(ToolchainDetailsTextTest, TellsEachReasonAToolchainCannotBeInstalled)
 {
     IndexedDetails details{ .lookup = { .toolchain = indexed(ToolchainStatus::Disabled), .ingot = registryIngot(), .barrier = NoLongerOffered{ .family = "llvm", .alternative = std::nullopt } },

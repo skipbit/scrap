@@ -289,12 +289,7 @@ std::expected<std::vector<Project::Target>, int> resolveBuildTargets(const Proje
 
 Compile::BuildProfile requestedProfile(const ParsedOptions& options)
 {
-    const auto option = options.named.find(std::string{ ReleaseOption });
-    if (option == options.named.end()) {
-        return Compile::BuildProfile::Debug;
-    }
-    const bool* const release = std::get_if<bool>(&option->second);
-    return ((release != nullptr) && *release) ? Compile::BuildProfile::Release : Compile::BuildProfile::Debug;
+    return isGiven(options, ReleaseOption) ? Compile::BuildProfile::Release : Compile::BuildProfile::Debug;
 }
 
 std::optional<std::string> requestedName(const ParsedOptions& options, const std::string_view option)

@@ -67,6 +67,9 @@ scrap_add_unit_test(command SOURCES
     unit/command/ToolchainListingTest.cpp
     unit/command/ToolchainListingTableTest.cpp
     unit/command/NameAfterUninstallTest.cpp
+    unit/command/RemoteListingTest.cpp
+    unit/command/RemoteListingTextTest.cpp
+    unit/command/TextColumnsTest.cpp
     unit/command/ToolchainUninstallTextTest.cpp
     unit/command/ToolchainDetailsTest.cpp
     unit/command/ToolchainDetailsTextTest.cpp

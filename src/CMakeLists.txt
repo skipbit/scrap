@@ -143,6 +143,7 @@ add_library(scrap_toolchain STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/SystemArchiver.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/SystemCompiler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/ToolchainChoice.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/ToolchainIndex.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/ToolchainIndexParser.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/ToolchainName.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/ToolchainSpecifier.cpp
@@ -221,6 +222,10 @@ add_library(scrap_command STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/command/NameAfterUninstall.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainUninstallText.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainUninstallCommandHandler.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/InstallBarrierText.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/RemoteListing.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/RemoteListingText.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/TextColumns.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainDetails.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainDetailsText.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainListingTable.cpp
@@ -237,6 +242,7 @@ add_library(scrap_command STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/command/InstallingHostOfScrap.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/MetadataProtocolProvider.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/NewCommandHandler.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/ParsedOptions.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ParserAdapter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/PrintableText.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ProjectArgument.cpp

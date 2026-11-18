@@ -3,6 +3,7 @@
 #include "command/OptionSchema.h"
 
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -25,5 +26,10 @@ struct ParsedOptions {
      */
     std::vector<std::string> trailing;
 };
+
+/**
+ * @brief Whether the flag @p name is given as true in @p options.
+ */
+[[nodiscard]] bool isGiven(const ParsedOptions& options, std::string_view name);
 
 }  // namespace scrap::Command

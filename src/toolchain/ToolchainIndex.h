@@ -57,6 +57,9 @@ struct IndexedToolchain {
     std::optional<std::string> cCompiler;                ///< The program to run on C sources, e.g. gcc or clang, when the index names one.
     std::optional<ToolchainVersion> minScrapVersion;     ///< When newer than the reading scrap, nothing past this was read: no compiler, no ingots.
     std::vector<Ingot> ingots;                           ///< Empty when none has been built, or all were withdrawn.
+
+    /** The name that selects it, as <family>@<version>. */
+    [[nodiscard]] std::string text() const;
 };
 
 /**

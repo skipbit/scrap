@@ -36,11 +36,6 @@ std::vector<const IndexedToolchain*> sortedByName(const ToolchainIndex& index)
     return sorted;
 }
 
-std::string nameOf(const IndexedToolchain& toolchain)
-{
-    return toolchain.family + "@" + toolchain.version.text();
-}
-
 }  // anonymous namespace
 
 IndexChanges compareIndexes(const ToolchainIndex& before, const ToolchainIndex& after, const InstallingHost& host)
@@ -49,9 +44,9 @@ IndexChanges compareIndexes(const ToolchainIndex& before, const ToolchainIndex& 
     for (const IndexedToolchain* now : sortedByName(after)) {
         const IndexedToolchain* then = findSame(before, *now);
         if ((then != nullptr) && hasIngotFor(*then, host.environment) && hasIngotFor(*now, host.environment) && (then->status != now->status)) {
-            changes.changed.push_back(ChangedToolchain{ .name = nameOf(*now), .before = then->status, .after = now->status });
+            changes.changed.push_back(ChangedToolchain{ .name = now->text(), .before = then->status, .after = now->status });
         } else if (canBeInstalled(*now, host) && ((then == nullptr) || (! canBeInstalled(*then, host)))) {
-            changes.added.push_back(nameOf(*now));
+            changes.added.push_back(now->text());
         }
     }
     return changes;
