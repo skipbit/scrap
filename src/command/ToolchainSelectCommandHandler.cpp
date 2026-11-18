@@ -1,6 +1,7 @@
 #include "command/ToolchainSelectCommandHandler.h"
 
 #include "command/InvocationContext.h"
+#include "command/SavedStatusWarning.h"
 #include "command/ScrapHome.h"
 #include "command/ToolchainDiagnostic.h"
 #include "toolchain/GlobalConfigFile.h"
@@ -12,6 +13,7 @@
 #include <expected>  // IWYU pragma: keep
 #include <filesystem>
 #include <iostream>
+#include <optional>
 #include <string>
 #include <utility>
 #include <variant>
@@ -22,15 +24,17 @@ namespace {
 
 /**
  * What to keep as the global default for @p specifier: the newest
- * installed toolchain it names, written in full.
+ * installed toolchain it names.
  */
-std::expected<std::string, std::string> installedChoice(const std::filesystem::path& scrapHome, const std::string& text, const Toolchain::ToolchainSpecifier& specifier)
+std::expected<Toolchain::InstalledToolchain, std::string> installedChoice(const std::filesystem::path& scrapHome,
+                                                                          const std::string& text,
+                                                                          const Toolchain::ToolchainSpecifier& specifier)
 {
-    const auto installed = Toolchain::findInstalledToolchainForHost(scrapHome, specifier);
+    auto installed = Toolchain::findInstalledToolchainForHost(scrapHome, specifier);
     if (! installed.has_value()) {
         return std::unexpected(renderInstalledToolchainFault(text, ToolchainNamedIn::CommandLine, installed.error()));
     }
-    return installed->name();
+    return std::move(*installed);
 }
 
 }  // anonymous namespace
@@ -52,13 +56,15 @@ int ToolchainSelectCommandHandler::execute(const InvocationContext& ctx)
     }
 
     std::string selected = "system";
+    std::optional<Toolchain::InstalledToolchain> toolchain;
     if (const auto* specifier = std::get_if<Toolchain::ToolchainSpecifier>(&*choice)) {
         auto installed = installedChoice(*scrapHome, text, *specifier);
         if (! installed.has_value()) {
             std::cerr << installed.error();
             return 1;
         }
-        selected = std::move(*installed);
+        selected = installed->name();
+        toolchain = std::move(*installed);
     }
 
     const std::filesystem::path file = Toolchain::globalConfigFile(*scrapHome);
@@ -67,6 +73,9 @@ int ToolchainSelectCommandHandler::execute(const InvocationContext& ctx)
         return 1;
     }
     std::cerr << "Selected '" << selected << "' as the global default\n";
+    if (toolchain.has_value()) {
+        std::cerr << SavedStatusWarning::read(*ctx.env, *scrapHome).linesFor(toolchain->family, toolchain->version);
+    }
     return 0;
 }
 

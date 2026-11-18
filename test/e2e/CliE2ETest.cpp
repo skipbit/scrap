@@ -3710,6 +3710,26 @@ TEST_F(CliE2ETest, InstallWarnsOfNothingForAnActiveToolchain)
 }
 
 /**
+ * Selecting a toolchain the saved copy of the index deprecates warns of it,
+ * and the default is still kept.
+ */
+TEST_F(CliE2ETest, SelectWarnsOfADeprecatedToolchain)
+{
+    installToolchain("gcc", "15.2.0");
+    const ToolchainServer server("gcc", { { .version = "15.2.0", .status = "deprecated", .ingot = compilerIngot() }, { .version = "16.2.0", .ingot = compilerIngot() } });
+    ASSERT_EQ(runScrap({ "toolchain", "update" }, { server.indexVariable() }, _root).exitCode, 0);
+
+    auto result = runScrap({ "toolchain", "select", "gcc@15.2.0" }, { server.indexVariable() }, _root);
+
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_EQ(result.stderrText,
+              "Selected 'gcc@15.2.0' as the global default\n"
+              "warning: 'gcc@15.2.0' is deprecated\n"
+              "hint: install a newer version, such as 'gcc@16.2.0'\n");
+    EXPECT_NE(readFile("config.toml").find("toolchain = 'gcc@15.2.0'"), std::string::npos) << readFile("config.toml");
+}
+
+/**
  * Replacing is what the index has to allow, and a shortened specifier means what
  * the index offers.
  */
@@ -4082,6 +4102,37 @@ TEST_F(CliE2ETest, ListsTheSystemCompilerFirst)
 }
 
 /**
+ * The listing stays as it is, and each installed toolchain the saved copy of
+ * the index no longer offers as it did is warned of after it, in its order.
+ */
+TEST_F(CliE2ETest, ListWarnsOfInstalledToolchainsTheIndexNoLongerOffers)
+{
+    installToolchain("gcc", "15.2.0");
+    installToolchain("gcc", "16.2.0");
+    installToolchain("gcc", "17.1.0");
+    const ToolchainServer server("gcc",
+                                 { { .version = "15.2.0", .status = "deprecated", .ingot = compilerIngot() },
+                                   { .version = "16.2.0", .status = "disabled", .hasIngot = false },
+                                   { .version = "17.1.0", .ingot = compilerIngot() } });
+    ASSERT_EQ(runScrap({ "toolchain", "update" }, { server.indexVariable() }, _root).exitCode, 0);
+    std::filesystem::create_directories(_root / "empty");
+
+    auto result = runScrap({ "toolchain", "list" }, { "PATH=" + (_root / "empty").string(), server.indexVariable() }, _root);
+
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_EQ(result.stdoutText,
+              "TOOLCHAIN   DEFAULT\n"
+              "gcc@15.2.0\n"
+              "gcc@16.2.0\n"
+              "gcc@17.1.0\n");
+    EXPECT_EQ(result.stderrText,
+              "warning: 'gcc@15.2.0' is deprecated\n"
+              "hint: install a newer version, such as 'gcc@17.1.0'\n"
+              "warning: 'gcc@16.2.0' is no longer provided\n"
+              "hint: install another version, such as 'gcc@17.1.0'\n");
+}
+
+/**
  * A toolchain the project names that is not installed is added at the end,
  * so the listing shows where a build here would stop.
  */
@@ -4380,6 +4431,26 @@ TEST_F(CliE2ETest, InfoSaysWhatAnEarlierScrapDidNotRecord)
     EXPECT_TRUE(hasLine(result.stdoutText, "installed at:       not recorded")) << result.stdoutText;
     EXPECT_FALSE(hasLine(result.stdoutText, "used here")) << result.stdoutText;
     EXPECT_EQ(result.stderrText, "hint: reinstall it with 'scrap toolchain install --force gcc@15.2.0' to record them\n");
+}
+
+/**
+ * The details of an installed toolchain stay as they are, and a warning read
+ * from the saved copy of the index follows them, before any hint of them.
+ */
+TEST_F(CliE2ETest, InfoWarnsOfAnInstalledToolchainNoLongerProvided)
+{
+    installToolchain("gcc", "15.2.0");
+    const ToolchainServer server("gcc", { { .version = "15.2.0", .status = "disabled", .hasIngot = false } });
+    ASSERT_EQ(runScrap({ "toolchain", "update" }, { server.indexVariable() }, _root).exitCode, 0);
+
+    auto result = runScrap({ "toolchain", "info", "gcc@15.2.0" }, { server.indexVariable() }, _root);
+
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_TRUE(hasLine(result.stdoutText, "installed:          yes")) << result.stdoutText;
+    EXPECT_FALSE(hasLine(result.stdoutText, "status")) << result.stdoutText;
+    EXPECT_EQ(result.stderrText,
+              "warning: 'gcc@15.2.0' is no longer provided\n"
+              "hint: reinstall it with 'scrap toolchain install --force gcc@15.2.0' to record them\n");
 }
 
 /**
