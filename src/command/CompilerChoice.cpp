@@ -2,6 +2,7 @@
 
 #include "command/PrintableText.h"
 #include "command/RuntimeEnvironment.h"
+#include "command/SavedStatusWarning.h"
 #include "command/ScrapHome.h"
 #include "command/ToolchainDiagnostic.h"
 #include "command/ToolchainNaming.h"
@@ -108,6 +109,7 @@ std::expected<ChosenCompiler, std::string> installedCompiler(const RuntimeEnviro
     std::string announcement = "Using the toolchain '" + printableText(found->name()) + "' (";
     announcement += describeSource(named.source);
     announcement += ")\n";
+    announcement += SavedStatusWarning::read(env, *scrapHome).linesFor(found->family, found->version);
     std::filesystem::path compiler = found->compiler;
     return ChosenCompiler{ .compiler = std::move(compiler),
                            .runtimeLibraryDirectories = std::move(found->runtimeLibraryDirectories),
