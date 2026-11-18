@@ -164,7 +164,6 @@ scrap is in early alpha development.
 🚧 **In Progress**
 - Choosing a template with `--template`, and templates from Git repositories
 - `scrap template list` and `scrap template update`
-- `scrap toolchain list --remote`, to list the toolchains the index offers
 - Choosing the number of parallel jobs
 - `[dependencies]` in `scrap.toml`, which is accepted and not yet read
 
