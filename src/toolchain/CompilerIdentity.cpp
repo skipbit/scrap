@@ -68,12 +68,15 @@ CompilerVersion versionFrom(std::string_view macros, std::string_view major, std
 
 }  // anonymous namespace
 
-bool isAtLeast(const CompilerVersion& version, const int major, const int minor)
+bool isAtLeast(const CompilerVersion& version, const int major, const int minor, const int patch)
 {
     if (version.major != major) {
         return (version.major > major);
     }
-    return (version.minor >= minor);
+    if (version.minor != minor) {
+        return (version.minor > minor);
+    }
+    return (version.patch >= patch);
 }
 
 CompilerIdentity readCompilerIdentity(std::string_view predefinedMacros)

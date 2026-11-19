@@ -34,6 +34,12 @@ public:
     [[nodiscard]] std::optional<std::string> standardOption(Project::LanguageStandard standard) const;
 
     /**
+     * @brief The option that selects the C standard @p standard, as for a
+     *        C++ standard.
+     */
+    [[nodiscard]] std::optional<std::string> standardOption(Project::CStandard standard) const;
+
+    /**
      * @brief The option that keeps colour in diagnostics read through a pipe.
      *
      * @return The option, or nothing for a compiler whose family is unknown,
@@ -59,5 +65,11 @@ private:
  *        as -std=c++23.
  */
 [[nodiscard]] std::string standardNameOption(Project::LanguageStandard standard);
+
+/**
+ * @brief The option naming the C standard @p standard as the standard itself
+ *        is named, such as -std=c23.
+ */
+[[nodiscard]] std::string standardNameOption(Project::CStandard standard);
 
 }  // namespace scrap::Compile

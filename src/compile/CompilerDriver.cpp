@@ -6,7 +6,6 @@
 #include <array>
 #include <filesystem>
 #include <optional>
-#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -16,6 +15,7 @@ namespace scrap::Compile {
 
 namespace {
 
+using Project::CStandard;
 using Project::LanguageStandard;
 using Toolchain::CompilerFamily;
 
@@ -26,6 +26,18 @@ struct Spelling {
     LanguageStandard standard;
     int major;
     int minor;
+    int patch = 0;
+    std::string_view option;
+};
+
+/**
+ * An option a compiler takes for a C standard from the version given on.
+ */
+struct CSpelling {
+    CStandard standard;
+    int major;
+    int minor;
+    int patch = 0;
     std::string_view option;
 };
 
@@ -73,6 +85,33 @@ constexpr std::array AppleClangSpellings{
     Spelling{ .standard = LanguageStandard::Cxx11, .major = 4, .minor = 0, .option = "-std=c++11" },
 };
 
+// The C tables follow CMake 4.4.3 (Modules/Compiler/GNU.cmake, Clang-C.cmake
+// and AppleClang-C.cmake) in the same way.
+
+constexpr std::array GccCSpellings{
+    CSpelling{ .standard = CStandard::C23, .major = 9, .minor = 1, .option = "-std=c2x" },
+    CSpelling{ .standard = CStandard::C17, .major = 8, .minor = 1, .option = "-std=c17" },
+    CSpelling{ .standard = CStandard::C11, .major = 4, .minor = 7, .option = "-std=c11" },
+    CSpelling{ .standard = CStandard::C11, .major = 4, .minor = 6, .option = "-std=c1x" },
+    CSpelling{ .standard = CStandard::C99, .major = 3, .minor = 4, .option = "-std=c99" },
+};
+
+constexpr std::array ClangCSpellings{
+    CSpelling{ .standard = CStandard::C23, .major = 18, .minor = 0, .option = "-std=c23" },
+    CSpelling{ .standard = CStandard::C23, .major = 9, .minor = 0, .option = "-std=c2x" },
+    CSpelling{ .standard = CStandard::C17, .major = 6, .minor = 0, .option = "-std=c17" },
+    CSpelling{ .standard = CStandard::C11, .major = 3, .minor = 1, .option = "-std=c11" },
+    CSpelling{ .standard = CStandard::C11, .major = 3, .minor = 0, .option = "-std=c1x" },
+    CSpelling{ .standard = CStandard::C99, .major = 2, .minor = 1, .option = "-std=c99" },
+};
+
+constexpr std::array AppleClangCSpellings{
+    CSpelling{ .standard = CStandard::C23, .major = 11, .minor = 0, .patch = 3, .option = "-std=c2x" },
+    CSpelling{ .standard = CStandard::C17, .major = 11, .minor = 0, .option = "-std=c17" },
+    CSpelling{ .standard = CStandard::C11, .major = 4, .minor = 0, .option = "-std=c11" },
+    CSpelling{ .standard = CStandard::C99, .major = 4, .minor = 0, .option = "-std=c99" },
+};
+
 /// Keeps colour in diagnostics read through a pipe; gcc and clang both take it.
 constexpr std::string_view ColorOption = "-fdiagnostics-color=always";
 
@@ -80,12 +119,11 @@ constexpr std::string_view ColorOption = "-fdiagnostics-color=always";
  * The option @p spellings give @p standard at @p version, or nothing when the
  * version predates them all.
  */
-std::optional<std::string> lookUp(std::span<const Spelling> spellings,
-                                  const LanguageStandard standard,
-                                  const Toolchain::CompilerVersion& version)
+template <typename Table, typename Standard>
+std::optional<std::string> lookUp(const Table& spellings, const Standard standard, const Toolchain::CompilerVersion& version)
 {
-    for (const Spelling& spelling : spellings) {
-        if ((spelling.standard == standard) && Toolchain::isAtLeast(version, spelling.major, spelling.minor)) {
+    for (const auto& spelling : spellings) {
+        if ((spelling.standard == standard) && Toolchain::isAtLeast(version, spelling.major, spelling.minor, spelling.patch)) {
             return std::string{ spelling.option };
         }
     }
@@ -114,6 +152,21 @@ std::optional<std::string> CompilerDriver::standardOption(const LanguageStandard
     std::unreachable();
 }
 
+std::optional<std::string> CompilerDriver::standardOption(const CStandard standard) const
+{
+    switch (_identity.family) {
+    case CompilerFamily::Gcc:
+        return lookUp(GccCSpellings, standard, _identity.version);
+    case CompilerFamily::Clang:
+        return lookUp(ClangCSpellings, standard, _identity.version);
+    case CompilerFamily::AppleClang:
+        return lookUp(AppleClangCSpellings, standard, _identity.version);
+    case CompilerFamily::Unknown:
+        return standardNameOption(standard);
+    }
+    std::unreachable();
+}
+
 std::optional<std::string> CompilerDriver::colorOption() const
 {
     if (_identity.family == CompilerFamily::Unknown) {
@@ -133,6 +186,11 @@ std::optional<std::vector<std::string>> CompilerDriver::dependencyFileOptions(co
 std::string standardNameOption(const LanguageStandard standard)
 {
     return "-std=c++" + std::string{ Project::standardNumber(standard) };
+}
+
+std::string standardNameOption(const CStandard standard)
+{
+    return "-std=c" + std::string{ Project::standardNumber(standard) };
 }
 
 }  // namespace scrap::Compile

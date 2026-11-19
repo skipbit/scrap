@@ -102,7 +102,7 @@ TEST(CompilerIdentityTest, MatchesAMacroByItsWholeName)
 }
 
 /**
- * Versions compare by major number first, then by minor.
+ * Versions compare by major number first, then by minor, then by patch.
  */
 TEST(CompilerIdentityTest, ComparesVersions)
 {
@@ -113,6 +113,10 @@ TEST(CompilerIdentityTest, ComparesVersions)
     EXPECT_TRUE(isAtLeast(version, 10, 9));
     EXPECT_FALSE(isAtLeast(version, 11, 2));
     EXPECT_FALSE(isAtLeast(version, 12));
+    EXPECT_FALSE(isAtLeast(version, 11, 1, 1));
+    EXPECT_TRUE(isAtLeast(CompilerVersion{ .major = 11, .minor = 0, .patch = 3 }, 11, 0, 3));
+    EXPECT_FALSE(isAtLeast(CompilerVersion{ .major = 11, .minor = 0, .patch = 2 }, 11, 0, 3));
+    EXPECT_TRUE(isAtLeast(CompilerVersion{ .major = 11, .minor = 1, .patch = 0 }, 11, 0, 3));
 }
 
 /**

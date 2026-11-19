@@ -34,9 +34,9 @@ struct CompilerIdentity {
 };
 
 /**
- * @brief Whether @p version is @p major.@p minor or later.
+ * @brief Whether @p version is @p major.@p minor.@p patch or later.
  */
-[[nodiscard]] bool isAtLeast(const CompilerVersion& version, int major, int minor = 0);
+[[nodiscard]] bool isAtLeast(const CompilerVersion& version, int major, int minor = 0, int patch = 0);
 
 /**
  * @brief Tell which compiler wrote @p predefinedMacros.

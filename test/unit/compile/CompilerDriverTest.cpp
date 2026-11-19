@@ -12,9 +12,11 @@
 #include <vector>
 
 using namespace scrap::Compile;
+using scrap::Project::CStandard;
 using scrap::Project::LanguageStandard;
 using scrap::Toolchain::CompilerFamily;
 using scrap::Toolchain::CompilerIdentity;
+using scrap::Toolchain::CompilerVersion;
 
 namespace {
 
@@ -129,6 +131,63 @@ TEST(CompilerDriverTest, NamesEveryStandardForAnUnknownCompiler)
     for (const LanguageStandard standard : scrap::Project::supportedLanguageStandards()) {
         EXPECT_EQ(driver.standardOption(standard), standardNameOption(standard));
     }
+}
+
+/**
+ * What one compiler is expected to be given for one C standard.
+ */
+struct CExpectation {
+    CompilerFamily family;
+    CompilerVersion version;
+    CStandard standard;
+    std::optional<std::string> option;
+};
+
+/**
+ * gcc takes C23 as c2x, as CMake gives it, and the C standards before it by
+ * their own names or their draft ones.
+ */
+TEST(CompilerDriverTest, SpellsTheCStandardsEachFamilyTakes)
+{
+    const std::vector<CExpectation> expectations{
+        { CompilerFamily::Gcc, { 15, 1, 0 }, CStandard::C23, "-std=c2x" },
+        { CompilerFamily::Gcc, { 9, 1, 0 }, CStandard::C23, "-std=c2x" },
+        { CompilerFamily::Gcc, { 9, 0, 0 }, CStandard::C23, std::nullopt },
+        { CompilerFamily::Gcc, { 8, 1, 0 }, CStandard::C17, "-std=c17" },
+        { CompilerFamily::Gcc, { 8, 0, 0 }, CStandard::C17, std::nullopt },
+        { CompilerFamily::Gcc, { 4, 6, 0 }, CStandard::C11, "-std=c1x" },
+        { CompilerFamily::Gcc, { 13, 3, 0 }, CStandard::C99, "-std=c99" },
+        { CompilerFamily::Clang, { 18, 0, 0 }, CStandard::C23, "-std=c23" },
+        { CompilerFamily::Clang, { 17, 0, 0 }, CStandard::C23, "-std=c2x" },
+        { CompilerFamily::Clang, { 8, 0, 0 }, CStandard::C23, std::nullopt },
+        { CompilerFamily::Clang, { 6, 0, 0 }, CStandard::C17, "-std=c17" },
+        { CompilerFamily::Clang, { 3, 0, 0 }, CStandard::C11, "-std=c1x" },
+        { CompilerFamily::AppleClang, { 17, 0, 0 }, CStandard::C23, "-std=c2x" },
+        { CompilerFamily::AppleClang, { 11, 0, 3 }, CStandard::C23, "-std=c2x" },
+        { CompilerFamily::AppleClang, { 11, 0, 0 }, CStandard::C23, std::nullopt },
+        { CompilerFamily::AppleClang, { 11, 0, 0 }, CStandard::C17, "-std=c17" },
+        { CompilerFamily::AppleClang, { 10, 0, 1 }, CStandard::C17, std::nullopt },
+        { CompilerFamily::AppleClang, { 10, 0, 1 }, CStandard::C11, "-std=c11" },
+    };
+    for (const CExpectation& expected : expectations) {
+        const CompilerDriver driver{ CompilerIdentity{ .family = expected.family, .version = expected.version } };
+        EXPECT_EQ(driver.standardOption(expected.standard), expected.option)
+            << static_cast<int>(expected.family) << ' ' << expected.version.major << '.' << expected.version.minor << '.'
+            << expected.version.patch << " C" << scrap::Project::standardNumber(expected.standard);
+    }
+}
+
+/**
+ * A compiler of unknown family is given each C standard by its own name.
+ */
+TEST(CompilerDriverTest, NamesEveryCStandardForAnUnknownCompiler)
+{
+    const CompilerDriver driver{ CompilerIdentity{} };
+
+    for (const CStandard standard : scrap::Project::supportedCStandards()) {
+        EXPECT_EQ(driver.standardOption(standard), standardNameOption(standard));
+    }
+    EXPECT_EQ(standardNameOption(CStandard::C23), "-std=c23");
 }
 
 /**
