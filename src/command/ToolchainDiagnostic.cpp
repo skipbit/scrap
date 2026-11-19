@@ -82,6 +82,24 @@ std::string render(std::string_view, ToolchainNamedIn, const Toolchain::CannotLi
     return renderCannotListToolchains(fault);
 }
 
+/**
+ * Report a compiler @p variable asked for and cannot be run. The value is
+ * echoed through printableEcho(), since the environment can hold any byte
+ * and the answer is read in a terminal.
+ */
+std::string renderUnusableRequest(const std::string_view variable, const std::string_view requested)
+{
+    std::string text = "error: ";
+    text += variable;
+    text += " names '";
+    text += printableEcho(requested);
+    text += "', which cannot be run\n";
+    text += "hint: set ";
+    text += variable;
+    text += " to the path of a compiler, or unset it to search for one\n";
+    return text;
+}
+
 }  // anonymous namespace
 
 std::string renderCannotListToolchains(const Toolchain::CannotListToolchains& fault)
@@ -181,17 +199,20 @@ std::string renderNoCompilerFound()
            "hint: install a C++ compiler, or set CXX to the one to use\n";
 }
 
-/**
- * The value is echoed through printableEcho(), since the environment can hold any
- * byte and the answer is read in a terminal.
- */
 std::string renderUnusableCompilerRequest(const std::string_view requested)
 {
-    std::string text = "error: CXX names '";
-    text += printableEcho(requested);
-    text += "', which cannot be run\n";
-    text += "hint: set CXX to the path of a compiler, or unset it to search for one\n";
-    return text;
+    return renderUnusableRequest("CXX", requested);
+}
+
+std::string renderNoCCompilerFound()
+{
+    return "error: no C compiler found\n"
+           "hint: install a C compiler, or set CC to the one to use\n";
+}
+
+std::string renderUnusableCCompilerRequest(const std::string_view requested)
+{
+    return renderUnusableRequest("CC", requested);
 }
 
 std::string renderNoCompilerWithInstalled(std::string_view example)

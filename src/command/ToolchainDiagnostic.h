@@ -98,6 +98,19 @@ enum class ToolchainNamedIn : std::uint8_t {
 [[nodiscard]] std::string renderUnusableCompilerRequest(std::string_view requested);
 
 /**
+ * @brief Report a system with no C compiler for a build with C sources, and
+ *        what to do next.
+ */
+[[nodiscard]] std::string renderNoCCompilerFound();
+
+/**
+ * @brief Report a C compiler the environment asked for and cannot be run.
+ *
+ * @param requested The value CC gave.
+ */
+[[nodiscard]] std::string renderUnusableCCompilerRequest(std::string_view requested);
+
+/**
  * @brief Report a system without a C++ compiler where nothing chose a
  *        toolchain, with how to select one of those installed, such as
  *        @p example.

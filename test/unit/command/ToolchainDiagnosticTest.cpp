@@ -118,6 +118,28 @@ TEST(ToolchainDiagnosticTest, EscapesAControlCharacterInACompilerRequest)
 }
 
 /**
+ * A build with C sources and no C compiler is told how to provide one, as a
+ * build without a C++ compiler is.
+ */
+TEST(ToolchainDiagnosticTest, RendersNoCCompilerFound)
+{
+    EXPECT_EQ(renderNoCCompilerFound(),
+              "error: no C compiler found\n"
+              "hint: install a C compiler, or set CC to the one to use\n");
+}
+
+/**
+ * A C compiler the environment asked for and cannot be run names CC and the
+ * value it gave, escaped as a CXX value is.
+ */
+TEST(ToolchainDiagnosticTest, RendersAnUnusableCCompilerRequest)
+{
+    EXPECT_EQ(renderUnusableCCompilerRequest("gcc\x1b[31m"),
+              "error: CC names 'gcc\\x1B[31m', which cannot be run\n"
+              "hint: set CC to the path of a compiler, or unset it to search for one\n");
+}
+
+/**
  * A host without toolchains is answered with how to choose the system's
  * compiler where the toolchain was named, since a place earlier in the
  * order would otherwise still name it.

@@ -76,6 +76,14 @@ std::string_view describeOrigin(const Toolchain::CompilerOrigin origin)
     std::unreachable();
 }
 
+std::string_view describeCOrigin(const Toolchain::CompilerOrigin origin)
+{
+    if (origin == Toolchain::CompilerOrigin::CompilerVariable) {
+        return "from CC";
+    }
+    return describeOrigin(origin);
+}
+
 std::expected<std::optional<NamedToolchain>, std::string> namedAboveGlobalDefault(const RuntimeEnvironment& env, const std::optional<std::string>& projectToolchain)
 {
     if (! env.requestedToolchain.empty()) {
