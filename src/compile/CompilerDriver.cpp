@@ -6,6 +6,7 @@
 #include <array>
 #include <filesystem>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -22,21 +23,11 @@ using Toolchain::CompilerFamily;
 /**
  * An option a compiler takes for a standard from the version given on.
  */
+template <typename Standard>
 struct Spelling {
-    LanguageStandard standard;
-    int major;
-    int minor;
-    int patch = 0;
-    std::string_view option;
-};
-
-/**
- * An option a compiler takes for a C standard from the version given on.
- */
-struct CSpelling {
-    CStandard standard;
-    int major;
-    int minor;
+    Standard standard;
+    int major = 0;
+    int minor = 0;
     int patch = 0;
     std::string_view option;
 };
@@ -46,70 +37,70 @@ struct CSpelling {
 // first, and a version takes the first it reaches.
 
 constexpr std::array GccSpellings{
-    Spelling{ .standard = LanguageStandard::Cxx26, .major = 14, .minor = 0, .option = "-std=c++26" },
-    Spelling{ .standard = LanguageStandard::Cxx23, .major = 11, .minor = 1, .option = "-std=c++23" },
-    Spelling{ .standard = LanguageStandard::Cxx20, .major = 11, .minor = 1, .option = "-std=c++20" },
-    Spelling{ .standard = LanguageStandard::Cxx20, .major = 8, .minor = 0, .option = "-std=c++2a" },
-    Spelling{ .standard = LanguageStandard::Cxx17, .major = 8, .minor = 0, .option = "-std=c++17" },
-    Spelling{ .standard = LanguageStandard::Cxx17, .major = 5, .minor = 1, .option = "-std=c++1z" },
-    Spelling{ .standard = LanguageStandard::Cxx14, .major = 4, .minor = 9, .option = "-std=c++14" },
-    Spelling{ .standard = LanguageStandard::Cxx14, .major = 4, .minor = 8, .option = "-std=c++1y" },
-    Spelling{ .standard = LanguageStandard::Cxx11, .major = 4, .minor = 7, .option = "-std=c++11" },
-    Spelling{ .standard = LanguageStandard::Cxx11, .major = 4, .minor = 4, .option = "-std=c++0x" },
+    Spelling<LanguageStandard>{ .standard = LanguageStandard::Cxx26, .major = 14, .minor = 0, .option = "-std=c++26" },
+    Spelling<LanguageStandard>{ .standard = LanguageStandard::Cxx23, .major = 11, .minor = 1, .option = "-std=c++23" },
+    Spelling<LanguageStandard>{ .standard = LanguageStandard::Cxx20, .major = 11, .minor = 1, .option = "-std=c++20" },
+    Spelling<LanguageStandard>{ .standard = LanguageStandard::Cxx20, .major = 8, .minor = 0, .option = "-std=c++2a" },
+    Spelling<LanguageStandard>{ .standard = LanguageStandard::Cxx17, .major = 8, .minor = 0, .option = "-std=c++17" },
+    Spelling<LanguageStandard>{ .standard = LanguageStandard::Cxx17, .major = 5, .minor = 1, .option = "-std=c++1z" },
+    Spelling<LanguageStandard>{ .standard = LanguageStandard::Cxx14, .major = 4, .minor = 9, .option = "-std=c++14" },
+    Spelling<LanguageStandard>{ .standard = LanguageStandard::Cxx14, .major = 4, .minor = 8, .option = "-std=c++1y" },
+    Spelling<LanguageStandard>{ .standard = LanguageStandard::Cxx11, .major = 4, .minor = 7, .option = "-std=c++11" },
+    Spelling<LanguageStandard>{ .standard = LanguageStandard::Cxx11, .major = 4, .minor = 4, .option = "-std=c++0x" },
 };
 
 constexpr std::array ClangSpellings{
-    Spelling{ .standard = LanguageStandard::Cxx26, .major = 17, .minor = 0, .option = "-std=c++26" },
-    Spelling{ .standard = LanguageStandard::Cxx23, .major = 17, .minor = 0, .option = "-std=c++23" },
-    Spelling{ .standard = LanguageStandard::Cxx23, .major = 12, .minor = 0, .option = "-std=c++2b" },
-    Spelling{ .standard = LanguageStandard::Cxx20, .major = 11, .minor = 0, .option = "-std=c++20" },
-    Spelling{ .standard = LanguageStandard::Cxx20, .major = 5, .minor = 0, .option = "-std=c++2a" },
-    Spelling{ .standard = LanguageStandard::Cxx17, .major = 5, .minor = 0, .option = "-std=c++17" },
-    Spelling{ .standard = LanguageStandard::Cxx17, .major = 3, .minor = 5, .option = "-std=c++1z" },
-    Spelling{ .standard = LanguageStandard::Cxx14, .major = 3, .minor = 5, .option = "-std=c++14" },
-    Spelling{ .standard = LanguageStandard::Cxx14, .major = 3, .minor = 4, .option = "-std=c++1y" },
-    Spelling{ .standard = LanguageStandard::Cxx11, .major = 3, .minor = 1, .option = "-std=c++11" },
-    Spelling{ .standard = LanguageStandard::Cxx11, .major = 2, .minor = 1, .option = "-std=c++0x" },
+    Spelling<LanguageStandard>{ .standard = LanguageStandard::Cxx26, .major = 17, .minor = 0, .option = "-std=c++26" },
+    Spelling<LanguageStandard>{ .standard = LanguageStandard::Cxx23, .major = 17, .minor = 0, .option = "-std=c++23" },
+    Spelling<LanguageStandard>{ .standard = LanguageStandard::Cxx23, .major = 12, .minor = 0, .option = "-std=c++2b" },
+    Spelling<LanguageStandard>{ .standard = LanguageStandard::Cxx20, .major = 11, .minor = 0, .option = "-std=c++20" },
+    Spelling<LanguageStandard>{ .standard = LanguageStandard::Cxx20, .major = 5, .minor = 0, .option = "-std=c++2a" },
+    Spelling<LanguageStandard>{ .standard = LanguageStandard::Cxx17, .major = 5, .minor = 0, .option = "-std=c++17" },
+    Spelling<LanguageStandard>{ .standard = LanguageStandard::Cxx17, .major = 3, .minor = 5, .option = "-std=c++1z" },
+    Spelling<LanguageStandard>{ .standard = LanguageStandard::Cxx14, .major = 3, .minor = 5, .option = "-std=c++14" },
+    Spelling<LanguageStandard>{ .standard = LanguageStandard::Cxx14, .major = 3, .minor = 4, .option = "-std=c++1y" },
+    Spelling<LanguageStandard>{ .standard = LanguageStandard::Cxx11, .major = 3, .minor = 1, .option = "-std=c++11" },
+    Spelling<LanguageStandard>{ .standard = LanguageStandard::Cxx11, .major = 2, .minor = 1, .option = "-std=c++0x" },
 };
 
 constexpr std::array AppleClangSpellings{
-    Spelling{ .standard = LanguageStandard::Cxx26, .major = 16, .minor = 0, .option = "-std=c++26" },
-    Spelling{ .standard = LanguageStandard::Cxx23, .major = 16, .minor = 0, .option = "-std=c++23" },
-    Spelling{ .standard = LanguageStandard::Cxx23, .major = 13, .minor = 0, .option = "-std=c++2b" },
-    Spelling{ .standard = LanguageStandard::Cxx20, .major = 13, .minor = 0, .option = "-std=c++20" },
-    Spelling{ .standard = LanguageStandard::Cxx20, .major = 10, .minor = 0, .option = "-std=c++2a" },
-    Spelling{ .standard = LanguageStandard::Cxx17, .major = 10, .minor = 0, .option = "-std=c++17" },
-    Spelling{ .standard = LanguageStandard::Cxx17, .major = 6, .minor = 1, .option = "-std=c++1z" },
-    Spelling{ .standard = LanguageStandard::Cxx14, .major = 6, .minor = 1, .option = "-std=c++14" },
-    Spelling{ .standard = LanguageStandard::Cxx14, .major = 5, .minor = 1, .option = "-std=c++1y" },
-    Spelling{ .standard = LanguageStandard::Cxx11, .major = 4, .minor = 0, .option = "-std=c++11" },
+    Spelling<LanguageStandard>{ .standard = LanguageStandard::Cxx26, .major = 16, .minor = 0, .option = "-std=c++26" },
+    Spelling<LanguageStandard>{ .standard = LanguageStandard::Cxx23, .major = 16, .minor = 0, .option = "-std=c++23" },
+    Spelling<LanguageStandard>{ .standard = LanguageStandard::Cxx23, .major = 13, .minor = 0, .option = "-std=c++2b" },
+    Spelling<LanguageStandard>{ .standard = LanguageStandard::Cxx20, .major = 13, .minor = 0, .option = "-std=c++20" },
+    Spelling<LanguageStandard>{ .standard = LanguageStandard::Cxx20, .major = 10, .minor = 0, .option = "-std=c++2a" },
+    Spelling<LanguageStandard>{ .standard = LanguageStandard::Cxx17, .major = 10, .minor = 0, .option = "-std=c++17" },
+    Spelling<LanguageStandard>{ .standard = LanguageStandard::Cxx17, .major = 6, .minor = 1, .option = "-std=c++1z" },
+    Spelling<LanguageStandard>{ .standard = LanguageStandard::Cxx14, .major = 6, .minor = 1, .option = "-std=c++14" },
+    Spelling<LanguageStandard>{ .standard = LanguageStandard::Cxx14, .major = 5, .minor = 1, .option = "-std=c++1y" },
+    Spelling<LanguageStandard>{ .standard = LanguageStandard::Cxx11, .major = 4, .minor = 0, .option = "-std=c++11" },
 };
 
 // The C tables follow CMake 4.4.3 (Modules/Compiler/GNU.cmake, Clang-C.cmake
 // and AppleClang-C.cmake) in the same way.
 
 constexpr std::array GccCSpellings{
-    CSpelling{ .standard = CStandard::C23, .major = 9, .minor = 1, .option = "-std=c2x" },
-    CSpelling{ .standard = CStandard::C17, .major = 8, .minor = 1, .option = "-std=c17" },
-    CSpelling{ .standard = CStandard::C11, .major = 4, .minor = 7, .option = "-std=c11" },
-    CSpelling{ .standard = CStandard::C11, .major = 4, .minor = 6, .option = "-std=c1x" },
-    CSpelling{ .standard = CStandard::C99, .major = 3, .minor = 4, .option = "-std=c99" },
+    Spelling<CStandard>{ .standard = CStandard::C23, .major = 9, .minor = 1, .option = "-std=c2x" },
+    Spelling<CStandard>{ .standard = CStandard::C17, .major = 8, .minor = 1, .option = "-std=c17" },
+    Spelling<CStandard>{ .standard = CStandard::C11, .major = 4, .minor = 7, .option = "-std=c11" },
+    Spelling<CStandard>{ .standard = CStandard::C11, .major = 4, .minor = 6, .option = "-std=c1x" },
+    Spelling<CStandard>{ .standard = CStandard::C99, .major = 3, .minor = 4, .option = "-std=c99" },
 };
 
 constexpr std::array ClangCSpellings{
-    CSpelling{ .standard = CStandard::C23, .major = 18, .minor = 0, .option = "-std=c23" },
-    CSpelling{ .standard = CStandard::C23, .major = 9, .minor = 0, .option = "-std=c2x" },
-    CSpelling{ .standard = CStandard::C17, .major = 6, .minor = 0, .option = "-std=c17" },
-    CSpelling{ .standard = CStandard::C11, .major = 3, .minor = 1, .option = "-std=c11" },
-    CSpelling{ .standard = CStandard::C11, .major = 3, .minor = 0, .option = "-std=c1x" },
-    CSpelling{ .standard = CStandard::C99, .major = 2, .minor = 1, .option = "-std=c99" },
+    Spelling<CStandard>{ .standard = CStandard::C23, .major = 18, .minor = 0, .option = "-std=c23" },
+    Spelling<CStandard>{ .standard = CStandard::C23, .major = 9, .minor = 0, .option = "-std=c2x" },
+    Spelling<CStandard>{ .standard = CStandard::C17, .major = 6, .minor = 0, .option = "-std=c17" },
+    Spelling<CStandard>{ .standard = CStandard::C11, .major = 3, .minor = 1, .option = "-std=c11" },
+    Spelling<CStandard>{ .standard = CStandard::C11, .major = 3, .minor = 0, .option = "-std=c1x" },
+    Spelling<CStandard>{ .standard = CStandard::C99, .major = 2, .minor = 1, .option = "-std=c99" },
 };
 
 constexpr std::array AppleClangCSpellings{
-    CSpelling{ .standard = CStandard::C23, .major = 11, .minor = 0, .patch = 3, .option = "-std=c2x" },
-    CSpelling{ .standard = CStandard::C17, .major = 11, .minor = 0, .option = "-std=c17" },
-    CSpelling{ .standard = CStandard::C11, .major = 4, .minor = 0, .option = "-std=c11" },
-    CSpelling{ .standard = CStandard::C99, .major = 4, .minor = 0, .option = "-std=c99" },
+    Spelling<CStandard>{ .standard = CStandard::C23, .major = 11, .minor = 0, .patch = 3, .option = "-std=c2x" },
+    Spelling<CStandard>{ .standard = CStandard::C17, .major = 11, .minor = 0, .option = "-std=c17" },
+    Spelling<CStandard>{ .standard = CStandard::C11, .major = 4, .minor = 0, .option = "-std=c11" },
+    Spelling<CStandard>{ .standard = CStandard::C99, .major = 4, .minor = 0, .option = "-std=c99" },
 };
 
 /// Keeps colour in diagnostics read through a pipe; gcc and clang both take it.
@@ -119,8 +110,8 @@ constexpr std::string_view ColorOption = "-fdiagnostics-color=always";
  * The option @p spellings give @p standard at @p version, or nothing when the
  * version predates them all.
  */
-template <typename Table, typename Standard>
-std::optional<std::string> lookUp(const Table& spellings, const Standard standard, const Toolchain::CompilerVersion& version)
+template <typename Standard>
+std::optional<std::string> lookUp(const std::span<const Spelling<Standard>> spellings, const Standard standard, const Toolchain::CompilerVersion& version)
 {
     for (const auto& spelling : spellings) {
         if ((spelling.standard == standard) && Toolchain::isAtLeast(version, spelling.major, spelling.minor, spelling.patch)) {
@@ -128,6 +119,31 @@ std::optional<std::string> lookUp(const Table& spellings, const Standard standar
         }
     }
     return std::nullopt;
+}
+
+/**
+ * The option the compiler @p identity takes for @p standard, from the table of
+ * its family.
+ */
+template <typename Standard>
+std::optional<std::string> standardOptionFrom(
+    const std::span<const Spelling<Standard>> gcc,
+    const std::span<const Spelling<Standard>> clang,
+    const std::span<const Spelling<Standard>> appleClang,
+    const Standard standard,
+    const Toolchain::CompilerIdentity& identity)
+{
+    switch (identity.family) {
+    case CompilerFamily::Gcc:
+        return lookUp(gcc, standard, identity.version);
+    case CompilerFamily::Clang:
+        return lookUp(clang, standard, identity.version);
+    case CompilerFamily::AppleClang:
+        return lookUp(appleClang, standard, identity.version);
+    case CompilerFamily::Unknown:
+        return standardNameOption(standard);
+    }
+    std::unreachable();
 }
 
 }  // anonymous namespace
@@ -139,32 +155,12 @@ CompilerDriver::CompilerDriver(Toolchain::CompilerIdentity identity)
 
 std::optional<std::string> CompilerDriver::standardOption(const LanguageStandard standard) const
 {
-    switch (_identity.family) {
-    case CompilerFamily::Gcc:
-        return lookUp(GccSpellings, standard, _identity.version);
-    case CompilerFamily::Clang:
-        return lookUp(ClangSpellings, standard, _identity.version);
-    case CompilerFamily::AppleClang:
-        return lookUp(AppleClangSpellings, standard, _identity.version);
-    case CompilerFamily::Unknown:
-        return standardNameOption(standard);
-    }
-    std::unreachable();
+    return standardOptionFrom<LanguageStandard>(GccSpellings, ClangSpellings, AppleClangSpellings, standard, _identity);
 }
 
 std::optional<std::string> CompilerDriver::standardOption(const CStandard standard) const
 {
-    switch (_identity.family) {
-    case CompilerFamily::Gcc:
-        return lookUp(GccCSpellings, standard, _identity.version);
-    case CompilerFamily::Clang:
-        return lookUp(ClangCSpellings, standard, _identity.version);
-    case CompilerFamily::AppleClang:
-        return lookUp(AppleClangCSpellings, standard, _identity.version);
-    case CompilerFamily::Unknown:
-        return standardNameOption(standard);
-    }
-    std::unreachable();
+    return standardOptionFrom<CStandard>(GccCSpellings, ClangCSpellings, AppleClangCSpellings, standard, _identity);
 }
 
 std::optional<std::string> CompilerDriver::colorOption() const
