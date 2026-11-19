@@ -76,6 +76,8 @@ src = "src/main.cpp"
 
 `std` names the C++ standard to build against: `"11"`, `"14"`, `"17"`, `"20"`, `"23"` (the default) or `"26"`. Whether a given compiler can build the one you name is the compiler's to answer, and `scrap build` says so before it compiles anything.
 
+Sources ending in `.c` are compiled as C by a C compiler and linked with the C++ sources. `c-std` names the C standard for them: `"99"`, `"11"`, `"17"` (the default) or `"23"`. As with `std`, `scrap build` says before it compiles anything whether the compiler can build it.
+
 A target can add to the commands that build it. Settings written on a target apply to it alone; a library's settings under `[lib.public]` also apply to every executable that uses it:
 
 ```toml
@@ -133,7 +135,7 @@ scrap toolchain update
 scrap toolchain uninstall llvm@18.1.8
 ```
 
-A project can name its own toolchain in `scrap.toml`, which comes before the global default; `system` names the compiler of the system, found through `CXX` or on `PATH`:
+A project can name its own toolchain in `scrap.toml`, which comes before the global default; `system` names the compiler of the system, found through `CXX` or on `PATH`, and for C sources the C compiler, found through `CC` or as `cc`, `gcc` or `clang` on `PATH`:
 
 ```toml
 [toolchain]
@@ -144,7 +146,7 @@ The `SCRAP_TOOLCHAIN` environment variable comes before both. A toolchain that i
 
 A toolchain the index deprecates or no longer provides is warned of, with a version to install instead, when it is installed, selected, listed, shown or built with. One that is installed and no longer provided still builds. Only `install` fetches the index for this; the others read the copy saved when the index was last fetched, and say nothing when there is none for the index in use or it cannot be read.
 
-A program built with an installed toolchain runs with the runtime libraries of that toolchain; with LLVM, that is the libc++ it carries. On Linux, the linker of LLVM 17 to 22 needs `libxml2` on the machine. On macOS, an installed LLVM uses the SDK that `xcrun` names, which the Command Line Tools provide, or the one `SDKROOT` names. An LLVM installed by an earlier version of scrap has to be installed again with `--force`, as a build with it says.
+A program built with an installed toolchain runs with the runtime libraries of that toolchain; with LLVM, that is the libc++ it carries. On Linux, the linker of LLVM 17 to 22 needs `libxml2` on the machine. On macOS, an installed LLVM uses the SDK that `xcrun` names, which the Command Line Tools provide, or the one `SDKROOT` names. An LLVM installed by an earlier version of scrap has to be installed again with `--force`, as a build with it says. A toolchain installed by an earlier version of scrap does not record its C compiler, so it has to be installed again with `--force` to build C sources, as a build with it says.
 
 ## 📋 Project Status
 
@@ -154,6 +156,7 @@ scrap is in early alpha development.
 - **Creating a project** - `scrap new <name>` creates a project from the built-in template
 - **Building** - `scrap build` makes a debug build, or an optimised one with `--release`, below `build/`, along with a `compile_commands.json` for editors and other tools. `--target <name>` builds one target
 - **Building only what changed** - a source is compiled again when it, a header it includes, the compiler or the command that compiles it has changed
+- **C sources** - `.c` sources are compiled as C and linked with the C++ sources
 - **Static libraries** - with a `[[lib]]` in `scrap.toml`, the sources below `src/` become a static library that each executable links
 - **Settings per target** - include directories, defines and flags, as shown in [Simple Configuration](#-simple-configuration)
 - **Running** - `scrap run` builds the executable and starts it with the arguments after `--`, and exits with its exit code. `--bin <name>` chooses the executable when there is more than one
