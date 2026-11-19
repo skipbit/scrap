@@ -1211,7 +1211,7 @@ TEST_F(CliE2ETest, BuildReportsAManifestErrorAsText)
 {
     const std::string manifest = (std::filesystem::canonical(_root) / "scrap.toml").string();
     const std::vector<std::pair<std::string, std::string>> cases{
-        { "\"k\\u001b]0;t\\u0007\" = 1", ": error: package.k\\x1B]0;t\\x07: unknown key; expected one of name version std\n" },
+        { "\"k\\u001b]0;t\\u0007\" = 1", ": error: package.k\\x1B]0;t\\x07: unknown key; expected one of name version std c-std\n" },
         { "x = tr\x1b", ": error: Error while parsing boolean: expected 'true', saw 'tr\\x1B'\n" },
     };
     for (const auto& [line, shown] : cases) {

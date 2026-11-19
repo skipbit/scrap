@@ -41,4 +41,34 @@ enum class LanguageStandard : std::uint8_t {
  */
 [[nodiscard]] std::string_view standardNumber(LanguageStandard standard);
 
+/**
+ * @brief A C language standard the C sources of a project can be built
+ *        against.
+ */
+enum class CStandard : std::uint8_t {
+    C99,
+    C11,
+    C17,
+    C23
+};
+
+/**
+ * @brief Every C standard scrap.toml accepts, oldest first.
+ */
+[[nodiscard]] std::span<const CStandard> supportedCStandards();
+
+/**
+ * @brief Read the value package.c-std is written with, as
+ *        parseLanguageStandard() reads package.std.
+ *
+ * @return The standard, or nothing when the value names none this version
+ *         accepts.
+ */
+[[nodiscard]] std::optional<CStandard> parseCStandard(std::string_view text);
+
+/**
+ * @brief The number scrap.toml writes the C standard as, such as "17".
+ */
+[[nodiscard]] std::string_view standardNumber(CStandard standard);
+
 }  // namespace scrap::Project

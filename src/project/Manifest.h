@@ -56,6 +56,7 @@ struct Package {
     std::string name;
     std::string version;
     LanguageStandard standard = LanguageStandard::Cxx23;
+    CStandard cStandard = CStandard::C17;  ///< The standard of the C sources.
 };
 
 /**
