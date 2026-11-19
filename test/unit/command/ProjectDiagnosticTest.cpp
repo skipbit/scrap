@@ -168,7 +168,7 @@ TEST(ProjectDiagnosticTest, RendersASourceExtensionSpelledInAnotherCaseLeftOut)
 {
     const LeftOutEntry entry{ .path = "src/Helper.Cpp", .reason = LeftOutReason::ExtensionSpelling };
 
-    EXPECT_EQ(renderLeftOut(entry), "warning: leaving out 'src/Helper.Cpp', whose extension is not .cpp, .cc or .cxx in lower case\n");
+    EXPECT_EQ(renderLeftOut(entry), "warning: leaving out 'src/Helper.Cpp', whose extension is not .cpp, .cc, .cxx or .c in lower case\n");
 }
 
 /**

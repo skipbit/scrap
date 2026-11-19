@@ -13,8 +13,25 @@
 
 namespace scrap::Project {
 
-/// Extensions a source file is recognised by.
-inline constexpr std::array<std::string_view, 3> SourceExtensions{ ".cpp", ".cc", ".cxx" };
+/// Extensions a source file is recognised by: those of C++, then that of C.
+inline constexpr std::array<std::string_view, 4> SourceExtensions{ ".cpp", ".cc", ".cxx", ".c" };
+
+/// The extension a C source is recognised by.
+inline constexpr std::string_view CSourceExtension = ".c";
+
+/**
+ * @brief The language a source is compiled as.
+ */
+enum class SourceLanguage : std::uint8_t {
+    Cxx,
+    C
+};
+
+/**
+ * @brief The language @p source is compiled as: C for a .c file, and C++ for
+ *        any other, a declared entry point of another spelling among them.
+ */
+[[nodiscard]] SourceLanguage languageOf(const std::filesystem::path& source);
 
 /**
  * @brief A target and the sources a build compiles for it.
@@ -93,8 +110,8 @@ struct CollectedSources {
  * as a source below src/ under another path is reported with both paths.
  *
  * A source is recognised by its extension, spelled in lower case: .cpp, .cc
- * or .cxx. The list comes back sorted, so a build reads the same sources
- * whatever order the file system reports its entries in.
+ * or .cxx for C++, and .c for C. The list comes back sorted, so a build reads
+ * the same sources whatever order the file system reports its entries in.
  *
  * A project without src/ is not a failure, since a target can declare an
  * entry point anywhere. A directory that exists and cannot be read, or whose

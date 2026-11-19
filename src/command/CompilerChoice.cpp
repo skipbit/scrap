@@ -60,9 +60,28 @@ std::expected<ChosenCompiler, Toolchain::NoCompiler> systemCompiler(const Runtim
                                .runtimeLibraryDirectories = {},
                                .arguments = { .compile = {}, .link = {} },
                                .installed = false,
-                               .announcement = std::move(announcement) };
+                               .announcement = std::move(announcement),
+                               .cCompiler = std::nullopt };
     }
     return std::unexpected(std::move(found.error()));
+}
+
+/**
+ * @p chosen with the C compiler the system provides, named on a line of its
+ * own, or the report of why there is none.
+ */
+std::expected<ChosenCompiler, std::string> withSystemCCompiler(const RuntimeEnvironment& env, ChosenCompiler chosen)
+{
+    auto found = Toolchain::detectSystemCCompiler(env.preferredCCompiler, env.systemSearchPaths);
+    if (! found.has_value()) {
+        const std::string& requested = found.error().requested;
+        return std::unexpected(requested.empty() ? renderNoCCompilerFound() : renderUnusableCCompilerRequest(requested));
+    }
+    chosen.announcement += "Using the system C compiler '" + printablePath(found->path) + "' (";
+    chosen.announcement += describeCOrigin(found->origin);
+    chosen.announcement += ")\n";
+    chosen.cCompiler = std::move(found->path);
+    return chosen;
 }
 
 /**
@@ -92,11 +111,32 @@ std::string renderNoCompilerWhereNothingIsNamed(const RuntimeEnvironment& env, c
 }
 
 /**
- * The compiler of the newest installed toolchain @p specifier names.
+ * The compiler the system provides for a build with @p cSources, or the
+ * report of why there is none. The line naming it says where system was
+ * named, when @p source says it was.
+ */
+std::expected<ChosenCompiler, std::string> systemCompilers(const RuntimeEnvironment& env,
+                                                           const std::optional<ChoiceSource> source,
+                                                           const CSources cSources)
+{
+    auto system = systemCompiler(env, source);
+    if (! system.has_value()) {
+        return std::unexpected(source.has_value() ? renderNoSystemCompiler(system.error()) : renderNoCompilerWhereNothingIsNamed(env, system.error()));
+    }
+    if (cSources == CSources::Absent) {
+        return std::move(*system);
+    }
+    return withSystemCCompiler(env, std::move(*system));
+}
+
+/**
+ * The compiler of the newest installed toolchain @p specifier names, with
+ * the C compiler it records for a build with @p cSources.
  */
 std::expected<ChosenCompiler, std::string> installedCompiler(const RuntimeEnvironment& env,
                                                              const NamedToolchain& named,
-                                                             const Toolchain::ToolchainSpecifier& specifier)
+                                                             const Toolchain::ToolchainSpecifier& specifier,
+                                                             const CSources cSources)
 {
     const auto scrapHome = requireScrapHome(env);
     if (! scrapHome.has_value()) {
@@ -105,6 +145,14 @@ std::expected<ChosenCompiler, std::string> installedCompiler(const RuntimeEnviro
     auto found = Toolchain::findInstalledToolchainForHost(*scrapHome, specifier);
     if (! found.has_value()) {
         return std::unexpected(renderInstalledToolchainFault(named.text, namedIn(named.source), found.error()));
+    }
+    std::optional<std::filesystem::path> cCompiler;
+    if (cSources == CSources::Present) {
+        auto usable = Toolchain::usableCCompiler(*found);
+        if (! usable.has_value()) {
+            return std::unexpected(renderUnusableInstalled(found->name(), usable.error()));
+        }
+        cCompiler = std::move(*usable);
     }
     std::string announcement = "Using the toolchain '" + printableText(found->name()) + "' (";
     announcement += describeSource(named.source);
@@ -115,12 +163,15 @@ std::expected<ChosenCompiler, std::string> installedCompiler(const RuntimeEnviro
                            .runtimeLibraryDirectories = std::move(found->runtimeLibraryDirectories),
                            .arguments = std::move(found->arguments),
                            .installed = true,
-                           .announcement = std::move(announcement) };
+                           .announcement = std::move(announcement),
+                           .cCompiler = std::move(cCompiler) };
 }
 
 }  // anonymous namespace
 
-std::expected<ChosenCompiler, std::string> chooseCompiler(const RuntimeEnvironment& env, const std::optional<std::string>& projectToolchain)
+std::expected<ChosenCompiler, std::string> chooseCompiler(const RuntimeEnvironment& env,
+                                                          const std::optional<std::string>& projectToolchain,
+                                                          const CSources cSources)
 {
     const auto named = namedToolchain(env, projectToolchain);
     if (! named.has_value()) {
@@ -128,20 +179,12 @@ std::expected<ChosenCompiler, std::string> chooseCompiler(const RuntimeEnvironme
     }
     const std::optional<NamedToolchain>& toolchain = *named;
     if (! toolchain.has_value()) {
-        auto system = systemCompiler(env, std::nullopt);
-        if (! system.has_value()) {
-            return std::unexpected(renderNoCompilerWhereNothingIsNamed(env, system.error()));
-        }
-        return std::move(*system);
+        return systemCompilers(env, std::nullopt, cSources);
     }
     if (const auto* specifier = std::get_if<Toolchain::ToolchainSpecifier>(&toolchain->choice)) {
-        return installedCompiler(env, *toolchain, *specifier);
+        return installedCompiler(env, *toolchain, *specifier, cSources);
     }
-    auto system = systemCompiler(env, toolchain->source);
-    if (! system.has_value()) {
-        return std::unexpected(renderNoSystemCompiler(system.error()));
-    }
-    return std::move(*system);
+    return systemCompilers(env, toolchain->source, cSources);
 }
 
 }  // namespace scrap::Command

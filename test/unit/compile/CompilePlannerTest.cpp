@@ -17,6 +17,7 @@
 #include <vector>
 
 using namespace scrap::Compile;
+using scrap::Project::CStandard;
 using scrap::Project::LanguageStandard;
 using scrap::Project::Target;
 using scrap::Project::TargetKind;
@@ -159,6 +160,80 @@ TEST(CompilePlannerTest, CompilesWithTheArgumentsTheToolchainNeeds)
                                          "src/main.cpp",
                                          "-o",
                                          "build/debug/obj/hello/src/main.cpp.o" }));
+}
+
+/**
+ * A C source is compiled by the C compiler with the C standard and the
+ * arguments given for C, in place of the toolchain's compile arguments,
+ * which choose a C++ library. A C++ source beside it is compiled as before.
+ */
+TEST(CompilePlannerTest, CompilesACSourceWithTheCCompiler)
+{
+    BuildSettings settings = settingsFor(Gcc13);
+    settings.arguments.compile = { "-stdlib=libc++", "-isysroot", "/sdk" };
+    settings.c = CCompileSettings{ .compiler = "/usr/bin/cc", .driver = CompilerDriver{ Gcc13 }, .standard = CStandard::C11, .arguments = { "-isysroot", "/sdk" } };
+
+    const auto commands = planCompileCommands(settings, { executableWithSources("hello", "src/main.cpp", { "src/helper.c", "src/main.cpp" }) });
+
+    ASSERT_EQ(commands.size(), 2);
+    EXPECT_EQ(commands[0].file, "src/helper.c");
+    EXPECT_EQ(commands[0].dependencyFile, "build/debug/obj/hello/src/helper.c.o.d");
+    EXPECT_EQ(commands[0].arguments,
+              (std::vector<std::string>{ "/usr/bin/cc",
+                                         "-std=c11",
+                                         "-g",
+                                         "-O0",
+                                         "-Wall",
+                                         "-Wextra",
+                                         "-Wpedantic",
+                                         "-fdiagnostics-color=always",
+                                         "-isysroot",
+                                         "/sdk",
+                                         "-I",
+                                         "include",
+                                         "-MD",
+                                         "-MF",
+                                         "build/debug/obj/hello/src/helper.c.o.d",
+                                         "-c",
+                                         "src/helper.c",
+                                         "-o",
+                                         "build/debug/obj/hello/src/helper.c.o" }));
+    EXPECT_EQ(commands[1].arguments.front(), "/usr/bin/c++");
+    EXPECT_EQ(commands[1].arguments[8], "-stdlib=libc++");
+}
+
+/**
+ * Without C settings, a C source is compiled as a C++ source is.
+ */
+TEST(CompilePlannerTest, CompilesACSourceAsCxxWithoutCSettings)
+{
+    BuildSettings settings = settingsFor(Gcc13);
+    settings.arguments.compile = { "-stdlib=libc++" };
+
+    const auto commands = planCompileCommands(settings, { executableWithSources("hello", "src/main.cpp", { "src/helper.c" }) });
+
+    ASSERT_EQ(commands.size(), 1);
+    EXPECT_EQ(commands[0].arguments.front(), "/usr/bin/c++");
+    EXPECT_EQ(commands[0].arguments[1], "-std=c++23");
+    EXPECT_EQ(commands[0].arguments[8], "-stdlib=libc++");
+    EXPECT_EQ(commands[0].dependencyFile, "build/debug/obj/hello/src/helper.c.o.d");
+}
+
+/**
+ * A C compiler is given the options its own driver knows, whatever the C++
+ * compiler takes.
+ */
+TEST(CompilePlannerTest, GivesAnUnknownCCompilerNoOptionItMightReject)
+{
+    BuildSettings settings = settingsFor(Gcc13);
+    settings.c = CCompileSettings{ .compiler = "/opt/cc", .driver = CompilerDriver{ CompilerIdentity{} }, .standard = CStandard::C17, .arguments = {} };
+
+    const auto commands = planCompileCommands(settings, { executableWithSources("hello", "src/main.c", { "src/main.c" }) });
+
+    ASSERT_EQ(commands.size(), 1);
+    EXPECT_EQ(commands[0].dependencyFile, std::nullopt);
+    EXPECT_EQ(commands[0].arguments,
+              (std::vector<std::string>{ "/opt/cc", "-std=c17", "-g", "-O0", "-Wall", "-Wextra", "-Wpedantic", "-I", "include", "-c", "src/main.c", "-o", "build/debug/obj/hello/src/main.c.o" }));
 }
 
 TEST(CompilePlannerTest, CompilesASourceForRelease)

@@ -118,12 +118,26 @@ std::expected<std::vector<Compile::ArchiveCommand>, int> planArchives(const Runt
 }
 
 /**
- * The compiler the build of @p project uses, named on standard error with
- * where it came from. When none can be used, the reason is reported instead.
+ * Whether any of @p targets has a C source.
  */
-std::expected<ChosenCompiler, int> findCompiler(const RuntimeEnvironment& env, const Project::LoadedProject& project)
+CSources cSourcesAmong(const std::vector<Project::TargetSources>& targets)
 {
-    auto chosen = chooseCompiler(env, project.manifest.toolchain);
+    const bool present = std::ranges::any_of(targets, [](const Project::TargetSources& entry) {
+        return std::ranges::any_of(entry.sources, [](const std::filesystem::path& source) {
+            return Project::languageOf(source) == Project::SourceLanguage::C;
+        });
+    });
+    return present ? CSources::Present : CSources::Absent;
+}
+
+/**
+ * The compiler the build of @p project uses, and its C compiler for a build
+ * with @p cSources, named on standard error with where they came from. When
+ * none can be used, the reason is reported instead.
+ */
+std::expected<ChosenCompiler, int> findCompiler(const RuntimeEnvironment& env, const Project::LoadedProject& project, const CSources cSources)
+{
+    auto chosen = chooseCompiler(env, project.manifest.toolchain, cSources);
     if (! chosen.has_value()) {
         std::cerr << chosen.error();
         return std::unexpected(1);
@@ -159,16 +173,31 @@ Toolchain::ToolchainArguments withSdk(Toolchain::ToolchainArguments arguments, c
 }
 
 /**
- * The settings to build @p project with: the compiler it uses, named on
- * standard error with where it came from, and what that compiler is given.
- * The macOS SDK is asked for before the compiler is identified.
+ * What compiles the C sources of @p project with @p compiler: the C standard
+ * it states, and the macOS SDK. The toolchain's compile arguments choose a
+ * C++ library and are not given.
+ */
+Compile::CCompileSettings cSettingsFor(const Project::LoadedProject& project, const std::filesystem::path& compiler, const std::vector<std::string>& sdk)
+{
+    return Compile::CCompileSettings{ .compiler = compiler,
+                                      .driver = Compile::CompilerDriver{ Toolchain::identifyCCompiler(compiler) },
+                                      .standard = project.manifest.package.cStandard,
+                                      .arguments = sdk };
+}
+
+/**
+ * The settings to build @p project with: the compilers it uses, named on
+ * standard error with where they came from, and what they are given. The C
+ * compiler is looked for only for a build with @p cSources. The macOS SDK
+ * is asked for before the compilers are identified.
  */
 std::expected<Compile::BuildSettings, int> settingsFor(const RuntimeEnvironment& env,
                                                        const Project::LoadedProject& project,
                                                        const Compile::BuildProfile profile,
-                                                       const std::filesystem::path& buildDirectory)
+                                                       const std::filesystem::path& buildDirectory,
+                                                       const CSources cSources)
 {
-    const auto compiler = findCompiler(env, project);
+    const auto compiler = findCompiler(env, project, cSources);
     if (! compiler.has_value()) {
         return std::unexpected(compiler.error());
     }
@@ -176,6 +205,9 @@ std::expected<Compile::BuildSettings, int> settingsFor(const RuntimeEnvironment&
     if (! sdk.has_value()) {
         return std::unexpected(sdk.error());
     }
+    auto cSettings = compiler->cCompiler.transform([&project, &sdk](const std::filesystem::path& cCompiler) {
+        return cSettingsFor(project, cCompiler, *sdk);
+    });
     return Compile::BuildSettings{
         .projectRoot = project.root,
         .buildDirectory = buildDirectory,
@@ -184,8 +216,28 @@ std::expected<Compile::BuildSettings, int> settingsFor(const RuntimeEnvironment&
         .standard = project.manifest.package.standard,
         .profile = profile,
         .runtimeLibraryDirectories = compiler->runtimeLibraryDirectories,
-        .arguments = withSdk(compiler->arguments, *sdk)
+        .arguments = withSdk(compiler->arguments, *sdk),
+        .c = std::move(cSettings)
     };
+}
+
+/**
+ * Whether the compilers of @p settings can build the standards it states.
+ * Each one that cannot is reported, the C++ one first, so both are known at
+ * once.
+ */
+bool supportsTheStandards(const Compile::BuildSettings& settings)
+{
+    bool supported = true;
+    if (! settings.driver.standardOption(settings.standard).has_value()) {
+        std::cerr << renderUnsupportedStandard(settings.compiler, settings.standard);
+        supported = false;
+    }
+    if (settings.c.has_value() && (! settings.c->driver.standardOption(settings.c->standard).has_value())) {
+        std::cerr << renderUnsupportedStandard(settings.c->compiler, settings.c->standard);
+        supported = false;
+    }
+    return supported;
 }
 
 /**
@@ -333,7 +385,7 @@ std::expected<std::filesystem::path, int> buildProject(const RuntimeEnvironment&
         return std::unexpected(sources.error());
     }
 
-    const auto settingsResult = settingsFor(env, project, profile, buildDirectory);
+    const auto settingsResult = settingsFor(env, project, profile, buildDirectory, cSourcesAmong(*sources));
     if (! settingsResult.has_value()) {
         return std::unexpected(settingsResult.error());
     }
@@ -347,8 +399,7 @@ std::expected<std::filesystem::path, int> buildProject(const RuntimeEnvironment&
 
     // The database is written before the build stops for a reason below, so
     // an editor reads the commands whether or not they can run.
-    if (! settings.driver.standardOption(settings.standard).has_value()) {
-        std::cerr << renderUnsupportedStandard(settings.compiler, settings.standard);
+    if (! supportsTheStandards(settings)) {
         return std::unexpected(1);
     }
 

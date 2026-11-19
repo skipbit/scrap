@@ -10,10 +10,22 @@
 #include "toolchain/ToolchainArguments.h"
 
 #include <filesystem>
+#include <optional>
+#include <string>
 #include <string_view>
 #include <vector>
 
 namespace scrap::Compile {
+
+/**
+ * @brief What compiles the C sources of one build.
+ */
+struct CCompileSettings {
+    std::filesystem::path compiler;      ///< The C compiler to run, absolute.
+    CompilerDriver driver;               ///< How that compiler takes its options.
+    Project::CStandard standard;         ///< The C standard the manifest states.
+    std::vector<std::string> arguments;  ///< What every C compile is given, such as the macOS SDK.
+};
 
 /**
  * @brief What every command of one build shares.
@@ -27,6 +39,7 @@ struct BuildSettings {
     BuildProfile profile;                                          ///< What the compiler is asked to build for.
     std::vector<std::filesystem::path> runtimeLibraryDirectories;  ///< Where executables are linked with and find the compiler's runtime libraries, absolute.
     Toolchain::ToolchainArguments arguments;                       ///< What the toolchain needs on every compile and link command.
+    std::optional<CCompileSettings> c = std::nullopt;              ///< What compiles the C sources, when the build has any.
 };
 
 /**
@@ -49,6 +62,11 @@ struct BuildSettings {
  * written as ./<path>, so the compiler reads it as a file rather than as an
  * option or as a file of options.
  *
+ * A C source is compiled the same way by the C compiler of @p settings,
+ * with the C standard and the arguments given for C in place of the
+ * toolchain's compile arguments, which choose a C++ library. Without C
+ * settings, a C source is compiled as a C++ source is.
+ *
  * The settings of the target follow: its include directories, then its
  * defines, then its compile flags. Within each kind come the target's own,
  * then its public ones, then the public ones of the library an executable
@@ -59,7 +77,8 @@ struct BuildSettings {
  * the object file come last. Each command also holds the directories it
  * names for headers: include/, then those of the settings, in their order.
  *
- * @param settings What the commands of the build share.
+ * @param settings What the commands of the build share. It holds a C
+ *        compiler whenever a source is C.
  * @param targets Each target with its sources, as collectSources() returned them.
  * @return One command per source of each target, targets in the order given.
  */

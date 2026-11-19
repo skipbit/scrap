@@ -90,21 +90,33 @@ std::filesystem::path dependencyFileOf(const std::filesystem::path& object)
 }
 
 /**
- * The command line every compilation shares, up to the source it compiles.
+ * What compiles the sources of one language: the command line they share, up
+ * to the source each compiles, and how their compiler takes its options.
  */
-std::vector<std::string> sharedCompileArguments(const BuildSettings& settings)
+struct LanguageCompile {
+    std::vector<std::string> shared;
+    CompilerDriver driver;
+};
+
+/**
+ * What compiles the sources of one language with @p compiler, which
+ * @p driver says how to give @p standard, for @p profile, with @p added.
+ */
+template <typename Standard>
+LanguageCompile languageCompile(const std::filesystem::path& compiler,
+                                const CompilerDriver& driver,
+                                const Standard standard,
+                                const BuildProfile profile,
+                                const std::vector<std::string>& added)
 {
-    std::vector<std::string> arguments{
-        settings.compiler.string(),
-        settings.driver.standardOption(settings.standard).value_or(standardNameOption(settings.standard))
-    };
-    const std::span<const std::string_view> options = profileOptions(settings.profile);
+    std::vector<std::string> arguments{ compiler.string(), driver.standardOption(standard).value_or(standardNameOption(standard)) };
+    const std::span<const std::string_view> options = profileOptions(profile);
     arguments.insert(arguments.end(), options.begin(), options.end());
-    if (const auto color = settings.driver.colorOption(); color.has_value()) {
+    if (const auto color = driver.colorOption(); color.has_value()) {
         arguments.push_back(*color);
     }
-    arguments.insert(arguments.end(), settings.arguments.compile.begin(), settings.arguments.compile.end());
-    return arguments;
+    arguments.insert(arguments.end(), added.begin(), added.end());
+    return LanguageCompile{ .shared = std::move(arguments), .driver = driver };
 }
 
 /**
@@ -206,7 +218,12 @@ std::vector<std::string> objectFiles(const BuildSettings& settings, const Projec
 
 std::vector<CompileCommand> planCompileCommands(const BuildSettings& settings, const std::vector<Project::TargetSources>& targets)
 {
-    const std::vector<std::string> shared = sharedCompileArguments(settings);
+    const LanguageCompile cxx = languageCompile(settings.compiler, settings.driver, settings.standard, settings.profile, settings.arguments.compile);
+    const LanguageCompile c = settings.c
+                                  .transform([&settings](const CCompileSettings& given) {
+        return languageCompile(given.compiler, given.driver, given.standard, settings.profile, given.arguments);
+    })
+                                  .value_or(cxx);
 
     std::vector<CompileCommand> commands;
     for (const Project::TargetSources& entry : targets) {
@@ -217,11 +234,12 @@ std::vector<CompileCommand> planCompileCommands(const BuildSettings& settings, c
             const std::filesystem::path output = objectFile(settings, entry.target.name, source);
             const std::filesystem::path file = asArgument(source);
 
-            std::vector<std::string> arguments = shared;
+            const LanguageCompile& language = (Project::languageOf(source) == Project::SourceLanguage::C) ? c : cxx;
+            std::vector<std::string> arguments = language.shared;
             arguments.insert(arguments.end(), added.begin(), added.end());
             const std::filesystem::path dependencies = dependencyFileOf(output);
             std::optional<std::filesystem::path> dependencyFile;
-            if (const auto options = settings.driver.dependencyFileOptions(dependencies); options.has_value()) {
+            if (const auto options = language.driver.dependencyFileOptions(dependencies); options.has_value()) {
                 arguments.insert(arguments.end(), options->begin(), options->end());
                 dependencyFile = dependencies;
             }

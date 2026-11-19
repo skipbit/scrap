@@ -457,6 +457,24 @@ protected:
     }
 
     /**
+     * Record a C compiler at bin/gcc for @p family @p version, laid out by
+     * installWorkingToolchain(), which runs the C compiler this test binary's
+     * tree was configured with, and @p compileArgument as what the toolchain
+     * needs to compile, for every host.
+     */
+    void recordWorkingCCompiler(std::string_view family, std::string_view version, std::string_view compileArgument) const
+    {
+        const std::string body = std::string{ "#!/bin/sh\nexec '" } + SCRAP_TEST_CC + "' \"$@\"\n";
+        for (const char* host : { "linux-x86_64", "linux-aarch64", "darwin-x86_64", "darwin-aarch64" }) {
+            const std::string toolchain = "toolchains/" + std::string{ family } + "/" + std::string{ version } + "/" + host;
+            const auto compiler = _temp->writeFile(toolchain + "/bin/gcc", body);
+            std::filesystem::permissions(compiler, std::filesystem::perms::owner_exec, std::filesystem::perm_options::add);
+            _temp->writeFile(toolchain + "/.scrap-toolchain.toml",
+                             "compiler = 'bin/g++'\nc-compiler = 'bin/gcc'\ncompile-args = ['" + std::string{ compileArgument } + "']\n");
+        }
+    }
+
+    /**
      * The toolchains the compilers installWorkingToolchain() lays out have
      * run as, one line each, in order.
      */
@@ -482,6 +500,15 @@ protected:
     [[nodiscard]] static std::string realCompiler()
     {
         return std::string{ "CXX=" } + SCRAP_TEST_CXX;
+    }
+
+    /**
+     * The environment entry that names the C compiler this test binary's
+     * tree was configured with.
+     */
+    [[nodiscard]] static std::string realCCompiler()
+    {
+        return std::string{ "CC=" } + SCRAP_TEST_CC;
     }
 
     /**
@@ -1377,7 +1404,7 @@ TEST_F(CliE2ETest, BuildNamesWhatItLeavesOutAndGoesOn)
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0) << result.stderrText;
-    EXPECT_NE(result.stderrText.find("warning: leaving out 'src/Helper.CPP', whose extension is not .cpp, .cc or .cxx in lower case\n"),
+    EXPECT_NE(result.stderrText.find("warning: leaving out 'src/Helper.CPP', whose extension is not .cpp, .cc, .cxx or .c in lower case\n"),
               std::string::npos)
         << result.stderrText;
     EXPECT_EQ(result.stderrText.find("Compiling app (src/Helper.CPP)"), std::string::npos) << result.stderrText;
@@ -4909,4 +4936,180 @@ TEST_F(CliE2ETest, ListRefusesAllWithoutRemote)
     EXPECT_EQ(result.stderrText,
               "error: '--all' is used with '--remote'\n"
               "hint: run 'scrap toolchain list --remote --all'\n");
+}
+
+/**
+ * A .c source is compiled as C by the C compiler CC names, against C17 by
+ * default, and links with the C++ sources. The C source declares a variable
+ * named new, which C++ would reject.
+ */
+TEST_F(CliE2ETest, RunBuildsCSourcesWithTheCCompiler)
+{
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/answer.c", "int answer(void) { int new = 42; return new; }\n");
+    writeFile("src/main.cpp", "#include <cstdio>\nextern \"C\" int answer(void);\nint main() { std::printf(\"%d\\n\", answer()); }\n");
+
+    auto result = runScrap({ "run" }, { realCompiler(), realCCompiler() }, _root, BuildTimeout);
+
+    ASSERT_TRUE(result.exitedNormally) << result.stderrText;
+    ASSERT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_EQ(result.stdoutText, "42\n");
+    const std::string compilerLine = std::string{ "Using the system compiler '" } + SCRAP_TEST_CXX + "' (from CXX)\n";
+    const std::string cCompilerLine = std::string{ "Using the system C compiler '" } + SCRAP_TEST_CC + "' (from CC)\n";
+    EXPECT_NE(result.stderrText.find(compilerLine + cCompilerLine), std::string::npos) << result.stderrText;
+    const std::string database = readFile("build/debug/compile_commands.json");
+    EXPECT_NE(database.find(std::string{ "[\"" } + SCRAP_TEST_CC + "\", \"-std=c17\""), std::string::npos) << database;
+    EXPECT_NE(database.find(std::string{ "[\"" } + SCRAP_TEST_CXX + "\", \"-std=c++23\""), std::string::npos) << database;
+}
+
+/**
+ * A project of C sources alone builds with the entry point it declares, and
+ * the standard package.c-std states.
+ */
+TEST_F(CliE2ETest, RunBuildsAProjectOfCSourcesAlone)
+{
+    writeFile("scrap.toml", "[package]\nname = \"app\"\nversion = \"0.1.0\"\nc-std = \"11\"\n\n[[bin]]\nname = \"app\"\nsrc = \"src/main.c\"\n");
+    writeFile("src/main.c", "#include <stdio.h>\nint main(void) { printf(\"%ld\\n\", __STDC_VERSION__); return 0; }\n");
+
+    auto result = runScrap({ "run" }, { realCompiler(), realCCompiler() }, _root, BuildTimeout);
+
+    ASSERT_TRUE(result.exitedNormally) << result.stderrText;
+    ASSERT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_EQ(result.stdoutText, "201112\n");
+}
+
+/**
+ * A project of C++ sources alone looks for no C compiler, so a CC that
+ * cannot be run does not stop it and no line names one.
+ */
+TEST_F(CliE2ETest, BuildOfCxxSourcesAloneLooksForNoCCompiler)
+{
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp", MainSource);
+
+    auto result = runScrap({ "build" }, { realCompiler(), "CC=absent-cc" }, _root, BuildTimeout);
+
+    ASSERT_TRUE(result.exitedNormally) << result.stderrText;
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_EQ(result.stderrText.find("C compiler"), std::string::npos) << result.stderrText;
+}
+
+/**
+ * A CC that cannot be run is reported rather than passed over for cc, and
+ * nothing is built.
+ */
+TEST_F(CliE2ETest, BuildReportsACCompilerThatCannotBeRun)
+{
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp", MainSource);
+    writeFile("src/helper.c", "int helper(void) { return 0; }\n");
+
+    auto result = runScrap({ "build" }, { realCompiler(), "CC=absent-cc" }, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_NE(result.stderrText.find("error: CC names 'absent-cc', which cannot be run\n"
+                                     "hint: set CC to the path of a compiler, or unset it to search for one\n"),
+              std::string::npos)
+        << result.stderrText;
+    EXPECT_FALSE(std::filesystem::exists(_root / "build"));
+}
+
+/**
+ * Without CC, and with no C compiler on PATH, a build with C sources says
+ * how to provide one.
+ */
+TEST_F(CliE2ETest, BuildReportsNoCCompilerFound)
+{
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp", MainSource);
+    writeFile("src/helper.c", "int helper(void) { return 0; }\n");
+    std::filesystem::create_directories(_root / "empty");
+
+    auto result = runScrap({ "build" }, { realCompiler(), "PATH=" + (_root / "empty").string() }, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_NE(result.stderrText.find("error: no C compiler found\n"
+                                     "hint: install a C compiler, or set CC to the one to use\n"),
+              std::string::npos)
+        << result.stderrText;
+}
+
+/**
+ * A C standard the C compiler cannot build is reported after a C++ standard
+ * the C++ compiler cannot build, so both are known at once.
+ */
+TEST_F(CliE2ETest, BuildReportsTheCAndCxxStandardsTheCompilersCannotBuild)
+{
+    // The compilers answer as gcc 13, which has no C++26, and gcc 8, which has
+    // no C23.
+    writeFile("scrap.toml", "[package]\nname = \"app\"\nversion = \"0.1.0\"\nstd = \"26\"\nc-std = \"23\"\n");
+    writeFile("src/main.cpp", MainSource);
+    writeFile("src/helper.c", "int helper(void) { return 0; }\n");
+    makeDummy("gcc13-c++",
+              "case \"$*\" in *-dM*) printf '#define __GNUC__ 13\\n#define __GNUC_MINOR__ 3\\n';; esac\n"
+              "exit 0");
+    makeDummy("gcc8-cc",
+              "case \"$*\" in *-dM*) printf '#define __GNUC__ 8\\n#define __GNUC_MINOR__ 5\\n';; esac\n"
+              "exit 0");
+    const std::string compiler = (std::filesystem::canonical(_root) / "bin" / "gcc13-c++").string();
+    const std::string cCompiler = (std::filesystem::canonical(_root) / "bin" / "gcc8-cc").string();
+
+    auto result = runScrap({ "build" }, { "CXX=" + compiler, "CC=" + cCompiler }, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    const std::string cxxReport = "error: '" + compiler + "' does not support C++26\nhint: use a newer compiler, or set std in scrap.toml to an older standard\n";
+    const std::string cReport = "error: '" + cCompiler + "' does not support C23\nhint: use a newer compiler, or set c-std in scrap.toml to an older standard\n";
+    EXPECT_NE(result.stderrText.find(cxxReport + cReport), std::string::npos) << result.stderrText;
+    EXPECT_NE(readFile("build/debug/compile_commands.json").find("\"-std=c23\""), std::string::npos);
+}
+
+/**
+ * An installed toolchain compiles C sources with the C compiler its record
+ * names, never CC, and gives it none of the compile arguments that choose a
+ * C++ library.
+ */
+TEST_F(CliE2ETest, BuildCompilesCSourcesWithTheCCompilerTheToolchainRecords)
+{
+    installWorkingToolchain("gcc", "15.2.0");
+    recordWorkingCCompiler("gcc", "15.2.0", "-DCHOSEN_FOR_CXX");
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/answer.c", "int answer(void) { int new = 0; return new; }\n");
+    writeFile("src/main.cpp", "extern \"C\" int answer(void);\nint main() { return answer(); }\n");
+
+    auto result = runScrap({ "build" }, { "SCRAP_TOOLCHAIN=gcc@15.2.0", "CC=absent-cc" }, _root, BuildTimeout);
+
+    ASSERT_TRUE(result.exitedNormally) << result.stderrText;
+    ASSERT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_EQ(result.stderrText.find("C compiler"), std::string::npos) << result.stderrText;
+    const std::string cCompiler = (_root / "toolchains" / "gcc" / "15.2.0" / hostDirectoryName() / "bin" / "gcc").string();
+    const std::string database = readFile("build/debug/compile_commands.json");
+    EXPECT_NE(database.find("[\"" + cCompiler + "\", \"-std=c17\""), std::string::npos) << database;
+    const auto chosen = database.find("\"-DCHOSEN_FOR_CXX\"");
+    ASSERT_NE(chosen, std::string::npos) << database;
+    EXPECT_EQ(database.find("\"-DCHOSEN_FOR_CXX\"", chosen + 1), std::string::npos) << database;
+}
+
+/**
+ * A toolchain installed by an earlier scrap records no C compiler: it still
+ * builds C++, and a build with C sources asks for it to be installed again.
+ */
+TEST_F(CliE2ETest, BuildAsksToInstallAgainAToolchainThatRecordsNoCCompiler)
+{
+    installWorkingToolchain("gcc", "15.2.0");
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp", MainSource);
+    auto cxx = runScrap({ "build" }, { "SCRAP_TOOLCHAIN=gcc@15.2.0" }, _root, BuildTimeout);
+    ASSERT_EQ(cxx.exitCode, 0) << cxx.stderrText;
+
+    writeFile("src/helper.c", "int helper(void) { return 0; }\n");
+    auto result = runScrap({ "build" }, { "SCRAP_TOOLCHAIN=gcc@15.2.0" }, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    const std::string record = (_root / "toolchains" / "gcc" / "15.2.0" / hostDirectoryName() / ".scrap-toolchain.toml").string();
+    const std::string reason = "'" + record + "' was written by an earlier scrap, which did not record its C compiler";
+    EXPECT_EQ(result.stderrText, "error: cannot use the installed toolchain: " + reason + "\nhint: run 'scrap toolchain install --force gcc@15.2.0'\n");
 }
