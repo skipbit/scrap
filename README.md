@@ -142,6 +142,8 @@ name = "llvm@18"
 
 The `SCRAP_TOOLCHAIN` environment variable comes before both. A toolchain that is named and not installed is an error; scrap does not install it in passing.
 
+A toolchain the index deprecates or no longer provides is warned of, with a version to install instead, when it is installed, selected, listed, shown or built with. One that is installed and no longer provided still builds. Only `install` fetches the index for this; the others read the copy saved when the index was last fetched, and say nothing when there is none for the index in use or it cannot be read.
+
 A program built with an installed toolchain runs with the runtime libraries of that toolchain; with LLVM, that is the libc++ it carries. On Linux, the linker of LLVM 17 to 22 needs `libxml2` on the machine. On macOS, an installed LLVM uses the SDK that `xcrun` names, which the Command Line Tools provide, or the one `SDKROOT` names. An LLVM installed by an earlier version of scrap has to be installed again with `--force`, as a build with it says.
 
 ## 📋 Project Status
@@ -162,7 +164,6 @@ scrap is in early alpha development.
 🚧 **In Progress**
 - Choosing a template with `--template`, and templates from Git repositories
 - `scrap template list` and `scrap template update`
-- `scrap toolchain list --remote`, to list the toolchains the index offers
 - Choosing the number of parallel jobs
 - `[dependencies]` in `scrap.toml`, which is accepted and not yet read
 

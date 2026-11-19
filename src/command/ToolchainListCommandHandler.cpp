@@ -6,6 +6,7 @@
 #include "command/RemoteListing.h"
 #include "command/RemoteListingText.h"
 #include "command/RuntimeEnvironment.h"
+#include "command/SavedStatusWarning.h"
 #include "command/ScrapHome.h"
 #include "command/ToolchainDiagnostic.h"
 #include "command/ToolchainIndexDiagnostic.h"
@@ -42,6 +43,10 @@ int listInstalled(const RuntimeEnvironment& env, const std::filesystem::path& sc
         return 0;
     }
     std::cout << renderToolchainListingTable(listing);
+    const SavedStatusWarning status = SavedStatusWarning::read(env, scrapHome);
+    for (const Toolchain::InstalledName& installed : facts->installed) {
+        std::cerr << status.linesFor(installed.family, installed.version);
+    }
     return 0;
 }
 

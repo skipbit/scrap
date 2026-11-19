@@ -2,6 +2,7 @@
 
 #include "command/FetchFailureHint.h"
 #include "command/PrintableText.h"
+#include "command/StatusWarningText.h"
 #include "fetch/FetchErrorText.h"
 #include "install/IngotInstaller.h"
 #include "install/IngotUnpack.h"
@@ -68,7 +69,7 @@ std::string render(const std::string_view specifier, const Toolchain::NoLongerOf
     if (! fault.alternative.has_value()) {
         return text + "hint: no other version of it can be installed on this host\n";
     }
-    return text + "hint: install another version, such as '" + printableText(fault.family) + "@" + printableText(*fault.alternative) + "'\n";
+    return text + anotherVersionHint(fault.family + "@" + *fault.alternative);
 }
 
 std::string render(const std::string_view specifier, const Toolchain::NeedsNewerGlibc& fault)

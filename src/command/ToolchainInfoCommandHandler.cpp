@@ -4,6 +4,7 @@
 #include "command/InvocationContext.h"
 #include "command/PrintableText.h"
 #include "command/RuntimeEnvironment.h"
+#include "command/SavedStatusWarning.h"
 #include "command/ScrapHome.h"
 #include "command/ToolchainDetails.h"
 #include "command/ToolchainDetailsText.h"
@@ -102,6 +103,7 @@ int tellInstalled(const RuntimeEnvironment& env, const std::filesystem::path& sc
     }
     const InstalledDetails details{ .name = installed.name(), .directory = installed.directory, .record = std::move(*held), .selection = *selection };
     std::cout << renderToolchainDetails(details);
+    std::cerr << SavedStatusWarning::read(env, scrapHome).linesFor(installed.family, installed.version);
     if (const auto hint = renderUnrecordedHint(details); hint.has_value()) {
         std::cerr << *hint;
     }

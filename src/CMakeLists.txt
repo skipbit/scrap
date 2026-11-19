@@ -140,6 +140,7 @@ add_library(scrap_toolchain STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/ProgramSearch.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/RuntimeLibraryName.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/ScrapHomeLayout.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/StatusWarning.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/SystemArchiver.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/SystemCompiler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/ToolchainChoice.cpp
@@ -223,6 +224,8 @@ add_library(scrap_command STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainUninstallText.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainUninstallCommandHandler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/InstallBarrierText.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/StatusWarningText.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/SavedStatusWarning.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/RemoteListing.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/RemoteListingText.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/TextColumns.cpp

@@ -5,6 +5,7 @@
 #include "toolchain/ToolchainSpecifier.h"
 #include "toolchain/ToolchainVersion.h"
 
+#include <cstdint>
 #include <expected>  // IWYU pragma: keep
 #include <optional>
 #include <string>
@@ -113,6 +114,20 @@ struct IndexedLookup {
  *        as install would say it, or nothing when it can be installed.
  */
 [[nodiscard]] std::optional<IngotSelectionFault> barrierTo(const IndexedToolchain& toolchain, const ToolchainIndex& index, const InstallingHost& host);
+
+/**
+ * @brief Which statuses a version suggested instead may have.
+ */
+enum class SuggestedStatus : std::uint8_t {
+    ActiveOrDeprecated,
+    ActiveOnly,
+};
+
+/**
+ * @brief The newest toolchain of @p family that can be installed on @p host
+ *        and has a status @p accepted allows; null when there is none.
+ */
+[[nodiscard]] const IndexedToolchain* newestInstallable(const ToolchainIndex& index, const std::string& family, const InstallingHost& host, SuggestedStatus accepted);
 
 /**
  * @brief Whether the status of a toolchain that @p barrier stops, if any,
