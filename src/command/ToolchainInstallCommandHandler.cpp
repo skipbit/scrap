@@ -135,20 +135,16 @@ std::expected<Toolchain::SelectedIngot, std::string> chooseIngot(const Toolchain
 }
 
 /**
- * Warn of @p installed as @p index has it, when there is an index, and select
- * it when no toolchain is selected.
+ * Say @p warning of @p installed, and select it when no toolchain is selected.
  *
  * @return Whether the selection went without a failure.
  */
 bool settleOn(const std::filesystem::path& scrapHome,
               const std::optional<std::string>& current,
-              const Toolchain::ToolchainIndex* const index,
-              const Toolchain::InstallingHost& host,
+              const std::string& warning,
               const Toolchain::InstalledName& installed)
 {
-    if (index != nullptr) {
-        std::cerr << renderStatusWarningOf(*index, installed.family, installed.version, host);
-    }
+    std::cerr << warning;
     return selectWhenNoneIs(scrapHome, current, installed.text());
 }
 
@@ -247,13 +243,18 @@ int ToolchainInstallCommandHandler::execute(const InvocationContext& ctx)
     const auto bundle = Fetch::findCertificateBundle(ctx.env->certificateFile, Fetch::knownCertificateBundles());
     const Toolchain::InstallingHost host = installingHostOfScrap(*environment);
     const auto index = indexToInstallFrom(*ctx.env, *scrapHome, host, bundle);
-    const Toolchain::ToolchainIndex* const indexOrNull = index.has_value() ? &*index : nullptr;
-    const auto selected = index.has_value() ? chooseIngot(*index, host, text, *specifier)
-                                            : std::expected<Toolchain::SelectedIngot, std::string>{ std::unexpected(index.error()) };
+    const auto selected = index.and_then([&host, &text, &specifier](const Toolchain::ToolchainIndex& known) {
+        return chooseIngot(known, host, text, *specifier);
+    });
+    const auto warningOf = [&index, &host](const Toolchain::InstalledName& installed) {
+        return index.transform([&](const Toolchain::ToolchainIndex& known) {
+            return renderStatusWarningOf(known, installed.family, installed.version, host);
+        }).value_or(std::string{});
+    };
     if (! selected.has_value()) {
         if (! asksToReplace(ctx.options)) {
             if (const auto installed = reportExactlyInstalled(*scrapHome, *environment, *specifier); installed.has_value()) {
-                return settleOn(*scrapHome, *current, indexOrNull, host, *installed) ? 0 : 1;
+                return settleOn(*scrapHome, *current, warningOf(*installed), *installed) ? 0 : 1;
             }
         }
         std::cerr << selected.error();
@@ -264,7 +265,7 @@ int ToolchainInstallCommandHandler::execute(const InvocationContext& ctx)
         return 1;
     }
     const Toolchain::InstalledName installed{ .family = selected->family, .version = selected->version };
-    return settleOn(*scrapHome, *current, indexOrNull, host, installed) ? 0 : 1;
+    return settleOn(*scrapHome, *current, warningOf(installed), installed) ? 0 : 1;
 }
 
 }  // namespace scrap::Command
