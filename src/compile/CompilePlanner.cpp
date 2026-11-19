@@ -99,8 +99,8 @@ struct LanguageCompile {
 };
 
 /**
- * What compiles the sources of one language with @p compiler, which
- * @p driver says how to give @p standard, for @p profile, with @p added.
+ * What compiles the sources of one language with the compiler of
+ * @p language, at its standard and with its arguments, for @p profile.
  */
 template <typename Standard>
 LanguageCompile languageCompile(const LanguageSettings<Standard>& language, const BuildProfile profile)
