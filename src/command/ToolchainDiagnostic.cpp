@@ -145,6 +145,15 @@ std::string renderUnusableInstalled(std::string_view specifier, std::string_view
     return rendered;
 }
 
+std::string renderNoCCompilerRecorded(std::string_view specifier, std::string_view reason)
+{
+    std::string rendered = "error: cannot use the installed toolchain: " + printableText(reason);
+    rendered += "\nhint: run 'scrap toolchain install --force ";
+    rendered += printableText(specifier);
+    rendered += "' if an earlier scrap installed it, or set SCRAP_TOOLCHAIN to system to use the compilers found on the system\n";
+    return rendered;
+}
+
 std::string renderNoToolchainForHost(const ToolchainNamedIn namedIn)
 {
     const std::string_view error = "error: no toolchain is built for this host\n";

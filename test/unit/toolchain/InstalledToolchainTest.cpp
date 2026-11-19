@@ -538,15 +538,15 @@ TEST(InstalledToolchainTest, FindsTheCCompilerTheRecordNames)
     ASSERT_TRUE(found.has_value()) << reasonOf(found.error());
     ASSERT_TRUE(found->has_value());
     const auto compiler = usableCCompiler(**found);
-    ASSERT_TRUE(compiler.has_value()) << compiler.error();
+    ASSERT_TRUE(compiler.has_value()) << compiler.error().reason;
     EXPECT_EQ(*compiler, home.path() / directory / "bin/gcc");
 }
 
 /**
- * A record written by an earlier scrap names no C compiler. The toolchain
- * still builds C++, and cannot build C until it is installed again.
+ * A record that names no C compiler, as one an earlier scrap wrote, is
+ * reported as naming none. The toolchain still builds C++.
  */
-TEST(InstalledToolchainTest, RefusesToBuildCWithARecordOfAnEarlierScrap)
+TEST(InstalledToolchainTest, RefusesToBuildCWithARecordThatNamesNoCCompiler)
 {
     const TempDirectory home;
     install(home, "gcc", "15.2.0");
@@ -557,7 +557,8 @@ TEST(InstalledToolchainTest, RefusesToBuildCWithARecordOfAnEarlierScrap)
     ASSERT_TRUE(found->has_value());
     const auto compiler = usableCCompiler(**found);
     ASSERT_FALSE(compiler.has_value());
-    EXPECT_EQ(compiler.error(), "'" + record.string() + "' was written by an earlier scrap, which did not record its C compiler");
+    EXPECT_FALSE(compiler.error().named);
+    EXPECT_EQ(compiler.error().reason, "'" + record.string() + "' names no C compiler");
 }
 
 /**
@@ -577,6 +578,7 @@ TEST(InstalledToolchainTest, RefusesToBuildCWhenTheRecordedCCompilerIsMissing)
     ASSERT_TRUE(found->has_value());
     const auto compiler = usableCCompiler(**found);
     ASSERT_FALSE(compiler.has_value());
-    EXPECT_EQ(compiler.error(),
+    EXPECT_TRUE(compiler.error().named);
+    EXPECT_EQ(compiler.error().reason,
               "'" + record.string() + "' names the C compiler '" + (home.path() / directory / "bin/gcc").string() + "', which is not there");
 }

@@ -129,6 +129,17 @@ TEST(ToolchainDiagnosticTest, RendersNoCCompilerFound)
 }
 
 /**
+ * A record that names no C compiler is answered with both ways to build C:
+ * installing again, and the compilers of the system.
+ */
+TEST(ToolchainDiagnosticTest, RendersARecordThatNamesNoCCompiler)
+{
+    EXPECT_EQ(renderNoCCompilerRecorded("gcc@15.2.0", "'/home/.scrap/toolchains/gcc/15.2.0/linux-x86_64/.scrap-toolchain.toml' names no C compiler"),
+              "error: cannot use the installed toolchain: '/home/.scrap/toolchains/gcc/15.2.0/linux-x86_64/.scrap-toolchain.toml' names no C compiler\n"
+              "hint: run 'scrap toolchain install --force gcc@15.2.0' if an earlier scrap installed it, or set SCRAP_TOOLCHAIN to system to use the compilers found on the system\n");
+}
+
+/**
  * A C compiler the environment asked for and cannot be run names CC and the
  * value it gave, escaped as a CXX value is.
  */

@@ -150,7 +150,8 @@ std::expected<ChosenCompiler, std::string> installedCompiler(const RuntimeEnviro
     if (cSources == CSources::Present) {
         auto usable = Toolchain::usableCCompiler(*found);
         if (! usable.has_value()) {
-            return std::unexpected(renderUnusableInstalled(found->name(), usable.error()));
+            const Toolchain::UnusableCCompiler& unusable = usable.error();
+            return std::unexpected(unusable.named ? renderUnusableInstalled(found->name(), unusable.reason) : renderNoCCompilerRecorded(found->name(), unusable.reason));
         }
         cCompiler = std::move(*usable);
     }

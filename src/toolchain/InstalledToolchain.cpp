@@ -244,15 +244,15 @@ std::string InstalledToolchain::name() const
     return family + "@" + version.text();
 }
 
-std::expected<std::filesystem::path, std::string> usableCCompiler(const InstalledToolchain& toolchain)
+std::expected<std::filesystem::path, UnusableCCompiler> usableCCompiler(const InstalledToolchain& toolchain)
 {
     const std::filesystem::path recordFile = toolchain.directory / InstallRecordName;
     if (! toolchain.cCompiler.has_value()) {
-        return std::unexpected("'" + recordFile.string() + "' was written by an earlier scrap, which did not record its C compiler");
+        return std::unexpected(UnusableCCompiler{ .named = false, .reason = "'" + recordFile.string() + "' names no C compiler" });
     }
     std::error_code ec;
     if (! std::filesystem::exists(*toolchain.cCompiler, ec)) {
-        return std::unexpected("'" + recordFile.string() + "' names the C compiler '" + toolchain.cCompiler->string() + "', which is not there");
+        return std::unexpected(UnusableCCompiler{ .named = true, .reason = "'" + recordFile.string() + "' names the C compiler '" + toolchain.cCompiler->string() + "', which is not there" });
     }
     return *toolchain.cCompiler;
 }

@@ -5094,7 +5094,8 @@ TEST_F(CliE2ETest, BuildCompilesCSourcesWithTheCCompilerTheToolchainRecords)
 
 /**
  * A toolchain installed by an earlier scrap records no C compiler: it still
- * builds C++, and a build with C sources asks for it to be installed again.
+ * builds C++, and a build with C sources says the record names none, with
+ * how to install it again or use the compilers of the system.
  */
 TEST_F(CliE2ETest, BuildAsksToInstallAgainAToolchainThatRecordsNoCCompiler)
 {
@@ -5110,6 +5111,6 @@ TEST_F(CliE2ETest, BuildAsksToInstallAgainAToolchainThatRecordsNoCCompiler)
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 1);
     const std::string record = (_root / "toolchains" / "gcc" / "15.2.0" / hostDirectoryName() / ".scrap-toolchain.toml").string();
-    const std::string reason = "'" + record + "' was written by an earlier scrap, which did not record its C compiler";
-    EXPECT_EQ(result.stderrText, "error: cannot use the installed toolchain: " + reason + "\nhint: run 'scrap toolchain install --force gcc@15.2.0'\n");
+    const std::string hint = "hint: run 'scrap toolchain install --force gcc@15.2.0' if an earlier scrap installed it, or set SCRAP_TOOLCHAIN to system to use the compilers found on the system\n";
+    EXPECT_EQ(result.stderrText, "error: cannot use the installed toolchain: '" + record + "' names no C compiler\n" + hint);
 }

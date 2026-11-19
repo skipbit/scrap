@@ -50,8 +50,9 @@ struct ChosenCompiler {
  *
  * A build with C sources also needs a C compiler: the one the installed
  * toolchain records, or the one the system provides, reading CC, which is
- * named on a line of its own. A toolchain whose record names none was
- * installed by an earlier scrap and is to be installed again.
+ * named on a line of its own. A toolchain whose record names none is
+ * reported with both ways to build C: installing it again, and the
+ * compilers of the system.
  *
  * @return The compiler, or the error and hint lines to report.
  */

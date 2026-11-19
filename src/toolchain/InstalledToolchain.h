@@ -33,16 +33,24 @@ struct InstalledToolchain {
 };
 
 /**
+ * @brief Why an installed toolchain cannot build C.
+ */
+struct UnusableCCompiler {
+    bool named;          ///< Whether the record names a C compiler, which is then not there.
+    std::string reason;  ///< What is wrong, naming the record.
+};
+
+/**
  * @brief The C compiler of @p toolchain, for a build with C sources.
  *
  * It is looked at only then, so a toolchain whose record names none, or
  * names one that is not there, still builds C++ alone. A record written by
- * an earlier scrap names none, and the toolchain is installed again to
- * build C.
+ * an earlier scrap names none, as does one installed from an index that
+ * names none.
  *
  * @return The C compiler, or why the toolchain cannot build C.
  */
-[[nodiscard]] std::expected<std::filesystem::path, std::string> usableCCompiler(const InstalledToolchain& toolchain);
+[[nodiscard]] std::expected<std::filesystem::path, UnusableCCompiler> usableCCompiler(const InstalledToolchain& toolchain);
 
 /**
  * @brief No toolchain is built for the host scrap runs on.

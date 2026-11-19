@@ -40,6 +40,15 @@ namespace scrap::Command {
 [[nodiscard]] std::string renderUnusableInstalled(std::string_view specifier, std::string_view reason);
 
 /**
+ * @brief Report that the installed toolchain @p specifier names records no C
+ *        compiler, for @p reason, with the two ways to build C.
+ *
+ * An earlier scrap recorded none, and installing again records one. An index
+ * may name none, and the compilers of the system can build C instead.
+ */
+[[nodiscard]] std::string renderNoCCompilerRecorded(std::string_view specifier, std::string_view reason);
+
+/**
  * @brief Where a toolchain was named, so a report says where to name
  *        another.
  */
