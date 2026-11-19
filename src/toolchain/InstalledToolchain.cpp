@@ -127,10 +127,9 @@ std::expected<InstalledToolchain, std::string> readInstalled(const std::string& 
     for (const std::filesystem::path& recorded : record->runtimeLibraryDirectories) {
         runtimeLibraryDirectories.push_back(directory / recorded);
     }
-    std::optional<std::filesystem::path> cCompiler;
-    if (record->cCompiler.has_value()) {
-        cCompiler = directory / *record->cCompiler;
-    }
+    std::optional<std::filesystem::path> cCompiler = record->cCompiler.transform([&directory](const std::filesystem::path& recorded) {
+        return directory / recorded;
+    });
     return InstalledToolchain{ .family = family,
                                .version = version,
                                .directory = directory,
