@@ -47,6 +47,9 @@ std::string anotherVersionHint(const std::string& name)
 
 std::string renderStatusWarning(const Toolchain::StatusWarning& warning)
 {
+    if (warning.status == Toolchain::ToolchainStatus::Active) {
+        return {};
+    }
     std::string rendered = "warning: '" + printableText(warning.name) + "' " + statusPhrase(warning.status) + "\n";
     if (warning.alternative.has_value()) {
         rendered += hintOf(warning.status, *warning.alternative);

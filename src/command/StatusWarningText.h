@@ -17,7 +17,8 @@ namespace scrap::Command {
 
 /**
  * @brief The warning that a toolchain is deprecated or no longer provided,
- *        with what to install instead when there is something.
+ *        with what to install instead when there is something; empty for an
+ *        active one.
  */
 [[nodiscard]] std::string renderStatusWarning(const Toolchain::StatusWarning& warning);
 

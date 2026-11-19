@@ -29,3 +29,8 @@ TEST(StatusWarningTextTest, WarnsInOneLineWhenNothingCanBeInstalledInstead)
     EXPECT_EQ(renderStatusWarning({ .name = "gcc@15.2.0", .status = ToolchainStatus::Deprecated, .alternative = std::nullopt }), "warning: 'gcc@15.2.0' is deprecated\n");
     EXPECT_EQ(renderStatusWarning({ .name = "gcc@15.2.0", .status = ToolchainStatus::Disabled, .alternative = std::nullopt }), "warning: 'gcc@15.2.0' is no longer provided\n");
 }
+
+TEST(StatusWarningTextTest, WarnsOfNothingForAnActiveToolchain)
+{
+    EXPECT_EQ(renderStatusWarning({ .name = "gcc@16.2.0", .status = ToolchainStatus::Active, .alternative = "gcc@16.3.0" }), "");
+}
