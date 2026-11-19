@@ -18,6 +18,7 @@ struct GivenInputs {
     std::string home{};
     std::string path{};
     std::string compiler{};
+    std::string cCompiler{};
     std::string toolchain{};
     std::string toolchainIndex{};
     std::string certificateFile{};
@@ -35,6 +36,7 @@ RuntimeEnvironment environmentOf(const GivenInputs& given)
         .home = given.home,
         .path = given.path,
         .compiler = given.compiler,
+        .cCompiler = given.cCompiler,
         .toolchain = given.toolchain,
         .toolchainIndex = given.toolchainIndex,
         .certificateFile = given.certificateFile,
@@ -165,6 +167,19 @@ TEST(RuntimeEnvironmentFactoryTest, PreferredCompilerCarriesTheCompilerVariable)
 {
     EXPECT_EQ(environmentOf({ .workingDirectory = "/project", .path = "/usr/bin", .compiler = "clang++" }).preferredCompiler, "clang++");
     EXPECT_EQ(environmentOf({ .workingDirectory = "/project", .path = "/usr/bin", .compiler = "/opt/gcc/bin/g++" }).preferredCompiler, "/opt/gcc/bin/g++");
+}
+
+/**
+ * The C compiler the environment asks for is carried apart from the C++ one,
+ * and is empty when CC is unset.
+ */
+TEST(RuntimeEnvironmentFactoryTest, PreferredCCompilerCarriesTheCVariable)
+{
+    const auto env = environmentOf({ .workingDirectory = "/project", .path = "/usr/bin", .compiler = "clang++", .cCompiler = "/opt/gcc/bin/gcc" });
+
+    EXPECT_EQ(env.preferredCCompiler, "/opt/gcc/bin/gcc");
+    EXPECT_EQ(env.preferredCompiler, "clang++");
+    EXPECT_TRUE(environmentOf({ .workingDirectory = "/project", .path = "/usr/bin", .compiler = "clang++" }).preferredCCompiler.empty());
 }
 
 /**

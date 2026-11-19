@@ -12,8 +12,8 @@ namespace scrap::Toolchain {
  * @brief How the compiler in use was arrived at.
  */
 enum class CompilerOrigin : std::uint8_t {
-    CompilerVariable,  ///< Named by the CXX environment variable.
-    DefaultOnPath,     ///< The default C++ compiler, c++, found on PATH.
+    CompilerVariable,  ///< Named by the environment variable of its language, CXX or CC.
+    DefaultOnPath,     ///< The default compiler of its language, c++ or cc, found on PATH.
     KnownName          ///< A compiler known by name, found on PATH.
 };
 
@@ -30,8 +30,8 @@ struct SystemCompiler {
  */
 struct NoCompiler {
     /**
-     * What CXX asked for and could not be used, or empty when it asked for
-     * nothing. A request that cannot be met is a different answer from a
+     * What CXX or CC asked for and could not be used, or empty when it asked
+     * for nothing. A request that cannot be met is a different answer from a
      * system that holds no compiler, and is reported as one.
      */
     std::string requested;
@@ -69,5 +69,18 @@ struct NoCompiler {
  * @return The compiler to use, or why none was settled on.
  */
 [[nodiscard]] std::expected<SystemCompiler, NoCompiler> detectSystemCompiler(const std::string& preferredCompiler, const std::vector<std::filesystem::path>& systemSearchPaths);
+
+/**
+ * @brief Find the C compiler the system provides, as detectSystemCompiler()
+ *        finds the C++ one.
+ *
+ * What CC names is used when it can be run, and reported when it cannot.
+ * Otherwise the default C compiler cc answers, then gcc and clang.
+ *
+ * @param preferredCompiler What CC asks for, or empty when it says nothing.
+ * @param systemSearchPaths Directories PATH lists, in order.
+ * @return The compiler to use, or why none was settled on.
+ */
+[[nodiscard]] std::expected<SystemCompiler, NoCompiler> detectSystemCCompiler(const std::string& preferredCompiler, const std::vector<std::filesystem::path>& systemSearchPaths);
 
 }  // namespace scrap::Toolchain

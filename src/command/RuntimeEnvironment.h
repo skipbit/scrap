@@ -34,6 +34,12 @@ struct RuntimeEnvironment {
     std::string preferredCompiler;
 
     /**
+     * The C compiler the environment asks for, from CC, or empty when it says
+     * nothing.
+     */
+    std::string preferredCCompiler;
+
+    /**
      * The toolchain the environment chooses, system or a specifier as
      * written in SCRAP_TOOLCHAIN, or empty when it chooses none.
      */

@@ -18,6 +18,7 @@ struct ProcessInputs {
     std::string home;             ///< HOME
     std::string path;             ///< PATH, colon-separated.
     std::string compiler;         ///< CXX
+    std::string cCompiler;        ///< CC
     std::string toolchain;        ///< SCRAP_TOOLCHAIN
     std::string toolchainIndex;   ///< SCRAP_TOOLCHAIN_INDEX
     std::string certificateFile;  ///< SSL_CERT_FILE
@@ -39,8 +40,8 @@ struct ProcessInputs {
  * directory in each directory a command is run from.
  *
  * Empty PATH segments (from leading, trailing, or doubled colons) are
- * skipped. CXX is carried as preferredCompiler, and SCRAP_TOOLCHAIN as
- * requestedToolchain.
+ * skipped. CXX is carried as preferredCompiler, CC as preferredCCompiler,
+ * and SCRAP_TOOLCHAIN as requestedToolchain.
  */
 [[nodiscard]] RuntimeEnvironment makeRuntimeEnvironment(const ProcessInputs& inputs);
 

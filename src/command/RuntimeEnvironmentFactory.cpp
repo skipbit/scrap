@@ -58,6 +58,7 @@ RuntimeEnvironment makeRuntimeEnvironment(const ProcessInputs& inputs)
     RuntimeEnvironment env;
     env.workingDirectory = inputs.workingDirectory;
     env.preferredCompiler = inputs.compiler;
+    env.preferredCCompiler = inputs.cCompiler;
     env.requestedToolchain = inputs.toolchain;
     env.toolchainIndexUrl = inputs.toolchainIndex;
     env.certificateFile = inputs.certificateFile;
