@@ -108,10 +108,10 @@ std::expected<std::vector<Compile::ArchiveCommand>, int> planArchives(const Runt
     if (std::ranges::none_of(targets, isLibrary)) {
         return std::vector<Compile::ArchiveCommand>{};
     }
-    const auto archiver = Toolchain::findArchiver(settings.compiler, env.systemSearchPaths);
+    const auto archiver = Toolchain::findArchiver(settings.cxx.compiler, env.systemSearchPaths);
     if (! archiver.has_value()) {
         const auto& named = archiver.error().named;
-        std::cerr << (named.has_value() ? renderArchiverNotFound(*named, settings.compiler) : renderArchiverNotNamed(settings.compiler));
+        std::cerr << (named.has_value() ? renderArchiverNotFound(*named, settings.cxx.compiler) : renderArchiverNotNamed(settings.cxx.compiler));
         return std::unexpected(1);
     }
     return Compile::planArchiveCommands(settings, *archiver, targets);
@@ -163,12 +163,11 @@ std::expected<std::vector<std::string>, int> sdkArgumentsFor(const RuntimeEnviro
 }
 
 /**
- * @p arguments with @p sdk added to both its lists.
+ * @p arguments with @p sdk added.
  */
-Toolchain::ToolchainArguments withSdk(Toolchain::ToolchainArguments arguments, const std::vector<std::string>& sdk)
+std::vector<std::string> withSdk(std::vector<std::string> arguments, const std::vector<std::string>& sdk)
 {
-    arguments.compile.insert(arguments.compile.end(), sdk.begin(), sdk.end());
-    arguments.link.insert(arguments.link.end(), sdk.begin(), sdk.end());
+    arguments.insert(arguments.end(), sdk.begin(), sdk.end());
     return arguments;
 }
 
@@ -211,14 +210,29 @@ std::expected<Compile::BuildSettings, int> settingsFor(const RuntimeEnvironment&
     return Compile::BuildSettings{
         .projectRoot = project.root,
         .buildDirectory = buildDirectory,
-        .compiler = compiler->compiler,
-        .driver = Compile::CompilerDriver{ Toolchain::identifyCompiler(compiler->compiler) },
-        .standard = project.manifest.package.standard,
+        .cxx = Compile::CxxCompileSettings{ .compiler = compiler->compiler,
+                                            .driver = Compile::CompilerDriver{ Toolchain::identifyCompiler(compiler->compiler) },
+                                            .standard = project.manifest.package.standard,
+                                            .arguments = withSdk(compiler->arguments.compile, *sdk) },
         .profile = profile,
         .runtimeLibraryDirectories = compiler->runtimeLibraryDirectories,
-        .arguments = withSdk(compiler->arguments, *sdk),
+        .linkArguments = withSdk(compiler->arguments.link, *sdk),
         .c = std::move(cSettings)
     };
+}
+
+/**
+ * Whether the compiler of @p language can build the standard it states. One
+ * that cannot is reported.
+ */
+template <typename Standard>
+bool supportsTheStandard(const Compile::LanguageSettings<Standard>& language)
+{
+    if (language.driver.standardOption(language.standard).has_value()) {
+        return true;
+    }
+    std::cerr << renderUnsupportedStandard(language.compiler, language.standard);
+    return false;
 }
 
 /**
@@ -228,16 +242,9 @@ std::expected<Compile::BuildSettings, int> settingsFor(const RuntimeEnvironment&
  */
 bool supportsTheStandards(const Compile::BuildSettings& settings)
 {
-    bool supported = true;
-    if (! settings.driver.standardOption(settings.standard).has_value()) {
-        std::cerr << renderUnsupportedStandard(settings.compiler, settings.standard);
-        supported = false;
-    }
-    if (settings.c.has_value() && (! settings.c->driver.standardOption(settings.c->standard).has_value())) {
-        std::cerr << renderUnsupportedStandard(settings.c->compiler, settings.c->standard);
-        supported = false;
-    }
-    return supported;
+    const bool cxxSupported = supportsTheStandard(settings.cxx);
+    const bool cSupported = ! settings.c.has_value() || supportsTheStandard(*settings.c);
+    return cxxSupported && cSupported;
 }
 
 /**

@@ -39,12 +39,10 @@ BuildSettings settingsFor(const CompilerIdentity& identity,
 {
     return BuildSettings{ .projectRoot = ProjectRoot,
                           .buildDirectory = buildDirectory,
-                          .compiler = Compiler,
-                          .driver = CompilerDriver{ identity },
-                          .standard = standard,
+                          .cxx = CxxCompileSettings{ .compiler = Compiler, .driver = CompilerDriver{ identity }, .standard = standard, .arguments = {} },
                           .profile = profile,
                           .runtimeLibraryDirectories = {},
-                          .arguments = { .compile = {}, .link = {} } };
+                          .linkArguments = {} };
 }
 
 TargetSources targetWithSources(TargetKind kind, const char* name, const char* entryPoint, std::vector<std::filesystem::path> sources)
@@ -134,7 +132,7 @@ TEST(CompilePlannerTest, CompilesASourceFromTheProjectRoot)
 TEST(CompilePlannerTest, CompilesWithTheArgumentsTheToolchainNeeds)
 {
     BuildSettings settings = settingsFor(Gcc13);
-    settings.arguments.compile = { "-stdlib=libc++", "-isysroot", "/sdk" };
+    settings.cxx.arguments = { "-stdlib=libc++", "-isysroot", "/sdk" };
 
     const auto commands = planCompileCommands(settings, { executableWithSources("hello", "src/main.cpp", { "src/main.cpp" }) });
 
@@ -170,7 +168,7 @@ TEST(CompilePlannerTest, CompilesWithTheArgumentsTheToolchainNeeds)
 TEST(CompilePlannerTest, CompilesACSourceWithTheCCompiler)
 {
     BuildSettings settings = settingsFor(Gcc13);
-    settings.arguments.compile = { "-stdlib=libc++", "-isysroot", "/sdk" };
+    settings.cxx.arguments = { "-stdlib=libc++", "-isysroot", "/sdk" };
     settings.c = CCompileSettings{ .compiler = "/usr/bin/cc", .driver = CompilerDriver{ Gcc13 }, .standard = CStandard::C11, .arguments = { "-isysroot", "/sdk" } };
 
     const auto commands = planCompileCommands(settings, { executableWithSources("hello", "src/main.cpp", { "src/helper.c", "src/main.cpp" }) });
@@ -208,7 +206,7 @@ TEST(CompilePlannerTest, CompilesACSourceWithTheCCompiler)
 TEST(CompilePlannerTest, CompilesACSourceAsCxxWithoutCSettings)
 {
     BuildSettings settings = settingsFor(Gcc13);
-    settings.arguments.compile = { "-stdlib=libc++" };
+    settings.cxx.arguments = { "-stdlib=libc++" };
 
     const auto commands = planCompileCommands(settings, { executableWithSources("hello", "src/main.cpp", { "src/helper.c" }) });
 
@@ -511,7 +509,7 @@ TEST(CompilePlannerTest, LinksWithTheArgumentsTheToolchainNeeds)
 {
     BuildSettings settings = settingsFor(CompilerIdentity{});
     settings.runtimeLibraryDirectories = { "/home/me/.scrap/llvm/lib" };
-    settings.arguments.link = { "-stdlib=libc++", "-fuse-ld=lld" };
+    settings.linkArguments = { "-stdlib=libc++", "-fuse-ld=lld" };
 
     const auto commands = planLinkCommands(settings,
                                            { executableWithSources("hello", "src/main.cpp", { "src/main.cpp" }),

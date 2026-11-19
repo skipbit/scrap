@@ -7,7 +7,6 @@
 #include "compile/LinkCommand.h"
 #include "project/LanguageStandard.h"
 #include "project/SourceCollector.h"
-#include "toolchain/ToolchainArguments.h"
 
 #include <filesystem>
 #include <optional>
@@ -18,14 +17,18 @@
 namespace scrap::Compile {
 
 /**
- * @brief What compiles the C sources of one build.
+ * @brief What compiles the sources of one language of a build.
  */
-struct CCompileSettings {
-    std::filesystem::path compiler;      ///< The C compiler to run, absolute.
+template <typename Standard>
+struct LanguageSettings {
+    std::filesystem::path compiler;      ///< The compiler to run, absolute.
     CompilerDriver driver;               ///< How that compiler takes its options.
-    Project::CStandard standard;         ///< The C standard the manifest states.
-    std::vector<std::string> arguments;  ///< What every C compile is given, such as the macOS SDK.
+    Standard standard;                   ///< The standard the manifest states for the language.
+    std::vector<std::string> arguments;  ///< What every compile of the language is given, such as the macOS SDK.
 };
+
+using CxxCompileSettings = LanguageSettings<Project::LanguageStandard>;
+using CCompileSettings = LanguageSettings<Project::CStandard>;
 
 /**
  * @brief What every command of one build shares.
@@ -33,12 +36,10 @@ struct CCompileSettings {
 struct BuildSettings {
     std::filesystem::path projectRoot;                             ///< Where the commands run: the project root, absolute.
     std::filesystem::path buildDirectory;                          ///< Where they write, relative to the project root.
-    std::filesystem::path compiler;                                ///< The compiler to run, absolute.
-    CompilerDriver driver;                                         ///< How that compiler takes its options.
-    Project::LanguageStandard standard;                            ///< The standard the manifest states.
+    CxxCompileSettings cxx;                                        ///< What compiles the C++ sources, and links and archives.
     BuildProfile profile;                                          ///< What the compiler is asked to build for.
     std::vector<std::filesystem::path> runtimeLibraryDirectories;  ///< Where executables are linked with and find the compiler's runtime libraries, absolute.
-    Toolchain::ToolchainArguments arguments;                       ///< What the toolchain needs on every compile and link command.
+    std::vector<std::string> linkArguments;                        ///< What the toolchain needs on every link command.
     std::optional<CCompileSettings> c = std::nullopt;              ///< What compiles the C sources, when the build has any.
 };
 

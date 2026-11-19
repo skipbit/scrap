@@ -103,19 +103,16 @@ struct LanguageCompile {
  * @p driver says how to give @p standard, for @p profile, with @p added.
  */
 template <typename Standard>
-LanguageCompile languageCompile(const std::filesystem::path& compiler,
-                                const CompilerDriver& driver,
-                                const Standard standard,
-                                const BuildProfile profile,
-                                const std::vector<std::string>& added)
+LanguageCompile languageCompile(const LanguageSettings<Standard>& language, const BuildProfile profile)
 {
-    std::vector<std::string> arguments{ compiler.string(), driver.standardOption(standard).value_or(standardNameOption(standard)) };
+    const CompilerDriver& driver = language.driver;
+    std::vector<std::string> arguments{ language.compiler.string(), driver.standardOption(language.standard).value_or(standardNameOption(language.standard)) };
     const std::span<const std::string_view> options = profileOptions(profile);
     arguments.insert(arguments.end(), options.begin(), options.end());
     if (const auto color = driver.colorOption(); color.has_value()) {
         arguments.push_back(*color);
     }
-    arguments.insert(arguments.end(), added.begin(), added.end());
+    arguments.insert(arguments.end(), language.arguments.begin(), language.arguments.end());
     return LanguageCompile{ .shared = std::move(arguments), .driver = driver };
 }
 
@@ -218,10 +215,10 @@ std::vector<std::string> objectFiles(const BuildSettings& settings, const Projec
 
 std::vector<CompileCommand> planCompileCommands(const BuildSettings& settings, const std::vector<Project::TargetSources>& targets)
 {
-    const LanguageCompile cxx = languageCompile(settings.compiler, settings.driver, settings.standard, settings.profile, settings.arguments.compile);
+    const LanguageCompile cxx = languageCompile(settings.cxx, settings.profile);
     const LanguageCompile c = settings.c
                                   .transform([&settings](const CCompileSettings& given) {
-        return languageCompile(given.compiler, given.driver, given.standard, settings.profile, given.arguments);
+        return languageCompile(given, settings.profile);
     })
                                   .value_or(cxx);
 
@@ -294,14 +291,14 @@ std::vector<LinkCommand> planLinkCommands(const BuildSettings& settings, const s
         }
         const std::filesystem::path output = executableFile(settings.buildDirectory, entry.target.name);
 
-        std::vector<std::string> arguments{ settings.compiler.string() };
-        if (const auto color = settings.driver.colorOption(); color.has_value()) {
+        std::vector<std::string> arguments{ settings.cxx.compiler.string() };
+        if (const auto color = settings.cxx.driver.colorOption(); color.has_value()) {
             arguments.push_back(*color);
         }
         for (const std::filesystem::path& directory : settings.runtimeLibraryDirectories) {
             arguments.insert(arguments.end(), { "-L", directory.string(), "-Xlinker", "-rpath", "-Xlinker", directory.string() });
         }
-        arguments.insert(arguments.end(), settings.arguments.link.begin(), settings.arguments.link.end());
+        arguments.insert(arguments.end(), settings.linkArguments.begin(), settings.linkArguments.end());
         std::vector<std::filesystem::path> inputs;
         for (const std::string& object : objectFiles(settings, entry)) {
             inputs.emplace_back(object);
