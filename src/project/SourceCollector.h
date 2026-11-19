@@ -2,7 +2,9 @@
 
 #include "project/Manifest.h"
 
+#include <algorithm>
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <expected>  // IWYU pragma: keep
 #include <filesystem>
@@ -13,11 +15,27 @@
 
 namespace scrap::Project {
 
-/// Extensions a source file is recognised by: those of C++, then that of C.
-inline constexpr std::array<std::string_view, 4> SourceExtensions{ ".cpp", ".cc", ".cxx", ".c" };
+/// Extensions of C++ sources.
+inline constexpr std::array<std::string_view, 3> CxxSourceExtensions{ ".cpp", ".cc", ".cxx" };
 
-/// The extension a C source is recognised by.
-inline constexpr std::string_view CSourceExtension = ".c";
+/// Extensions of C sources.
+inline constexpr std::array<std::string_view, 1> CSourceExtensions{ ".c" };
+
+namespace Detail {
+
+template <std::size_t A, std::size_t B>
+constexpr std::array<std::string_view, A + B> concatenated(const std::array<std::string_view, A>& first, const std::array<std::string_view, B>& second)
+{
+    std::array<std::string_view, A + B> joined{};
+    std::ranges::copy(first, joined.begin());
+    std::ranges::copy(second, joined.begin() + A);
+    return joined;
+}
+
+}  // namespace Detail
+
+/// Extensions a source file is recognised by: those of C++, then those of C.
+inline constexpr std::array<std::string_view, 4> SourceExtensions = Detail::concatenated(CxxSourceExtensions, CSourceExtensions);
 
 /**
  * @brief The language a source is compiled as.
