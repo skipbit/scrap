@@ -127,10 +127,15 @@ std::expected<InstalledToolchain, std::string> readInstalled(const std::string& 
     for (const std::filesystem::path& recorded : record->runtimeLibraryDirectories) {
         runtimeLibraryDirectories.push_back(directory / recorded);
     }
+    std::optional<std::filesystem::path> cCompiler;
+    if (record->cCompiler.has_value()) {
+        cCompiler = directory / *record->cCompiler;
+    }
     return InstalledToolchain{ .family = family,
                                .version = version,
                                .directory = directory,
                                .compiler = directory / record->compiler,
+                               .cCompiler = std::move(cCompiler),
                                .runtimeLibraryDirectories = std::move(runtimeLibraryDirectories),
                                .arguments = record->arguments };
 }
@@ -238,6 +243,19 @@ std::expected<std::optional<InstallRecord>, std::string> usableInstallRecord(con
 std::string InstalledToolchain::name() const
 {
     return family + "@" + version.text();
+}
+
+std::expected<std::filesystem::path, std::string> usableCCompiler(const InstalledToolchain& toolchain)
+{
+    const std::filesystem::path recordFile = toolchain.directory / InstallRecordName;
+    if (! toolchain.cCompiler.has_value()) {
+        return std::unexpected("'" + recordFile.string() + "' was written by an earlier scrap, which did not record its C compiler");
+    }
+    std::error_code ec;
+    if (! std::filesystem::exists(*toolchain.cCompiler, ec)) {
+        return std::unexpected("'" + recordFile.string() + "' names the C compiler '" + toolchain.cCompiler->string() + "', which is not there");
+    }
+    return *toolchain.cCompiler;
 }
 
 std::expected<std::optional<InstalledToolchain>, InstalledToolchainFault> findInstalledToolchain(const std::filesystem::path& scrapHome,

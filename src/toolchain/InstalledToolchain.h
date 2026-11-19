@@ -24,12 +24,25 @@ struct InstalledToolchain {
     ToolchainVersion version;
     std::filesystem::path directory;                               ///< <SCRAP_HOME>/toolchains/<family>/<version>/<platform>-<arch>
     std::filesystem::path compiler;                                ///< The C++ compiler inside the directory.
+    std::optional<std::filesystem::path> cCompiler;                ///< The C compiler inside the directory, when the record names one.
     std::vector<std::filesystem::path> runtimeLibraryDirectories;  ///< Where its runtime libraries are inside the directory.
     ToolchainArguments arguments;                                  ///< What its compiler is given to compile and link with it.
 
     /** The name that selects it, as <family>@<version>. */
     [[nodiscard]] std::string name() const;
 };
+
+/**
+ * @brief The C compiler of @p toolchain, for a build with C sources.
+ *
+ * It is looked at only then, so a toolchain whose record names none, or
+ * names one that is not there, still builds C++ alone. A record written by
+ * an earlier scrap names none, and the toolchain is installed again to
+ * build C.
+ *
+ * @return The C compiler, or why the toolchain cannot build C.
+ */
+[[nodiscard]] std::expected<std::filesystem::path, std::string> usableCCompiler(const InstalledToolchain& toolchain);
 
 /**
  * @brief No toolchain is built for the host scrap runs on.
