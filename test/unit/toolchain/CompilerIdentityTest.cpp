@@ -137,6 +137,24 @@ TEST(CompilerIdentityTest, AsksTheCompilerForItsMacros)
 }
 
 /**
+ * A C compiler is asked as it compiles C, so one without a C++ front end
+ * still answers.
+ */
+TEST(CompilerIdentityTest, AsksTheCCompilerForItsMacrosAsItCompilesC)
+{
+    const TempDirectory temp;
+    const auto compiler = createCompiler(temp,
+                                         "[ \"$*\" = \"-dM -E -x c /dev/null\" ] || exit 1\n"
+                                         "printf '#define __clang__ 1\\n#define __clang_major__ 22\\n#define __clang_minor__ 1\\n'");
+
+    const auto identity = identifyCCompiler(compiler);
+
+    EXPECT_EQ(identity.family, CompilerFamily::Clang);
+    EXPECT_EQ(identity.version.major, 22);
+    EXPECT_EQ(identity.version.minor, 1);
+}
+
+/**
  * A compiler that fails to answer is unknown rather than an error.
  */
 TEST(CompilerIdentityTest, LeavesACompilerThatFailsUnknown)

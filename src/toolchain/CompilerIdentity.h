@@ -58,4 +58,13 @@ struct CompilerIdentity {
  */
 [[nodiscard]] CompilerIdentity identifyCompiler(const std::filesystem::path& compiler);
 
+/**
+ * @brief Ask the C compiler @p compiler which compiler it is, as
+ *        identifyCompiler() asks a C++ one.
+ *
+ * It is asked as it compiles C, which a C compiler without a C++ front end
+ * still answers.
+ */
+[[nodiscard]] CompilerIdentity identifyCCompiler(const std::filesystem::path& compiler);
+
 }  // namespace scrap::Toolchain
