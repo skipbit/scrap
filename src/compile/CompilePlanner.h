@@ -78,8 +78,7 @@ struct BuildSettings {
  * the object file come last. Each command also holds the directories it
  * names for headers: include/, then those of the settings, in their order.
  *
- * @param settings What the commands of the build share. It holds a C
- *        compiler whenever a source is C.
+ * @param settings What the commands of the build share.
  * @param targets Each target with its sources, as collectSources() returned them.
  * @return One command per source of each target, targets in the order given.
  */
