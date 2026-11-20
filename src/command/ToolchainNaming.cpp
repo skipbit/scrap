@@ -61,11 +61,13 @@ std::string_view describeSource(const ChoiceSource source)
     std::unreachable();
 }
 
-std::string_view describeOrigin(const Toolchain::CompilerOrigin origin)
+namespace {
+
+std::string_view describeOriginWith(const Toolchain::CompilerOrigin origin, const std::string_view fromVariable)
 {
     switch (origin) {
     case Toolchain::CompilerOrigin::CompilerVariable:
-        return "from CXX";
+        return fromVariable;
     case Toolchain::CompilerOrigin::DefaultOnPath:
         return "found on PATH";
     case Toolchain::CompilerOrigin::KnownName:
@@ -74,6 +76,18 @@ std::string_view describeOrigin(const Toolchain::CompilerOrigin origin)
     // Every origin is answered above, so an origin added without a word here
     // fails the build rather than being described as one of the others.
     std::unreachable();
+}
+
+}  // anonymous namespace
+
+std::string_view describeOrigin(const Toolchain::CompilerOrigin origin)
+{
+    return describeOriginWith(origin, "from CXX");
+}
+
+std::string_view describeCOrigin(const Toolchain::CompilerOrigin origin)
+{
+    return describeOriginWith(origin, "from CC");
 }
 
 std::expected<std::optional<NamedToolchain>, std::string> namedAboveGlobalDefault(const RuntimeEnvironment& env, const std::optional<std::string>& projectToolchain)

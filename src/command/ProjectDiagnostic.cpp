@@ -580,6 +580,18 @@ std::string renderUnsupportedStandard(const std::filesystem::path& compiler, con
     return text;
 }
 
+std::string renderUnsupportedStandard(const std::filesystem::path& compiler, const Project::CStandard standard)
+{
+    std::string text = "error: '";
+    text += printablePath(compiler);
+    text += "' does not support C";
+    text += Project::standardNumber(standard);
+    text += "\nhint: use a newer compiler, or set c-std in ";
+    text += Project::ManifestFileName;
+    text += " to an older standard\n";
+    return text;
+}
+
 std::string renderSeveralLibraries()
 {
     return "error: only one [[lib]] is supported per project\n"

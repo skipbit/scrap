@@ -57,6 +57,7 @@ int main(int argc, char* argv[])
             .home = environmentVariable("HOME"),
             .path = environmentVariable("PATH"),
             .compiler = environmentVariable("CXX"),
+            .cCompiler = environmentVariable("CC"),
             .toolchain = environmentVariable("SCRAP_TOOLCHAIN"),
             .toolchainIndex = environmentVariable("SCRAP_TOOLCHAIN_INDEX"),
             .certificateFile = environmentVariable("SSL_CERT_FILE"),

@@ -102,7 +102,7 @@ TEST(CompilerIdentityTest, MatchesAMacroByItsWholeName)
 }
 
 /**
- * Versions compare by major number first, then by minor.
+ * Versions compare by major number first, then by minor, then by patch.
  */
 TEST(CompilerIdentityTest, ComparesVersions)
 {
@@ -113,6 +113,10 @@ TEST(CompilerIdentityTest, ComparesVersions)
     EXPECT_TRUE(isAtLeast(version, 10, 9));
     EXPECT_FALSE(isAtLeast(version, 11, 2));
     EXPECT_FALSE(isAtLeast(version, 12));
+    EXPECT_FALSE(isAtLeast(version, 11, 1, 1));
+    EXPECT_TRUE(isAtLeast(CompilerVersion{ .major = 11, .minor = 0, .patch = 3 }, 11, 0, 3));
+    EXPECT_FALSE(isAtLeast(CompilerVersion{ .major = 11, .minor = 0, .patch = 2 }, 11, 0, 3));
+    EXPECT_TRUE(isAtLeast(CompilerVersion{ .major = 11, .minor = 1, .patch = 0 }, 11, 0, 3));
 }
 
 /**
@@ -130,6 +134,24 @@ TEST(CompilerIdentityTest, AsksTheCompilerForItsMacros)
     EXPECT_EQ(identity.family, CompilerFamily::Gcc);
     EXPECT_EQ(identity.version.major, 14);
     EXPECT_EQ(identity.version.minor, 2);
+}
+
+/**
+ * A C compiler is asked as it compiles C, so one without a C++ front end
+ * still answers.
+ */
+TEST(CompilerIdentityTest, AsksTheCCompilerForItsMacrosAsItCompilesC)
+{
+    const TempDirectory temp;
+    const auto compiler = createCompiler(temp,
+                                         "[ \"$*\" = \"-dM -E -x c /dev/null\" ] || exit 1\n"
+                                         "printf '#define __clang__ 1\\n#define __clang_major__ 22\\n#define __clang_minor__ 1\\n'");
+
+    const auto identity = identifyCCompiler(compiler);
+
+    EXPECT_EQ(identity.family, CompilerFamily::Clang);
+    EXPECT_EQ(identity.version.major, 22);
+    EXPECT_EQ(identity.version.minor, 1);
 }
 
 /**

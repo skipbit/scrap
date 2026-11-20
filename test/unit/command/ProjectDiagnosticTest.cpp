@@ -44,6 +44,7 @@ using scrap::Command::renderStepFailures;
 using scrap::Command::renderUnsupportedStandard;
 using scrap::Compile::DatabaseWriteFailure;
 using scrap::Compile::DatabaseWriteStep;
+using scrap::Project::CStandard;
 using scrap::Project::LanguageStandard;
 using scrap::Project::LeftOutEntry;
 using scrap::Project::LeftOutReason;
@@ -167,7 +168,7 @@ TEST(ProjectDiagnosticTest, RendersASourceExtensionSpelledInAnotherCaseLeftOut)
 {
     const LeftOutEntry entry{ .path = "src/Helper.Cpp", .reason = LeftOutReason::ExtensionSpelling };
 
-    EXPECT_EQ(renderLeftOut(entry), "warning: leaving out 'src/Helper.Cpp', whose extension is not .cpp, .cc or .cxx in lower case\n");
+    EXPECT_EQ(renderLeftOut(entry), "warning: leaving out 'src/Helper.Cpp', whose extension is not .cpp, .cc, .cxx or .c in lower case\n");
 }
 
 /**
@@ -947,6 +948,17 @@ TEST(ProjectDiagnosticTest, RendersAStandardTheCompilerCannotBuild)
     EXPECT_EQ(renderUnsupportedStandard("/usr/bin/g++", LanguageStandard::Cxx26),
               "error: '/usr/bin/g++' does not support C++26\n"
               "hint: use a newer compiler, or set std in scrap.toml to an older standard\n");
+}
+
+/**
+ * A C standard the C compiler cannot build names that compiler and points at
+ * c-std, not std.
+ */
+TEST(ProjectDiagnosticTest, RendersACStandardTheCCompilerCannotBuild)
+{
+    EXPECT_EQ(renderUnsupportedStandard("/usr/bin/gcc", CStandard::C23),
+              "error: '/usr/bin/gcc' does not support C23\n"
+              "hint: use a newer compiler, or set c-std in scrap.toml to an older standard\n");
 }
 
 TEST(ProjectDiagnosticTest, RendersAnSdkThatCannotBeFound)

@@ -66,14 +66,30 @@ CompilerVersion versionFrom(std::string_view macros, std::string_view major, std
     return CompilerVersion{ .major = macroNumber(macros, major), .minor = macroNumber(macros, minor), .patch = macroNumber(macros, patch) };
 }
 
+/**
+ * Ask @p compiler which compiler it is, as it compiles @p language.
+ */
+CompilerIdentity identifyAs(const std::filesystem::path& compiler, const std::string& language)
+{
+    const std::vector<std::string> arguments{ compiler.string(), "-dM", "-E", "-x", language, "/dev/null" };
+    const auto completion = Process::runProgram(arguments, { .workingDirectory = {}, .capture = Process::OutputCapture::StandardOutput, .group = Process::ProcessGroup::Caller, .timeout = std::nullopt, .outputLimit = std::nullopt });
+    if ((! completion.has_value()) || (completion->exitCode != 0)) {
+        return CompilerIdentity{};
+    }
+    return readCompilerIdentity(completion->output);
+}
+
 }  // anonymous namespace
 
-bool isAtLeast(const CompilerVersion& version, const int major, const int minor)
+bool isAtLeast(const CompilerVersion& version, const int major, const int minor, const int patch)
 {
     if (version.major != major) {
         return (version.major > major);
     }
-    return (version.minor >= minor);
+    if (version.minor != minor) {
+        return (version.minor > minor);
+    }
+    return (version.patch >= patch);
 }
 
 CompilerIdentity readCompilerIdentity(std::string_view predefinedMacros)
@@ -95,12 +111,12 @@ CompilerIdentity readCompilerIdentity(std::string_view predefinedMacros)
 
 CompilerIdentity identifyCompiler(const std::filesystem::path& compiler)
 {
-    const std::vector<std::string> arguments{ compiler.string(), "-dM", "-E", "-x", "c++", "/dev/null" };
-    const auto completion = Process::runProgram(arguments, { .workingDirectory = {}, .capture = Process::OutputCapture::StandardOutput, .group = Process::ProcessGroup::Caller, .timeout = std::nullopt, .outputLimit = std::nullopt });
-    if ((! completion.has_value()) || (completion->exitCode != 0)) {
-        return CompilerIdentity{};
-    }
-    return readCompilerIdentity(completion->output);
+    return identifyAs(compiler, "c++");
+}
+
+CompilerIdentity identifyCCompiler(const std::filesystem::path& compiler)
+{
+    return identifyAs(compiler, "c");
 }
 
 }  // namespace scrap::Toolchain

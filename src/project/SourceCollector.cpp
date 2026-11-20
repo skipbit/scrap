@@ -195,6 +195,11 @@ std::optional<std::filesystem::path> sameFileAmong(const std::filesystem::path& 
 
 }  // anonymous namespace
 
+SourceLanguage languageOf(const std::filesystem::path& source)
+{
+    return std::ranges::contains(CSourceExtensions, source.extension().string()) ? SourceLanguage::C : SourceLanguage::Cxx;
+}
+
 std::expected<CollectedSources, SourceCollectionError> collectSources(const std::filesystem::path& projectRoot, const std::vector<Target>& targets)
 {
     auto scanned = scanSourceDirectory(projectRoot);

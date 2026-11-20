@@ -96,6 +96,45 @@ TEST(SourceCollectorTest, LeavesOutASourceExtensionSpelledInAnotherCase)
 }
 
 /**
+ * A .c file is a source, and is told apart from the C++ ones by its
+ * extension alone.
+ */
+TEST(SourceCollectorTest, RecognisesACSource)
+{
+    const TempDirectory temp;
+    temp.writeFile("src/main.cpp", SourceText);
+    temp.writeFile("src/helper.c", "int helper(void) { return 0; }\n");
+
+    const auto collected = collectSources(temp.path(), { executableNamed("app", "src/main.cpp") });
+
+    ASSERT_TRUE(collected.has_value());
+    ASSERT_EQ(collected->targets.size(), 1);
+    EXPECT_EQ(collected->targets[0].sources, (std::vector<std::filesystem::path>{ "src/helper.c", "src/main.cpp" }));
+    EXPECT_EQ(languageOf("src/helper.c"), SourceLanguage::C);
+    EXPECT_EQ(languageOf("src/main.cpp"), SourceLanguage::Cxx);
+    EXPECT_EQ(languageOf("src/Main.CPP"), SourceLanguage::Cxx);
+    EXPECT_EQ(languageOf("src/main.C"), SourceLanguage::Cxx);
+}
+
+/**
+ * An upper-case .C is the C extension spelled in another case, and is left
+ * out as the C++ ones spelled so are.
+ */
+TEST(SourceCollectorTest, LeavesOutAnUpperCaseC)
+{
+    const TempDirectory temp;
+    temp.writeFile("src/main.cpp", SourceText);
+    temp.writeFile("src/legacy.C", SourceText);
+
+    const auto collected = collectSources(temp.path(), { executableNamed("app", "src/main.cpp") });
+
+    ASSERT_TRUE(collected.has_value());
+    ASSERT_EQ(collected->targets.size(), 1);
+    EXPECT_EQ(collected->targets[0].sources, (std::vector<std::filesystem::path>{ "src/main.cpp" }));
+    EXPECT_EQ(collected->leftOut, (std::vector<LeftOutEntry>{ { .path = "src/legacy.C", .reason = LeftOutReason::ExtensionSpelling } }));
+}
+
+/**
  * A declared entry point is built whatever the case of its extension.
  */
 TEST(SourceCollectorTest, BuildsADeclaredEntryPointSpelledInAnotherCase)

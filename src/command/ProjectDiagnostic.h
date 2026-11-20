@@ -159,6 +159,16 @@ namespace scrap::Command {
 [[nodiscard]] std::string renderUnsupportedStandard(const std::filesystem::path& compiler, Project::LanguageStandard standard);
 
 /**
+ * @brief Describe a C standard the C compiler in use cannot build, as
+ *        renderUnsupportedStandard() describes a C++ one.
+ *
+ * @param compiler The C compiler that was asked for, absolute.
+ * @param standard The C standard scrap.toml states.
+ * @return Text for standard error, each line ending in a newline.
+ */
+[[nodiscard]] std::string renderUnsupportedStandard(const std::filesystem::path& compiler, Project::CStandard standard);
+
+/**
  * @brief Describe a macOS SDK that could not be found for the compiler of an
  *        installed toolchain, and what to do next.
  *

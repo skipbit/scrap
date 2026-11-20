@@ -45,6 +45,12 @@ struct NamedToolchain {
 [[nodiscard]] std::string_view describeOrigin(Toolchain::CompilerOrigin origin);
 
 /**
+ * @brief How the system's C compiler was found (@p origin), as
+ *        describeOrigin() says it of the C++ one, with CC for CXX.
+ */
+[[nodiscard]] std::string_view describeCOrigin(Toolchain::CompilerOrigin origin);
+
+/**
  * @brief The toolchain SCRAP_TOOLCHAIN or the project's [toolchain] name
  *        (@p projectToolchain) names, in that order, before the global
  *        default is read.

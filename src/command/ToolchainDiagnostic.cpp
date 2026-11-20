@@ -82,6 +82,38 @@ std::string render(std::string_view, ToolchainNamedIn, const Toolchain::CannotLi
     return renderCannotListToolchains(fault);
 }
 
+/**
+ * Report a compiler @p variable asked for and cannot be run. The value is
+ * echoed through printableEcho(), since the environment can hold any byte
+ * and the answer is read in a terminal.
+ */
+std::string renderUnusableRequest(const std::string_view variable, const std::string_view requested)
+{
+    std::string text = "error: ";
+    text += variable;
+    text += " names '";
+    text += printableEcho(requested);
+    text += "', which cannot be run\n";
+    text += "hint: set ";
+    text += variable;
+    text += " to the path of a compiler, or unset it to search for one\n";
+    return text;
+}
+
+/**
+ * Report a system without a @p language compiler where nothing chose a
+ * toolchain, with how to select one of those installed, such as @p example.
+ */
+std::string renderNoLanguageCompilerWithInstalled(const std::string_view language, const std::string_view example)
+{
+    std::string rendered = "error: no ";
+    rendered += language;
+    rendered += " compiler found\nhint: select an installed toolchain with 'scrap toolchain select <toolchain>', such as '";
+    rendered += printableText(example);
+    rendered += "'\n";
+    return rendered;
+}
+
 }  // anonymous namespace
 
 std::string renderCannotListToolchains(const Toolchain::CannotListToolchains& fault)
@@ -124,6 +156,15 @@ std::string renderUnusableInstalled(std::string_view specifier, std::string_view
     rendered += "\nhint: run 'scrap toolchain install --force ";
     rendered += printableText(specifier);
     rendered += "'\n";
+    return rendered;
+}
+
+std::string renderNoCCompilerRecorded(std::string_view specifier, std::string_view reason)
+{
+    std::string rendered = "error: cannot use the installed toolchain: " + printableText(reason);
+    rendered += "\nhint: run 'scrap toolchain install --force ";
+    rendered += printableText(specifier);
+    rendered += "' if an earlier scrap installed it, or set SCRAP_TOOLCHAIN to system to use the compilers found on the system\n";
     return rendered;
 }
 
@@ -181,25 +222,30 @@ std::string renderNoCompilerFound()
            "hint: install a C++ compiler, or set CXX to the one to use\n";
 }
 
-/**
- * The value is echoed through printableEcho(), since the environment can hold any
- * byte and the answer is read in a terminal.
- */
 std::string renderUnusableCompilerRequest(const std::string_view requested)
 {
-    std::string text = "error: CXX names '";
-    text += printableEcho(requested);
-    text += "', which cannot be run\n";
-    text += "hint: set CXX to the path of a compiler, or unset it to search for one\n";
-    return text;
+    return renderUnusableRequest("CXX", requested);
 }
 
-std::string renderNoCompilerWithInstalled(std::string_view example)
+std::string renderNoCCompilerFound()
 {
-    std::string rendered = "error: no C++ compiler found\nhint: select an installed toolchain with 'scrap toolchain select <toolchain>', such as '";
-    rendered += printableText(example);
-    rendered += "'\n";
-    return rendered;
+    return "error: no C compiler found\n"
+           "hint: install a C compiler, or set CC to the one to use\n";
+}
+
+std::string renderUnusableCCompilerRequest(const std::string_view requested)
+{
+    return renderUnusableRequest("CC", requested);
+}
+
+std::string renderNoCompilerWithInstalled(const std::string_view example)
+{
+    return renderNoLanguageCompilerWithInstalled("C++", example);
+}
+
+std::string renderNoCCompilerWithInstalled(const std::string_view example)
+{
+    return renderNoLanguageCompilerWithInstalled("C", example);
 }
 
 std::string asWarning(std::string rendered)

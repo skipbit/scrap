@@ -127,10 +127,14 @@ std::expected<InstalledToolchain, std::string> readInstalled(const std::string& 
     for (const std::filesystem::path& recorded : record->runtimeLibraryDirectories) {
         runtimeLibraryDirectories.push_back(directory / recorded);
     }
+    std::optional<std::filesystem::path> cCompiler = record->cCompiler.transform([&directory](const std::filesystem::path& recorded) {
+        return directory / recorded;
+    });
     return InstalledToolchain{ .family = family,
                                .version = version,
                                .directory = directory,
                                .compiler = directory / record->compiler,
+                               .cCompiler = std::move(cCompiler),
                                .runtimeLibraryDirectories = std::move(runtimeLibraryDirectories),
                                .arguments = record->arguments };
 }
@@ -240,6 +244,19 @@ std::string InstalledToolchain::name() const
     return family + "@" + version.text();
 }
 
+std::expected<std::filesystem::path, UnusableCCompiler> usableCCompiler(const InstalledToolchain& toolchain)
+{
+    const std::filesystem::path recordFile = toolchain.directory / InstallRecordName;
+    if (! toolchain.cCompiler.has_value()) {
+        return std::unexpected(UnusableCCompiler{ .named = false, .reason = "'" + recordFile.string() + "' names no C compiler" });
+    }
+    std::error_code ec;
+    if (! std::filesystem::exists(*toolchain.cCompiler, ec)) {
+        return std::unexpected(UnusableCCompiler{ .named = true, .reason = "'" + recordFile.string() + "' names the C compiler '" + toolchain.cCompiler->string() + "', which is not there" });
+    }
+    return *toolchain.cCompiler;
+}
+
 std::expected<std::optional<InstalledToolchain>, InstalledToolchainFault> findInstalledToolchain(const std::filesystem::path& scrapHome,
                                                                                                  const HostEnvironment& host,
                                                                                                  const ToolchainSpecifier& specifier)
@@ -279,7 +296,9 @@ std::expected<InstalledToolchain, InstalledToolchainFault> findInstalledToolchai
     return std::move(*toolchain);
 }
 
-std::optional<InstalledToolchain> anyInstalledToolchain(const std::filesystem::path& scrapHome, const HostEnvironment& host)
+std::optional<InstalledToolchain> anyInstalledToolchain(const std::filesystem::path& scrapHome,
+                                                        const HostEnvironment& host,
+                                                        const std::function<bool(const InstalledToolchain&)>& accepts)
 {
     const auto families = installedFamilies(scrapHome);
     if (! families.has_value()) {
@@ -291,7 +310,7 @@ std::optional<InstalledToolchain> anyInstalledToolchain(const std::filesystem::p
             continue;
         }
         const std::optional<InstalledToolchain>& toolchain = *found;
-        if (toolchain.has_value()) {
+        if (toolchain.has_value() && accepts(*toolchain)) {
             return toolchain;
         }
     }

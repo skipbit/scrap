@@ -34,9 +34,9 @@ struct CompilerIdentity {
 };
 
 /**
- * @brief Whether @p version is @p major.@p minor or later.
+ * @brief Whether @p version is @p major.@p minor.@p patch or later.
  */
-[[nodiscard]] bool isAtLeast(const CompilerVersion& version, int major, int minor = 0);
+[[nodiscard]] bool isAtLeast(const CompilerVersion& version, int major, int minor = 0, int patch = 0);
 
 /**
  * @brief Tell which compiler wrote @p predefinedMacros.
@@ -57,5 +57,14 @@ struct CompilerIdentity {
  * error: it may still compile, and whether it does is the build's to report.
  */
 [[nodiscard]] CompilerIdentity identifyCompiler(const std::filesystem::path& compiler);
+
+/**
+ * @brief Ask the C compiler @p compiler which compiler it is, as
+ *        identifyCompiler() asks a C++ one.
+ *
+ * It is asked as it compiles C, which a C compiler without a C++ front end
+ * still answers.
+ */
+[[nodiscard]] CompilerIdentity identifyCCompiler(const std::filesystem::path& compiler);
 
 }  // namespace scrap::Toolchain

@@ -118,6 +118,51 @@ TEST(ToolchainDiagnosticTest, EscapesAControlCharacterInACompilerRequest)
 }
 
 /**
+ * A build with C sources and no C compiler is told how to provide one, as a
+ * build without a C++ compiler is.
+ */
+TEST(ToolchainDiagnosticTest, RendersNoCCompilerFound)
+{
+    EXPECT_EQ(renderNoCCompilerFound(),
+              "error: no C compiler found\n"
+              "hint: install a C compiler, or set CC to the one to use\n");
+}
+
+/**
+ * A build with C sources and no C compiler, where nothing chose a toolchain,
+ * is told how to select an installed one, as a build without a C++ compiler
+ * is.
+ */
+TEST(ToolchainDiagnosticTest, RendersNoCCompilerWithAnInstalledToolchain)
+{
+    EXPECT_EQ(renderNoCCompilerWithInstalled("gcc@15.2.0"),
+              "error: no C compiler found\n"
+              "hint: select an installed toolchain with 'scrap toolchain select <toolchain>', such as 'gcc@15.2.0'\n");
+}
+
+/**
+ * A record that names no C compiler is answered with both ways to build C:
+ * installing again, and the compilers of the system.
+ */
+TEST(ToolchainDiagnosticTest, RendersARecordThatNamesNoCCompiler)
+{
+    EXPECT_EQ(renderNoCCompilerRecorded("gcc@15.2.0", "'/home/.scrap/toolchains/gcc/15.2.0/linux-x86_64/.scrap-toolchain.toml' names no C compiler"),
+              "error: cannot use the installed toolchain: '/home/.scrap/toolchains/gcc/15.2.0/linux-x86_64/.scrap-toolchain.toml' names no C compiler\n"
+              "hint: run 'scrap toolchain install --force gcc@15.2.0' if an earlier scrap installed it, or set SCRAP_TOOLCHAIN to system to use the compilers found on the system\n");
+}
+
+/**
+ * A C compiler the environment asked for and cannot be run names CC and the
+ * value it gave, escaped as a CXX value is.
+ */
+TEST(ToolchainDiagnosticTest, RendersAnUnusableCCompilerRequest)
+{
+    EXPECT_EQ(renderUnusableCCompilerRequest("gcc\x1b[31m"),
+              "error: CC names 'gcc\\x1B[31m', which cannot be run\n"
+              "hint: set CC to the path of a compiler, or unset it to search for one\n");
+}
+
+/**
  * A host without toolchains is answered with how to choose the system's
  * compiler where the toolchain was named, since a place earlier in the
  * order would otherwise still name it.

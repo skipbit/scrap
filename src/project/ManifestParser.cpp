@@ -28,11 +28,14 @@ namespace {
 /// Language standard assumed when [package] does not state one.
 constexpr LanguageStandard DefaultStandard = LanguageStandard::Cxx23;
 
+/// C language standard assumed when [package] does not state one.
+constexpr CStandard DefaultCStandard = CStandard::C17;
+
 /// Top-level keys this version recognises.
 constexpr std::array<std::string_view, 6> KnownTopLevelKeys{ "package", "bin", "lib", "dependencies", "toolchain", "scripts" };
 
 /// Keys the [package] table recognises.
-constexpr std::array<std::string_view, 3> KnownPackageKeys{ "name", "version", "std" };
+constexpr std::array<std::string_view, 4> KnownPackageKeys{ "name", "version", "std", "c-std" };
 
 /// Keys one [[bin]] entry recognises.
 constexpr std::array<std::string_view, 6> KnownExecutableKeys{ "name", "src", "include-dirs", "defines", "compile-flags", "link-flags" };
@@ -140,36 +143,43 @@ std::expected<StringField, ManifestError> requireString(const std::filesystem::p
 }
 
 /**
- * Read package.std, falling back to the default standard when it is absent.
+ * Read the standard at @p key of [package] with @p parse, falling back to
+ * @p fallback when it is absent.
  *
- * A value naming no standard this version accepts, "gnu23" among them, is
- * reported here: handed to the compiler, it would be rejected without saying
- * what to write instead.
+ * A value naming none of @p supported, "gnu23" among them, is reported here:
+ * handed to the compiler, it would be rejected without saying what to write
+ * instead.
  */
-std::expected<LanguageStandard, ManifestError> parseStandard(const std::filesystem::path& file, const toml::table& package)
+template <typename Standard>
+std::expected<Standard, ManifestError> parseStandard(const std::filesystem::path& file,
+                                                     const toml::table& package,
+                                                     const std::string_view key,
+                                                     const Standard fallback,
+                                                     std::optional<Standard> (*parse)(std::string_view),
+                                                     const std::span<const Standard> supported)
 {
-    const toml::node* node = package.get("std");
+    const toml::node* node = package.get(key);
     if (node == nullptr) {
-        return DefaultStandard;
+        return fallback;
     }
-    auto field = readString(file, *node, "package.std");
+    auto field = readString(file, *node, dotted("package", key));
     if (! field.has_value()) {
         return std::unexpected(field.error());
     }
-    if (const auto standard = parseLanguageStandard(field->value); standard.has_value()) {
+    if (const auto standard = parse(field->value); standard.has_value()) {
         return *standard;
     }
 
     std::string message = "unsupported standard; expected one of";
     std::string_view separator = " ";
-    for (const LanguageStandard candidate : supportedLanguageStandards()) {
+    for (const Standard candidate : supported) {
         message += separator;
         message += '"';
         message += standardNumber(candidate);
         message += '"';
         separator = ", ";
     }
-    return std::unexpected(errorAt(file, *node, "package.std", std::move(message)));
+    return std::unexpected(errorAt(file, *node, dotted("package", key), std::move(message)));
 }
 
 /**
@@ -292,12 +302,16 @@ std::expected<Package, ManifestError> parsePackage(const std::filesystem::path& 
     if (! version.has_value()) {
         return std::unexpected(version.error());
     }
-    auto standard = parseStandard(file, *table);
+    auto standard = parseStandard(file, *table, "std", DefaultStandard, parseLanguageStandard, supportedLanguageStandards());
     if (! standard.has_value()) {
         return std::unexpected(standard.error());
     }
+    auto cStandard = parseStandard(file, *table, "c-std", DefaultCStandard, parseCStandard, supportedCStandards());
+    if (! cStandard.has_value()) {
+        return std::unexpected(cStandard.error());
+    }
 
-    return Package{ .name = std::move(name->value), .version = std::move(version->value), .standard = *standard };
+    return Package{ .name = std::move(name->value), .version = std::move(version->value), .standard = *standard, .cStandard = *cStandard };
 }
 
 /**

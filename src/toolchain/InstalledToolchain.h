@@ -8,6 +8,7 @@
 
 #include <expected>
 #include <filesystem>
+#include <functional>
 #include <optional>
 #include <string>
 #include <system_error>
@@ -24,12 +25,33 @@ struct InstalledToolchain {
     ToolchainVersion version;
     std::filesystem::path directory;                               ///< <SCRAP_HOME>/toolchains/<family>/<version>/<platform>-<arch>
     std::filesystem::path compiler;                                ///< The C++ compiler inside the directory.
+    std::optional<std::filesystem::path> cCompiler;                ///< The C compiler inside the directory, when the record names one.
     std::vector<std::filesystem::path> runtimeLibraryDirectories;  ///< Where its runtime libraries are inside the directory.
     ToolchainArguments arguments;                                  ///< What its compiler is given to compile and link with it.
 
     /** The name that selects it, as <family>@<version>. */
     [[nodiscard]] std::string name() const;
 };
+
+/**
+ * @brief Why an installed toolchain cannot build C.
+ */
+struct UnusableCCompiler {
+    bool named;          ///< Whether the record names a C compiler, which is then not there.
+    std::string reason;  ///< What is wrong, naming the record.
+};
+
+/**
+ * @brief The C compiler of @p toolchain, for a build with C sources.
+ *
+ * It is looked at only then, so a toolchain whose record names none, or
+ * names one that is not there, still builds C++ alone. A record written by
+ * an earlier scrap names none, as does one installed from an index that
+ * names none.
+ *
+ * @return The C compiler, or why the toolchain cannot build C.
+ */
+[[nodiscard]] std::expected<std::filesystem::path, UnusableCCompiler> usableCCompiler(const InstalledToolchain& toolchain);
 
 /**
  * @brief No toolchain is built for the host scrap runs on.
@@ -93,11 +115,14 @@ using InstalledToolchainFault = std::variant<NoToolchainForHost, UnusableInstall
  * @brief One toolchain installed below @p scrapHome for @p host, to show as
  *        an example: the newest of the family that comes first by name.
  *
- * A family whose newest toolchain cannot be used is passed over.
+ * A family whose newest toolchain cannot be used, or is not one @p accepts,
+ * is passed over.
  *
  * @return The toolchain, or nothing when none is installed.
  */
-[[nodiscard]] std::optional<InstalledToolchain> anyInstalledToolchain(const std::filesystem::path& scrapHome, const HostEnvironment& host);
+[[nodiscard]] std::optional<InstalledToolchain> anyInstalledToolchain(const std::filesystem::path& scrapHome,
+                                                                      const HostEnvironment& host,
+                                                                      const std::function<bool(const InstalledToolchain&)>& accepts);
 
 /**
  * @brief The name of a toolchain installed for a host.

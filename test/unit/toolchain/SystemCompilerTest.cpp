@@ -226,3 +226,83 @@ TEST(SystemCompilerTest, FindsNothingWithoutSearchPaths)
 {
     EXPECT_FALSE(detectSystemCompiler("", {}).has_value());
 }
+
+/**
+ * What CC names is the C compiler, and the C++ compilers on PATH are not.
+ */
+TEST(SystemCompilerTest, UsesTheCCompilerTheVariableNames)
+{
+    const TempDirectory temp;
+    createExecutable(temp, "first/cc");
+    const auto named = createExecutable(temp, "first/my-cc");
+
+    const auto detected = detectSystemCCompiler("my-cc", { temp.path() / "first" });
+
+    ASSERT_TRUE(detected.has_value());
+    EXPECT_EQ(detected->path, asReported(named));
+    EXPECT_EQ(detected->origin, CompilerOrigin::CompilerVariable);
+}
+
+/**
+ * The default C compiler cc answers before gcc and clang, and the C++
+ * compilers are never taken for the C one.
+ */
+TEST(SystemCompilerTest, PrefersTheDefaultCCompilerOverAKnownName)
+{
+    const TempDirectory temp;
+    createExecutable(temp, "first/c++");
+    createExecutable(temp, "first/gcc");
+    const auto standard = createExecutable(temp, "first/cc");
+
+    const auto detected = detectSystemCCompiler("", { temp.path() / "first" });
+
+    ASSERT_TRUE(detected.has_value());
+    EXPECT_EQ(detected->path, asReported(standard));
+    EXPECT_EQ(detected->origin, CompilerOrigin::DefaultOnPath);
+}
+
+/**
+ * Without cc, gcc is looked for before clang.
+ */
+TEST(SystemCompilerTest, LooksForGccBeforeClang)
+{
+    const TempDirectory temp;
+    createExecutable(temp, "first/clang");
+    const auto gcc = createExecutable(temp, "second/gcc");
+
+    const auto detected = detectSystemCCompiler("", { temp.path() / "first", temp.path() / "second" });
+
+    ASSERT_TRUE(detected.has_value());
+    EXPECT_EQ(detected->path, asReported(gcc));
+    EXPECT_EQ(detected->origin, CompilerOrigin::KnownName);
+}
+
+/**
+ * A CC that cannot be run is reported rather than passed over for cc.
+ */
+TEST(SystemCompilerTest, ReportsACRequestThatCannotBeRun)
+{
+    const TempDirectory temp;
+    createExecutable(temp, "first/cc");
+
+    const auto detected = detectSystemCCompiler("absent-cc", { temp.path() / "first" });
+
+    ASSERT_FALSE(detected.has_value());
+    EXPECT_EQ(detected.error().requested, "absent-cc");
+}
+
+/**
+ * A system with C++ compilers alone has no C compiler.
+ */
+TEST(SystemCompilerTest, FindsNoCCompilerAmongTheCxxOnes)
+{
+    const TempDirectory temp;
+    createExecutable(temp, "first/c++");
+    createExecutable(temp, "first/g++");
+    createExecutable(temp, "first/clang++");
+
+    const auto detected = detectSystemCCompiler("", { temp.path() / "first" });
+
+    ASSERT_FALSE(detected.has_value());
+    EXPECT_TRUE(detected.error().requested.empty());
+}

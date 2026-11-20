@@ -220,7 +220,7 @@ TEST(InstalledToolchainTest, TakesARecordWithoutArgumentsForLibstdcxx)
 TEST(InstalledToolchainTest, NamesItselfAsFamilyAndVersion)
 {
     const InstalledToolchain toolchain{
-        .family = "gcc", .version = ToolchainVersion::parse("15.2.0").value(), .directory = "", .compiler = "", .runtimeLibraryDirectories = {}, .arguments = { .compile = {}, .link = {} }
+        .family = "gcc", .version = ToolchainVersion::parse("15.2.0").value(), .directory = "", .compiler = "", .cCompiler = std::nullopt, .runtimeLibraryDirectories = {}, .arguments = { .compile = {}, .link = {} }
     };
 
     EXPECT_EQ(toolchain.name(), "gcc@15.2.0");
@@ -520,4 +520,65 @@ TEST(InstalledToolchainTest, NamesTheNewestListedToolchainASpecifierNames)
 
     EXPECT_EQ(newestNamedBy(installed, parseToolchainSpecifier("gcc@15").value()), std::optional<std::string>{ "gcc@15.10.0" });
     EXPECT_EQ(newestNamedBy(installed, parseToolchainSpecifier("gcc@14").value()), std::nullopt);
+}
+
+/**
+ * The C compiler the record names is found inside the toolchain's
+ * directory.
+ */
+TEST(InstalledToolchainTest, FindsTheCCompilerTheRecordNames)
+{
+    const TempDirectory home;
+    install(home, "gcc", "15.2.0");
+    const std::string directory = "toolchains/gcc/15.2.0/linux-x86_64";
+    home.writeFile(directory + "/bin/gcc", "");
+    home.writeFile(directory + "/" + std::string{ InstallRecordName }, "compiler = 'bin/g++'\nc-compiler = 'bin/gcc'\n");
+
+    const auto found = findInstalledToolchain(home.path(), Host, parseToolchainSpecifier("gcc").value());
+    ASSERT_TRUE(found.has_value()) << reasonOf(found.error());
+    ASSERT_TRUE(found->has_value());
+    const auto compiler = usableCCompiler(**found);
+    ASSERT_TRUE(compiler.has_value()) << compiler.error().reason;
+    EXPECT_EQ(*compiler, home.path() / directory / "bin/gcc");
+}
+
+/**
+ * A record that names no C compiler, as one an earlier scrap wrote, is
+ * reported as naming none. The toolchain still builds C++.
+ */
+TEST(InstalledToolchainTest, RefusesToBuildCWithARecordThatNamesNoCCompiler)
+{
+    const TempDirectory home;
+    install(home, "gcc", "15.2.0");
+    const std::filesystem::path record = home.path() / "toolchains/gcc/15.2.0/linux-x86_64" / InstallRecordName;
+
+    const auto found = findInstalledToolchain(home.path(), Host, parseToolchainSpecifier("gcc").value());
+    ASSERT_TRUE(found.has_value()) << reasonOf(found.error());
+    ASSERT_TRUE(found->has_value());
+    const auto compiler = usableCCompiler(**found);
+    ASSERT_FALSE(compiler.has_value());
+    EXPECT_FALSE(compiler.error().named);
+    EXPECT_EQ(compiler.error().reason, "'" + record.string() + "' names no C compiler");
+}
+
+/**
+ * A C compiler the record names and the directory does not hold is
+ * reported with both paths. The toolchain still builds C++.
+ */
+TEST(InstalledToolchainTest, RefusesToBuildCWhenTheRecordedCCompilerIsMissing)
+{
+    const TempDirectory home;
+    install(home, "gcc", "15.2.0");
+    const std::string directory = "toolchains/gcc/15.2.0/linux-x86_64";
+    home.writeFile(directory + "/" + std::string{ InstallRecordName }, "compiler = 'bin/g++'\nc-compiler = 'bin/gcc'\n");
+    const std::filesystem::path record = home.path() / directory / InstallRecordName;
+
+    const auto found = findInstalledToolchain(home.path(), Host, parseToolchainSpecifier("gcc").value());
+    ASSERT_TRUE(found.has_value()) << reasonOf(found.error());
+    ASSERT_TRUE(found->has_value());
+    const auto compiler = usableCCompiler(**found);
+    ASSERT_FALSE(compiler.has_value());
+    EXPECT_TRUE(compiler.error().named);
+    EXPECT_EQ(compiler.error().reason,
+              "'" + record.string() + "' names the C compiler '" + (home.path() / directory / "bin/gcc").string() + "', which is not there");
 }

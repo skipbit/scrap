@@ -119,6 +119,58 @@ TEST(ManifestParserTest, ReadsOnlyTheNumberOfAStandard)
 }
 
 /**
+ * C sources are built against C17 unless package.c-std says otherwise, and
+ * the standard of the C++ sources does not decide it.
+ */
+TEST(ManifestParserTest, DefaultsCStandardWhenAbsent)
+{
+    constexpr std::string_view text = "[package]\nname = \"a\"\nversion = \"0.1.0\"\nstd = \"26\"\n";
+
+    const auto manifest = parseManifest(text, ManifestName);
+
+    ASSERT_TRUE(manifest.has_value());
+    EXPECT_EQ(manifest->package.cStandard, CStandard::C17);
+}
+
+/**
+ * Each C standard is written as its number.
+ */
+TEST(ManifestParserTest, ReadsEveryCStandardByItsNumber)
+{
+    for (const CStandard standard : supportedCStandards()) {
+        std::string text = "[package]\nname = \"a\"\nversion = \"0.1.0\"\nc-std = \"";
+        text += standardNumber(standard);
+        text += "\"\n";
+
+        const auto manifest = parseManifest(text, ManifestName);
+
+        ASSERT_TRUE(manifest.has_value()) << text;
+        EXPECT_EQ(manifest->package.cStandard, standard) << text;
+    }
+}
+
+/**
+ * A C standard this version does not accept is reported at the value with
+ * the ones it does, as a C++ standard is.
+ */
+TEST(ManifestParserTest, ReportsACStandardItDoesNotAccept)
+{
+    for (const std::string_view value : { "gnu17", "c17", "89", "14", "18", "2x" }) {
+        std::string text = "[package]\nname = \"a\"\nversion = \"0.1.0\"\nc-std = \"";
+        text += value;
+        text += "\"\n";
+
+        const auto manifest = parseManifest(text, ManifestName);
+
+        ASSERT_FALSE(manifest.has_value()) << value;
+        EXPECT_EQ(describe(manifest.error()),
+                  "scrap.toml:4:9: error: package.c-std: unsupported standard; "
+                  "expected one of \"99\", \"11\", \"17\", \"23\"")
+            << value;
+    }
+}
+
+/**
  * The standard is written as a string, as the other package fields are.
  */
 TEST(ManifestParserTest, ReportsAStandardWrittenAsANumber)

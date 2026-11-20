@@ -3,6 +3,7 @@
 #include "command/RuntimeEnvironment.h"
 #include "toolchain/ToolchainArguments.h"
 
+#include <cstdint>
 #include <expected>
 #include <filesystem>
 #include <optional>
@@ -10,6 +11,15 @@
 #include <vector>
 
 namespace scrap::Command {
+
+/**
+ * @brief Whether a build has C sources, and so needs a C compiler besides the
+ *        C++ one.
+ */
+enum class CSources : std::uint8_t {
+    Absent,
+    Present
+};
 
 /**
  * @brief The compiler a build uses, and where it came from.
@@ -20,6 +30,7 @@ struct ChosenCompiler {
     Toolchain::ToolchainArguments arguments;                       ///< What it is given to compile and link; none for the system's compiler.
     bool installed;                                                ///< Whether it is the compiler of a toolchain scrap installed.
     std::string announcement;                                      ///< The line naming it, then any warning of its status, each ending in a newline.
+    std::optional<std::filesystem::path> cCompiler;                ///< The C compiler, absolute, for a build with C sources.
 };
 
 /**
@@ -37,8 +48,16 @@ struct ChosenCompiler {
  * toolchain, so a config.toml that cannot be read stops only a build that
  * would use it.
  *
+ * A build with C sources also needs a C compiler: the one the installed
+ * toolchain records, or the one the system provides, reading CC, which is
+ * named on a line of its own. A toolchain whose record names none is
+ * reported with both ways to build C: installing it again, and the
+ * compilers of the system.
+ *
  * @return The compiler, or the error and hint lines to report.
  */
-[[nodiscard]] std::expected<ChosenCompiler, std::string> chooseCompiler(const RuntimeEnvironment& env, const std::optional<std::string>& projectToolchain);
+[[nodiscard]] std::expected<ChosenCompiler, std::string> chooseCompiler(const RuntimeEnvironment& env,
+                                                                        const std::optional<std::string>& projectToolchain,
+                                                                        CSources cSources);
 
 }  // namespace scrap::Command

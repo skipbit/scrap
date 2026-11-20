@@ -40,6 +40,15 @@ namespace scrap::Command {
 [[nodiscard]] std::string renderUnusableInstalled(std::string_view specifier, std::string_view reason);
 
 /**
+ * @brief Report that the installed toolchain @p specifier names records no C
+ *        compiler, for @p reason, with the two ways to build C.
+ *
+ * An earlier scrap recorded none, and installing again records one. An index
+ * may name none, and the compilers of the system can build C instead.
+ */
+[[nodiscard]] std::string renderNoCCompilerRecorded(std::string_view specifier, std::string_view reason);
+
+/**
  * @brief Where a toolchain was named, so a report says where to name
  *        another.
  */
@@ -98,11 +107,31 @@ enum class ToolchainNamedIn : std::uint8_t {
 [[nodiscard]] std::string renderUnusableCompilerRequest(std::string_view requested);
 
 /**
+ * @brief Report a system with no C compiler for a build with C sources, and
+ *        what to do next.
+ */
+[[nodiscard]] std::string renderNoCCompilerFound();
+
+/**
+ * @brief Report a C compiler the environment asked for and cannot be run.
+ *
+ * @param requested The value CC gave.
+ */
+[[nodiscard]] std::string renderUnusableCCompilerRequest(std::string_view requested);
+
+/**
  * @brief Report a system without a C++ compiler where nothing chose a
  *        toolchain, with how to select one of those installed, such as
  *        @p example.
  */
 [[nodiscard]] std::string renderNoCompilerWithInstalled(std::string_view example);
+
+/**
+ * @brief Report a system without a C compiler for a build with C sources
+ *        where nothing chose a toolchain, with how to select one of those
+ *        installed, such as @p example.
+ */
+[[nodiscard]] std::string renderNoCCompilerWithInstalled(std::string_view example);
 
 /**
  * @brief The error lines @p rendered as a warning, for what a command goes
