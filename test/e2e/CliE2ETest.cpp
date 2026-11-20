@@ -4979,6 +4979,32 @@ TEST_F(CliE2ETest, RunBuildsAProjectOfCSourcesAlone)
 }
 
 /**
+ * compile-flags reach the C and the C++ sources, c-compile-flags the C
+ * sources alone and cpp-compile-flags the C++ sources alone, in the build
+ * and in compile_commands.json alike. Each source stops the build if it is
+ * given a flag of the other language or misses its own.
+ */
+TEST_F(CliE2ETest, BuildPassesTheCompileFlagsOfEachLanguageToItsSources)
+{
+    writeFile("scrap.toml",
+              "[package]\nname = \"app\"\nversion = \"0.1.0\"\n\n[[bin]]\nname = \"app\"\nsrc = \"src/main.cpp\"\n"
+              "compile-flags = [\"-DBOTH\"]\nc-compile-flags = [\"-DONLY_C\"]\ncpp-compile-flags = [\"-DONLY_CPP\"]\n");
+    writeFile("src/helper.c", "#if !defined(BOTH) || !defined(ONLY_C) || defined(ONLY_CPP)\n#error wrong flags\n#endif\nint helper(void) { return 0; }\n");
+    writeFile("src/main.cpp",
+              "#if !defined(BOTH) || !defined(ONLY_CPP) || defined(ONLY_C)\n#error wrong flags\n#endif\nextern \"C\" int helper(void);\nint main() { return helper(); }\n");
+
+    auto result = runScrap({ "build" }, { realCompiler(), realCCompiler() }, _root, BuildTimeout);
+
+    ASSERT_TRUE(result.exitedNormally) << result.stderrText;
+    ASSERT_EQ(result.exitCode, 0) << result.stderrText;
+    const std::string database = readFile("build/debug/compile_commands.json");
+    EXPECT_NE(database.find("\"-DBOTH\", \"-DONLY_C\""), std::string::npos) << database;
+    EXPECT_NE(database.find("\"-DBOTH\", \"-DONLY_CPP\""), std::string::npos) << database;
+    EXPECT_EQ(database.find("\"-DONLY_C\""), database.rfind("\"-DONLY_C\"")) << database;
+    EXPECT_EQ(database.find("\"-DONLY_CPP\""), database.rfind("\"-DONLY_CPP\"")) << database;
+}
+
+/**
  * A project of C++ sources alone looks for no C compiler, so a CC that
  * cannot be run does not stop it and no line names one.
  */

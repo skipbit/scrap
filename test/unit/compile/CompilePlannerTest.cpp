@@ -675,6 +675,35 @@ TEST(CompilePlannerTest, CompilesALibraryWithItsOwnSettingsAndItsPublicOnes)
 }
 
 /**
+ * The compile flags for one language alone reach the sources of that
+ * language and no other, after the compile flags both take, each kind in
+ * the order of the target's own and then the public ones of its library.
+ */
+TEST(CompilePlannerTest, CompilesEachSourceWithTheCompileFlagsOfItsLanguage)
+{
+    std::vector<TargetSources> targets = executableAndLibraryWithSettings();
+    targets[0].sources = { "src/helper.c", "src/main.cpp" };
+    targets[0].target.settings.cCompileFlags = { "-app-c" };
+    targets[0].target.settings.cxxCompileFlags = { "-app-cpp" };
+    targets[1].target.publicSettings.cCompileFlags = { "-pub-c" };
+    targets[1].target.publicSettings.cxxCompileFlags = { "-pub-cpp" };
+    BuildSettings settings = settingsFor(CompilerIdentity{});
+    settings.c = CCompileSettings{ .compiler = "/usr/bin/cc", .driver = CompilerDriver{ CompilerIdentity{} }, .standard = CStandard::C17, .arguments = {} };
+
+    const auto commands = planCompileCommands(settings, targets);
+
+    ASSERT_EQ(commands.size(), 3);
+    ASSERT_EQ(commands[0].file, "src/helper.c");
+    const std::vector<std::string> cTail(commands[0].arguments.end() - 8, commands[0].arguments.end());
+    EXPECT_EQ(cTail, (std::vector<std::string>{ "-app", "-pub", "-app-c", "-pub-c", "-c", "src/helper.c", "-o", "build/debug/obj/app/src/helper.c.o" }));
+    ASSERT_EQ(commands[1].file, "src/main.cpp");
+    const std::vector<std::string> cxxTail(commands[1].arguments.end() - 8, commands[1].arguments.end());
+    EXPECT_EQ(cxxTail, (std::vector<std::string>{ "-app", "-pub", "-app-cpp", "-pub-cpp", "-c", "src/main.cpp", "-o", "build/debug/obj/app/src/main.cpp.o" }));
+    const std::vector<std::string> libraryTail(commands[2].arguments.end() - 7, commands[2].arguments.end());
+    EXPECT_EQ(libraryTail, (std::vector<std::string>{ "-own", "-pub", "-pub-cpp", "-c", "src/core.cpp", "-o", "build/debug/obj/core/src/core.cpp.o" }));
+}
+
+/**
  * An executable links with its own link flags, then the public ones of its
  * library, after the archive.
  */
