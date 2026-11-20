@@ -38,14 +38,14 @@ constexpr std::array<std::string_view, 6> KnownTopLevelKeys{ "package", "bin", "
 constexpr std::array<std::string_view, 4> KnownPackageKeys{ "name", "version", "std", "c-std" };
 
 /// Keys one [[bin]] entry recognises.
-constexpr std::array<std::string_view, 6> KnownExecutableKeys{ "name", "src", "include-dirs", "defines", "compile-flags", "link-flags" };
+constexpr std::array<std::string_view, 8> KnownExecutableKeys{ "name", "src", "include-dirs", "defines", "compile-flags", "c-compile-flags", "cpp-compile-flags", "link-flags" };
 
 /// Keys one [[lib]] entry recognises. A static library is not linked, so
 /// link-flags belong under its public table only.
-constexpr std::array<std::string_view, 6> KnownLibraryKeys{ "name", "src", "include-dirs", "defines", "compile-flags", "public" };
+constexpr std::array<std::string_view, 8> KnownLibraryKeys{ "name", "src", "include-dirs", "defines", "compile-flags", "c-compile-flags", "cpp-compile-flags", "public" };
 
 /// Keys the public table of a [[lib]] entry recognises.
-constexpr std::array<std::string_view, 4> KnownPublicKeys{ "include-dirs", "defines", "compile-flags", "link-flags" };
+constexpr std::array<std::string_view, 6> KnownPublicKeys{ "include-dirs", "defines", "compile-flags", "c-compile-flags", "cpp-compile-flags", "link-flags" };
 
 /// Keys the [toolchain] table recognises.
 constexpr std::array<std::string_view, 1> KnownToolchainKeys{ "name" };
@@ -396,6 +396,16 @@ std::expected<TargetSettings, ManifestError> parseSettings(const std::filesystem
         return std::unexpected(compileFlags.error());
     }
     settings.compileFlags = std::move(*compileFlags);
+    auto cCompileFlags = readStrings(file, table, prefix, "c-compile-flags");
+    if (! cCompileFlags.has_value()) {
+        return std::unexpected(cCompileFlags.error());
+    }
+    settings.cCompileFlags = std::move(*cCompileFlags);
+    auto cxxCompileFlags = readStrings(file, table, prefix, "cpp-compile-flags");
+    if (! cxxCompileFlags.has_value()) {
+        return std::unexpected(cxxCompileFlags.error());
+    }
+    settings.cxxCompileFlags = std::move(*cxxCompileFlags);
     auto linkFlags = readStrings(file, table, prefix, "link-flags");
     if (! linkFlags.has_value()) {
         return std::unexpected(linkFlags.error());

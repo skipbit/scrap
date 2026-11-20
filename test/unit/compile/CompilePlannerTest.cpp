@@ -63,12 +63,12 @@ std::vector<TargetSources> executableAndLibraryWithSettings()
 {
     TargetSources app = executableWithSources("app", "src/main.cpp", { "src/main.cpp" });
     app.target.settings = TargetSettings{
-        .includeDirectories = { "app-inc" }, .defines = { "APP" }, .compileFlags = { "-app" }, .linkFlags = { "-lapp" }
+        .includeDirectories = { "app-inc" }, .defines = { "APP" }, .compileFlags = { "-app" }, .cCompileFlags = {}, .cxxCompileFlags = {}, .linkFlags = { "-lapp" }
     };
     TargetSources core = targetWithSources(TargetKind::Library, "core", "", { "src/core.cpp" });
-    core.target.settings = TargetSettings{ .includeDirectories = { "own-inc" }, .defines = { "OWN" }, .compileFlags = { "-own" }, .linkFlags = {} };
+    core.target.settings = TargetSettings{ .includeDirectories = { "own-inc" }, .defines = { "OWN" }, .compileFlags = { "-own" }, .cCompileFlags = {}, .cxxCompileFlags = {}, .linkFlags = {} };
     core.target.publicSettings = TargetSettings{
-        .includeDirectories = { "pub-inc" }, .defines = { "PUB=1" }, .compileFlags = { "-pub" }, .linkFlags = { "-lpub" }
+        .includeDirectories = { "pub-inc" }, .defines = { "PUB=1" }, .compileFlags = { "-pub" }, .cCompileFlags = {}, .cxxCompileFlags = {}, .linkFlags = { "-lpub" }
     };
     return { std::move(app), std::move(core) };
 }
@@ -701,7 +701,7 @@ TEST(CompilePlannerTest, LinksAnExecutableWithItsLinkFlagsAndThePublicOnesOfItsL
 TEST(CompilePlannerTest, PassesSettingsThatLookLikeOptionsAsWhatTheyAre)
 {
     TargetSources app = executableWithSources("app", "src/main.cpp", { "src/main.cpp" });
-    app.target.settings = TargetSettings{ .includeDirectories = { "-inc", "@inc" }, .defines = { "@opts" }, .compileFlags = {}, .linkFlags = {} };
+    app.target.settings = TargetSettings{ .includeDirectories = { "-inc", "@inc" }, .defines = { "@opts" }, .compileFlags = {}, .cCompileFlags = {}, .cxxCompileFlags = {}, .linkFlags = {} };
 
     const auto commands = planCompileCommands(settingsFor(CompilerIdentity{}), { app });
 

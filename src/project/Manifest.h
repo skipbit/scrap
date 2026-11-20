@@ -25,7 +25,9 @@ enum class TargetKind : std::uint8_t {
 struct TargetSettings {
     std::vector<std::filesystem::path> includeDirectories;  ///< include-dirs, relative to the project root.
     std::vector<std::string> defines;                       ///< defines, each NAME or NAME=VALUE.
-    std::vector<std::string> compileFlags;                  ///< compile-flags.
+    std::vector<std::string> compileFlags;                  ///< compile-flags, for C and C++ sources.
+    std::vector<std::string> cCompileFlags;                 ///< c-compile-flags, for C sources alone.
+    std::vector<std::string> cxxCompileFlags;               ///< cpp-compile-flags, for C++ sources alone.
     std::vector<std::string> linkFlags;                     ///< link-flags.
 };
 

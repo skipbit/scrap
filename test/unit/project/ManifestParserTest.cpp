@@ -794,15 +794,19 @@ src = "src/main.cpp"
 include-dirs = ["gen", "third/include"]
 defines = ["B=2", "A"]
 compile-flags = ["-Werror"]
+c-compile-flags = ["-Wstrict-prototypes"]
+cpp-compile-flags = ["-Wold-style-cast"]
 link-flags = ["-lm"]
 
 [[lib]]
 name = "core"
 include-dirs = ["src"]
 compile-flags = ["-fno-rtti"]
+cpp-compile-flags = ["-Wnon-virtual-dtor"]
 
 [lib.public]
 defines = ["CORE_SHARED"]
+c-compile-flags = ["-DCORE_C"]
 link-flags = ["-pthread"]
 )";
 
@@ -814,14 +818,19 @@ link-flags = ["-pthread"]
     EXPECT_EQ(app.includeDirectories, (std::vector<std::filesystem::path>{ "gen", "third/include" }));
     EXPECT_EQ(app.defines, (std::vector<std::string>{ "B=2", "A" }));
     EXPECT_EQ(app.compileFlags, (std::vector<std::string>{ "-Werror" }));
+    EXPECT_EQ(app.cCompileFlags, (std::vector<std::string>{ "-Wstrict-prototypes" }));
+    EXPECT_EQ(app.cxxCompileFlags, (std::vector<std::string>{ "-Wold-style-cast" }));
     EXPECT_EQ(app.linkFlags, (std::vector<std::string>{ "-lm" }));
 
     const Target& core = manifest->targets[1];
     EXPECT_EQ(core.settings.includeDirectories, (std::vector<std::filesystem::path>{ "src" }));
     EXPECT_EQ(core.settings.compileFlags, (std::vector<std::string>{ "-fno-rtti" }));
+    EXPECT_EQ(core.settings.cxxCompileFlags, (std::vector<std::string>{ "-Wnon-virtual-dtor" }));
+    EXPECT_TRUE(core.settings.cCompileFlags.empty());
     EXPECT_TRUE(core.settings.defines.empty());
     EXPECT_EQ(core.publicSettings.defines, (std::vector<std::string>{ "CORE_SHARED" }));
     EXPECT_EQ(core.publicSettings.linkFlags, (std::vector<std::string>{ "-pthread" }));
+    EXPECT_EQ(core.publicSettings.cCompileFlags, (std::vector<std::string>{ "-DCORE_C" }));
     EXPECT_TRUE(core.publicSettings.includeDirectories.empty());
 }
 
@@ -864,6 +873,30 @@ TEST(ManifestParserTest, ReportsASettingThatIsNotAnArrayOfStrings)
     const auto number = parseManifest(notAString, ManifestName);
     ASSERT_FALSE(number.has_value());
     EXPECT_EQ(describe(number.error()), "scrap.toml:7:24: error: bin.compile-flags: must be an array of strings");
+
+    constexpr std::string_view cxxNotAnArray = "[package]\nname = \"a\"\nversion = \"0.1.0\"\n"
+                                               "[[bin]]\nname = \"a\"\nsrc = \"main.cpp\"\ncpp-compile-flags = \"-g\"\n";
+    const auto cxx = parseManifest(cxxNotAnArray, ManifestName);
+    ASSERT_FALSE(cxx.has_value());
+    EXPECT_EQ(describe(cxx.error()), "scrap.toml:7:21: error: bin.cpp-compile-flags: must be an array of strings");
+}
+
+/**
+ * A target that holds a key it does not take is told every key it takes.
+ */
+TEST(ManifestParserTest, ReportsAnUnknownKeyOfATargetWithEveryKeyItTakes)
+{
+    constexpr std::string_view executable = "[package]\nname = \"a\"\nversion = \"0.1.0\"\n"
+                                            "[[bin]]\nname = \"a\"\nsrc = \"main.cpp\"\nflags = []\n";
+    const auto bin = parseManifest(executable, ManifestName);
+    ASSERT_FALSE(bin.has_value());
+    EXPECT_EQ(bin.error().message, "unknown key; expected one of name src include-dirs defines compile-flags c-compile-flags cpp-compile-flags link-flags");
+
+    constexpr std::string_view library = "[package]\nname = \"a\"\nversion = \"0.1.0\"\n"
+                                         "[[lib]]\nname = \"a\"\nflags = []\n";
+    const auto lib = parseManifest(library, ManifestName);
+    ASSERT_FALSE(lib.has_value());
+    EXPECT_EQ(lib.error().message, "unknown key; expected one of name src include-dirs defines compile-flags c-compile-flags cpp-compile-flags public");
 }
 
 /**
@@ -969,7 +1002,7 @@ TEST(ManifestParserTest, ReportsAPublicTableOfWrongShapeOrKey)
     const auto withName = parseManifest(unknown, ManifestName);
     ASSERT_FALSE(withName.has_value());
     EXPECT_EQ(withName.error().key, "lib.public.name");
-    EXPECT_EQ(withName.error().message, "unknown key; expected one of include-dirs defines compile-flags link-flags");
+    EXPECT_EQ(withName.error().message, "unknown key; expected one of include-dirs defines compile-flags c-compile-flags cpp-compile-flags link-flags");
 
     constexpr std::string_view notATable = "[package]\nname = \"a\"\nversion = \"0.1.0\"\n"
                                            "[[lib]]\nname = \"a\"\npublic = [\"-pthread\"]\n";
