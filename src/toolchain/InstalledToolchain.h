@@ -8,6 +8,7 @@
 
 #include <expected>
 #include <filesystem>
+#include <functional>
 #include <optional>
 #include <string>
 #include <system_error>
@@ -114,11 +115,14 @@ using InstalledToolchainFault = std::variant<NoToolchainForHost, UnusableInstall
  * @brief One toolchain installed below @p scrapHome for @p host, to show as
  *        an example: the newest of the family that comes first by name.
  *
- * A family whose newest toolchain cannot be used is passed over.
+ * A family whose newest toolchain cannot be used, or is not one @p accepts,
+ * is passed over.
  *
  * @return The toolchain, or nothing when none is installed.
  */
-[[nodiscard]] std::optional<InstalledToolchain> anyInstalledToolchain(const std::filesystem::path& scrapHome, const HostEnvironment& host);
+[[nodiscard]] std::optional<InstalledToolchain> anyInstalledToolchain(const std::filesystem::path& scrapHome,
+                                                                      const HostEnvironment& host,
+                                                                      const std::function<bool(const InstalledToolchain&)>& accepts);
 
 /**
  * @brief The name of a toolchain installed for a host.

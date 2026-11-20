@@ -296,7 +296,9 @@ std::expected<InstalledToolchain, InstalledToolchainFault> findInstalledToolchai
     return std::move(*toolchain);
 }
 
-std::optional<InstalledToolchain> anyInstalledToolchain(const std::filesystem::path& scrapHome, const HostEnvironment& host)
+std::optional<InstalledToolchain> anyInstalledToolchain(const std::filesystem::path& scrapHome,
+                                                        const HostEnvironment& host,
+                                                        const std::function<bool(const InstalledToolchain&)>& accepts)
 {
     const auto families = installedFamilies(scrapHome);
     if (! families.has_value()) {
@@ -308,7 +310,7 @@ std::optional<InstalledToolchain> anyInstalledToolchain(const std::filesystem::p
             continue;
         }
         const std::optional<InstalledToolchain>& toolchain = *found;
-        if (toolchain.has_value()) {
+        if (toolchain.has_value() && accepts(*toolchain)) {
             return toolchain;
         }
     }

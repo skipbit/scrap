@@ -5039,11 +5039,13 @@ TEST_F(CliE2ETest, BuildReportsNoCCompilerFound)
 /**
  * With nothing chosen and no C compiler on the system, an installed
  * toolchain is not used in its place, and a build with C sources says how to
- * select one, as a build without a C++ compiler does.
+ * select one that can build C, as a build without a C++ compiler does.
  */
 TEST_F(CliE2ETest, BuildWithCSourcesDoesNotChooseAnInstalledToolchainUnasked)
 {
+    installWorkingToolchain("clang", "20.1.0");
     installWorkingToolchain("gcc", "15.2.0");
+    recordWorkingCCompiler("gcc", "15.2.0", "-DTOOLCHAIN_C");
     writeFile("scrap.toml", ValidManifest);
     writeFile("src/main.cpp", MainSource);
     writeFile("src/helper.c", "int helper(void) { return 0; }\n");
@@ -5058,6 +5060,28 @@ TEST_F(CliE2ETest, BuildWithCSourcesDoesNotChooseAnInstalledToolchainUnasked)
               std::string::npos)
         << result.stderrText;
     EXPECT_FALSE(std::filesystem::exists(_root / "build"));
+}
+
+/**
+ * An installed toolchain that records no C compiler is not shown as one to
+ * select for a build with C sources, since selecting it would not build them.
+ */
+TEST_F(CliE2ETest, BuildWithCSourcesDoesNotSuggestAToolchainThatRecordsNoCCompiler)
+{
+    installWorkingToolchain("gcc", "15.2.0");
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp", MainSource);
+    writeFile("src/helper.c", "int helper(void) { return 0; }\n");
+    std::filesystem::create_directories(_root / "empty");
+
+    auto result = runScrap({ "build" }, { realCompiler(), "PATH=" + (_root / "empty").string() }, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_NE(result.stderrText.find("error: no C compiler found\n"
+                                     "hint: install a C compiler, or set CC to the one to use\n"),
+              std::string::npos)
+        << result.stderrText;
 }
 
 /**

@@ -67,15 +67,19 @@ std::expected<ChosenCompiler, Toolchain::NoCompiler> systemCompiler(const Runtim
 }
 
 /**
- * The name of a toolchain installed for this host, to show as one to select.
+ * The name of a toolchain installed for this host, to show as one to select:
+ * one that can build C, for a build with @p cSources.
  */
-std::optional<std::string> installedExample(const RuntimeEnvironment& env)
+std::optional<std::string> installedExample(const RuntimeEnvironment& env, const CSources cSources)
 {
     const auto host = Toolchain::hostEnvironment();
     if (! env.scrapHome.has_value() || ! host.has_value()) {
         return std::nullopt;
     }
-    return Toolchain::anyInstalledToolchain(*env.scrapHome, *host).transform(&Toolchain::InstalledToolchain::name);
+    const auto buildsWhatIsAsked = [cSources](const Toolchain::InstalledToolchain& toolchain) {
+        return cSources == CSources::Absent || Toolchain::usableCCompiler(toolchain).has_value();
+    };
+    return Toolchain::anyInstalledToolchain(*env.scrapHome, *host, buildsWhatIsAsked).transform(&Toolchain::InstalledToolchain::name);
 }
 
 /**
@@ -89,7 +93,7 @@ std::string renderNoSystemCCompiler(const RuntimeEnvironment& env, const std::op
         return renderUnusableCCompilerRequest(missing.requested);
     }
     if (! source.has_value()) {
-        if (const auto example = installedExample(env); example.has_value()) {
+        if (const auto example = installedExample(env, CSources::Present); example.has_value()) {
             return renderNoCCompilerWithInstalled(*example);
         }
     }
@@ -131,7 +135,7 @@ std::string renderNoSystemCompiler(const Toolchain::NoCompiler& missing)
 std::string renderNoCompilerWhereNothingIsNamed(const RuntimeEnvironment& env, const Toolchain::NoCompiler& missing)
 {
     if (missing.requested.empty()) {
-        if (const auto example = installedExample(env); example.has_value()) {
+        if (const auto example = installedExample(env, CSources::Absent); example.has_value()) {
             return renderNoCompilerWithInstalled(*example);
         }
     }
