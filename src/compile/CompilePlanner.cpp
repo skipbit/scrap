@@ -164,6 +164,20 @@ std::vector<std::filesystem::path> includeDirectories(const std::vector<const Pr
 }
 
 /**
+ * The compile flags @p settings holds for sources of @p language alone.
+ */
+const std::vector<std::string>& languageCompileFlags(const Project::TargetSettings& settings, const Project::SourceLanguage language)
+{
+    switch (language) {
+    case Project::SourceLanguage::Cxx:
+        return settings.cxxCompileFlags;
+    case Project::SourceLanguage::C:
+        return settings.cCompileFlags;
+    }
+    std::unreachable();
+}
+
+/**
  * What a compilation adds after the shared arguments: @p includes, then the
  * defines, then the compile flags of @p applied, each kind in its order.
  */
@@ -181,6 +195,19 @@ std::vector<std::string> settingsCompileArguments(const std::vector<std::filesys
     }
     for (const Project::TargetSettings* settings : applied) {
         arguments.insert(arguments.end(), settings->compileFlags.begin(), settings->compileFlags.end());
+    }
+    return arguments;
+}
+
+/**
+ * The compile flags for @p language alone of @p applied, in its order.
+ */
+std::vector<std::string> languageCompileArguments(const std::vector<const Project::TargetSettings*>& applied, const Project::SourceLanguage language)
+{
+    std::vector<std::string> arguments;
+    for (const Project::TargetSettings* settings : applied) {
+        const std::vector<std::string>& flags = languageCompileFlags(*settings, language);
+        arguments.insert(arguments.end(), flags.begin(), flags.end());
     }
     return arguments;
 }
@@ -231,9 +258,12 @@ std::vector<CompileCommand> planCompileCommands(const BuildSettings& settings, c
             const std::filesystem::path output = objectFile(settings, entry.target.name, source);
             const std::filesystem::path file = asArgument(source);
 
-            const LanguageCompile& language = (Project::languageOf(source) == Project::SourceLanguage::C) ? c : cxx;
+            const Project::SourceLanguage sourceLanguage = Project::languageOf(source);
+            const LanguageCompile& language = (sourceLanguage == Project::SourceLanguage::C) ? c : cxx;
             std::vector<std::string> arguments = language.shared;
             arguments.insert(arguments.end(), added.begin(), added.end());
+            const std::vector<std::string> languageAdded = languageCompileArguments(applied, sourceLanguage);
+            arguments.insert(arguments.end(), languageAdded.begin(), languageAdded.end());
             const std::filesystem::path dependencies = dependencyFileOf(output);
             std::optional<std::filesystem::path> dependencyFile;
             if (const auto options = language.driver.dependencyFileOptions(dependencies); options.has_value()) {
