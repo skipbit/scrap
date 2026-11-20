@@ -685,6 +685,7 @@ TEST(CompilePlannerTest, CompilesEachSourceWithTheCompileFlagsOfItsLanguage)
     targets[0].sources = { "src/helper.c", "src/main.cpp" };
     targets[0].target.settings.cCompileFlags = { "-app-c" };
     targets[0].target.settings.cxxCompileFlags = { "-app-cpp" };
+    targets[1].target.settings.cxxCompileFlags = { "-own-cpp" };
     targets[1].target.publicSettings.cCompileFlags = { "-pub-c" };
     targets[1].target.publicSettings.cxxCompileFlags = { "-pub-cpp" };
     BuildSettings settings = settingsFor(CompilerIdentity{});
@@ -699,8 +700,8 @@ TEST(CompilePlannerTest, CompilesEachSourceWithTheCompileFlagsOfItsLanguage)
     ASSERT_EQ(commands[1].file, "src/main.cpp");
     const std::vector<std::string> cxxTail(commands[1].arguments.end() - 8, commands[1].arguments.end());
     EXPECT_EQ(cxxTail, (std::vector<std::string>{ "-app", "-pub", "-app-cpp", "-pub-cpp", "-c", "src/main.cpp", "-o", "build/debug/obj/app/src/main.cpp.o" }));
-    const std::vector<std::string> libraryTail(commands[2].arguments.end() - 7, commands[2].arguments.end());
-    EXPECT_EQ(libraryTail, (std::vector<std::string>{ "-own", "-pub", "-pub-cpp", "-c", "src/core.cpp", "-o", "build/debug/obj/core/src/core.cpp.o" }));
+    const std::vector<std::string> libraryTail(commands[2].arguments.end() - 8, commands[2].arguments.end());
+    EXPECT_EQ(libraryTail, (std::vector<std::string>{ "-own", "-pub", "-own-cpp", "-pub-cpp", "-c", "src/core.cpp", "-o", "build/debug/obj/core/src/core.cpp.o" }));
 }
 
 /**
