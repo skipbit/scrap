@@ -85,11 +85,14 @@ A target can add to the commands that build it. Settings written on a target app
 name = "core"
 include-dirs = ["src"]
 compile-flags = ["-Werror"]
+cpp-compile-flags = ["-Wold-style-cast"]
 
 [lib.public]
 compile-flags = ["-pthread"]
 link-flags = ["-pthread"]
 ```
+
+`compile-flags` apply to C and C++ sources alike. `c-compile-flags` apply to C sources alone and `cpp-compile-flags` to C++ sources alone, and come after `compile-flags`. A flag only one language takes belongs in the one for that language: gcc warns of `-Wold-style-cast` when it compiles C, and with `-Werror` the warning stops the build.
 
 ### 🎨 Project Templates
 
