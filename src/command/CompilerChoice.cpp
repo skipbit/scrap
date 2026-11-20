@@ -67,15 +67,44 @@ std::expected<ChosenCompiler, Toolchain::NoCompiler> systemCompiler(const Runtim
 }
 
 /**
+ * The name of a toolchain installed for this host, to show as one to select.
+ */
+std::optional<std::string> installedExample(const RuntimeEnvironment& env)
+{
+    const auto host = Toolchain::hostEnvironment();
+    if (! env.scrapHome.has_value() || ! host.has_value()) {
+        return std::nullopt;
+    }
+    return Toolchain::anyInstalledToolchain(*env.scrapHome, *host).transform(&Toolchain::InstalledToolchain::name);
+}
+
+/**
+ * The report for a system with no C compiler. Where nothing named a
+ * toolchain, so @p source is empty, an installed toolchain is shown as one
+ * to select, not used.
+ */
+std::string renderNoSystemCCompiler(const RuntimeEnvironment& env, const std::optional<ChoiceSource> source, const Toolchain::NoCompiler& missing)
+{
+    if (! missing.requested.empty()) {
+        return renderUnusableCCompilerRequest(missing.requested);
+    }
+    if (! source.has_value()) {
+        if (const auto example = installedExample(env); example.has_value()) {
+            return renderNoCCompilerWithInstalled(*example);
+        }
+    }
+    return renderNoCCompilerFound();
+}
+
+/**
  * @p chosen with the C compiler the system provides, named on a line of its
  * own, or the report of why there is none.
  */
-std::expected<ChosenCompiler, std::string> withSystemCCompiler(const RuntimeEnvironment& env, ChosenCompiler chosen)
+std::expected<ChosenCompiler, std::string> withSystemCCompiler(const RuntimeEnvironment& env, const std::optional<ChoiceSource> source, ChosenCompiler chosen)
 {
     auto found = Toolchain::detectSystemCCompiler(env.preferredCCompiler, env.systemSearchPaths);
     if (! found.has_value()) {
-        const std::string& requested = found.error().requested;
-        return std::unexpected(requested.empty() ? renderNoCCompilerFound() : renderUnusableCCompilerRequest(requested));
+        return std::unexpected(renderNoSystemCCompiler(env, source, found.error()));
     }
     chosen.announcement += "Using the system C compiler '" + printablePath(found->path) + "' (";
     chosen.announcement += describeCOrigin(found->origin);
@@ -101,10 +130,9 @@ std::string renderNoSystemCompiler(const Toolchain::NoCompiler& missing)
  */
 std::string renderNoCompilerWhereNothingIsNamed(const RuntimeEnvironment& env, const Toolchain::NoCompiler& missing)
 {
-    const auto host = Toolchain::hostEnvironment();
-    if (missing.requested.empty() && env.scrapHome.has_value() && host.has_value()) {
-        if (const auto example = Toolchain::anyInstalledToolchain(*env.scrapHome, *host); example.has_value()) {
-            return renderNoCompilerWithInstalled(example->name());
+    if (missing.requested.empty()) {
+        if (const auto example = installedExample(env); example.has_value()) {
+            return renderNoCompilerWithInstalled(*example);
         }
     }
     return renderNoSystemCompiler(missing);
@@ -126,7 +154,7 @@ std::expected<ChosenCompiler, std::string> systemCompilers(const RuntimeEnvironm
     if (cSources == CSources::Absent) {
         return std::move(*system);
     }
-    return withSystemCCompiler(env, std::move(*system));
+    return withSystemCCompiler(env, source, std::move(*system));
 }
 
 /**

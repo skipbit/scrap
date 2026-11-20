@@ -5037,6 +5037,30 @@ TEST_F(CliE2ETest, BuildReportsNoCCompilerFound)
 }
 
 /**
+ * With nothing chosen and no C compiler on the system, an installed
+ * toolchain is not used in its place, and a build with C sources says how to
+ * select one, as a build without a C++ compiler does.
+ */
+TEST_F(CliE2ETest, BuildWithCSourcesDoesNotChooseAnInstalledToolchainUnasked)
+{
+    installWorkingToolchain("gcc", "15.2.0");
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp", MainSource);
+    writeFile("src/helper.c", "int helper(void) { return 0; }\n");
+    std::filesystem::create_directories(_root / "empty");
+
+    auto result = runScrap({ "build" }, { realCompiler(), "PATH=" + (_root / "empty").string() }, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_NE(result.stderrText.find("error: no C compiler found\n"
+                                     "hint: select an installed toolchain with 'scrap toolchain select <toolchain>', such as 'gcc@15.2.0'\n"),
+              std::string::npos)
+        << result.stderrText;
+    EXPECT_FALSE(std::filesystem::exists(_root / "build"));
+}
+
+/**
  * A C standard the C compiler cannot build is reported after a C++ standard
  * the C++ compiler cannot build, so both are known at once.
  */
