@@ -178,13 +178,11 @@ const std::vector<std::string>& languageCompileFlags(const Project::TargetSettin
 }
 
 /**
- * What a compilation of a @p language source adds after the shared
- * arguments: @p includes, then the defines, the compile flags, and the
- * compile flags for @p language alone of @p applied, each kind in its order.
+ * What a compilation adds after the shared arguments: @p includes, then the
+ * defines, then the compile flags of @p applied, each kind in its order.
  */
 std::vector<std::string> settingsCompileArguments(const std::vector<std::filesystem::path>& includes,
-                                                  const std::vector<const Project::TargetSettings*>& applied,
-                                                  const Project::SourceLanguage language)
+                                                  const std::vector<const Project::TargetSettings*>& applied)
 {
     std::vector<std::string> arguments;
     for (const std::filesystem::path& directory : includes) {
@@ -198,6 +196,15 @@ std::vector<std::string> settingsCompileArguments(const std::vector<std::filesys
     for (const Project::TargetSettings* settings : applied) {
         arguments.insert(arguments.end(), settings->compileFlags.begin(), settings->compileFlags.end());
     }
+    return arguments;
+}
+
+/**
+ * The compile flags for @p language alone of @p applied, in its order.
+ */
+std::vector<std::string> languageCompileArguments(const std::vector<const Project::TargetSettings*>& applied, const Project::SourceLanguage language)
+{
+    std::vector<std::string> arguments;
     for (const Project::TargetSettings* settings : applied) {
         const std::vector<std::string>& flags = languageCompileFlags(*settings, language);
         arguments.insert(arguments.end(), flags.begin(), flags.end());
@@ -246,6 +253,7 @@ std::vector<CompileCommand> planCompileCommands(const BuildSettings& settings, c
     for (const Project::TargetSources& entry : targets) {
         const std::vector<const Project::TargetSettings*> applied = appliedSettings(entry.target, targets);
         const std::vector<std::filesystem::path> searched = includeDirectories(applied);
+        const std::vector<std::string> added = settingsCompileArguments(searched, applied);
         for (const std::filesystem::path& source : entry.sources) {
             const std::filesystem::path output = objectFile(settings, entry.target.name, source);
             const std::filesystem::path file = asArgument(source);
@@ -253,8 +261,9 @@ std::vector<CompileCommand> planCompileCommands(const BuildSettings& settings, c
             const Project::SourceLanguage sourceLanguage = Project::languageOf(source);
             const LanguageCompile& language = (sourceLanguage == Project::SourceLanguage::C) ? c : cxx;
             std::vector<std::string> arguments = language.shared;
-            const std::vector<std::string> added = settingsCompileArguments(searched, applied, sourceLanguage);
             arguments.insert(arguments.end(), added.begin(), added.end());
+            const std::vector<std::string> languageAdded = languageCompileArguments(applied, sourceLanguage);
+            arguments.insert(arguments.end(), languageAdded.begin(), languageAdded.end());
             const std::filesystem::path dependencies = dependencyFileOf(output);
             std::optional<std::filesystem::path> dependencyFile;
             if (const auto options = language.driver.dependencyFileOptions(dependencies); options.has_value()) {
