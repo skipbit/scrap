@@ -879,6 +879,12 @@ TEST(ManifestParserTest, ReportsASettingThatIsNotAnArrayOfStrings)
     const auto cxx = parseManifest(cxxNotAnArray, ManifestName);
     ASSERT_FALSE(cxx.has_value());
     EXPECT_EQ(describe(cxx.error()), "scrap.toml:7:21: error: bin.cpp-compile-flags: must be an array of strings");
+
+    constexpr std::string_view cNotAnArray = "[package]\nname = \"a\"\nversion = \"0.1.0\"\n"
+                                             "[[bin]]\nname = \"a\"\nsrc = \"main.cpp\"\nc-compile-flags = \"-g\"\n";
+    const auto c = parseManifest(cNotAnArray, ManifestName);
+    ASSERT_FALSE(c.has_value());
+    EXPECT_EQ(describe(c.error()), "scrap.toml:7:19: error: bin.c-compile-flags: must be an array of strings");
 }
 
 /**
