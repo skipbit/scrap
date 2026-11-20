@@ -129,6 +129,18 @@ TEST(ToolchainDiagnosticTest, RendersNoCCompilerFound)
 }
 
 /**
+ * A build with C sources and no C compiler, where nothing chose a toolchain,
+ * is told how to select an installed one, as a build without a C++ compiler
+ * is.
+ */
+TEST(ToolchainDiagnosticTest, RendersNoCCompilerWithAnInstalledToolchain)
+{
+    EXPECT_EQ(renderNoCCompilerWithInstalled("gcc@15.2.0"),
+              "error: no C compiler found\n"
+              "hint: select an installed toolchain with 'scrap toolchain select <toolchain>', such as 'gcc@15.2.0'\n");
+}
+
+/**
  * A record that names no C compiler is answered with both ways to build C:
  * installing again, and the compilers of the system.
  */

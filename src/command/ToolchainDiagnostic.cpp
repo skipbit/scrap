@@ -100,6 +100,20 @@ std::string renderUnusableRequest(const std::string_view variable, const std::st
     return text;
 }
 
+/**
+ * Report a system without a @p language compiler where nothing chose a
+ * toolchain, with how to select one of those installed, such as @p example.
+ */
+std::string renderNoLanguageCompilerWithInstalled(const std::string_view language, const std::string_view example)
+{
+    std::string rendered = "error: no ";
+    rendered += language;
+    rendered += " compiler found\nhint: select an installed toolchain with 'scrap toolchain select <toolchain>', such as '";
+    rendered += printableText(example);
+    rendered += "'\n";
+    return rendered;
+}
+
 }  // anonymous namespace
 
 std::string renderCannotListToolchains(const Toolchain::CannotListToolchains& fault)
@@ -224,12 +238,14 @@ std::string renderUnusableCCompilerRequest(const std::string_view requested)
     return renderUnusableRequest("CC", requested);
 }
 
-std::string renderNoCompilerWithInstalled(std::string_view example)
+std::string renderNoCompilerWithInstalled(const std::string_view example)
 {
-    std::string rendered = "error: no C++ compiler found\nhint: select an installed toolchain with 'scrap toolchain select <toolchain>', such as '";
-    rendered += printableText(example);
-    rendered += "'\n";
-    return rendered;
+    return renderNoLanguageCompilerWithInstalled("C++", example);
+}
+
+std::string renderNoCCompilerWithInstalled(const std::string_view example)
+{
+    return renderNoLanguageCompilerWithInstalled("C", example);
 }
 
 std::string asWarning(std::string rendered)

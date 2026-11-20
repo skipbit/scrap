@@ -127,6 +127,13 @@ enum class ToolchainNamedIn : std::uint8_t {
 [[nodiscard]] std::string renderNoCompilerWithInstalled(std::string_view example);
 
 /**
+ * @brief Report a system without a C compiler for a build with C sources
+ *        where nothing chose a toolchain, with how to select one of those
+ *        installed, such as @p example.
+ */
+[[nodiscard]] std::string renderNoCCompilerWithInstalled(std::string_view example);
+
+/**
  * @brief The error lines @p rendered as a warning, for what a command goes
  *        on without.
  */
