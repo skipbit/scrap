@@ -88,6 +88,12 @@ struct Manifest {
 
     /// The toolchain [toolchain] name chooses, system or a specifier as written; nothing when it chooses none.
     std::optional<std::string> toolchain;
+
+    /// The style [format] style passes to clang-format as written; nothing when it names none.
+    std::optional<std::string> formatStyle;
+
+    /// The checks [check] checks enables, in clang-tidy's notation; nothing when it lists none.
+    std::optional<std::string> checks;
 };
 
 }  // namespace scrap::Project

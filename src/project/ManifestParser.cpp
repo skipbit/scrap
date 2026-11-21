@@ -32,7 +32,7 @@ constexpr LanguageStandard DefaultStandard = LanguageStandard::Cxx23;
 constexpr CStandard DefaultCStandard = CStandard::C17;
 
 /// Top-level keys this version recognises.
-constexpr std::array<std::string_view, 6> KnownTopLevelKeys{ "package", "bin", "lib", "dependencies", "toolchain", "scripts" };
+constexpr std::array<std::string_view, 8> KnownTopLevelKeys{ "package", "bin", "lib", "dependencies", "toolchain", "format", "check", "scripts" };
 
 /// Keys the [package] table recognises.
 constexpr std::array<std::string_view, 4> KnownPackageKeys{ "name", "version", "std", "c-std" };
@@ -629,6 +629,49 @@ std::expected<std::optional<std::string>, ManifestError> parseToolchain(const st
     return std::move(name->value);
 }
 
+/**
+ * Read [format] or [check] (@p table): tool, which may only name @p tool,
+ * and the string at @p key, which scrap passes to that tool as written.
+ * Nothing when the table or the string is not there.
+ */
+std::expected<std::optional<std::string>, ManifestError> parseToolTable(const std::filesystem::path& file,
+                                                                        const toml::table& root,
+                                                                        std::string_view table,
+                                                                        std::string_view tool,
+                                                                        std::string_view key)
+{
+    const toml::node* node = root.get(table);
+    if (node == nullptr) {
+        return std::nullopt;
+    }
+    const toml::table* entries = node->as_table();
+    if (entries == nullptr) {
+        return std::unexpected(errorAt(file, *node, std::string{ table }, "must be a table"));
+    }
+    const std::array<std::string_view, 2> known{ "tool", key };
+    if (auto checked = rejectUnknownKeys(file, *entries, table, known); ! checked.has_value()) {
+        return std::unexpected(checked.error());
+    }
+    if (const toml::node* named = entries->get("tool"); named != nullptr) {
+        auto field = readString(file, *named, dotted(table, "tool"));
+        if (! field.has_value()) {
+            return std::unexpected(field.error());
+        }
+        if (field->value != tool) {
+            return std::unexpected(errorAt(file, *named, dotted(table, "tool"), "unsupported tool; expected one of \"" + std::string{ tool } + '"'));
+        }
+    }
+    const toml::node* value = entries->get(key);
+    if (value == nullptr) {
+        return std::nullopt;
+    }
+    auto field = readString(file, *value, dotted(table, key));
+    if (! field.has_value()) {
+        return std::unexpected(field.error());
+    }
+    return std::move(field->value);
+}
+
 }  // anonymous namespace
 
 /**
@@ -668,6 +711,18 @@ std::expected<Manifest, ManifestError> parseManifest(std::string_view text, cons
         return std::unexpected(toolchain.error());
     }
     manifest.toolchain = std::move(*toolchain);
+
+    auto formatStyle = parseToolTable(file, parsed.table(), "format", "clang-format", "style");
+    if (! formatStyle.has_value()) {
+        return std::unexpected(formatStyle.error());
+    }
+    manifest.formatStyle = std::move(*formatStyle);
+
+    auto checks = parseToolTable(file, parsed.table(), "check", "clang-tidy", "checks");
+    if (! checks.has_value()) {
+        return std::unexpected(checks.error());
+    }
+    manifest.checks = std::move(*checks);
 
     return manifest;
 }
