@@ -125,7 +125,7 @@ std::string problemWithANumberOfOneOrMore(const std::string& input)
     if (unsignedText && (error == std::errc{}) && (stopped == end) && (value >= 1)) {
         return {};
     }
-    if (unsignedText && (error == std::errc::result_out_of_range)) {
+    if (unsignedText && (error == std::errc::result_out_of_range) && (stopped == end)) {
         return "must be at most " + std::to_string(std::numeric_limits<std::int64_t>::max()) + ", not '" + input + "'";
     }
     return "must be a whole number of 1 or more, not '" + input + "'";

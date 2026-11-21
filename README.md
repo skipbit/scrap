@@ -157,12 +157,12 @@ scrap is in early alpha development.
 
 ✅ **Works today**
 - **Creating a project** - `scrap new <name>` creates a project from the built-in template
-- **Building** - `scrap build` makes a debug build, or an optimised one with `--release`, below `build/`, along with a `compile_commands.json` for editors and other tools. `--target <name>` builds one target
+- **Building** - `scrap build` makes a debug build, or an optimised one with `--release`, below `build/`, along with a `compile_commands.json` for editors and other tools. `--target <name>` builds one target, and `-j <n>` (`--jobs`) sets how many steps run at once
 - **Building only what changed** - a source is compiled again when it, a header it includes, the compiler or the command that compiles it has changed
 - **C sources** - `.c` sources are compiled as C and linked with the C++ sources
 - **Static libraries** - with a `[[lib]]` in `scrap.toml`, the sources below `src/` become a static library that each executable links
 - **Settings per target** - include directories, defines and flags, as shown in [Simple Configuration](#-simple-configuration)
-- **Running** - `scrap run` builds the executable and starts it with the arguments after `--`, and exits with its exit code. `--bin <name>` chooses the executable when there is more than one
+- **Running** - `scrap run` builds the executable and starts it with the arguments after `--`, and exits with its exit code. `--bin <name>` chooses the executable when there is more than one, and `-j <n>` sets how many steps of the build run at once
 - **Cleaning** - `scrap clean` removes `build/`
 - **Toolchains** - `scrap toolchain install`, `select`, `unselect`, `list` (with `--remote`), `info`, `update` and `uninstall`, and a toolchain per project in `scrap.toml`, as shown in [Integrated Toolchain Management](#-integrated-toolchain-management)
 - **External commands** - an executable named `scrap-<name>` on `PATH` runs as `scrap <name>` and is listed in `scrap --help`
@@ -170,7 +170,6 @@ scrap is in early alpha development.
 🚧 **In Progress**
 - Choosing a template with `--template`, and templates from Git repositories
 - `scrap template list` and `scrap template update`
-- Choosing the number of parallel jobs
 - `[dependencies]` in `scrap.toml`, which is accepted and not yet read
 
 📅 **Planned**

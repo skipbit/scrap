@@ -926,7 +926,7 @@ TEST(CLI11ParserAdapterTest, Parse_PositiveInt64Option_RefusesAnythingElse)
 {
     const CLI11ParserAdapter adapter = adapterWithPositiveJobs();
 
-    for (const char* const given : { "0", "-1", "+2", "abc", "1x", " 1", "" }) {
+    for (const char* const given : { "0", "-1", "+2", "abc", "1x", " 1", "", "99999999999999999999x" }) {
         ArgvBuilder argv{ "scrap", "build", "--jobs", given };
         EXPECT_EQ(failureOf(adapter, argv), std::string{ "--jobs: must be a whole number of 1 or more, not '" } + given + "'") << given;
     }
