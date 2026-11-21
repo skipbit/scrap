@@ -313,6 +313,67 @@ TEST(ManifestParserTest, ReportsAToolchainItCannotUse)
 }
 
 /**
+ * [format] style and [check] checks are read as written, with or without
+ * the tool named, and a manifest without the tables names neither.
+ */
+TEST(ManifestParserTest, ReadsTheStyleAndTheChecksItNames)
+{
+    const std::string package = "[package]\nname = \"app\"\nversion = \"0.1.0\"\n";
+
+    const auto named = parseManifest(package + "[format]\ntool = \"clang-format\"\nstyle = \"{BasedOnStyle: llvm, IndentWidth: 4}\"\n"
+                                         + "[check]\ntool = \"clang-tidy\"\nchecks = \"bugprone-*,-bugprone-easily-swappable-parameters\"\n",
+                                     ManifestName);
+    ASSERT_TRUE(named.has_value()) << describe(named.error());
+    EXPECT_EQ(named->formatStyle, std::optional<std::string>{ "{BasedOnStyle: llvm, IndentWidth: 4}" });
+    EXPECT_EQ(named->enabledChecks, std::optional<std::string>{ "bugprone-*,-bugprone-easily-swappable-parameters" });
+
+    const auto withoutTool = parseManifest(package + "[format]\nstyle = \"llvm\"\n[check]\nchecks = \"modernize-*\"\n", ManifestName);
+    ASSERT_TRUE(withoutTool.has_value()) << describe(withoutTool.error());
+    EXPECT_EQ(withoutTool->formatStyle, std::optional<std::string>{ "llvm" });
+    EXPECT_EQ(withoutTool->enabledChecks, std::optional<std::string>{ "modernize-*" });
+
+    const auto toolAlone = parseManifest(package + "[format]\ntool = \"clang-format\"\n[check]\ntool = \"clang-tidy\"\n", ManifestName);
+    ASSERT_TRUE(toolAlone.has_value()) << describe(toolAlone.error());
+    EXPECT_FALSE(toolAlone->formatStyle.has_value());
+    EXPECT_FALSE(toolAlone->enabledChecks.has_value());
+
+    const auto none = parseManifest(package, ManifestName);
+    ASSERT_TRUE(none.has_value()) << describe(none.error());
+    EXPECT_FALSE(none->formatStyle.has_value());
+    EXPECT_FALSE(none->enabledChecks.has_value());
+}
+
+/**
+ * [format] and [check] each hold tool and one setting, the tool may only be
+ * the one scrap runs, and each fault points at where it was written.
+ */
+TEST(ManifestParserTest, ReportsAFormatOrCheckTableItCannotUse)
+{
+    const std::string package = "[package]\nname = \"app\"\nversion = \"0.1.0\"\n";
+    const auto fault = [&](const std::string& table) {
+        const auto manifest = parseManifest(package + table, ManifestName);
+        return manifest.has_value() ? std::string{ "<read>" } : describe(manifest.error());
+    };
+
+    const auto formatNotATable = parseManifest("format = \"llvm\"\n" + package, ManifestName);
+    ASSERT_FALSE(formatNotATable.has_value());
+    EXPECT_EQ(describe(formatNotATable.error()), "scrap.toml:1:10: error: format: must be a table");
+    const auto checkNotATable = parseManifest("check = \"*\"\n" + package, ManifestName);
+    ASSERT_FALSE(checkNotATable.has_value());
+    EXPECT_EQ(describe(checkNotATable.error()), "scrap.toml:1:9: error: check: must be a table");
+    EXPECT_EQ(fault("[format]\nchecks = \"*\"\n"), "scrap.toml:5:10: error: format.checks: unknown key; expected one of tool style");
+    EXPECT_EQ(fault("[check]\nstyle = \"llvm\"\n"), "scrap.toml:5:9: error: check.style: unknown key; expected one of tool checks");
+    EXPECT_EQ(fault("[format]\ntool = \"clang-tidy\"\n"),
+              "scrap.toml:5:8: error: format.tool: unsupported tool; expected one of \"clang-format\"");
+    EXPECT_EQ(fault("[check]\ntool = \"clang-format\"\n"),
+              "scrap.toml:5:8: error: check.tool: unsupported tool; expected one of \"clang-tidy\"");
+    EXPECT_EQ(fault("[format]\ntool = 1\n"), "scrap.toml:5:8: error: format.tool: must be a string");
+    EXPECT_EQ(fault("[format]\nstyle = [\"llvm\"]\n"), "scrap.toml:5:9: error: format.style: must be a string");
+    EXPECT_EQ(fault("[check]\nchecks = \"\"\n"), "scrap.toml:5:10: error: check.checks: must not be empty");
+    EXPECT_EQ(fault("[format]\nstyle = \"\"\n"), "scrap.toml:5:9: error: format.style: must not be empty");
+}
+
+/**
  * A missing [package] table is reported against the file, since there is no
  * position in it to point at.
  */
