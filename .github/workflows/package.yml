@@ -77,7 +77,10 @@ jobs:
         env:
           DEBIAN_FRONTEND: noninteractive
           # F911AB184317630C59970973E363C90F8F1B6217, the key Launchpad
-          # names as the signing key of the PPA.
+          # names as the signing key of the PPA. When it changes, the
+          # signing_key_fingerprint of
+          # https://launchpad.net/api/1.0/~git-core/+archive/ubuntu/ppa
+          # names the new one, which keyserver.ubuntu.com serves.
           PPA_KEY: |
             -----BEGIN PGP PUBLIC KEY BLOCK-----
 
