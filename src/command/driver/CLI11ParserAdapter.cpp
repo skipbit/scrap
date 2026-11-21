@@ -8,16 +8,19 @@
 #include <CLI/CLI.hpp>
 
 #include <algorithm>
+#include <charconv>
 #include <cstddef>
 #include <cstdint>
 #include <deque>
 #include <exception>
 #include <expected>  // IWYU pragma: keep
+#include <limits>
 #include <memory>
 #include <optional>
 #include <span>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -109,6 +112,26 @@ NamedSlot<T>& slotFor(std::unordered_map<std::string, NamedSlot<T>>& slots, cons
 }
 
 /**
+ * What is wrong with @p input as a whole number of 1 or more written in
+ * decimal digits, or nothing when it is one.
+ */
+std::string problemWithANumberOfOneOrMore(const std::string& input)
+{
+    std::int64_t value = 0;
+    const char* const end = input.data() + input.size();
+    const auto [stopped, error] = std::from_chars(input.data(), end, value);
+    // from_chars takes a leading '-', and no '+' or space.
+    const bool unsignedText = ! input.empty() && (input.front() != '-');
+    if (unsignedText && (error == std::errc{}) && (stopped == end) && (value >= 1)) {
+        return {};
+    }
+    if (unsignedText && (error == std::errc::result_out_of_range)) {
+        return "must be at most " + std::to_string(std::numeric_limits<std::int64_t>::max()) + ", not '" + input + "'";
+    }
+    return "must be a whole number of 1 or more, not '" + input + "'";
+}
+
+/**
  * Register one OptionDef as a CLI11 option or flag.
  *
  * Writes the parsed value into @p storage so it can be harvested
@@ -129,12 +152,16 @@ void addOption(CLI::App& app, const OptionDef& def, OptionStorage& storage)
         slot.option = app.add_flag(nameStr, slot.value, def.description);
         break;
     }
-    case OptionValueType::Int64: {
+    case OptionValueType::Int64:
+    case OptionValueType::PositiveInt64: {
         auto& slot = slotFor(storage.ints, def);
         auto* opt = app.add_option(nameStr, slot.value, def.description);
         slot.option = opt;
         if (def.required) {
             opt->required();
+        }
+        if (def.type == OptionValueType::PositiveInt64) {
+            opt->check(CLI::Validator{ problemWithANumberOfOneOrMore, "NUMBER" });
         }
         break;
     }

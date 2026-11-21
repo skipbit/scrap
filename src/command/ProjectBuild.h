@@ -17,6 +17,9 @@ struct RuntimeEnvironment;
 /// The option that asks a build, or the build before a run, for the release profile.
 inline constexpr std::string_view ReleaseOption = "release";
 
+/// The option that sets how many steps of a build run at once.
+inline constexpr std::string_view JobsOption = "jobs";
+
 /// The option that names the one target scrap build builds.
 inline constexpr std::string_view TargetOption = "target";
 
@@ -25,6 +28,12 @@ inline constexpr std::string_view TargetOption = "target";
  *        ReleaseOption is given, debug otherwise.
  */
 [[nodiscard]] Compile::BuildProfile requestedProfile(const ParsedOptions& options);
+
+/**
+ * @brief How many steps of a build run at once: the number JobsOption gives,
+ *        or as many as the system has processors for when it is not given.
+ */
+[[nodiscard]] unsigned requestedParallelism(const ParsedOptions& options);
 
 /**
  * @brief The name the options of a command give to @p option, or nothing
@@ -48,12 +57,14 @@ inline constexpr std::string_view TargetOption = "target";
  * @param project The project to build.
  * @param profile What to build it for.
  * @param target The one target to build, when one is asked for.
+ * @param parallelism How many steps run at once.
  * @return Where it built, relative to the project root, or the exit code of
  *   the failure it reported (1).
  */
 [[nodiscard]] std::expected<std::filesystem::path, int> buildProject(const RuntimeEnvironment& env,
                                                                      const Project::LoadedProject& project,
                                                                      Compile::BuildProfile profile,
-                                                                     const std::optional<std::string>& target);
+                                                                     const std::optional<std::string>& target,
+                                                                     unsigned parallelism);
 
 }  // namespace scrap::Command

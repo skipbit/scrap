@@ -1685,6 +1685,87 @@ TEST_F(CliE2ETest, BuildCompilesSourcesAtTheSameTime)
     EXPECT_EQ(result.exitCode, 0) << result.stderrText;
 }
 
+/**
+ * The jobs asked for run at once, whatever the processors of the host.
+ */
+TEST_F(CliE2ETest, BuildCompilesAsManySourcesAtOnceAsTheJobsAsk)
+{
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/a.cpp", MainSource);
+    writeFile("src/main.cpp", MainSource);
+    makeMeetingPoint();
+    makeDummy("meeting-c++",
+              "case \"$*\" in\n"
+              "  *'-c src/a.cpp'*) read -r line < meeting;;\n"
+              "  *'-c src/main.cpp'*) printf 'here\\n' > meeting;;\n"
+              "esac\n"
+              "exit 0");
+    const std::string compiler = (std::filesystem::canonical(_root) / "bin" / "meeting-c++").string();
+
+    auto result = runScrap({ "build", "-j", "2" }, { "CXX=" + compiler }, _root);
+    releaseMeetingPoint();
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+}
+
+/**
+ * With one job, no step starts while another runs: each compilation holds
+ * the directory "busy" while it runs and fails when another holds it.
+ */
+TEST_F(CliE2ETest, BuildWithOneJobRunsOneStepAtATime)
+{
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/a.cpp", MainSource);
+    writeFile("src/b.cpp", MainSource);
+    writeFile("src/main.cpp", MainSource);
+    makeDummy("alone-c++",
+              "mkdir busy || exit 1\n"
+              "sleep 0.2\n"
+              "rmdir busy\n"
+              "exit 0");
+    const std::string compiler = (std::filesystem::canonical(_root) / "bin" / "alone-c++").string();
+
+    auto result = runScrap({ "build", "-j", "1" }, { "CXX=" + compiler }, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+}
+
+TEST_F(CliE2ETest, BuildAndRunWithOneJob)
+{
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp", "int answer();\nint main() { return answer() == 42 ? 0 : 1; }\n");
+    writeFile("src/answer.cpp", "int answer() { return 42; }\n");
+
+    auto built = runScrap({ "build", "-j", "1" }, { realCompiler() }, _root, BuildTimeout);
+
+    ASSERT_TRUE(built.exitedNormally) << built.stderrText;
+    EXPECT_EQ(built.exitCode, 0) << built.stderrText;
+
+    std::filesystem::remove_all(_root / "build");
+    auto ran = runScrap({ "run", "-j", "1" }, { realCompiler() }, _root, BuildTimeout);
+
+    ASSERT_TRUE(ran.exitedNormally) << ran.stderrText;
+    EXPECT_EQ(ran.exitCode, 0) << ran.stderrText;
+    EXPECT_NE(ran.stderrText.find("     Running app (build/debug/bin/app)\n"), std::string::npos) << ran.stderrText;
+}
+
+TEST_F(CliE2ETest, BuildAndRunRefuseFewerThanOneJob)
+{
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp", MainSource);
+
+    for (const char* const command : { "build", "run" }) {
+        auto result = runScrap({ command, "-j", "0" }, { dummyCompiler() }, _root);
+
+        ASSERT_TRUE(result.exitedNormally) << command;
+        EXPECT_EQ(result.exitCode, 2) << command;
+        EXPECT_EQ(result.stderrText, "--jobs: must be a whole number of 1 or more, not '0'\nRun 'scrap --help' for usage information.\n") << command;
+        EXPECT_FALSE(std::filesystem::exists(_root / "build")) << command;
+    }
+}
+
 TEST_F(CliE2ETest, BuildReportsEverySourceThatFailedAfterWhatTheCompilerWrote)
 {
     if (processorsForTheBuild() < 2) {

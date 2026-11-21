@@ -71,7 +71,7 @@ int RunCommandHandler::execute(const InvocationContext& ctx)
     }
     const std::string name = requested.value_or(executables.front());
 
-    const auto built = buildProject(*ctx.env, *project, requestedProfile(ctx.options), name);
+    const auto built = buildProject(*ctx.env, *project, requestedProfile(ctx.options), name, requestedParallelism(ctx.options));
     if (! built.has_value()) {
         return BuildFailedExitCode;
     }

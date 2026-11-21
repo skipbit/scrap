@@ -25,10 +25,12 @@
 #include "toolchain/ToolchainArguments.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <expected>  // IWYU pragma: keep
 #include <filesystem>
 #include <iostream>
 #include <iterator>
+#include <limits>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -301,13 +303,14 @@ std::vector<Project::TargetSources> sourcesOf(const std::vector<Project::TargetS
 }
 
 /**
- * Compile, archive and link @p targets, as many steps at once as the system
- * has processors for, reporting each step as it runs. A step whose inputs
- * have not changed since it last succeeded is not run.
+ * Compile, archive and link @p targets, @p parallelism steps at once,
+ * reporting each step as it runs. A step whose inputs have not changed since
+ * it last succeeded is not run.
  */
 std::expected<void, int> runBuild(const RuntimeEnvironment& env,
                                   const Compile::BuildSettings& settings,
-                                  const std::vector<Project::TargetSources>& targets)
+                                  const std::vector<Project::TargetSources>& targets,
+                                  const unsigned parallelism)
 {
     const auto archives = planArchives(env, settings, targets);
     if (! archives.has_value()) {
@@ -317,7 +320,7 @@ std::expected<void, int> runBuild(const RuntimeEnvironment& env,
     Build::RecordedStepHistory history{ settings.buildDirectory };
     StreamBuildReporter reporter{ std::cerr, standardErrorIsTerminal() };
     const auto steps = Build::buildSteps(Compile::planCompileCommands(settings, targets), *archives, Compile::planLinkCommands(settings, targets));
-    const auto built = Build::runSteps(steps, runner, history, reporter, Build::availableParallelism());
+    const auto built = Build::runSteps(steps, runner, history, reporter, parallelism);
     if (! built.has_value()) {
         std::cerr << renderStepFailures(built.error());
         return std::unexpected(1);
@@ -351,6 +354,18 @@ Compile::BuildProfile requestedProfile(const ParsedOptions& options)
     return isGiven(options, ReleaseOption) ? Compile::BuildProfile::Release : Compile::BuildProfile::Debug;
 }
 
+unsigned requestedParallelism(const ParsedOptions& options)
+{
+    const auto found = options.named.find(std::string{ JobsOption });
+    if (found == options.named.end()) {
+        return Build::availableParallelism();
+    }
+    // The parser takes only a number of 1 or more; more steps than unsigned
+    // holds never run at once.
+    const std::int64_t asked = std::get<std::int64_t>(found->second);
+    return static_cast<unsigned>(std::min<std::int64_t>(asked, std::numeric_limits<unsigned>::max()));
+}
+
 std::optional<std::string> requestedName(const ParsedOptions& options, const std::string_view option)
 {
     const auto found = options.named.find(std::string{ option });
@@ -364,7 +379,8 @@ std::optional<std::string> requestedName(const ParsedOptions& options, const std
 std::expected<std::filesystem::path, int> buildProject(const RuntimeEnvironment& env,
                                                        const Project::LoadedProject& project,
                                                        const Compile::BuildProfile profile,
-                                                       const std::optional<std::string>& target)
+                                                       const std::optional<std::string>& target,
+                                                       const unsigned parallelism)
 {
     const auto targets = resolveBuildTargets(project);
     if (! targets.has_value()) {
@@ -412,7 +428,7 @@ std::expected<std::filesystem::path, int> buildProject(const RuntimeEnvironment&
 
     // The database covers every target, so it does not change with the one
     // asked for; only the targets chosen are compiled and linked.
-    const auto built = runBuild(env, settings, sourcesOf(*sources, *chosen));
+    const auto built = runBuild(env, settings, sourcesOf(*sources, *chosen), parallelism);
     if (! built.has_value()) {
         return std::unexpected(built.error());
     }

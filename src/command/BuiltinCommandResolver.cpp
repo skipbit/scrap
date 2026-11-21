@@ -192,6 +192,23 @@ OptionDef releaseFlag(std::string description)
 }
 
 /**
+ * The option that sets how many steps of a build run at once, described as
+ * @p description.
+ */
+OptionDef jobsOption(std::string description)
+{
+    return OptionDef{
+        .longName = std::string{ JobsOption },
+        .shortName = 'j',
+        .type = OptionValueType::PositiveInt64,
+        .required = false,
+        .description = std::move(description),
+        .defaultValue = std::nullopt,
+        .choices = {}
+    };
+}
+
+/**
  * The option @p name that takes the name of a target, described as
  * @p description.
  */
@@ -210,7 +227,8 @@ OptionDef targetNameOption(const std::string_view name, std::string description)
 
 /**
  * Create the entry for "build", which takes an optional path into the project,
- * whether to build for release, and the one target to build.
+ * whether to build for release, the one target to build, and how many steps
+ * run at once.
  */
 CommandEntry makeBuildEntry()
 {
@@ -219,6 +237,7 @@ CommandEntry makeBuildEntry()
     });
     entry.spec.options.named.push_back(releaseFlag("Build with the release profile"));
     entry.spec.options.named.push_back(targetNameOption(TargetOption, "Build only this target"));
+    entry.spec.options.named.push_back(jobsOption("Run this many build steps at once"));
     return entry;
 }
 
@@ -235,8 +254,8 @@ CommandEntry makeCleanEntry()
 
 /**
  * Create the entry for "run", which takes an optional path into the project,
- * whether to build for release, the executable to run, and the program's
- * arguments after "--".
+ * whether to build for release, the executable to run, how many steps of the
+ * build run at once, and the program's arguments after "--".
  */
 CommandEntry makeRunEntry()
 {
@@ -246,6 +265,7 @@ CommandEntry makeRunEntry()
     });
     entry.spec.options.named.push_back(releaseFlag("Build and run with the release profile"));
     entry.spec.options.named.push_back(targetNameOption(BinOption, "Run this executable"));
+    entry.spec.options.named.push_back(jobsOption("Run this many build steps at once"));
     entry.spec.options.trailing = TrailingDef{ .name = "args", .description = "Arguments passed to the program" };
     return entry;
 }

@@ -884,7 +884,61 @@ std::string failureOf(const CLI11ParserAdapter& adapter, const ArgvBuilder& argv
     return std::get<ParseFailure>(result.error()).message;
 }
 
+/**
+ * Helper: an adapter for "build" with a "jobs" option that takes a number of
+ * 1 or more.
+ */
+CLI11ParserAdapter adapterWithPositiveJobs()
+{
+    CLI11ParserAdapter adapter;
+    CommandSpec spec = makeSpec("build");
+    spec.options.named.push_back(OptionDef{
+        .longName = "jobs",
+        .shortName = 'j',
+        .type = OptionValueType::PositiveInt64,
+        .required = false,
+        .description = "",
+        .defaultValue = std::nullopt,
+        .choices = {},
+    });
+    adapter.configure(std::vector{ spec });
+    return adapter;
+}
+
 }  // namespace
+
+TEST(CLI11ParserAdapterTest, Parse_PositiveInt64Option_TakesOneOrMore)
+{
+    const CLI11ParserAdapter adapter = adapterWithPositiveJobs();
+
+    for (const char* const given : { "1", "8", "9223372036854775807" }) {
+        ArgvBuilder argv{ "scrap", "build", "-j", given };
+        auto result = adapter.parse(argv.span());
+
+        ASSERT_TRUE(result.has_value()) << given;
+        auto it = result->options.named.find("jobs");
+        ASSERT_NE(it, result->options.named.end()) << given;
+        EXPECT_EQ(std::to_string(std::get<std::int64_t>(it->second)), given);
+    }
+}
+
+TEST(CLI11ParserAdapterTest, Parse_PositiveInt64Option_RefusesAnythingElse)
+{
+    const CLI11ParserAdapter adapter = adapterWithPositiveJobs();
+
+    for (const char* const given : { "0", "-1", "+2", "abc", "1x", " 1", "" }) {
+        ArgvBuilder argv{ "scrap", "build", "--jobs", given };
+        EXPECT_EQ(failureOf(adapter, argv), std::string{ "--jobs: must be a whole number of 1 or more, not '" } + given + "'") << given;
+    }
+}
+
+TEST(CLI11ParserAdapterTest, Parse_PositiveInt64Option_RefusesANumberTooLarge)
+{
+    const CLI11ParserAdapter adapter = adapterWithPositiveJobs();
+
+    ArgvBuilder argv{ "scrap", "build", "-j", "9223372036854775808" };
+    EXPECT_EQ(failureOf(adapter, argv), "--jobs: must be at most 9223372036854775807, not '9223372036854775808'");
+}
 
 /**
  * A word joined by a dot names no nested command.

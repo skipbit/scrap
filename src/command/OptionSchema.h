@@ -11,6 +11,7 @@ namespace scrap::Command {
 enum class OptionValueType : std::uint8_t {
     Bool,
     Int64,
+    PositiveInt64,  ///< An Int64 of 1 or more.
     String,
     StringList
 };

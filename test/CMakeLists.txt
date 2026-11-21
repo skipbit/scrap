@@ -59,6 +59,7 @@ scrap_add_unit_test(command SOURCES
     unit/command/MetadataProtocolProviderTest.cpp
     unit/command/PrintableTextTest.cpp
     unit/command/ProjectCommandResolverTest.cpp
+    unit/command/ProjectBuildTest.cpp
     unit/command/ProjectDiagnosticTest.cpp
     unit/command/RuntimeEnvironmentFactoryTest.cpp
     unit/command/ToolchainDiagnosticTest.cpp
