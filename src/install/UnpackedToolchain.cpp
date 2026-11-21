@@ -79,7 +79,7 @@ Toolchain::ToolchainArguments runtimeArgumentsFor(std::string_view platform, con
         return Toolchain::ToolchainArguments{ .compile = {}, .link = {} };
     }
     if (platform == "darwin") {
-        return Toolchain::ToolchainArguments{ .compile = {}, .link = { "-lc++abi" } };
+        return Toolchain::ToolchainArguments{ .compile = {}, .link = { "-lc++abi", "-lunwind" } };
     }
     return Toolchain::ToolchainArguments{ .compile = { "-stdlib=libc++" },
                                           .link = { "-stdlib=libc++", "-fuse-ld=lld", "-rtlib=compiler-rt", "-unwindlib=libunwind" } };
