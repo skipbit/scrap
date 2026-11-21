@@ -5,6 +5,7 @@
 #include "command/RuntimeEnvironment.h"
 #include "compile/BuildProfile.h"
 #include "compile/CompilationDatabase.h"
+#include "compile/CompileCommand.h"
 #include "compile/CompilePlanner.h"
 #include "compile/CompilerDriver.h"
 #include "project/Manifest.h"
@@ -211,6 +212,18 @@ std::expected<std::vector<Project::Target>, int> resolveProjectTargets(const Pro
     return std::move(*targets);
 }
 
+std::expected<void, int> writeProjectDatabase(const Project::LoadedProject& project,
+                                              const Compile::BuildProfile profile,
+                                              const std::vector<Compile::CompileCommand>& commands)
+{
+    const auto written = Compile::writeCompilationDatabase(project.root / Compile::buildDirectoryOf(profile), commands);
+    if (! written.has_value()) {
+        std::cerr << renderCompilationDatabaseFailure(written.error());
+        return std::unexpected(1);
+    }
+    return {};
+}
+
 std::expected<ProjectCompiles, int> planProjectCompiles(const RuntimeEnvironment& env,
                                                         const Project::LoadedProject& project,
                                                         const Compile::BuildProfile profile,
@@ -226,10 +239,9 @@ std::expected<ProjectCompiles, int> planProjectCompiles(const RuntimeEnvironment
         return std::unexpected(settings.error());
     }
     auto commands = Compile::planCompileCommands(*settings, *sources);
-    const auto written = Compile::writeCompilationDatabase(project.root / buildDirectory, commands);
+    const auto written = writeProjectDatabase(project, profile, commands);
     if (! written.has_value()) {
-        std::cerr << renderCompilationDatabaseFailure(written.error());
-        return std::unexpected(1);
+        return std::unexpected(written.error());
     }
     if (! supportsTheStandards(*settings)) {
         return std::unexpected(1);

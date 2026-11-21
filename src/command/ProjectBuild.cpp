@@ -11,7 +11,7 @@
 #include "command/RuntimeEnvironment.h"
 #include "compile/ArchiveCommand.h"
 #include "compile/BuildProfile.h"
-#include "compile/CompilationDatabase.h"
+#include "compile/CompileCommand.h"
 #include "compile/CompilePlanner.h"
 #include "project/Manifest.h"
 #include "project/ProjectLoader.h"
@@ -41,15 +41,14 @@ namespace {
  * Finish a project that states it builds nothing.
  *
  * Nothing of the system is asked for, since nothing is compiled. The
- * database is emptied so an editor stops reading the commands of targets the
- * project no longer has.
+ * database of @p project is emptied so an editor stops reading the commands
+ * of targets the project no longer has.
  */
-std::expected<void, int> finishWithNothingToBuild(const std::filesystem::path& databaseDirectory, const Compile::BuildProfile profile)
+std::expected<void, int> finishWithNothingToBuild(const Project::LoadedProject& project, const Compile::BuildProfile profile)
 {
-    const auto written = Compile::writeCompilationDatabase(databaseDirectory, {});
+    const auto written = writeProjectDatabase(project, profile, {});
     if (! written.has_value()) {
-        std::cerr << renderCompilationDatabaseFailure(written.error());
-        return std::unexpected(1);
+        return std::unexpected(written.error());
     }
     std::cerr << renderBuildFinished(profile);
     return {};
@@ -133,12 +132,26 @@ std::vector<Project::TargetSources> sourcesOf(const std::vector<Project::TargetS
 }
 
 /**
- * Compile, archive and link @p targets, @p parallelism steps at once,
- * reporting each step as it runs. A step whose inputs have not changed since
- * it last succeeded is not run.
+ * The commands among @p commands that compile a source of the targets among
+ * @p chosen, in their order.
+ */
+std::vector<Compile::CompileCommand> commandsOf(const std::vector<Compile::CompileCommand>& commands, const std::vector<Project::Target>& chosen)
+{
+    std::vector<Compile::CompileCommand> kept;
+    std::ranges::copy_if(commands, std::back_inserter(kept), [&](const Compile::CompileCommand& each) {
+        return namesOneOf(chosen, each.target);
+    });
+    return kept;
+}
+
+/**
+ * Run @p compiles, then archive and link @p targets, @p parallelism steps at
+ * once, reporting each step as it runs. A step whose inputs have not changed
+ * since it last succeeded is not run.
  */
 std::expected<void, int> runBuild(const RuntimeEnvironment& env,
                                   const Compile::BuildSettings& settings,
+                                  const std::vector<Compile::CompileCommand>& compiles,
                                   const std::vector<Project::TargetSources>& targets,
                                   const unsigned parallelism)
 {
@@ -149,7 +162,7 @@ std::expected<void, int> runBuild(const RuntimeEnvironment& env,
     Build::ProgramStepRunner runner;
     Build::RecordedStepHistory history{ settings.buildDirectory };
     StreamBuildReporter reporter{ std::cerr, standardErrorIsTerminal() };
-    const auto steps = Build::buildSteps(Compile::planCompileCommands(settings, targets), *archives, Compile::planLinkCommands(settings, targets));
+    const auto steps = Build::buildSteps(compiles, *archives, Compile::planLinkCommands(settings, targets));
     const auto built = Build::runSteps(steps, runner, history, reporter, parallelism);
     if (! built.has_value()) {
         std::cerr << renderStepFailures(built.error());
@@ -204,13 +217,12 @@ std::expected<std::filesystem::path, int> buildProject(const RuntimeEnvironment&
         return std::unexpected(chosen.error());
     }
 
-    std::filesystem::path buildDirectory{ Compile::buildDirectoryOf(profile) };
     if (targets->empty()) {
-        const auto finished = finishWithNothingToBuild(project.root / buildDirectory, profile);
+        const auto finished = finishWithNothingToBuild(project, profile);
         if (! finished.has_value()) {
             return std::unexpected(finished.error());
         }
-        return buildDirectory;
+        return std::filesystem::path{ Compile::buildDirectoryOf(profile) };
     }
 
     const auto compiles = planProjectCompiles(env, project, profile, *targets);
@@ -220,11 +232,15 @@ std::expected<std::filesystem::path, int> buildProject(const RuntimeEnvironment&
 
     // The database covers every target, so it does not change with the one
     // asked for; only the targets chosen are compiled and linked.
-    const auto built = runBuild(env, compiles->settings, sourcesOf(compiles->sources, *chosen), jobs.value_or(Build::availableParallelism()));
+    const auto built = runBuild(env,
+                                compiles->settings,
+                                commandsOf(compiles->commands, *chosen),
+                                sourcesOf(compiles->sources, *chosen),
+                                jobs.value_or(Build::availableParallelism()));
     if (! built.has_value()) {
         return std::unexpected(built.error());
     }
-    return buildDirectory;
+    return compiles->settings.buildDirectory;
 }
 
 }  // namespace scrap::Command

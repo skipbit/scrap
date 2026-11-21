@@ -32,6 +32,16 @@ struct ProjectCompiles {
 [[nodiscard]] std::expected<std::vector<Project::Target>, int> resolveProjectTargets(const Project::LoadedProject& project);
 
 /**
+ * @brief Writes @p commands to compile_commands.json in the directory of
+ *        @p profile, reporting a failure on standard error.
+ *
+ * @return Nothing, or the exit code of the failure it reported (1).
+ */
+[[nodiscard]] std::expected<void, int> writeProjectDatabase(const Project::LoadedProject& project,
+                                                            Compile::BuildProfile profile,
+                                                            const std::vector<Compile::CompileCommand>& commands);
+
+/**
  * @brief The commands that compile every source of @p targets for
  *        @p profile, as scrap build runs them, without compiling.
  *
