@@ -100,6 +100,8 @@ scrap_apply_compile_settings(scrap_registry WARNINGS_AS_ERRORS)
 # Project configuration (scrap.toml)
 add_library(scrap_project STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/project/DefaultTemplate.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/project/FileSelection.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/project/FormattedFiles.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/project/LanguageStandard.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/project/ManifestError.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/project/ManifestParser.cpp

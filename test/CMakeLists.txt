@@ -165,6 +165,8 @@ scrap_add_unit_test(install SOURCES
 
 scrap_add_unit_test(project SOURCES
     unit/project/DiskProjectFileSystemTest.cpp
+    unit/project/FileSelectionTest.cpp
+    unit/project/FormattedFilesTest.cpp
     unit/project/ManifestParserTest.cpp
     unit/project/ManifestSearch.cpp
     unit/project/ProjectCreatorTest.cpp
