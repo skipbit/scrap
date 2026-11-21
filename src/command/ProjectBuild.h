@@ -17,6 +17,9 @@ struct RuntimeEnvironment;
 /// The option that asks a build, or the build before a run, for the release profile.
 inline constexpr std::string_view ReleaseOption = "release";
 
+/// The option that sets how many steps of a build run at once.
+inline constexpr std::string_view JobsOption = "jobs";
+
 /// The option that names the one target scrap build builds.
 inline constexpr std::string_view TargetOption = "target";
 
@@ -25,6 +28,15 @@ inline constexpr std::string_view TargetOption = "target";
  *        ReleaseOption is given, debug otherwise.
  */
 [[nodiscard]] Compile::BuildProfile requestedProfile(const ParsedOptions& options);
+
+/**
+ * @brief The number of steps of a build to run at once that JobsOption gives,
+ *        or nothing when it is not given.
+ *
+ * JobsOption is declared as a PositiveInt64, so its value is 1 or more. A
+ * value larger than unsigned holds is taken as the largest unsigned.
+ */
+[[nodiscard]] std::optional<unsigned> requestedJobs(const ParsedOptions& options);
 
 /**
  * @brief The name the options of a command give to @p option, or nothing
@@ -48,12 +60,15 @@ inline constexpr std::string_view TargetOption = "target";
  * @param project The project to build.
  * @param profile What to build it for.
  * @param target The one target to build, when one is asked for.
+ * @param jobs How many steps run at once; as many as the system has
+ *   processors for when not given.
  * @return Where it built, relative to the project root, or the exit code of
  *   the failure it reported (1).
  */
 [[nodiscard]] std::expected<std::filesystem::path, int> buildProject(const RuntimeEnvironment& env,
                                                                      const Project::LoadedProject& project,
                                                                      Compile::BuildProfile profile,
-                                                                     const std::optional<std::string>& target);
+                                                                     const std::optional<std::string>& target,
+                                                                     const std::optional<unsigned>& jobs);
 
 }  // namespace scrap::Command
