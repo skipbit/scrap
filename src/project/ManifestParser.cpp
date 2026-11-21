@@ -50,6 +50,19 @@ constexpr std::array<std::string_view, 6> KnownPublicKeys{ "include-dirs", "defi
 /// Keys the [toolchain] table recognises.
 constexpr std::array<std::string_view, 1> KnownToolchainKeys{ "name" };
 
+/// A table that names the tool a command runs and one string scrap hands it as written.
+struct ToolTable {
+    std::string_view name;     ///< The table, as scrap.toml writes it.
+    std::string_view tool;     ///< The one value tool accepts.
+    std::string_view setting;  ///< The key whose string is handed to the tool.
+};
+
+/// What the [format] table holds.
+constexpr ToolTable FormatTable{ .name = "format", .tool = "clang-format", .setting = "style" };
+
+/// What the [check] table holds.
+constexpr ToolTable CheckTable{ .name = "check", .tool = "clang-tidy", .setting = "checks" };
+
 /**
  * A string read out of the manifest, kept with the node it came from so a
  * later check can point at where the user wrote it.
@@ -630,42 +643,41 @@ std::expected<std::optional<std::string>, ManifestError> parseToolchain(const st
 }
 
 /**
- * Read [format] or [check] (@p table): tool, which may only name @p tool,
- * and the string at @p key, which scrap passes to that tool as written.
+ * Read [format] or [check] (@p table): tool, which may only name
+ * @p table.tool, and the string at @p table.setting, which scrap passes to
+ * that tool as written.
  * Nothing when the table or the string is not there.
  */
 std::expected<std::optional<std::string>, ManifestError> parseToolTable(const std::filesystem::path& file,
                                                                         const toml::table& root,
-                                                                        std::string_view table,
-                                                                        std::string_view tool,
-                                                                        std::string_view key)
+                                                                        const ToolTable& table)
 {
-    const toml::node* node = root.get(table);
+    const toml::node* node = root.get(table.name);
     if (node == nullptr) {
         return std::nullopt;
     }
     const toml::table* entries = node->as_table();
     if (entries == nullptr) {
-        return std::unexpected(errorAt(file, *node, std::string{ table }, "must be a table"));
+        return std::unexpected(errorAt(file, *node, std::string{ table.name }, "must be a table"));
     }
-    const std::array<std::string_view, 2> known{ "tool", key };
-    if (auto checked = rejectUnknownKeys(file, *entries, table, known); ! checked.has_value()) {
+    const std::array<std::string_view, 2> known{ "tool", table.setting };
+    if (auto checked = rejectUnknownKeys(file, *entries, table.name, known); ! checked.has_value()) {
         return std::unexpected(checked.error());
     }
     if (const toml::node* named = entries->get("tool"); named != nullptr) {
-        auto field = readString(file, *named, dotted(table, "tool"));
+        auto field = readString(file, *named, dotted(table.name, "tool"));
         if (! field.has_value()) {
             return std::unexpected(field.error());
         }
-        if (field->value != tool) {
-            return std::unexpected(errorAt(file, *named, dotted(table, "tool"), "unsupported tool; expected one of \"" + std::string{ tool } + '"'));
+        if (field->value != table.tool) {
+            return std::unexpected(errorAt(file, *named, dotted(table.name, "tool"), "unsupported tool; expected one of \"" + std::string{ table.tool } + '"'));
         }
     }
-    const toml::node* value = entries->get(key);
+    const toml::node* value = entries->get(table.setting);
     if (value == nullptr) {
         return std::nullopt;
     }
-    auto field = readString(file, *value, dotted(table, key));
+    auto field = readString(file, *value, dotted(table.name, table.setting));
     if (! field.has_value()) {
         return std::unexpected(field.error());
     }
@@ -712,17 +724,17 @@ std::expected<Manifest, ManifestError> parseManifest(std::string_view text, cons
     }
     manifest.toolchain = std::move(*toolchain);
 
-    auto formatStyle = parseToolTable(file, parsed.table(), "format", "clang-format", "style");
+    auto formatStyle = parseToolTable(file, parsed.table(), FormatTable);
     if (! formatStyle.has_value()) {
         return std::unexpected(formatStyle.error());
     }
     manifest.formatStyle = std::move(*formatStyle);
 
-    auto checks = parseToolTable(file, parsed.table(), "check", "clang-tidy", "checks");
-    if (! checks.has_value()) {
-        return std::unexpected(checks.error());
+    auto enabledChecks = parseToolTable(file, parsed.table(), CheckTable);
+    if (! enabledChecks.has_value()) {
+        return std::unexpected(enabledChecks.error());
     }
-    manifest.checks = std::move(*checks);
+    manifest.enabledChecks = std::move(*enabledChecks);
 
     return manifest;
 }

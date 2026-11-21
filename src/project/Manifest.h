@@ -93,7 +93,7 @@ struct Manifest {
     std::optional<std::string> formatStyle;
 
     /// The checks [check] checks enables, in clang-tidy's notation; nothing when it lists none.
-    std::optional<std::string> checks;
+    std::optional<std::string> enabledChecks;
 };
 
 }  // namespace scrap::Project

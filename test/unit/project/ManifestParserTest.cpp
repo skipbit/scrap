@@ -325,22 +325,22 @@ TEST(ManifestParserTest, ReadsTheStyleAndTheChecksItNames)
                                      ManifestName);
     ASSERT_TRUE(named.has_value()) << describe(named.error());
     EXPECT_EQ(named->formatStyle, std::optional<std::string>{ "{BasedOnStyle: llvm, IndentWidth: 4}" });
-    EXPECT_EQ(named->checks, std::optional<std::string>{ "bugprone-*,-bugprone-easily-swappable-parameters" });
+    EXPECT_EQ(named->enabledChecks, std::optional<std::string>{ "bugprone-*,-bugprone-easily-swappable-parameters" });
 
     const auto withoutTool = parseManifest(package + "[format]\nstyle = \"llvm\"\n[check]\nchecks = \"modernize-*\"\n", ManifestName);
     ASSERT_TRUE(withoutTool.has_value()) << describe(withoutTool.error());
     EXPECT_EQ(withoutTool->formatStyle, std::optional<std::string>{ "llvm" });
-    EXPECT_EQ(withoutTool->checks, std::optional<std::string>{ "modernize-*" });
+    EXPECT_EQ(withoutTool->enabledChecks, std::optional<std::string>{ "modernize-*" });
 
     const auto toolAlone = parseManifest(package + "[format]\ntool = \"clang-format\"\n[check]\ntool = \"clang-tidy\"\n", ManifestName);
     ASSERT_TRUE(toolAlone.has_value()) << describe(toolAlone.error());
     EXPECT_FALSE(toolAlone->formatStyle.has_value());
-    EXPECT_FALSE(toolAlone->checks.has_value());
+    EXPECT_FALSE(toolAlone->enabledChecks.has_value());
 
     const auto none = parseManifest(package, ManifestName);
     ASSERT_TRUE(none.has_value()) << describe(none.error());
     EXPECT_FALSE(none->formatStyle.has_value());
-    EXPECT_FALSE(none->checks.has_value());
+    EXPECT_FALSE(none->enabledChecks.has_value());
 }
 
 /**
