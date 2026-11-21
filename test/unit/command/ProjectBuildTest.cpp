@@ -1,12 +1,12 @@
 #include "command/ProjectBuild.h"
 
-#include "build/Parallelism.h"
 #include "command/ParsedOptions.h"
 
 #include <gtest/gtest.h>
 
 #include <cstdint>
 #include <limits>
+#include <optional>
 #include <string>
 
 using namespace scrap::Command;
@@ -27,8 +27,8 @@ ParsedOptions withJobs(const std::int64_t jobs)
 
 TEST(ProjectBuildTest, RunsAsManyStepsAtOnceAsTheJobsAsk)
 {
-    EXPECT_EQ(requestedParallelism(withJobs(1)), 1U);
-    EXPECT_EQ(requestedParallelism(withJobs(3)), 3U);
+    EXPECT_EQ(requestedJobs(withJobs(1)), std::optional<unsigned>{ 1U });
+    EXPECT_EQ(requestedJobs(withJobs(3)), std::optional<unsigned>{ 3U });
 }
 
 /**
@@ -36,10 +36,10 @@ TEST(ProjectBuildTest, RunsAsManyStepsAtOnceAsTheJobsAsk)
  */
 TEST(ProjectBuildTest, RunsAtMostAsManyStepsAsUnsignedHolds)
 {
-    EXPECT_EQ(requestedParallelism(withJobs(std::numeric_limits<std::int64_t>::max())), std::numeric_limits<unsigned>::max());
+    EXPECT_EQ(requestedJobs(withJobs(std::numeric_limits<std::int64_t>::max())), std::optional<unsigned>{ std::numeric_limits<unsigned>::max() });
 }
 
-TEST(ProjectBuildTest, RunsAsManyStepsAsTheSystemHasProcessorsForWithoutJobs)
+TEST(ProjectBuildTest, AsksForNoNumberOfJobsWithoutTheOption)
 {
-    EXPECT_EQ(requestedParallelism(ParsedOptions{}), scrap::Build::availableParallelism());
+    EXPECT_EQ(requestedJobs(ParsedOptions{}), std::nullopt);
 }

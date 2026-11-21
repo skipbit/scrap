@@ -354,14 +354,12 @@ Compile::BuildProfile requestedProfile(const ParsedOptions& options)
     return isGiven(options, ReleaseOption) ? Compile::BuildProfile::Release : Compile::BuildProfile::Debug;
 }
 
-unsigned requestedParallelism(const ParsedOptions& options)
+std::optional<unsigned> requestedJobs(const ParsedOptions& options)
 {
     const auto found = options.named.find(std::string{ JobsOption });
     if (found == options.named.end()) {
-        return Build::availableParallelism();
+        return std::nullopt;
     }
-    // The parser takes only a number of 1 or more; more steps than unsigned
-    // holds never run at once.
     const std::int64_t asked = std::get<std::int64_t>(found->second);
     return static_cast<unsigned>(std::min<std::int64_t>(asked, std::numeric_limits<unsigned>::max()));
 }
@@ -380,7 +378,7 @@ std::expected<std::filesystem::path, int> buildProject(const RuntimeEnvironment&
                                                        const Project::LoadedProject& project,
                                                        const Compile::BuildProfile profile,
                                                        const std::optional<std::string>& target,
-                                                       const unsigned parallelism)
+                                                       const std::optional<unsigned>& jobs)
 {
     const auto targets = resolveBuildTargets(project);
     if (! targets.has_value()) {
@@ -428,7 +426,7 @@ std::expected<std::filesystem::path, int> buildProject(const RuntimeEnvironment&
 
     // The database covers every target, so it does not change with the one
     // asked for; only the targets chosen are compiled and linked.
-    const auto built = runBuild(env, settings, sourcesOf(*sources, *chosen), parallelism);
+    const auto built = runBuild(env, settings, sourcesOf(*sources, *chosen), jobs.value_or(Build::availableParallelism()));
     if (! built.has_value()) {
         return std::unexpected(built.error());
     }

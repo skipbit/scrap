@@ -30,10 +30,13 @@ inline constexpr std::string_view TargetOption = "target";
 [[nodiscard]] Compile::BuildProfile requestedProfile(const ParsedOptions& options);
 
 /**
- * @brief How many steps of a build run at once: the number JobsOption gives,
- *        or as many as the system has processors for when it is not given.
+ * @brief The number of steps of a build to run at once that JobsOption gives,
+ *        or nothing when it is not given.
+ *
+ * JobsOption is declared as a PositiveInt64, so its value is 1 or more. A
+ * value larger than unsigned holds is taken as the largest unsigned.
  */
-[[nodiscard]] unsigned requestedParallelism(const ParsedOptions& options);
+[[nodiscard]] std::optional<unsigned> requestedJobs(const ParsedOptions& options);
 
 /**
  * @brief The name the options of a command give to @p option, or nothing
@@ -57,7 +60,8 @@ inline constexpr std::string_view TargetOption = "target";
  * @param project The project to build.
  * @param profile What to build it for.
  * @param target The one target to build, when one is asked for.
- * @param parallelism How many steps run at once.
+ * @param jobs How many steps run at once; as many as the system has
+ *   processors for when not given.
  * @return Where it built, relative to the project root, or the exit code of
  *   the failure it reported (1).
  */
@@ -65,6 +69,6 @@ inline constexpr std::string_view TargetOption = "target";
                                                                      const Project::LoadedProject& project,
                                                                      Compile::BuildProfile profile,
                                                                      const std::optional<std::string>& target,
-                                                                     unsigned parallelism);
+                                                                     const std::optional<unsigned>& jobs);
 
 }  // namespace scrap::Command

@@ -192,17 +192,16 @@ OptionDef releaseFlag(std::string description)
 }
 
 /**
- * The option that sets how many steps of a build run at once, described as
- * @p description.
+ * The option that sets how many steps of a build run at once.
  */
-OptionDef jobsOption(std::string description)
+OptionDef jobsOption()
 {
     return OptionDef{
         .longName = std::string{ JobsOption },
         .shortName = 'j',
         .type = OptionValueType::PositiveInt64,
         .required = false,
-        .description = std::move(description),
+        .description = "Run this many build steps at once",
         .defaultValue = std::nullopt,
         .choices = {}
     };
@@ -237,7 +236,7 @@ CommandEntry makeBuildEntry()
     });
     entry.spec.options.named.push_back(releaseFlag("Build with the release profile"));
     entry.spec.options.named.push_back(targetNameOption(TargetOption, "Build only this target"));
-    entry.spec.options.named.push_back(jobsOption("Run this many build steps at once"));
+    entry.spec.options.named.push_back(jobsOption());
     return entry;
 }
 
@@ -265,7 +264,7 @@ CommandEntry makeRunEntry()
     });
     entry.spec.options.named.push_back(releaseFlag("Build and run with the release profile"));
     entry.spec.options.named.push_back(targetNameOption(BinOption, "Run this executable"));
-    entry.spec.options.named.push_back(jobsOption("Run this many build steps at once"));
+    entry.spec.options.named.push_back(jobsOption());
     entry.spec.options.trailing = TrailingDef{ .name = "args", .description = "Arguments passed to the program" };
     return entry;
 }
