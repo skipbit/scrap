@@ -28,7 +28,9 @@ namespace scrap::Install {
  * the compiler is also asked for the linker, compiler-rt and libunwind of
  * the toolchain, so nothing comes from a GCC on the host. On darwin it is
  * asked for the libc++abi of the toolchain, which its libc++ does not
- * re-export, and keeps the linker of the system, which reads the SDK. A
+ * re-export, and for its libunwind, which the linker of the system would
+ * otherwise link with a warning, having found it for the one libSystem
+ * re-exports. It keeps the linker of the system, which reads the SDK. A
  * toolchain that holds no libc++, as GCC, needs nothing.
  *
  * @param platform The platform of the ingot, as the index spells it.

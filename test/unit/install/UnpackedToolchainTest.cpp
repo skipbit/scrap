@@ -148,7 +148,8 @@ TEST(UnpackedToolchainTest, UsesTheLibcxxOfTheToolchainOnLinux)
 
 /**
  * A toolchain with libc++ on darwin links its own libc++abi, which its
- * libc++ does not re-export, and keeps the linker of the system.
+ * libc++ does not re-export, and its own libunwind, and keeps the linker
+ * of the system.
  */
 TEST(UnpackedToolchainTest, UsesTheLibcxxOfTheToolchainOnMacOs)
 {
@@ -158,7 +159,8 @@ TEST(UnpackedToolchainTest, UsesTheLibcxxOfTheToolchainOnMacOs)
     const ToolchainArguments arguments = runtimeArgumentsFor("darwin", root.path());
 
     EXPECT_TRUE(arguments.compile.empty());
-    EXPECT_EQ(arguments.link, std::vector<std::string>{ "-lc++abi" });
+    const std::vector<std::string> link{ "-lc++abi", "-lunwind" };
+    EXPECT_EQ(arguments.link, link);
 }
 
 /**
