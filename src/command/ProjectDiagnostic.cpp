@@ -7,6 +7,8 @@
 #include "command/ProjectArgument.h"
 #include "command/WriteFailureHint.h"
 #include "compile/CompilationDatabase.h"
+#include "project/DirectoryWalk.h"
+#include "project/FileKinds.h"
 #include "project/LanguageStandard.h"
 #include "project/ManifestError.h"
 #include "project/ProjectCreator.h"

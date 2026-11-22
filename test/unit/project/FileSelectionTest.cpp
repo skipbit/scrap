@@ -96,3 +96,15 @@ TEST(FileSelectionTest, ListsEachFileOnce)
     EXPECT_EQ(selection.selected, (Paths{ "src/a.cpp", "src/net/b.cpp", "src/net/c.cpp" }));
     EXPECT_EQ(selection.leftOut, (Paths{ "tools/gen.cpp" }));
 }
+
+/**
+ * The covered files may come in any order and hold a file twice: the selection
+ * is sorted and holds each once.
+ */
+TEST(FileSelectionTest, DoesNotRelyOnTheCoveredFilesBeingSorted)
+{
+    const Paths unsorted{ "src/b.cpp", "src/a.cpp", "src/b.cpp" };
+
+    EXPECT_EQ(selectFiles(unsorted, {}).selected, (Paths{ "src/a.cpp", "src/b.cpp" }));
+    EXPECT_EQ(selectFiles(unsorted, { fileNamed("src/a.cpp") }).selected, (Paths{ "src/a.cpp" }));
+}

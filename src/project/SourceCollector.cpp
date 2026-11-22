@@ -1,5 +1,7 @@
 #include "project/SourceCollector.h"
 
+#include "project/DirectoryWalk.h"
+#include "project/FileKinds.h"
 #include "project/Manifest.h"
 
 #include <algorithm>
@@ -98,35 +100,18 @@ std::expected<ScannedSources, SourceCollectionError> scanSourceDirectory(const s
 {
     const std::filesystem::path directory = projectRoot / SourceDirectory;
     std::error_code ec;
-    const std::filesystem::file_status status = std::filesystem::status(directory, ec);
-    if (! std::filesystem::status_known(status)) {
-        return std::unexpected(SourceScanFailure{ .directory = directory, .reason = ec.message() });
-    }
-    if (! std::filesystem::is_directory(status)) {
-        return ScannedSources{};
-    }
-
     const std::filesystem::path walked = std::filesystem::canonical(directory, ec);
     ScannedSources scanned;
-    std::filesystem::recursive_directory_iterator it(directory, ec);
-    if (ec) {
-        return std::unexpected(SourceScanFailure{ .directory = directory, .reason = ec.message() });
-    }
-    // The failure is read straight after the step that caused it: an increment
-    // that fails leaves the iterator at the end, so a check at the top of the
-    // loop would never run and the walk would stop as though it had finished.
-    for (const std::filesystem::recursive_directory_iterator end; it != end;) {
-        const std::filesystem::path current = it->path();
-        const std::filesystem::path relative = current.lexically_relative(projectRoot).lexically_normal();
-        if (isSource(*it)) {
+    const auto visit = [&](const std::filesystem::directory_entry& entry, const std::filesystem::path& relative) {
+        if (isSource(entry)) {
             scanned.sources.push_back(relative);
-        } else if (const auto reason = leftOutReason(*it, walked)) {
+        } else if (const auto reason = leftOutReason(entry, walked)) {
             scanned.leftOut.push_back(LeftOutEntry{ .path = relative, .reason = *reason });
         }
-        it.increment(ec);
-        if (ec) {
-            return std::unexpected(SourceScanFailure{ .directory = current, .reason = ec.message() });
-        }
+        return WalkStep::Continue;
+    };
+    if (auto walk = walkDirectory(projectRoot, SourceDirectory, visit); ! walk.has_value()) {
+        return std::unexpected(walk.error());
     }
     std::ranges::sort(scanned.sources);
     std::ranges::sort(scanned.leftOut, {}, &LeftOutEntry::path);

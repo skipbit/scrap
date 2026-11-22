@@ -1,18 +1,13 @@
 #pragma once
 
+#include "project/DirectoryWalk.h"
 #include "project/Manifest.h"
-#include "project/SourceCollector.h"
 
-#include <array>
 #include <expected>
 #include <filesystem>
-#include <string_view>
 #include <vector>
 
 namespace scrap::Project {
-
-/// Extensions a header is recognised by.
-inline constexpr std::array<std::string_view, 4> HeaderExtensions{ ".h", ".hh", ".hpp", ".hxx" };
 
 /**
  * @brief The files of a project that scrap format covers.

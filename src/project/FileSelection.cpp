@@ -38,16 +38,15 @@ void selectBelow(const std::vector<std::filesystem::path>& covered, const std::f
 
 FileSelection selectFiles(const std::vector<std::filesystem::path>& covered, const std::vector<RequestedPath>& requested)
 {
-    if (requested.empty()) {
-        return FileSelection{ .selected = covered, .leftOut = {} };
-    }
-
     FileSelection selection;
+    if (requested.empty()) {
+        selection.selected = covered;
+    }
     for (const RequestedPath& named : requested) {
         const std::filesystem::path path = normalized(named.path);
         if (named.isDirectory) {
             selectBelow(covered, path, selection.selected);
-        } else if (std::binary_search(covered.begin(), covered.end(), path)) {
+        } else if (std::ranges::contains(covered, path)) {
             selection.selected.push_back(path);
         } else if (! std::ranges::contains(selection.leftOut, path)) {
             selection.leftOut.push_back(path);

@@ -29,7 +29,7 @@ struct FileSelection {
  * selects itself when it is covered and is left out otherwise. Paths are
  * compared once normalized. Nothing named selects every covered file.
  *
- * @param covered Files the command covers, sorted.
+ * @param covered Files the command covers, in any order, repeats allowed.
  * @param requested Paths the command line names.
  */
 [[nodiscard]] FileSelection selectFiles(const std::vector<std::filesystem::path>& covered, const std::vector<RequestedPath>& requested);
