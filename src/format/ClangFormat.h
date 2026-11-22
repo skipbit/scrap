@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <system_error>
 #include <variant>
 #include <vector>
 
@@ -22,7 +23,7 @@ struct ClangFormat {
  * @brief clang-format could not be started, or its output could not be read.
  */
 struct ToolNotRun {
-    std::string reason;  ///< The operating system's description of the failure.
+    std::error_code code;  ///< The system's reason.
 };
 
 /**

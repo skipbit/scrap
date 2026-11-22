@@ -7,6 +7,7 @@
 #include "compile/LinkCommand.h"
 #include "project/Manifest.h"
 #include "project/SourceCollector.h"
+#include "toolchain/ProgramSearch.h"
 
 #include <array>
 #include <filesystem>
@@ -53,20 +54,6 @@ std::span<const std::string_view> profileOptions(const BuildProfile profile)
         return ReleaseOptions;
     }
     std::unreachable();
-}
-
-/**
- * @p path as it goes on the command line: a relative path that starts with
- * '-' or '@' gains a leading ./, so the compiler reads it as a file. An
- * argument starting with '@' names a file of options the compiler reads
- * before anything else, which would let a source name decide the command.
- */
-std::filesystem::path asArgument(const std::filesystem::path& path)
-{
-    if (path.is_relative() && (path.native().starts_with('-') || path.native().starts_with('@'))) {
-        return std::filesystem::path{ "." } / path;
-    }
-    return path;
 }
 
 /**
@@ -157,7 +144,7 @@ std::vector<std::filesystem::path> includeDirectories(const std::vector<const Pr
     std::vector<std::filesystem::path> directories{ std::filesystem::path{ HeaderDirectory } };
     for (const Project::TargetSettings* settings : applied) {
         for (const std::filesystem::path& directory : settings->includeDirectories) {
-            directories.push_back(asArgument(directory));
+            directories.push_back(Toolchain::pathAsArgument(directory));
         }
     }
     return directories;
@@ -256,7 +243,7 @@ std::vector<CompileCommand> planCompileCommands(const BuildSettings& settings, c
         const std::vector<std::string> added = settingsCompileArguments(searched, applied);
         for (const std::filesystem::path& source : entry.sources) {
             const std::filesystem::path output = objectFile(settings, entry.target.name, source);
-            const std::filesystem::path file = asArgument(source);
+            const std::filesystem::path file = Toolchain::pathAsArgument(source);
 
             const Project::SourceLanguage sourceLanguage = Project::languageOf(source);
             const LanguageCompile& language = (sourceLanguage == Project::SourceLanguage::C) ? c : cxx;

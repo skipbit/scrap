@@ -19,27 +19,12 @@ using scrap::TestSupport::TempDirectory;
 namespace {
 
 /**
- * Create a program that can be run below the temp directory, with @p script
- * as its body.
- */
-std::filesystem::path createScript(const TempDirectory& temp, const std::string& relative, const std::string& script)
-{
-    const std::filesystem::path path = temp.writeFile(relative, "#!/bin/sh\n" + script);
-    std::error_code ec;
-    std::filesystem::permissions(path, std::filesystem::perms::owner_exec, std::filesystem::perm_options::add, ec);
-    if (ec) {
-        ADD_FAILURE() << "cannot make " << path << " runnable: " << ec.message();
-    }
-    return path;
-}
-
-/**
  * A clang-format that writes the arguments it was given, one to a line, to
  * the file "arguments" in the directory it runs in, and then runs @p rest.
  */
 ClangFormat recordingTool(const TempDirectory& temp, const std::string& rest = "", const std::string& directory = "tool")
 {
-    const auto program = createScript(temp, directory + "/clang-format", "printf '%s\\n' \"$@\" > arguments\n" + rest);
+    const auto program = temp.writeScript(directory + "/clang-format", "printf '%s\\n' \"$@\" > arguments\n" + rest);
     return ClangFormat{ .program = program, .version = "18.1.3" };
 }
 
@@ -71,8 +56,8 @@ TEST(ClangFormatTest, FindsTheFirstClangFormatOnTheSearchPaths)
 {
     const TempDirectory temp;
     temp.makeDirectory("empty");
-    createScript(temp, "first/clang-format", "exit 0\n");
-    createScript(temp, "second/clang-format", "exit 0\n");
+    temp.writeScript("first/clang-format", "exit 0\n");
+    temp.writeScript("second/clang-format", "exit 0\n");
 
     const auto found = findClangFormat({ temp.path() / "empty", temp.path() / "first", temp.path() / "second" });
 
@@ -88,8 +73,8 @@ TEST(ClangFormatTest, FindsTheFirstClangFormatOnTheSearchPaths)
 TEST(ClangFormatTest, ReadsTheVersionAfterTheWordVersion)
 {
     const TempDirectory temp;
-    const auto ubuntu = createScript(temp, "ubuntu/clang-format", "[ \"$1\" = --version ] || exit 1\necho 'Ubuntu clang-format version 18.1.3 (1ubuntu1)'\necho 'second line'\n");
-    const auto homebrew = createScript(temp, "homebrew/clang-format", "echo 'Homebrew clang-format version 22.1.8'\n");
+    const auto ubuntu = temp.writeScript("ubuntu/clang-format", "[ \"$1\" = --version ] || exit 1\necho 'Ubuntu clang-format version 18.1.3 (1ubuntu1)'\necho 'second line'\n");
+    const auto homebrew = temp.writeScript("homebrew/clang-format", "echo 'Homebrew clang-format version 22.1.8'\n");
 
     const auto fromUbuntu = describeClangFormat(ubuntu);
     const auto fromHomebrew = describeClangFormat(homebrew);
@@ -108,7 +93,7 @@ TEST(ClangFormatTest, ReadsTheVersionAfterTheWordVersion)
 TEST(ClangFormatTest, KeepsTheWholeFirstLineWithoutTheWordVersion)
 {
     const TempDirectory temp;
-    const auto program = createScript(temp, "tool/clang-format", "echo 'a formatter, release 2'\n");
+    const auto program = temp.writeScript("tool/clang-format", "echo 'a formatter, release 2'\n");
 
     const auto described = describeClangFormat(program);
 
@@ -123,7 +108,7 @@ TEST(ClangFormatTest, KeepsTheWholeFirstLineWithoutTheWordVersion)
 TEST(ClangFormatTest, ReportsAVersionItCannotLearn)
 {
     const TempDirectory temp;
-    const auto failing = createScript(temp, "tool/clang-format", "exit 3\n");
+    const auto failing = temp.writeScript("tool/clang-format", "exit 3\n");
 
     const auto notStarted = describeClangFormat(temp.path() / "missing" / "clang-format");
     const auto failed = describeClangFormat(failing);
@@ -133,6 +118,23 @@ TEST(ClangFormatTest, ReportsAVersionItCannotLearn)
     ASSERT_FALSE(failed.has_value());
     ASSERT_TRUE(std::holds_alternative<ToolFailed>(failed.error()));
     EXPECT_EQ(std::get<ToolFailed>(failed.error()).exitCode, std::optional<int>{ 3 });
+}
+
+/**
+ * A --version that fails reports what it wrote to standard error as well.
+ */
+TEST(ClangFormatTest, ReportsWhyAVersionFailed)
+{
+    const TempDirectory temp;
+    const auto failing = temp.writeScript("tool/clang-format", "echo 'no version for you' >&2\nexit 2\n");
+
+    const auto described = describeClangFormat(failing);
+
+    ASSERT_FALSE(described.has_value());
+    ASSERT_TRUE(std::holds_alternative<ToolFailed>(described.error()));
+    const auto& failure = std::get<ToolFailed>(described.error());
+    EXPECT_EQ(failure.exitCode, std::optional<int>{ 2 });
+    EXPECT_EQ(failure.output, "no version for you\n");
 }
 
 /**

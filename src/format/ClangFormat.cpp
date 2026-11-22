@@ -9,6 +9,8 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
+#include <variant>
 #include <vector>
 
 namespace scrap::Format {
@@ -20,19 +22,6 @@ constexpr std::string_view ProgramName = "clang-format";
 
 /// The word that comes before the version in what --version writes.
 constexpr std::string_view VersionWord = "version ";
-
-/**
- * @p path as it goes on the command line: a relative path that starts with
- * '-' or '@' gains a leading ./, so clang-format reads it as a file rather
- * than as an option or a file of options.
- */
-std::string asArgument(const std::filesystem::path& path)
-{
-    if (path.is_relative() && (path.native().starts_with('-') || path.native().starts_with('@'))) {
-        return (std::filesystem::path{ "." } / path).string();
-    }
-    return path.string();
-}
 
 /**
  * The command line that runs @p tool on @p file, after @p options.
@@ -47,35 +36,45 @@ std::vector<std::string> commandFor(const ClangFormat& tool,
     if (style.has_value()) {
         arguments.push_back("--style=" + *style);
     }
-    arguments.push_back(asArgument(file));
+    arguments.push_back(Toolchain::pathAsArgument(file).string());
     return arguments;
 }
 
 /**
- * Run @p arguments in @p directory, reading back what @p capture names.
+ * Run @p arguments in @p directory, reading back what @p capture names, and
+ * return what was read when it succeeded.
  */
-std::expected<Process::Completion, ToolFailure> run(const std::vector<std::string>& arguments,
-                                                    const std::filesystem::path& directory,
-                                                    Process::OutputCapture capture)
+std::expected<std::string, ToolFailure> runToSuccess(const std::vector<std::string>& arguments,
+                                                     const std::filesystem::path& directory,
+                                                     Process::OutputCapture capture)
 {
     auto completion = Process::runProgram(arguments,
                                           { .workingDirectory = directory, .capture = capture, .group = Process::ProcessGroup::Caller, .timeout = std::nullopt, .outputLimit = std::nullopt });
     if (! completion.has_value()) {
-        return std::unexpected(ToolNotRun{ .reason = completion.error().message() });
+        return std::unexpected(ToolNotRun{ .code = completion.error() });
     }
-    return std::move(*completion);
+    if (completion->exitCode != 0) {
+        return std::unexpected(ToolFailed{ .exitCode = completion->exitCode, .signal = completion->signal, .output = std::move(completion->output) });
+    }
+    return std::move(completion->output);
 }
 
-/// Whether @p completion is a run that succeeded.
-bool succeeded(const Process::Completion& completion)
+/**
+ * Run @p arguments in @p directory and return what it wrote to standard
+ * output. Process::runProgram cannot read the two streams apart, so when it
+ * does not succeed a second run reads both, standard error holding why.
+ */
+std::expected<std::string, ToolFailure> standardOutputOf(const std::vector<std::string>& arguments, const std::filesystem::path& directory)
 {
-    return completion.exitCode == 0;
-}
-
-/// @p completion, which did not succeed, as a failure.
-ToolFailed failureOf(Process::Completion completion)
-{
-    return ToolFailed{ .exitCode = completion.exitCode, .signal = completion.signal, .output = std::move(completion.output) };
+    auto output = runToSuccess(arguments, directory, Process::OutputCapture::StandardOutput);
+    if (output.has_value() || std::holds_alternative<ToolNotRun>(output.error())) {
+        return output;
+    }
+    const auto again = runToSuccess(arguments, directory, Process::OutputCapture::Combined);
+    if (! again.has_value() && std::holds_alternative<ToolFailed>(again.error())) {
+        return again;
+    }
+    return output;
 }
 
 /// The version in @p output, the text --version wrote.
@@ -103,14 +102,11 @@ std::optional<std::filesystem::path> findClangFormat(const std::vector<std::file
 
 std::expected<ClangFormat, ToolFailure> describeClangFormat(const std::filesystem::path& program)
 {
-    auto completion = run({ program.string(), "--version" }, {}, Process::OutputCapture::StandardOutput);
-    if (! completion.has_value()) {
-        return std::unexpected(completion.error());
+    const auto output = standardOutputOf({ program.string(), "--version" }, {});
+    if (! output.has_value()) {
+        return std::unexpected(output.error());
     }
-    if (! succeeded(*completion)) {
-        return std::unexpected(failureOf(std::move(*completion)));
-    }
-    return ClangFormat{ .program = program, .version = versionIn(completion->output) };
+    return ClangFormat{ .program = program, .version = versionIn(*output) };
 }
 
 std::expected<void, ToolFailure> formatFile(const ClangFormat& tool,
@@ -118,12 +114,9 @@ std::expected<void, ToolFailure> formatFile(const ClangFormat& tool,
                                             const std::filesystem::path& file,
                                             const std::optional<std::string>& style)
 {
-    auto completion = run(commandFor(tool, { "-i" }, file, style), projectRoot, Process::OutputCapture::Combined);
-    if (! completion.has_value()) {
-        return std::unexpected(completion.error());
-    }
-    if (! succeeded(*completion)) {
-        return std::unexpected(failureOf(std::move(*completion)));
+    const auto output = runToSuccess(commandFor(tool, { "-i" }, file, style), projectRoot, Process::OutputCapture::Combined);
+    if (! output.has_value()) {
+        return std::unexpected(output.error());
     }
     return {};
 }
@@ -133,25 +126,15 @@ std::expected<FileState, ToolFailure> checkFile(const ClangFormat& tool,
                                                 const std::filesystem::path& file,
                                                 const std::optional<std::string>& style)
 {
-    const std::vector<std::string> arguments = commandFor(tool, {}, file, style);
-    auto formatted = run(arguments, projectRoot, Process::OutputCapture::StandardOutput);
+    const auto formatted = standardOutputOf(commandFor(tool, {}, file, style), projectRoot);
     if (! formatted.has_value()) {
         return std::unexpected(formatted.error());
-    }
-    if (! succeeded(*formatted)) {
-        // Standard error, which holds why, was not read with the formatted
-        // text; a second run reads both.
-        auto again = run(arguments, projectRoot, Process::OutputCapture::Combined);
-        if (again.has_value() && (! succeeded(*again))) {
-            return std::unexpected(failureOf(std::move(*again)));
-        }
-        return std::unexpected(failureOf(std::move(*formatted)));
     }
     const auto content = File::readWholeFile(projectRoot / file);
     if (! content.has_value()) {
         return std::unexpected(FileUnreadable{});
     }
-    return (*content == formatted->output) ? FileState::Formatted : FileState::Unformatted;
+    return (*content == *formatted) ? FileState::Formatted : FileState::Unformatted;
 }
 
 }  // namespace scrap::Format
