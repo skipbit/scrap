@@ -1,6 +1,7 @@
 #include "project/FileSelection.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <filesystem>
 #include <iterator>
 #include <vector>
@@ -26,12 +27,25 @@ bool isBelow(const std::filesystem::path& file, const std::filesystem::path& dir
     return (! relative.empty()) && (*relative.begin() != "..");
 }
 
-/// Add to @p selected the files of @p covered at or below @p directory.
-void selectBelow(const std::vector<std::filesystem::path>& covered, const std::filesystem::path& directory, std::vector<std::filesystem::path>& selected)
+/**
+ * Add to @p selected the files of @p covered at or below @p directory, and
+ * return whether there was any.
+ */
+bool selectBelow(const std::vector<std::filesystem::path>& covered, const std::filesystem::path& directory, std::vector<std::filesystem::path>& selected)
 {
+    const std::size_t before = selected.size();
     std::ranges::copy_if(covered, std::back_inserter(selected), [&](const std::filesystem::path& file) {
         return isBelow(file, directory);
     });
+    return selected.size() != before;
+}
+
+/// Add @p path to @p paths unless it is there already.
+void addOnce(std::vector<std::filesystem::path>& paths, const std::filesystem::path& path)
+{
+    if (! std::ranges::contains(paths, path)) {
+        paths.push_back(path);
+    }
 }
 
 }  // anonymous namespace
@@ -45,11 +59,13 @@ FileSelection selectFiles(const std::vector<std::filesystem::path>& covered, con
     for (const RequestedPath& named : requested) {
         const std::filesystem::path path = normalized(named.path);
         if (named.isDirectory) {
-            selectBelow(covered, path, selection.selected);
+            if (! selectBelow(covered, path, selection.selected)) {
+                addOnce(selection.emptyDirectories, path);
+            }
         } else if (std::ranges::contains(covered, path)) {
             selection.selected.push_back(path);
-        } else if (! std::ranges::contains(selection.leftOut, path)) {
-            selection.leftOut.push_back(path);
+        } else {
+            addOnce(selection.leftOut, path);
         }
     }
     std::ranges::sort(selection.selected);

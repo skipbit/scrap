@@ -147,14 +147,16 @@ std::expected<void, ToolFailure> formatFile(const ClangFormat& tool,
     return {};
 }
 
-std::expected<FileState, ToolFailure> checkFile(const ClangFormat& tool,
-                                                const std::filesystem::path& projectRoot,
-                                                const std::filesystem::path& file,
-                                                const std::optional<std::string>& style)
+std::expected<FileState, CheckFailure> checkFile(const ClangFormat& tool,
+                                                 const std::filesystem::path& projectRoot,
+                                                 const std::filesystem::path& file,
+                                                 const std::optional<std::string>& style)
 {
     const auto formatted = standardOutputOf(commandFor(tool, {}, file, style), projectRoot);
     if (! formatted.has_value()) {
-        return std::unexpected(formatted.error());
+        return std::unexpected(std::visit([](const auto& failure) {
+            return CheckFailure{ failure };
+        }, formatted.error()));
     }
     const auto content = File::readWholeFile(projectRoot / file);
     if (! content.has_value()) {

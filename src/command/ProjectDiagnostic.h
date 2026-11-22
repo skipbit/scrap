@@ -30,6 +30,15 @@ namespace scrap::Command {
 [[nodiscard]] std::string renderProjectError(const Project::ProjectError& error);
 
 /**
+ * @brief The error line for an explicitly empty path argument, without a hint.
+ *
+ * For commands that add their own hint.
+ *
+ * @return The "error: ..." line, ending in a newline.
+ */
+[[nodiscard]] std::string renderEmptyPathArgumentError();
+
+/**
  * @brief Describe an explicitly empty path argument, and what to do next.
  *
  * @return Text for standard error, each line ending in a newline.

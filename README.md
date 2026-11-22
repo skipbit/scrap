@@ -151,6 +151,27 @@ A toolchain the index deprecates or no longer provides is warned of, with a vers
 
 A program built with an installed toolchain runs with the runtime libraries of that toolchain; with LLVM, that is the libc++ it carries. On Linux, the linker of LLVM 17 to 22 needs `libxml2` on the machine. On macOS, an installed LLVM uses the SDK that `xcrun` names, which the Command Line Tools provide, or the one `SDKROOT` names. An LLVM installed by an earlier version of scrap has to be installed again with `--force`, as a build with it says. A toolchain installed by an earlier version of scrap does not record its C compiler, so it has to be installed again with `--force` to build C sources, as a build with it says.
 
+### 🧹 Formatting
+
+`scrap format` formats the sources of a project in place with the `clang-format` found on `PATH`, and names the one it uses and its version before it starts. It covers the sources and headers below `src/`, the headers below `include/` and below the `include-dirs` of each target, its own and its public ones, and the entry points a target names in `src`. Nothing below `build/` is covered, nor a symbolic link to a file. Files and directories named after the command narrow that down. A named file the command does not cover is left out with a warning, and so is a named directory below which it covers nothing. When everything named is left out, nothing is formatted and the command exits with 0. A named path is resolved through the file system first, so a path through a symbolic link names the file the link reaches.
+
+```bash
+# Format the whole project
+scrap format
+
+# Format one file and what lies below a directory
+scrap format src/main.cpp src/net
+```
+
+Without a style, clang-format follows the `.clang-format` it finds in the directory of each file or above it. A style in `scrap.toml` is passed to the `--style` of clang-format as written, and takes the place of any `.clang-format`:
+
+```toml
+[format]
+style = "llvm"
+```
+
+`tool` names the formatter, and `"clang-format"`, the default, is the only one. When clang-format fails on a file, the file and what clang-format wrote are shown, the other files are still formatted, and `scrap format` exits with 1.
+
 ## 📋 Project Status
 
 scrap is in early alpha development.
@@ -164,6 +185,7 @@ scrap is in early alpha development.
 - **Settings per target** - include directories, defines and flags, as shown in [Simple Configuration](#-simple-configuration)
 - **Running** - `scrap run` builds the executable and starts it with the arguments after `--`, and exits with its exit code. `--bin <name>` chooses the executable when there is more than one, and `-j <n>` sets how many steps of the build run at once
 - **Cleaning** - `scrap clean` removes `build/`
+- **Formatting** - `scrap format` formats the sources with the `clang-format` on `PATH`, as shown in [Formatting](#-formatting)
 - **Toolchains** - `scrap toolchain install`, `select`, `unselect`, `list` (with `--remote`), `info`, `update` and `uninstall`, and a toolchain per project in `scrap.toml`, as shown in [Integrated Toolchain Management](#-integrated-toolchain-management)
 - **External commands** - an executable named `scrap-<name>` on `PATH` runs as `scrap <name>` and is listed in `scrap --help`
 

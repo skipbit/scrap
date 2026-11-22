@@ -39,15 +39,20 @@ struct ToolFailed {
 };
 
 /**
+ * @brief Why clang-format did not do what was asked.
+ */
+using ToolFailure = std::variant<ToolNotRun, ToolFailed>;
+
+/**
  * @brief clang-format succeeded, and the file could not be read to compare
  *        with what it wrote.
  */
 struct FileUnreadable { };
 
 /**
- * @brief Why clang-format did not do what was asked.
+ * @brief Why a check could not tell whether formatting would change a file.
  */
-using ToolFailure = std::variant<ToolNotRun, ToolFailed, FileUnreadable>;
+using CheckFailure = std::variant<ToolNotRun, ToolFailed, FileUnreadable>;
 
 /**
  * @brief Whether formatting a file would change it.
@@ -92,9 +97,9 @@ enum class FileState : std::uint8_t {
  * clang-format writes the formatted text, which is compared with the file.
  * The parameters are those of formatFile().
  */
-[[nodiscard]] std::expected<FileState, ToolFailure> checkFile(const ClangFormat& tool,
-                                                              const std::filesystem::path& projectRoot,
-                                                              const std::filesystem::path& file,
-                                                              const std::optional<std::string>& style);
+[[nodiscard]] std::expected<FileState, CheckFailure> checkFile(const ClangFormat& tool,
+                                                               const std::filesystem::path& projectRoot,
+                                                               const std::filesystem::path& file,
+                                                               const std::optional<std::string>& style);
 
 }  // namespace scrap::Format

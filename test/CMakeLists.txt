@@ -53,6 +53,7 @@ scrap_add_unit_test(command SOURCES
     unit/command/CLI11ParserAdapterTest.cpp
     unit/command/DefaultHelpRendererTest.cpp
     unit/command/DefaultVersionRendererTest.cpp
+    unit/command/FormatTextTest.cpp
     unit/command/BuildProgressTest.cpp
     unit/command/BuiltinCommandResolverTest.cpp
     unit/command/ExternalCommandResolverTest.cpp
@@ -61,6 +62,8 @@ scrap_add_unit_test(command SOURCES
     unit/command/ProjectCommandResolverTest.cpp
     unit/command/ProjectBuildTest.cpp
     unit/command/ProjectDiagnosticTest.cpp
+    unit/command/ProjectPathsTest.cpp
+    unit/command/ProjectPathsTextTest.cpp
     unit/command/RuntimeEnvironmentFactoryTest.cpp
     unit/command/ToolchainDiagnosticTest.cpp
     unit/command/ToolchainIndexDiagnosticTest.cpp
