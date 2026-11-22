@@ -161,7 +161,12 @@ scrap format
 
 # Format one file and what lies below a directory
 scrap format src/main.cpp src/net
+
+# Report the files formatting would change, and change none
+scrap format --check
 ```
+
+With `--check`, no file is changed: each file formatting would change is reported with a warning, and the command exits with 1 when there is any, and with 0 when there is none.
 
 Without a style, clang-format follows the `.clang-format` it finds in the directory of each file or above it. A style in `scrap.toml` is passed to the `--style` of clang-format as written, and takes the place of any `.clang-format`:
 
@@ -185,7 +190,7 @@ scrap is in early alpha development.
 - **Settings per target** - include directories, defines and flags, as shown in [Simple Configuration](#-simple-configuration)
 - **Running** - `scrap run` builds the executable and starts it with the arguments after `--`, and exits with its exit code. `--bin <name>` chooses the executable when there is more than one, and `-j <n>` sets how many steps of the build run at once
 - **Cleaning** - `scrap clean` removes `build/`
-- **Formatting** - `scrap format` formats the sources with the `clang-format` on `PATH`, as shown in [Formatting](#-formatting)
+- **Formatting** - `scrap format` formats the sources with the `clang-format` on `PATH`, and `--check` reports the files it would change, as shown in [Formatting](#-formatting)
 - **Toolchains** - `scrap toolchain install`, `select`, `unselect`, `list` (with `--remote`), `info`, `update` and `uninstall`, and a toolchain per project in `scrap.toml`, as shown in [Integrated Toolchain Management](#-integrated-toolchain-management)
 - **External commands** - an executable named `scrap-<name>` on `PATH` runs as `scrap <name>` and is listed in `scrap --help`
 
