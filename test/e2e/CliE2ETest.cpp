@@ -5334,7 +5334,7 @@ TEST_F(CliE2ETest, FormatFormatsTheFilesOfTheProject)
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 0) << result.stderrText;
     EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
-    const std::string program = (std::filesystem::canonical(_root) / "bin" / "clang-format").string();
+    const std::string program = (_root / "bin" / "clang-format").string();
     EXPECT_EQ(result.stderrText, "Using clang-format '" + program + "' (version 18.1.3)\n");
     EXPECT_EQ(readFile("src/main.cpp"), "formatted\n");
     EXPECT_EQ(readFile("include/app.h"), "formatted\n");
@@ -5523,7 +5523,7 @@ TEST_F(CliE2ETest, FormatStopsAtAClangFormatThatCannotBeStarted)
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 1);
-    const std::string program = (std::filesystem::canonical(_root) / "bin").string() + "/clang-format";
+    const std::string program = (_root / "bin" / "clang-format").string();
     const std::string cannotRun = "error: cannot run '" + program + "': ";
     const auto first = result.stderrText.find(cannotRun);
     ASSERT_NE(first, std::string::npos) << result.stderrText;
