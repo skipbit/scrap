@@ -251,6 +251,8 @@ add_library(scrap_command STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ExternalCommandResolver.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ExternalMetadataProvider.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/FetchFailureHint.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/FormatCommandHandler.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/FormatText.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/HelpRenderer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/HelpRequest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/IndexUpdateReport.cpp
@@ -290,7 +292,7 @@ target_include_directories(scrap_command PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 # only headers used within the command library may name them.
 target_link_libraries(scrap_command
     PUBLIC scrap_project scrap_compile scrap_build
-    PRIVATE scrap_toolchain scrap_process scrap_install scrap_fetch CLI11::CLI11
+    PRIVATE scrap_toolchain scrap_process scrap_install scrap_fetch scrap_format CLI11::CLI11
 )
 add_dependencies(scrap_command scrap_version_source)
 scrap_apply_compile_settings(scrap_command WARNINGS_AS_ERRORS)

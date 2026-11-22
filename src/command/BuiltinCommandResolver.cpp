@@ -5,6 +5,7 @@
 #include "command/CommandEntry.h"
 #include "command/CommandHandler.h"
 #include "command/CommandSource.h"
+#include "command/FormatCommandHandler.h"
 #include "command/HelpRenderer.h"
 #include "command/HelpRequest.h"
 #include "command/InvocationContext.h"
@@ -252,6 +253,21 @@ CommandEntry makeCleanEntry()
 }
 
 /**
+ * Create the entry for "format", which takes the files and directories to
+ * format.
+ */
+CommandEntry makeFormatEntry()
+{
+    return makeProjectEntry(
+        "format",
+        "Format the sources of the project",
+        PositionalDef{ .name = "path", .description = "File or directory to format (default: the whole project)", .required = false, .repeats = true },
+        [](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
+        return std::make_unique<FormatCommandHandler>();
+    });
+}
+
+/**
  * Create the entry for "run", which takes an optional path into the project,
  * whether to build for release, the executable to run, how many steps of the
  * build run at once, and the program's arguments after "--".
@@ -466,6 +482,7 @@ std::vector<CommandEntry> BuiltinCommandResolver::resolve([[maybe_unused]] const
     entries.push_back(makeBuildEntry());
     entries.push_back(makeRunEntry());
     entries.push_back(makeCleanEntry());
+    entries.push_back(makeFormatEntry());
 
     // Toolchain commands
     {

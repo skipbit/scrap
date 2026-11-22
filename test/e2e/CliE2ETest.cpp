@@ -18,6 +18,7 @@
 #include <chrono>
 #include <csignal>
 #include <cstddef>
+#include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
 #include <filesystem>
@@ -5268,4 +5269,263 @@ TEST_F(CliE2ETest, BuildAsksToInstallAgainAToolchainThatRecordsNoCCompiler)
     const std::string record = (_root / "toolchains" / "gcc" / "15.2.0" / hostDirectoryName() / ".scrap-toolchain.toml").string();
     const std::string hint = "hint: run 'scrap toolchain install --force gcc@15.2.0' if an earlier scrap installed it, or set SCRAP_TOOLCHAIN to system to use the compilers found on the system\n";
     EXPECT_EQ(result.stderrText, "error: cannot use the installed toolchain: '" + record + "' names no C compiler\n" + hint);
+}
+
+namespace {
+
+/**
+ * A clang-format that answers --version as 18.1.3, records each command line
+ * in "format-calls" next to bin/, and writes "formatted" over the file it is
+ * given last. A file whose name holds "bad" makes it fail with what an
+ * unknown style makes clang-format say.
+ */
+std::string stubClangFormat(const std::filesystem::path& root)
+{
+    return "case \"$1\" in --version) echo 'stub clang-format version 18.1.3'; exit 0;; esac\n"
+           "printf '%s\\n' \"$*\" >> '"
+           + (root / "format-calls").string()
+           + "'\n"
+             "for file; do :; done\n"
+             "case \"$file\" in *bad*) echo 'Invalid value for -style' >&2; exit 1;; esac\n"
+             "printf 'formatted\\n' > \"$file\"\n";
+}
+
+/// A source no clang-format leaves as it is.
+constexpr std::string_view UnformattedSource = "int main(){int a=1;int b=2;return a+b;}\n";
+
+/**
+ * The directory of the clang-format on the PATH this test runs with, or
+ * nothing when there is none.
+ */
+std::optional<std::filesystem::path> clangFormatDirectory()
+{
+    const char* const path = std::getenv("PATH");
+    if (path == nullptr) {
+        return std::nullopt;
+    }
+    std::string_view rest{ path };
+    while (! rest.empty()) {
+        const std::size_t end = rest.find(':');
+        const std::filesystem::path directory{ rest.substr(0, end) };
+        if ((! directory.empty()) && (::access((directory / "clang-format").c_str(), X_OK) == 0)) {
+            return directory;
+        }
+        rest = (end == std::string_view::npos) ? std::string_view{} : rest.substr(end + 1);
+    }
+    return std::nullopt;
+}
+
+}  // namespace
+
+/**
+ * The sources and headers a build uses are formatted and a file outside
+ * them is not, with the clang-format used named first.
+ */
+TEST_F(CliE2ETest, FormatFormatsTheFilesOfTheProject)
+{
+    makeDummy("clang-format", stubClangFormat(_root));
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp", UnformattedSource);
+    writeFile("include/app.h", UnformattedSource);
+    writeFile("tools/gen.cpp", UnformattedSource);
+
+    auto result = runScrap({ "format" }, { "PATH=" + (_root / "bin").string() + ":/usr/bin:/bin" }, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    const std::string program = (std::filesystem::canonical(_root) / "bin" / "clang-format").string();
+    EXPECT_EQ(result.stderrText, "Using clang-format '" + program + "' (version 18.1.3)\n");
+    EXPECT_EQ(readFile("src/main.cpp"), "formatted\n");
+    EXPECT_EQ(readFile("include/app.h"), "formatted\n");
+    EXPECT_EQ(readFile("tools/gen.cpp"), UnformattedSource);
+    EXPECT_EQ(readFile("format-calls"), "-i include/app.h\n-i src/main.cpp\n");
+}
+
+/**
+ * A named file is formatted alone, a named directory with what lies below
+ * it, and a named file the format does not cover is left out with a warning.
+ */
+TEST_F(CliE2ETest, FormatFormatsOnlyTheNamedFilesAndDirectories)
+{
+    makeDummy("clang-format", stubClangFormat(_root));
+    writeFile("scrap.toml", ValidManifest);
+    for (const char* file : { "src/a.cpp", "src/net/b.cpp", "src/net/c.cpp", "tools/gen.cpp" }) {
+        writeFile(file, UnformattedSource);
+    }
+    const std::string path = "PATH=" + (_root / "bin").string() + ":/usr/bin:/bin";
+
+    auto file = runScrap({ "format", "src/a.cpp" }, { path }, _root);
+    ASSERT_EQ(file.exitCode, 0) << file.stderrText;
+    EXPECT_EQ(readFile("src/a.cpp"), "formatted\n");
+    EXPECT_EQ(readFile("src/net/b.cpp"), UnformattedSource);
+
+    auto directory = runScrap({ "format", "net" }, { path }, _root / "src");
+    ASSERT_EQ(directory.exitCode, 0) << directory.stderrText;
+    EXPECT_EQ(readFile("src/net/b.cpp"), "formatted\n");
+    EXPECT_EQ(readFile("src/net/c.cpp"), "formatted\n");
+
+    auto outside = runScrap({ "format", "tools/gen.cpp" }, { path }, _root);
+    ASSERT_TRUE(outside.exitedNormally);
+    EXPECT_EQ(outside.exitCode, 0);
+    EXPECT_EQ(outside.stderrText, "warning: leaving out 'tools/gen.cpp', which scrap format does not cover\n");
+    EXPECT_EQ(readFile("tools/gen.cpp"), UnformattedSource);
+    EXPECT_EQ(readFile("format-calls"), "-i src/a.cpp\n-i src/net/b.cpp\n-i src/net/c.cpp\n");
+}
+
+TEST_F(CliE2ETest, FormatReportsAPathThatNamesNothing)
+{
+    makeDummy("clang-format", stubClangFormat(_root));
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp", UnformattedSource);
+
+    auto result = runScrap({ "format", "src/main.cpp", "src/nope.cpp" }, { "PATH=" + (_root / "bin").string() + ":/usr/bin:/bin" }, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_EQ(result.stderrText,
+              "error: 'src/nope.cpp' does not exist\n"
+              "hint: pass a file or directory inside the project, or omit the path to format the whole project\n");
+    EXPECT_EQ(readFile("src/main.cpp"), UnformattedSource);
+}
+
+TEST_F(CliE2ETest, FormatPassesTheStyleOfTheManifest)
+{
+    makeDummy("clang-format", stubClangFormat(_root));
+    writeFile("scrap.toml", std::string{ ValidManifest } + "\n[format]\nstyle = \"{BasedOnStyle: llvm, IndentWidth: 4}\"\n");
+    writeFile("src/main.cpp", UnformattedSource);
+
+    auto result = runScrap({ "format" }, { "PATH=" + (_root / "bin").string() + ":/usr/bin:/bin" }, _root);
+
+    ASSERT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_EQ(readFile("format-calls"), "-i --style={BasedOnStyle: llvm, IndentWidth: 4} src/main.cpp\n");
+}
+
+TEST_F(CliE2ETest, FormatRejectsAKeyTheFormatTableDoesNotHold)
+{
+    makeDummy("clang-format", stubClangFormat(_root));
+    writeFile("scrap.toml", std::string{ ValidManifest } + "\n[format]\nindent = 4\n");
+    writeFile("src/main.cpp", UnformattedSource);
+
+    auto result = runScrap({ "format" }, { "PATH=" + (_root / "bin").string() + ":/usr/bin:/bin" }, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_NE(result.stderrText.find("error: format.indent: unknown key; expected one of tool style\n"), std::string::npos) << result.stderrText;
+    EXPECT_EQ(readFile("src/main.cpp"), UnformattedSource);
+}
+
+TEST_F(CliE2ETest, FormatReportsAMissingClangFormat)
+{
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp", UnformattedSource);
+    std::filesystem::create_directories(_root / "empty");
+
+    auto result = runScrap({ "format" }, { "PATH=" + (_root / "empty").string() }, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_EQ(result.stderrText,
+              "error: clang-format not found in PATH\n"
+              "hint: install clang-format and make sure it is on PATH\n");
+    EXPECT_EQ(readFile("src/main.cpp"), UnformattedSource);
+}
+
+/**
+ * A file clang-format fails on is reported with what clang-format wrote, and
+ * the files after it are still formatted.
+ */
+TEST_F(CliE2ETest, FormatReportsWhatAFailingClangFormatWroteAndGoesOn)
+{
+    makeDummy("clang-format", stubClangFormat(_root));
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/bad.cpp", UnformattedSource);
+    writeFile("src/main.cpp", UnformattedSource);
+
+    auto result = runScrap({ "format" }, { "PATH=" + (_root / "bin").string() + ":/usr/bin:/bin" }, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_NE(result.stderrText.find("\nerror: failed to format 'src/bad.cpp'\nInvalid value for -style\n"), std::string::npos) << result.stderrText;
+    EXPECT_EQ(readFile("src/bad.cpp"), UnformattedSource);
+    EXPECT_EQ(readFile("src/main.cpp"), "formatted\n");
+}
+
+/**
+ * Without a style in the manifest, a real clang-format follows the
+ * .clang-format of the project.
+ */
+TEST_F(CliE2ETest, FormatWithARealClangFormatFollowsItsConfigurationFile)
+{
+    const auto directory = clangFormatDirectory();
+    if (! directory.has_value()) {
+        GTEST_SKIP() << "no clang-format on PATH";
+    }
+    writeFile("scrap.toml", ValidManifest);
+    writeFile(".clang-format", "IndentWidth: 8\n");
+    writeFile("src/main.cpp", UnformattedSource);
+
+    auto result = runScrap({ "format" }, { "PATH=" + directory->string() + ":/usr/bin:/bin" }, _root);
+
+    ASSERT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_EQ(readFile("src/main.cpp"), "int main() {\n        int a = 1;\n        int b = 2;\n        return a + b;\n}\n");
+}
+
+/**
+ * The style in the manifest takes the place of the .clang-format.
+ */
+TEST_F(CliE2ETest, FormatWithARealClangFormatFollowsTheStyleOfTheManifest)
+{
+    const auto directory = clangFormatDirectory();
+    if (! directory.has_value()) {
+        GTEST_SKIP() << "no clang-format on PATH";
+    }
+    writeFile("scrap.toml", std::string{ ValidManifest } + "\n[format]\nstyle = \"llvm\"\n");
+    writeFile(".clang-format", "IndentWidth: 8\n");
+    writeFile("src/main.cpp", UnformattedSource);
+
+    auto result = runScrap({ "format" }, { "PATH=" + directory->string() + ":/usr/bin:/bin" }, _root);
+
+    ASSERT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_EQ(readFile("src/main.cpp"), "int main() {\n  int a = 1;\n  int b = 2;\n  return a + b;\n}\n");
+}
+
+TEST_F(CliE2ETest, FormatWithARealClangFormatReportsAStyleItRejects)
+{
+    const auto directory = clangFormatDirectory();
+    if (! directory.has_value()) {
+        GTEST_SKIP() << "no clang-format on PATH";
+    }
+    writeFile("scrap.toml", std::string{ ValidManifest } + "\n[format]\nstyle = \"no-such-style\"\n");
+    writeFile("src/main.cpp", UnformattedSource);
+
+    auto result = runScrap({ "format" }, { "PATH=" + directory->string() + ":/usr/bin:/bin" }, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_NE(result.stderrText.find("\nerror: failed to format 'src/main.cpp'\n"), std::string::npos) << result.stderrText;
+    EXPECT_NE(result.stderrText.find("-style"), std::string::npos) << result.stderrText;
+    EXPECT_EQ(readFile("src/main.cpp"), UnformattedSource);
+}
+
+/**
+ * A clang-format that cannot be started would fail every file the same way,
+ * so the format stops at the first.
+ */
+TEST_F(CliE2ETest, FormatStopsAtAClangFormatThatCannotBeStarted)
+{
+    makeDummy("clang-format", "rm -f \"$0\"\necho 'clang-format version 18.1.3'\n");
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/a.cpp", UnformattedSource);
+    writeFile("src/b.cpp", UnformattedSource);
+
+    auto result = runScrap({ "format" }, { "PATH=" + (_root / "bin").string() + ":/usr/bin:/bin" }, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    const std::string program = (std::filesystem::canonical(_root) / "bin").string() + "/clang-format";
+    const std::string cannotRun = "error: cannot run '" + program + "': ";
+    const auto first = result.stderrText.find(cannotRun);
+    ASSERT_NE(first, std::string::npos) << result.stderrText;
+    EXPECT_EQ(result.stderrText.find(cannotRun, first + 1), std::string::npos) << result.stderrText;
 }

@@ -40,3 +40,8 @@ TEST(ProjectPathsTextTest, RendersAProjectErrorAsTheProjectCommandsDo)
 
     EXPECT_EQ(renderProjectPathsError(error, "format"), renderProjectError(error));
 }
+
+TEST(ProjectPathsTextTest, RendersAFileTheCommandDoesNotCover)
+{
+    EXPECT_EQ(renderNotCovered("tools/gen.cpp", "format"), "warning: leaving out 'tools/gen.cpp', which scrap format does not cover\n");
+}

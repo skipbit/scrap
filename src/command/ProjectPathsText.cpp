@@ -6,6 +6,7 @@
 #include "command/ProjectPaths.h"
 #include "project/ProjectLoader.h"
 
+#include <filesystem>
 #include <string>
 #include <string_view>
 #include <variant>
@@ -41,6 +42,14 @@ std::string renderProjectPathsError(const ProjectPathsError& error, const std::s
         return text;
     }
     return renderProjectError(std::get<Project::ProjectError>(error));
+}
+
+std::string renderNotCovered(const std::filesystem::path& file, const std::string_view command)
+{
+    std::string text = "warning: leaving out '" + printablePath(file) + "', which scrap ";
+    text += command;
+    text += " does not cover\n";
+    return text;
 }
 
 }  // namespace scrap::Command
