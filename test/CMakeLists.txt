@@ -88,6 +88,7 @@ scrap_add_unit_test(process SOURCES
 )
 
 scrap_add_unit_test(toolchain SOURCES
+    unit/toolchain/CommandArgumentTest.cpp
     unit/toolchain/CompilerIdentityTest.cpp
     unit/toolchain/GlobalConfigFileTest.cpp
     unit/toolchain/GlobalConfigTest.cpp
@@ -175,6 +176,10 @@ scrap_add_unit_test(project SOURCES
     unit/project/ProjectLocatorTest.cpp
     unit/project/SourceCollectorTest.cpp
     unit/project/TargetResolverTest.cpp
+)
+
+scrap_add_unit_test(format SOURCES
+    unit/format/ClangFormatTest.cpp
 )
 
 scrap_add_unit_test(compile SOURCES

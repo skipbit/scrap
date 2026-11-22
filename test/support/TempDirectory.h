@@ -47,6 +47,18 @@ public:
     std::filesystem::path writeFile(std::string_view relative, std::string_view content) const;
 
     /**
+     * @brief Write a program that can be run below the directory.
+     *
+     * The file starts with a shell interpreter line and holds @p script, and
+     * the owner may execute it. Reports a test failure if that cannot be done.
+     *
+     * @param relative Path relative to this directory.
+     * @param script Body of the program, after the interpreter line.
+     * @return Full path of the written program.
+     */
+    std::filesystem::path writeScript(std::string_view relative, std::string_view script) const;
+
+    /**
      * @brief Create a directory below this one.
      *
      * @param relative Path relative to this directory.

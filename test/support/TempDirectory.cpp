@@ -83,6 +83,17 @@ std::filesystem::path TempDirectory::writeFile(std::string_view relative, std::s
     return target;
 }
 
+std::filesystem::path TempDirectory::writeScript(std::string_view relative, std::string_view script) const
+{
+    const std::filesystem::path path = writeFile(relative, std::string{ "#!/bin/sh\n" }.append(script));
+    std::error_code ec;
+    std::filesystem::permissions(path, std::filesystem::perms::owner_exec, std::filesystem::perm_options::add, ec);
+    if (ec) {
+        ADD_FAILURE() << "cannot make " << path << " runnable: " << ec.message();
+    }
+    return path;
+}
+
 std::string TempDirectory::readFile(const std::filesystem::path& file) const
 {
     const std::filesystem::path target = file.is_absolute() ? file : _path / file;
