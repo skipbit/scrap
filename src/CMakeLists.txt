@@ -126,6 +126,14 @@ add_library(scrap_process STATIC
 target_include_directories(scrap_process PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 scrap_apply_compile_settings(scrap_process WARNINGS_AS_ERRORS)
 
+# Running clang-format on the files of a project
+add_library(scrap_format STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/format/ClangFormat.cpp
+)
+target_include_directories(scrap_format PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(scrap_format PRIVATE scrap_file scrap_process scrap_toolchain)
+scrap_apply_compile_settings(scrap_format WARNINGS_AS_ERRORS)
+
 # Toolchains: detecting the system's, reading specifiers and the index,
 # keeping the global default, and finding the installed ones
 add_library(scrap_toolchain STATIC

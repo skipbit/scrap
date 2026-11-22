@@ -177,6 +177,10 @@ scrap_add_unit_test(project SOURCES
     unit/project/TargetResolverTest.cpp
 )
 
+scrap_add_unit_test(format SOURCES
+    unit/format/ClangFormatTest.cpp
+)
+
 scrap_add_unit_test(compile SOURCES
     unit/compile/CompilationDatabaseTest.cpp
     unit/compile/CompilePlannerTest.cpp
