@@ -254,17 +254,25 @@ CommandEntry makeCleanEntry()
 
 /**
  * Create the entry for "format", which takes the files and directories to
- * format.
+ * format, and whether to check them instead.
  */
 CommandEntry makeFormatEntry()
 {
-    return makeProjectEntry(
+    auto entry = makeProjectEntry(
         "format",
         "Format the sources of the project",
         PositionalDef{ .name = "path", .description = "File or directory to format (default: the whole project)", .required = false, .repeats = true },
         [](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
         return std::make_unique<FormatCommandHandler>();
     });
+    entry.spec.options.named.push_back(OptionDef{ .longName = std::string{ CheckOption },
+                                                  .shortName = std::nullopt,
+                                                  .type = OptionValueType::Bool,
+                                                  .required = false,
+                                                  .description = "Report the files formatting would change, and change none",
+                                                  .defaultValue = std::nullopt,
+                                                  .choices = {} });
+    return entry;
 }
 
 /**

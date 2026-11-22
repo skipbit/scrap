@@ -2,6 +2,7 @@
 
 #include "command/FormatText.h"
 #include "command/InvocationContext.h"
+#include "command/ParsedOptions.h"
 #include "command/ProjectDiagnostic.h"
 #include "command/ProjectPaths.h"
 #include "command/ProjectPathsText.h"
@@ -24,6 +25,59 @@ namespace {
 
 /// The command as the messages name it.
 constexpr std::string_view CommandName = "format";
+
+/**
+ * Format @p files of @p project in place with @p tool, and return the exit
+ * code.
+ */
+int formatFiles(const Format::ClangFormat& tool, const Project::LoadedProject& project, const std::vector<std::filesystem::path>& files)
+{
+    int result = 0;
+    for (const std::filesystem::path& file : files) {
+        const auto formatted = Format::formatFile(tool, project.root, file, project.manifest.formatStyle);
+        if (formatted.has_value()) {
+            continue;
+        }
+        std::cerr << renderFormatFailure(tool, file, formatted.error());
+        // A clang-format that cannot be started fails every file the same way.
+        if (std::holds_alternative<Format::ToolNotRun>(formatted.error())) {
+            return 1;
+        }
+        result = 1;
+    }
+    return result;
+}
+
+/**
+ * Report which of @p files of @p project formatting with @p tool would
+ * change, leaving them as they are, and return the exit code.
+ */
+int checkFiles(const Format::ClangFormat& tool, const Project::LoadedProject& project, const std::vector<std::filesystem::path>& files)
+{
+    int result = 0;
+    bool unformatted = false;
+    for (const std::filesystem::path& file : files) {
+        const auto checked = Format::checkFile(tool, project.root, file, project.manifest.formatStyle);
+        if (checked.has_value()) {
+            if (*checked == Format::FileState::Unformatted) {
+                std::cerr << renderNotFormatted(file);
+                unformatted = true;
+                result = 1;
+            }
+            continue;
+        }
+        std::cerr << renderCheckFailure(tool, file, checked.error());
+        // A clang-format that cannot be started fails every file the same way.
+        if (std::holds_alternative<Format::ToolNotRun>(checked.error())) {
+            return 1;
+        }
+        result = 1;
+    }
+    if (unformatted) {
+        std::cerr << renderFormatHint();
+    }
+    return result;
+}
 
 }  // anonymous namespace
 
@@ -67,20 +121,10 @@ int FormatCommandHandler::execute(const InvocationContext& ctx)
     }
     std::cerr << renderClangFormatInUse(*tool);
 
-    int result = 0;
-    for (const std::filesystem::path& file : selection.selected) {
-        const auto formatted = Format::formatFile(*tool, project.root, file, project.manifest.formatStyle);
-        if (formatted.has_value()) {
-            continue;
-        }
-        std::cerr << renderFormatFailure(*tool, file, formatted.error());
-        // A clang-format that cannot be started fails every file the same way.
-        if (std::holds_alternative<Format::ToolNotRun>(formatted.error())) {
-            return 1;
-        }
-        result = 1;
+    if (isGiven(ctx.options, CheckOption)) {
+        return checkFiles(*tool, project, selection.selected);
     }
-    return result;
+    return formatFiles(*tool, project, selection.selected);
 }
 
 }  // namespace scrap::Command

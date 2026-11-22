@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <variant>
 
 namespace scrap::Command {
@@ -58,6 +59,12 @@ std::string renderToolFailure(const std::filesystem::path& program, const std::s
     }, failure);
 }
 
+/// The heading of a file clang-format failed on.
+std::string failedToFormat(const std::filesystem::path& file)
+{
+    return "error: failed to format '" + printablePath(file) + "'";
+}
+
 }  // anonymous namespace
 
 std::string renderClangFormatInUse(const Format::ClangFormat& tool)
@@ -78,7 +85,28 @@ std::string renderVersionFailure(const std::filesystem::path& program, const For
 
 std::string renderFormatFailure(const Format::ClangFormat& tool, const std::filesystem::path& file, const Format::ToolFailure& failure)
 {
-    return renderToolFailure(tool.program, ToolName, "error: failed to format '" + printablePath(file) + "'", failure);
+    return renderToolFailure(tool.program, ToolName, failedToFormat(file), failure);
+}
+
+std::string renderCheckFailure(const Format::ClangFormat& tool, const std::filesystem::path& file, const Format::CheckFailure& failure)
+{
+    return std::visit([&tool, &file](const auto& alternative) -> std::string {
+        if constexpr (std::is_same_v<std::remove_cvref_t<decltype(alternative)>, Format::FileUnreadable>) {
+            return "error: cannot read '" + printablePath(file) + "' to compare it with what clang-format wrote\n";
+        } else {
+            return render(tool.program, ToolName, alternative, failedToFormat(file));
+        }
+    }, failure);
+}
+
+std::string renderNotFormatted(const std::filesystem::path& file)
+{
+    return "warning: '" + printablePath(file) + "' is not formatted\n";
+}
+
+std::string renderFormatHint()
+{
+    return "hint: run 'scrap format' to format them\n";
 }
 
 }  // namespace scrap::Command
