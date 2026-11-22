@@ -216,3 +216,36 @@ TEST(ProjectPathsTest, ReportsAPathBelowAFileAsNamingNothing)
     ASSERT_FALSE(loaded.has_value());
     EXPECT_TRUE(std::holds_alternative<PathMissing>(loaded.error()));
 }
+
+/**
+ * A path that cannot be examined is reported as given, as one that names
+ * nothing is.
+ */
+TEST(ProjectPathsTest, ReportsAPathThatCannotBeExaminedAsGiven)
+{
+    const TempDirectory temp;
+    writeProject(temp);
+    const std::filesystem::path locked = temp.makeDirectory("app/locked");
+    temp.writeFile("app/locked/a.cpp", "\n");
+    std::error_code code;
+    std::filesystem::permissions(locked, std::filesystem::perms::none, code);
+    ASSERT_FALSE(code) << code.message();
+
+    // A user who reads the directory anyway, root among them, cannot observe
+    // the failure; the fixture is restored before skipping so it can be removed.
+    const bool examined = std::filesystem::exists(locked / "a.cpp", code);
+    if (examined && (! code)) {
+        std::filesystem::permissions(locked, std::filesystem::perms::owner_all, code);
+        GTEST_SKIP() << "this user reads a directory with no permissions";
+    }
+
+    const auto loaded = loadProjectWithPaths(temp.path() / "app", { "locked/a.cpp" });
+
+    std::filesystem::permissions(locked, std::filesystem::perms::owner_all, code);
+
+    ASSERT_FALSE(loaded.has_value());
+    ASSERT_TRUE(std::holds_alternative<scrap::Project::ProjectError>(loaded.error()));
+    const auto& error = std::get<scrap::Project::ProjectError>(loaded.error());
+    ASSERT_TRUE(std::holds_alternative<scrap::Project::PathInaccessible>(error));
+    EXPECT_EQ(std::get<scrap::Project::PathInaccessible>(error).path, "locked/a.cpp");
+}

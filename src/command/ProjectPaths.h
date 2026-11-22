@@ -49,7 +49,8 @@ struct ProjectWithPaths {
  * ignores case, or through a symbolic link, names the file it reaches. The
  * project is searched for from the first path, or from the directory holding
  * it when it names a file, and from @p workingDirectory when no path is
- * given. Every other path must belong to the same project.
+ * given. Every other path must belong to the same project. A path that
+ * names nothing or cannot be examined is reported as given.
  *
  * @param workingDirectory Directory the command was invoked in.
  * @param paths Paths the command line names, as given.

@@ -53,11 +53,11 @@ std::expected<ResolvedPath, ProjectPathsError> resolve(const std::filesystem::pa
         if (namesNothing(code)) {
             return std::unexpected(PathMissing{ .path = given });
         }
-        return std::unexpected(inaccessible(absolute, code));
+        return std::unexpected(inaccessible(given, code));
     }
     const bool isDirectory = std::filesystem::is_directory(real, code);
     if (code) {
-        return std::unexpected(inaccessible(absolute, code));
+        return std::unexpected(inaccessible(given, code));
     }
     return ResolvedPath{ .real = std::move(real), .isDirectory = isDirectory };
 }
