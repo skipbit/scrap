@@ -77,3 +77,14 @@ TEST(FormatTextTest, EscapesWhatClangFormatWrote)
     EXPECT_EQ(text.find('\x1b'), std::string::npos) << text;
     EXPECT_EQ(text.find('\x07'), std::string::npos) << text;
 }
+
+/**
+ * A clang-format that failed and wrote nothing is reported with its exit
+ * status, which is then all there is to say why.
+ */
+TEST(FormatTextTest, RendersTheExitStatusOfAFormatThatFailedWithoutAWord)
+{
+    const ToolFailed failed{ .exitCode = 3, .signal = std::nullopt, .output = "" };
+
+    EXPECT_EQ(renderFormatFailure(Tool, "src/a.cpp", failed), "error: failed to format 'src/a.cpp': clang-format exited with status 3\n");
+}

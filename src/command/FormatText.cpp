@@ -22,8 +22,8 @@ std::string render(const std::filesystem::path& program, std::string_view /*tool
 }
 
 /**
- * @p heading, the signal that stopped @p toolName when one did, and then what
- * it wrote.
+ * @p heading, the signal that stopped @p toolName when one did, or its exit
+ * status when it wrote nothing, and then what it wrote.
  */
 std::string render(const std::filesystem::path& /*program*/, const std::string_view toolName, const Format::ToolFailed& failed, const std::string& heading)
 {
@@ -33,6 +33,12 @@ std::string render(const std::filesystem::path& /*program*/, const std::string_v
         text += toolName;
         text += " was stopped by signal ";
         text += std::to_string(*failed.signal);
+    } else if (failed.output.empty() && failed.exitCode.has_value()) {
+        // With nothing written, the status is all there is to say why.
+        text += ": ";
+        text += toolName;
+        text += " exited with status ";
+        text += std::to_string(*failed.exitCode);
     }
     text += '\n';
     text += printableLines(failed.output);
