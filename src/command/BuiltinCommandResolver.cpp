@@ -177,12 +177,12 @@ PositionalDef projectPathPositional()
 }
 
 /**
- * The flag that asks for the release profile, described as @p description.
+ * The flag @p name, which takes no value, described as @p description.
  */
-OptionDef releaseFlag(std::string description)
+OptionDef flagOption(const std::string_view name, std::string description)
 {
     return OptionDef{
-        .longName = std::string{ ReleaseOption },
+        .longName = std::string{ name },
         .shortName = std::nullopt,
         .type = OptionValueType::Bool,
         .required = false,
@@ -190,6 +190,14 @@ OptionDef releaseFlag(std::string description)
         .defaultValue = std::nullopt,
         .choices = {}
     };
+}
+
+/**
+ * The flag that asks for the release profile, described as @p description.
+ */
+OptionDef releaseFlag(std::string description)
+{
+    return flagOption(ReleaseOption, std::move(description));
 }
 
 /**
@@ -265,13 +273,7 @@ CommandEntry makeFormatEntry()
         [](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
         return std::make_unique<FormatCommandHandler>();
     });
-    entry.spec.options.named.push_back(OptionDef{ .longName = std::string{ CheckOption },
-                                                  .shortName = std::nullopt,
-                                                  .type = OptionValueType::Bool,
-                                                  .required = false,
-                                                  .description = "Report the files formatting would change, and change none",
-                                                  .defaultValue = std::nullopt,
-                                                  .choices = {} });
+    entry.spec.options.named.push_back(flagOption(CheckOption, "Report the files formatting would change, and change none"));
     return entry;
 }
 
@@ -305,14 +307,7 @@ CommandEntry makeToolchainInstallEntry()
     entry.spec.category = "Toolchain Commands";
     entry.spec.options.positional.push_back(
         PositionalDef{ .name = "specifier", .description = "Toolchain to install, as <family>[@<version>]", .required = true });
-    entry.spec.options.named.push_back(OptionDef{
-        .longName = std::string{ ForceOption },
-        .shortName = std::nullopt,
-        .type = OptionValueType::Bool,
-        .required = false,
-        .description = "Replace the toolchain when it is already installed",
-        .defaultValue = std::nullopt,
-        .choices = {} });
+    entry.spec.options.named.push_back(flagOption(ForceOption, "Replace the toolchain when it is already installed"));
     entry.source = CommandSource::Builtin;
     entry.createHandler = [](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
         return std::make_unique<ToolchainInstallCommandHandler>();
@@ -379,20 +374,8 @@ CommandEntry makeToolchainListEntry()
     entry.spec.name = "list";
     entry.spec.description = "Display the toolchains to choose from";
     entry.spec.category = "Toolchain Commands";
-    entry.spec.options.named.push_back(OptionDef{ .longName = std::string{ RemoteOption },
-                                                  .shortName = std::nullopt,
-                                                  .type = OptionValueType::Bool,
-                                                  .required = false,
-                                                  .description = "Display the toolchains of the index the host can install, as last fetched",
-                                                  .defaultValue = std::nullopt,
-                                                  .choices = {} });
-    entry.spec.options.named.push_back(OptionDef{ .longName = std::string{ AllOption },
-                                                  .shortName = std::nullopt,
-                                                  .type = OptionValueType::Bool,
-                                                  .required = false,
-                                                  .description = "With --remote, display every toolchain of the index, with why the host cannot install one",
-                                                  .defaultValue = std::nullopt,
-                                                  .choices = {} });
+    entry.spec.options.named.push_back(flagOption(RemoteOption, "Display the toolchains of the index the host can install, as last fetched"));
+    entry.spec.options.named.push_back(flagOption(AllOption, "With --remote, display every toolchain of the index, with why the host cannot install one"));
     entry.source = CommandSource::Builtin;
     entry.createHandler = [](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
         return std::make_unique<ToolchainListCommandHandler>();

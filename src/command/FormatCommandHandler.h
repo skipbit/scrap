@@ -23,10 +23,11 @@ inline constexpr std::string_view CheckOption = "check";
 class FormatCommandHandler : public CommandHandler {
 public:
     /**
-     * @brief Load the project and format its files.
+     * @brief Load the project and format its files, or check them.
      *
      * @param ctx Invocation context. Its positionals are the paths.
-     * @return 0 on success, 1 when it reports a failure.
+     * @return 0 on success, 1 when it reports a failure or, with
+     *         CheckOption, a file formatting would change.
      */
     int execute(const InvocationContext& ctx) override;
 };

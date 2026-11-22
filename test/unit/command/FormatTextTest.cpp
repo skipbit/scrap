@@ -103,7 +103,10 @@ TEST(FormatTextTest, RendersACheckThatFailed)
 {
     const ToolFailed failed{ .exitCode = 1, .signal = std::nullopt, .output = "Invalid value for -style\n" };
 
+    const ToolNotRun notRun{ .code = std::make_error_code(std::errc::permission_denied) };
+
     EXPECT_EQ(renderCheckFailure(Tool, "src/a.cpp", failed), renderFormatFailure(Tool, "src/a.cpp", failed));
+    EXPECT_EQ(renderCheckFailure(Tool, "src/a.cpp", notRun), renderFormatFailure(Tool, "src/a.cpp", notRun));
     EXPECT_EQ(renderCheckFailure(Tool, "src/a.cpp", scrap::Format::FileUnreadable{}),
               "error: cannot read 'src/a.cpp' to compare it with what clang-format wrote\n");
 }
