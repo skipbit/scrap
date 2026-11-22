@@ -32,7 +32,10 @@ struct ToolNotRun {
 struct ToolFailed {
     std::optional<int> exitCode;  ///< Set when it exited with a status other than 0.
     std::optional<int> signal;    ///< Set when a signal stopped it.
-    std::string output;           ///< What it wrote to standard output and standard error.
+    /// What it wrote to standard output and standard error. A run that reads
+    /// standard output alone runs again to read both; when the second run
+    /// does not fail the same way, this holds the first run's standard output.
+    std::string output;
 };
 
 /**
@@ -62,8 +65,10 @@ enum class FileState : std::uint8_t {
 /**
  * @brief Ask @p program for its version.
  *
- * The version is the word after "version" in the first line --version
- * writes, or that whole line when it holds no such word.
+ * The version is the word after "version" on the first line --version writes
+ * that has one, else the first line that is not empty, else "unknown". The
+ * program is kept as an absolute path, since a format runs it from the
+ * project root.
  */
 [[nodiscard]] std::expected<ClangFormat, ToolFailure> describeClangFormat(const std::filesystem::path& program);
 

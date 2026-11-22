@@ -88,6 +88,7 @@ scrap_add_unit_test(process SOURCES
 )
 
 scrap_add_unit_test(toolchain SOURCES
+    unit/toolchain/CommandArgumentTest.cpp
     unit/toolchain/CompilerIdentityTest.cpp
     unit/toolchain/GlobalConfigFileTest.cpp
     unit/toolchain/GlobalConfigTest.cpp
@@ -98,7 +99,6 @@ scrap_add_unit_test(toolchain SOURCES
     unit/toolchain/InstallRecordTest.cpp
     unit/toolchain/InstalledToolchainTest.cpp
     unit/toolchain/MacSdkTest.cpp
-    unit/toolchain/ProgramSearchTest.cpp
     unit/toolchain/ScrapHomeLayoutTest.cpp
     unit/toolchain/StatusWarningTest.cpp
     unit/toolchain/SystemArchiverTest.cpp

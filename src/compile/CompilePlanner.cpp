@@ -7,7 +7,7 @@
 #include "compile/LinkCommand.h"
 #include "project/Manifest.h"
 #include "project/SourceCollector.h"
-#include "toolchain/ProgramSearch.h"
+#include "toolchain/CommandArgument.h"
 
 #include <array>
 #include <filesystem>

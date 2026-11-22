@@ -2,6 +2,7 @@
 
 #include "file/WholeFile.h"
 #include "process/Subprocess.h"
+#include "toolchain/CommandArgument.h"
 #include "toolchain/ProgramSearch.h"
 
 #include <expected>  // IWYU pragma: keep
@@ -22,6 +23,9 @@ constexpr std::string_view ProgramName = "clang-format";
 
 /// The word that comes before the version in what --version writes.
 constexpr std::string_view VersionWord = "version ";
+
+/// The version shown when --version writes nothing to show.
+constexpr std::string_view UnknownVersion = "unknown";
 
 /**
  * The command line that runs @p tool on @p file, after @p options.
@@ -77,16 +81,38 @@ std::expected<std::string, ToolFailure> standardOutputOf(const std::vector<std::
     return output;
 }
 
-/// The version in @p output, the text --version wrote.
+/// The lines of @p text, without their newlines.
+std::vector<std::string_view> linesOf(std::string_view text)
+{
+    std::vector<std::string_view> lines;
+    while (! text.empty()) {
+        const std::size_t end = text.find('\n');
+        lines.push_back(text.substr(0, end));
+        text = (end == std::string_view::npos) ? std::string_view{} : text.substr(end + 1);
+    }
+    return lines;
+}
+
+/**
+ * The version in @p output, the text --version wrote: the word after
+ * "version" on the first line that has one, else the first line that is not
+ * empty, else "unknown".
+ */
 std::string versionIn(std::string_view output)
 {
-    const std::string_view line = output.substr(0, output.find('\n'));
-    const std::size_t word = line.find(VersionWord);
-    if (word == std::string_view::npos) {
-        return std::string{ line };
+    const std::vector<std::string_view> lines = linesOf(output);
+    for (const std::string_view line : lines) {
+        if (const std::size_t word = line.find(VersionWord); word != std::string_view::npos) {
+            const std::string_view rest = line.substr(word + VersionWord.size());
+            return std::string{ rest.substr(0, rest.find(' ')) };
+        }
     }
-    const std::string_view rest = line.substr(word + VersionWord.size());
-    return std::string{ rest.substr(0, rest.find(' ')) };
+    for (const std::string_view line : lines) {
+        if (! line.empty()) {
+            return std::string{ line };
+        }
+    }
+    return std::string{ UnknownVersion };
 }
 
 }  // anonymous namespace
@@ -106,7 +132,7 @@ std::expected<ClangFormat, ToolFailure> describeClangFormat(const std::filesyste
     if (! output.has_value()) {
         return std::unexpected(output.error());
     }
-    return ClangFormat{ .program = program, .version = versionIn(*output) };
+    return ClangFormat{ .program = Toolchain::absoluteProgramPath(program), .version = versionIn(*output) };
 }
 
 std::expected<void, ToolFailure> formatFile(const ClangFormat& tool,

@@ -102,6 +102,41 @@ TEST(ClangFormatTest, KeepsTheWholeFirstLineWithoutTheWordVersion)
 }
 
 /**
+ * The word "version" is looked for on every line, and without it the first
+ * line that is not empty is kept; a program that writes nothing to show has
+ * an unknown version.
+ */
+TEST(ClangFormatTest, FindsTheVersionOnALaterLineOrShowsWhatItCan)
+{
+    const TempDirectory temp;
+    const auto secondLine = temp.writeScript("second/clang-format", "echo 'LLVM (http://llvm.org/):'\necho '  LLVM version 3.8.0'\n");
+    const auto blankFirst = temp.writeScript("blank/clang-format", "echo ''\necho 'a formatter'\n");
+    const auto silent = temp.writeScript("silent/clang-format", "exit 0\n");
+
+    EXPECT_EQ(describeClangFormat(secondLine)->version, "3.8.0");
+    EXPECT_EQ(describeClangFormat(blankFirst)->version, "a formatter");
+    EXPECT_EQ(describeClangFormat(silent)->version, "unknown");
+}
+
+/**
+ * A program named by a relative path is kept as an absolute one, so a format
+ * that runs it from the project root still reaches it.
+ */
+TEST(ClangFormatTest, KeepsAProgramNamedByARelativePathAsAnAbsolutePath)
+{
+    const TempDirectory temp;
+    const auto program = temp.writeScript("tool/clang-format", "echo 'clang-format version 18.1.3'\n");
+    const std::filesystem::path relative = program.lexically_relative(std::filesystem::current_path());
+    ASSERT_TRUE(relative.is_relative());
+
+    const auto described = describeClangFormat(relative);
+
+    ASSERT_TRUE(described.has_value());
+    EXPECT_TRUE(described->program.is_absolute());
+    EXPECT_TRUE(std::filesystem::equivalent(described->program, program));
+}
+
+/**
  * A program that cannot be started, or that fails to report its version, is
  * reported as such.
  */

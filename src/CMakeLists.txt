@@ -137,6 +137,7 @@ scrap_apply_compile_settings(scrap_format WARNINGS_AS_ERRORS)
 # Toolchains: detecting the system's, reading specifiers and the index,
 # keeping the global default, and finding the installed ones
 add_library(scrap_toolchain STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/CommandArgument.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/CompilerIdentity.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/GlobalConfig.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toolchain/GlobalConfigFile.cpp
