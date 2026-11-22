@@ -98,9 +98,10 @@ struct ScannedSources {
  */
 std::expected<ScannedSources, SourceCollectionError> scanSourceDirectory(const std::filesystem::path& projectRoot)
 {
-    const std::filesystem::path directory = projectRoot / SourceDirectory;
+    // Links are judged against the directory src/ resolves to. One that cannot
+    // be resolved is left to the walk, which reports it.
     std::error_code ec;
-    const std::filesystem::path walked = std::filesystem::canonical(directory, ec);
+    const std::filesystem::path walked = std::filesystem::canonical(projectRoot / SourceDirectory, ec);
     ScannedSources scanned;
     const auto visit = [&](const std::filesystem::directory_entry& entry, const std::filesystem::path& relative) {
         if (isSource(entry)) {

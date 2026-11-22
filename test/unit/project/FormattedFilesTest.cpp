@@ -1,7 +1,6 @@
 #include "project/FormattedFiles.h"
 
 #include "project/Manifest.h"
-#include "project/SourceCollector.h"
 #include "support/TempDirectory.h"
 
 #include <gtest/gtest.h>
@@ -180,4 +179,76 @@ TEST(FormattedFilesTest, ReportsADirectoryItCannotRead)
     ASSERT_FALSE(files.has_value());
     EXPECT_EQ(files.error().directory, locked);
     EXPECT_FALSE(files.error().reason.empty());
+}
+
+/**
+ * A directory to walk that resolves outside the project is not walked, and a
+ * file named through such a directory is not covered, so a format never
+ * rewrites what another project owns.
+ */
+TEST(FormattedFilesTest, CoversNothingThatResolvesOutsideTheProject)
+{
+    const TempDirectory outside;
+    outside.writeFile("shared/x.h", SourceText);
+    outside.writeFile("sources/a.cpp", SourceText);
+    const TempDirectory temp;
+    temp.writeFile("include/api.h", SourceText);
+    std::error_code ec;
+    std::filesystem::create_directory_symlink(outside.path() / "shared", temp.path() / "vendor", ec);
+    if (ec) {
+        GTEST_SKIP() << "the file system cannot hold a symbolic link: " << ec.message();
+    }
+    std::filesystem::create_directory_symlink(outside.path() / "sources", temp.path() / "src");
+    Target library = libraryNamed("core", "vendor/x.h");
+    library.settings.includeDirectories = { "vendor" };
+
+    const auto files = filesToFormat(temp.path(), { executableNamed("app", "src/a.cpp"), library });
+
+    ASSERT_TRUE(files.has_value());
+    EXPECT_EQ(*files, (Paths{ "include/api.h" }));
+}
+
+/**
+ * A symbolic link to a file is not covered, found or named, since a format
+ * would replace the link with a copy; the file it names is covered where it
+ * sits.
+ */
+TEST(FormattedFilesTest, CoversNoLinkToAFile)
+{
+    const TempDirectory temp;
+    temp.writeFile("src/main.cpp", SourceText);
+    std::error_code ec;
+    std::filesystem::create_symlink("main.cpp", temp.path() / "src" / "alias.h", ec);
+    if (ec) {
+        GTEST_SKIP() << "the file system cannot hold a symbolic link: " << ec.message();
+    }
+    temp.makeDirectory("app");
+    std::filesystem::create_symlink("../src/main.cpp", temp.path() / "app" / "start.cpp");
+
+    const auto files = filesToFormat(temp.path(), { executableNamed("app", "app/start.cpp") });
+
+    ASSERT_TRUE(files.has_value());
+    EXPECT_EQ(*files, (Paths{ "src/main.cpp" }));
+}
+
+/**
+ * A directory to walk that is a link resolving inside the project is walked,
+ * under the path the target names.
+ */
+TEST(FormattedFilesTest, WalksALinkedDirectoryThatStaysInsideTheProject)
+{
+    const TempDirectory temp;
+    temp.writeFile("include/api.h", SourceText);
+    std::error_code ec;
+    std::filesystem::create_directory_symlink("include", temp.path() / "headers", ec);
+    if (ec) {
+        GTEST_SKIP() << "the file system cannot hold a symbolic link: " << ec.message();
+    }
+    Target library = libraryNamed("core", "");
+    library.settings.includeDirectories = { "headers" };
+
+    const auto files = filesToFormat(temp.path(), { library });
+
+    ASSERT_TRUE(files.has_value());
+    EXPECT_EQ(*files, (Paths{ "headers/api.h", "include/api.h" }));
 }

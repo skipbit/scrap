@@ -19,6 +19,11 @@ namespace scrap::Project {
  * covered. A named file is covered whether or not it exists, so the tool
  * reports one that does not.
  *
+ * Nothing a format would change outside the project or through a link is
+ * covered: a directory to walk that resolves outside the project is not
+ * walked, and a symbolic link to a file, which a format replaces with a copy,
+ * is not covered wherever it sits.
+ *
  * A directory that does not exist holds nothing. One that exists and cannot
  * be read is reported with the path that failed.
  *

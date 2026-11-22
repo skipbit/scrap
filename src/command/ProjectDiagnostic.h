@@ -114,9 +114,10 @@ namespace scrap::Command {
 [[nodiscard]] std::string renderExecutableNotStarted(const std::filesystem::path& executable, const std::error_code& code);
 
 /**
- * @brief Describe a source directory that could not be read, and what to do next.
+ * @brief Describe a directory that could not be read, and what to do next.
  *
- * @param failure Failure returned by scrap::Project::collectSources().
+ * @param failure Failure returned by scrap::Project::collectSources() or
+ *        scrap::Project::filesToFormat().
  * @return Text for standard error, each line ending in a newline.
  */
 [[nodiscard]] std::string renderSourceScanFailure(const Project::SourceScanFailure& failure);

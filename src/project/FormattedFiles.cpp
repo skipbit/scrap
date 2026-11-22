@@ -37,6 +37,29 @@ bool isBelowBuild(const std::filesystem::path& relative)
     return (! relative.empty()) && (*relative.begin() == BuildDirectory);
 }
 
+/**
+ * Whether @p path, once its links are resolved, is @p root or below it.
+ * @p root is resolved already. A path that cannot be resolved counts as
+ * inside, so the walk reports why.
+ */
+bool resolvesInside(const std::filesystem::path& path, const std::filesystem::path& root)
+{
+    std::error_code ec;
+    const std::filesystem::path resolved = std::filesystem::weakly_canonical(path, ec);
+    if (ec) {
+        return true;
+    }
+    const std::filesystem::path relative = resolved.lexically_relative(root);
+    return (! relative.empty()) && (*relative.begin() != "..");
+}
+
+/// Whether @p path is a symbolic link, which a format would replace with a copy.
+bool isLink(const std::filesystem::path& path)
+{
+    std::error_code ec;
+    return std::filesystem::is_symlink(std::filesystem::symlink_status(path, ec));
+}
+
 /// A directory to walk and the extensions of the files to take from it.
 struct ScanTarget {
     std::filesystem::path directory;
@@ -58,7 +81,7 @@ std::expected<void, SourceScanFailure> scanInto(const std::filesystem::path& pro
             return WalkStep::SkipBelow;
         }
         std::error_code ec;
-        if (entry.is_regular_file(ec) && std::ranges::contains(extensions, entry.path().extension().string())) {
+        if ((! entry.is_symlink(ec)) && entry.is_regular_file(ec) && std::ranges::contains(extensions, entry.path().extension().string())) {
             files.push_back(relative);
         }
         return WalkStep::Continue;
@@ -80,23 +103,38 @@ std::vector<ScanTarget> scanTargetsOf(const std::vector<Target>& targets)
     return scans;
 }
 
+/// Add to @p files every file a target names in src that a format may rewrite.
+void addNamedFiles(const std::filesystem::path& projectRoot,
+                   const std::filesystem::path& resolvedRoot,
+                   const std::vector<Target>& targets,
+                   std::vector<std::filesystem::path>& files)
+{
+    for (const Target& target : targets) {
+        const std::filesystem::path named = target.source.lexically_normal();
+        if (named.empty() || isBelowBuild(named) || isLink(projectRoot / named) || (! resolvesInside(projectRoot / named, resolvedRoot))) {
+            continue;
+        }
+        files.push_back(named);
+    }
+}
+
 }  // anonymous namespace
 
 std::expected<std::vector<std::filesystem::path>, SourceScanFailure> filesToFormat(const std::filesystem::path& projectRoot,
                                                                                    const std::vector<Target>& targets)
 {
+    std::error_code ec;
+    const std::filesystem::path resolvedRoot = std::filesystem::weakly_canonical(projectRoot, ec);
     std::vector<std::filesystem::path> files;
     for (const ScanTarget& scan : scanTargetsOf(targets)) {
+        if (! resolvesInside(projectRoot / scan.directory, resolvedRoot)) {
+            continue;
+        }
         if (auto scanned = scanInto(projectRoot, scan.directory, scan.extensions, files); ! scanned.has_value()) {
             return std::unexpected(scanned.error());
         }
     }
-    for (const Target& target : targets) {
-        const std::filesystem::path named = target.source.lexically_normal();
-        if ((! named.empty()) && (! isBelowBuild(named))) {
-            files.push_back(named);
-        }
-    }
+    addNamedFiles(projectRoot, resolvedRoot, targets, files);
     std::ranges::sort(files);
     const auto duplicates = std::ranges::unique(files);
     files.erase(duplicates.begin(), duplicates.end());
