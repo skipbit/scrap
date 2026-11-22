@@ -153,7 +153,7 @@ A program built with an installed toolchain runs with the runtime libraries of t
 
 ### 🧹 Formatting
 
-`scrap format` formats the sources of a project in place with the `clang-format` found on `PATH`, and names the one it uses and its version before it starts. It covers the sources and headers below `src/`, the headers below `include/` and below the `include-dirs` of each target, its own and its public ones, and the entry points a target names in `src`. Nothing below `build/` is covered, nor a symbolic link to a file. Files and directories named after the command narrow that down, and a named file the command does not cover is left out with a warning. A named path is resolved through the file system first, so a path through a symbolic link names the file the link reaches.
+`scrap format` formats the sources of a project in place with the `clang-format` found on `PATH`, and names the one it uses and its version before it starts. It covers the sources and headers below `src/`, the headers below `include/` and below the `include-dirs` of each target, its own and its public ones, and the entry points a target names in `src`. Nothing below `build/` is covered, nor a symbolic link to a file. Files and directories named after the command narrow that down. A named file the command does not cover is left out with a warning, and so is a named directory below which it covers nothing. When everything named is left out, nothing is formatted and the command exits with 0. A named path is resolved through the file system first, so a path through a symbolic link names the file the link reaches.
 
 ```bash
 # Format the whole project
