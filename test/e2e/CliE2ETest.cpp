@@ -5555,7 +5555,7 @@ TEST_F(CliE2ETest, FormatCheckReportsWhatFormattingWouldChange)
     EXPECT_EQ(before.stderrText,
               "Using clang-format '" + program + "' (version 18.1.3)\n"
                                                  "warning: 'src/main.cpp' is not formatted\n"
-                                                 "hint: run 'scrap format' to format them\n");
+                                                 "hint: run the same command without --check to format the files\n");
     EXPECT_EQ(readFile("src/main.cpp"), UnformattedSource);
     EXPECT_EQ(readFile("format-calls"), "include/app.h\nsrc/main.cpp\n");
 

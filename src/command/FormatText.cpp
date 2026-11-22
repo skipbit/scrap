@@ -106,7 +106,7 @@ std::string renderNotFormatted(const std::filesystem::path& file)
 
 std::string renderFormatHint()
 {
-    return "hint: run 'scrap format' to format them\n";
+    return "hint: run the same command without --check to format the files\n";
 }
 
 }  // namespace scrap::Command

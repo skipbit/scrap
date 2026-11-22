@@ -92,7 +92,7 @@ TEST(FormatTextTest, RendersTheExitStatusOfAFormatThatFailedWithoutAWord)
 TEST(FormatTextTest, RendersAFileACheckFoundUnformatted)
 {
     EXPECT_EQ(renderNotFormatted("src/a.cpp"), "warning: 'src/a.cpp' is not formatted\n");
-    EXPECT_EQ(renderFormatHint(), "hint: run 'scrap format' to format them\n");
+    EXPECT_EQ(renderFormatHint(), "hint: run the same command without --check to format the files\n");
 }
 
 /**
