@@ -5370,6 +5370,11 @@ TEST_F(CliE2ETest, FormatFormatsOnlyTheNamedFilesAndDirectories)
     EXPECT_EQ(outside.exitCode, 0);
     EXPECT_EQ(outside.stderrText, "warning: leaving out 'tools/gen.cpp', which scrap format does not cover\n");
     EXPECT_EQ(readFile("tools/gen.cpp"), UnformattedSource);
+
+    auto emptyDirectory = runScrap({ "format", "tools" }, { path }, _root);
+    ASSERT_TRUE(emptyDirectory.exitedNormally);
+    EXPECT_EQ(emptyDirectory.exitCode, 0);
+    EXPECT_EQ(emptyDirectory.stderrText, "warning: leaving out 'tools', which holds nothing scrap format covers\n");
     EXPECT_EQ(readFile("format-calls"), "-i src/a.cpp\n-i src/net/b.cpp\n-i src/net/c.cpp\n");
 }
 

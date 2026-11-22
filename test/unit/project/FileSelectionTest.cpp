@@ -108,3 +108,16 @@ TEST(FileSelectionTest, DoesNotRelyOnTheCoveredFilesBeingSorted)
     EXPECT_EQ(selectFiles(unsorted, {}).selected, (Paths{ "src/a.cpp", "src/b.cpp" }));
     EXPECT_EQ(selectFiles(unsorted, { fileNamed("src/a.cpp") }).selected, (Paths{ "src/a.cpp" }));
 }
+
+/**
+ * A named directory below which nothing is covered is listed, once and in
+ * the order named, and one that selects a file is not.
+ */
+TEST(FileSelectionTest, ListsANamedDirectoryThatSelectsNothing)
+{
+    const FileSelection selection = selectFiles(Covered, { directoryNamed("tools"), directoryNamed("src/net"), directoryNamed("build"), directoryNamed("tools/") });
+
+    EXPECT_EQ(selection.selected, (Paths{ "src/net/b.cpp", "src/net/c.cpp" }));
+    EXPECT_EQ(selection.emptyDirectories, (Paths{ "tools", "build" }));
+    EXPECT_TRUE(selection.leftOut.empty());
+}

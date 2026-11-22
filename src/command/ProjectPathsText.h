@@ -30,4 +30,14 @@ namespace scrap::Command {
  */
 [[nodiscard]] std::string renderNotCovered(const std::filesystem::path& file, std::string_view command);
 
+/**
+ * @brief Say that a named directory is left out, as the command covers
+ *        nothing below it.
+ *
+ * @param directory The directory, relative to the project root.
+ * @param command The command it was given to, such as "format".
+ * @return A "warning: ..." line ending in a newline.
+ */
+[[nodiscard]] std::string renderNothingCoveredBelow(const std::filesystem::path& directory, std::string_view command);
+
 }  // namespace scrap::Command

@@ -19,14 +19,17 @@ struct RequestedPath {
 struct FileSelection {
     std::vector<std::filesystem::path> selected;  ///< Sorted, each once.
     std::vector<std::filesystem::path> leftOut;   ///< Named files the command does not cover, in the order named, each once.
+    /// Named directories below which the command covers nothing, in the order named, each once.
+    std::vector<std::filesystem::path> emptyDirectories;
 };
 
 /**
  * @brief Narrow the files a command covers to the paths the command line
  *        names.
  *
- * A named directory selects the covered files below it, and a named file
- * selects itself when it is covered and is left out otherwise. Paths are
+ * A named directory selects the covered files below it, and is reported
+ * when there are none. A named file selects itself when it is covered and is
+ * left out otherwise. Paths are
  * compared once normalized. Nothing named selects every covered file.
  *
  * @param covered Files the command covers, in any order, repeats allowed.

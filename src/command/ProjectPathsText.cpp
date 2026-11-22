@@ -65,4 +65,12 @@ std::string renderNotCovered(const std::filesystem::path& file, const std::strin
     return text;
 }
 
+std::string renderNothingCoveredBelow(const std::filesystem::path& directory, const std::string_view command)
+{
+    std::string text = "warning: leaving out '" + printablePath(directory) + "', which holds nothing scrap ";
+    text += command;
+    text += " covers\n";
+    return text;
+}
+
 }  // namespace scrap::Command

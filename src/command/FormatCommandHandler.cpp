@@ -48,6 +48,9 @@ int FormatCommandHandler::execute(const InvocationContext& ctx)
     for (const std::filesystem::path& file : selection.leftOut) {
         std::cerr << renderNotCovered(file, CommandName);
     }
+    for (const std::filesystem::path& directory : selection.emptyDirectories) {
+        std::cerr << renderNothingCoveredBelow(directory, CommandName);
+    }
     if (selection.selected.empty()) {
         return 0;
     }
