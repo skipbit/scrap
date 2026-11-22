@@ -5,34 +5,51 @@
 
 #include <filesystem>
 #include <string>
+#include <string_view>
 #include <variant>
 
 namespace scrap::Command {
 
 namespace {
 
+/// The tool as the messages name it.
+constexpr std::string_view ToolName = "clang-format";
+
 /// The line saying that @p program could not be started.
-std::string cannotRun(const std::filesystem::path& program, const Format::ToolNotRun& notRun)
+std::string render(const std::filesystem::path& program, std::string_view /*toolName*/, const Format::ToolNotRun& notRun, const std::string& /*heading*/)
 {
     return "error: cannot run '" + printablePath(program) + "': " + notRun.code.message() + '\n';
 }
 
 /**
- * @p first, the signal that stopped the program when one did, and then what
- * the program wrote.
+ * @p heading, the signal that stopped @p toolName when one did, and then what
+ * it wrote.
  */
-std::string withOutput(std::string first, const Format::ToolFailed& failed)
+std::string render(const std::filesystem::path& /*program*/, const std::string_view toolName, const Format::ToolFailed& failed, const std::string& heading)
 {
+    std::string text = heading;
     if (failed.signal.has_value()) {
-        first += ": clang-format was stopped by signal ";
-        first += std::to_string(*failed.signal);
+        text += ": ";
+        text += toolName;
+        text += " was stopped by signal ";
+        text += std::to_string(*failed.signal);
     }
-    first += '\n';
-    first += printableLines(failed.output);
-    if ((! failed.output.empty()) && (! first.ends_with('\n'))) {
-        first += '\n';
+    text += '\n';
+    text += printableLines(failed.output);
+    if ((! failed.output.empty()) && (! text.ends_with('\n'))) {
+        text += '\n';
     }
-    return first;
+    return text;
+}
+
+/**
+ * What failed to run @p program, named @p toolName, under @p heading.
+ */
+std::string renderToolFailure(const std::filesystem::path& program, const std::string_view toolName, const std::string& heading, const Format::ToolFailure& failure)
+{
+    return std::visit([&program, toolName, &heading](const auto& alternative) -> std::string {
+        return render(program, toolName, alternative, heading);
+    }, failure);
 }
 
 }  // anonymous namespace
@@ -50,18 +67,12 @@ std::string renderClangFormatNotFound()
 
 std::string renderVersionFailure(const std::filesystem::path& program, const Format::ToolFailure& failure)
 {
-    if (const auto* const notRun = std::get_if<Format::ToolNotRun>(&failure)) {
-        return cannotRun(program, *notRun);
-    }
-    return withOutput("error: cannot learn the version of '" + printablePath(program) + "'", std::get<Format::ToolFailed>(failure));
+    return renderToolFailure(program, ToolName, "error: cannot learn the version of '" + printablePath(program) + "'", failure);
 }
 
 std::string renderFormatFailure(const Format::ClangFormat& tool, const std::filesystem::path& file, const Format::ToolFailure& failure)
 {
-    if (const auto* const notRun = std::get_if<Format::ToolNotRun>(&failure)) {
-        return cannotRun(tool.program, *notRun);
-    }
-    return withOutput("error: failed to format '" + printablePath(file) + "'", std::get<Format::ToolFailed>(failure));
+    return renderToolFailure(tool.program, ToolName, "error: failed to format '" + printablePath(file) + "'", failure);
 }
 
 }  // namespace scrap::Command

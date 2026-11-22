@@ -279,11 +279,14 @@ std::string renderProjectError(const Project::ProjectError& error)
     return renderAlternative(error);
 }
 
+std::string renderEmptyPathArgumentError()
+{
+    return "error: the path argument is empty\n";
+}
+
 std::string renderEmptyPathArgument()
 {
-    std::string text = "error: the path argument is empty\n";
-    text += PathHint;
-    return text;
+    return renderEmptyPathArgumentError() + std::string{ PathHint };
 }
 
 std::string renderProjectArgumentError(const ProjectArgumentError& error)
