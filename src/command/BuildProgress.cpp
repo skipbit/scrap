@@ -2,9 +2,9 @@
 
 #include "build/BuildStep.h"
 #include "command/PrintableText.h"
+#include "command/ProgressLine.h"
 #include "compile/BuildProfile.h"
 
-#include <algorithm>
 #include <cstddef>
 #include <filesystem>
 #include <ostream>
@@ -16,9 +16,6 @@
 namespace scrap::Command {
 
 namespace {
-
-/// Width the word for what is being done is written in, so the lines line up.
-constexpr std::size_t VerbWidth = 12;
 
 /// Starts every sequence a terminal acts on.
 constexpr char Escape = '\x1b';
@@ -69,18 +66,6 @@ std::string_view verbFor(const Build::BuildStep& step)
         return "Linking";
     }
     std::unreachable();
-}
-
-/**
- * @p verb written in the width the lines line up in. A verb longer than the
- * width is written as it is, so the lines lose their alignment rather than
- * the count wrapping.
- */
-std::string alignedVerb(std::string_view verb)
-{
-    std::string text(VerbWidth - std::min(VerbWidth, verb.size()), ' ');
-    text += verb;
-    return text;
 }
 
 }  // anonymous namespace

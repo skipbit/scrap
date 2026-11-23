@@ -279,6 +279,7 @@ add_library(scrap_command STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ParsedOptions.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ParserAdapter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/PrintableText.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/ProgressLine.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ProjectArgument.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ProjectBuild.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ProjectCommandResolver.cpp
