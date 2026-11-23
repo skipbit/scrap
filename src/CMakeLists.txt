@@ -142,12 +142,13 @@ target_include_directories(scrap_format PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(scrap_format PUBLIC scrap_tool PRIVATE scrap_file scrap_toolchain)
 scrap_apply_compile_settings(scrap_format WARNINGS_AS_ERRORS)
 
-# Running clang-tidy on the sources of a project
+# Running clang-tidy on the sources of a project, several at once
 add_library(scrap_check STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/check/ClangTidy.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/check/ParallelAnalysis.cpp
 )
 target_include_directories(scrap_check PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(scrap_check PUBLIC scrap_tool PRIVATE scrap_toolchain)
+target_link_libraries(scrap_check PUBLIC scrap_tool PRIVATE scrap_toolchain Threads::Threads)
 scrap_apply_compile_settings(scrap_check WARNINGS_AS_ERRORS)
 
 # Toolchains: detecting the system's, reading specifiers and the index,
