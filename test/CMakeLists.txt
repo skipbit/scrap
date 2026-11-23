@@ -193,6 +193,7 @@ scrap_add_unit_test(format SOURCES
 
 scrap_add_unit_test(check SOURCES
     unit/check/ClangTidyTest.cpp
+    unit/check/ParallelAnalysisTest.cpp
 )
 
 scrap_add_unit_test(compile SOURCES
