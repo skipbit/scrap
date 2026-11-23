@@ -22,21 +22,10 @@ namespace {
 /// What to do once the files the tool failed on have been named.
 constexpr std::string_view FixErrorsHint = "hint: fix the errors reported above and run the command again\n";
 
-/**
- * The line naming @p file, whose analysis by @p tool ended in @p failed,
- * with the signal that stopped the tool, or its exit status when it wrote
- * nothing.
- */
+/// The line naming @p file, whose analysis by @p tool ended in @p failed.
 std::string renderFailedFile(const Tool::ExternalTool& tool, const std::filesystem::path& file, const Tool::ToolFailed& failed)
 {
-    std::string text = "error: failed to check '" + printablePath(file) + "'";
-    if (failed.signal.has_value()) {
-        text += ": " + tool.name + " was stopped by signal " + std::to_string(*failed.signal);
-    } else if (failed.output.empty() && failed.exitCode.has_value()) {
-        // With nothing written, the status is all there is to say why.
-        text += ": " + tool.name + " exited with status " + std::to_string(*failed.exitCode);
-    }
-    return text + '\n';
+    return renderToolFailureHeading(tool, "error: failed to check '" + printablePath(file) + "'", failed);
 }
 
 }  // anonymous namespace

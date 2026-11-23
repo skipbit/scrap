@@ -36,6 +36,19 @@ namespace scrap::Command {
 [[nodiscard]] std::string renderVersionFailure(std::string_view name, const std::filesystem::path& program, const Tool::ToolFailure& failure);
 
 /**
+ * @brief The line under @p heading for @p tool, which failed.
+ *
+ * It names the signal that stopped the tool, or its exit status when it
+ * wrote nothing. What the tool wrote is not included.
+ *
+ * @param tool The tool run.
+ * @param heading An "error: ..." line, without its newline.
+ * @param failed How it failed.
+ * @return The line, ending in a newline.
+ */
+[[nodiscard]] std::string renderToolFailureHeading(const Tool::ExternalTool& tool, const std::string& heading, const Tool::ToolFailed& failed);
+
+/**
  * @brief Describe why running @p tool failed, under @p heading.
  *
  * A program that could not be started is named with the system's reason,
