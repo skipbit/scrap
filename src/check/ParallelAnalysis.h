@@ -74,7 +74,8 @@ struct FailedAnalysis {
  * together: of each file as it starts, and again once it has ended, with
  * what the tool wrote, so what the files wrote reaches it in the order they
  * ended. What @p analyze or the reporter throws stops the analysis as a tool
- * that cannot be started does, and reaches the caller.
+ * that cannot be started does, and reaches the caller; a file whose analysis
+ * threw is not reported as ended.
  *
  * @param files The files to analyze, in order.
  * @param analyze Analyzes each file.
