@@ -177,6 +177,32 @@ style = "llvm"
 
 `tool` names the formatter, and `"clang-format"`, the default, is the only one. When clang-format fails on a file, the file and what clang-format wrote are shown, the other files are still formatted, and `scrap format` exits with 1.
 
+### 🔍 Static Analysis
+
+`scrap check` analyzes the sources of a project with the `clang-tidy` found on `PATH`, and names the one it uses and its version before it starts. It covers the sources the targets compile. The commands `scrap build` would compile them with are written to `compile_commands.json` below `build/` and passed to clang-tidy, and nothing is compiled. A source that more than one target compiles is analyzed with the command of each. Files and directories named after the command narrow that down, as they do for `scrap format`, and a named header is left out with a warning.
+
+```bash
+# Analyze the whole project
+scrap check
+
+# Analyze one file with the commands of the release profile
+scrap check src/main.cpp --release
+
+# Analyze one file at a time
+scrap check -j 1
+```
+
+What clang-tidy writes for a file is shown once the file has been analyzed. Whether the check passes is for clang-tidy to say: `scrap check` exits with 1 when clang-tidy fails on a file, as it does on a compile error or on a warning that `WarningsAsErrors` in `.clang-tidy` makes an error, and with 0 when it only warns. The files it failed on are named at the end.
+
+Without checks in `scrap.toml`, clang-tidy enables the checks of the `.clang-tidy` of the project. Checks in `scrap.toml`, in the notation of the `--checks` of clang-tidy, take their place, and the other settings of `.clang-tidy` still apply:
+
+```toml
+[check]
+checks = "readability-*,modernize-use-nullptr"
+```
+
+`tool` names the analyzer, and `"clang-tidy"`, the default, is the only one.
+
 ## 📋 Project Status
 
 scrap is in early alpha development.
@@ -191,6 +217,7 @@ scrap is in early alpha development.
 - **Running** - `scrap run` builds the executable and starts it with the arguments after `--`, and exits with its exit code. `--bin <name>` chooses the executable when there is more than one, and `-j <n>` sets how many steps of the build run at once
 - **Cleaning** - `scrap clean` removes `build/`
 - **Formatting** - `scrap format` formats the sources with the `clang-format` on `PATH`, and `--check` reports the files it would change, as shown in [Formatting](#-formatting)
+- **Static analysis** - `scrap check` analyzes the sources with the `clang-tidy` on `PATH` and the commands a build would compile them with, as shown in [Static Analysis](#-static-analysis)
 - **Toolchains** - `scrap toolchain install`, `select`, `unselect`, `list` (with `--remote`), `info`, `update` and `uninstall`, and a toolchain per project in `scrap.toml`, as shown in [Integrated Toolchain Management](#-integrated-toolchain-management)
 - **External commands** - an executable named `scrap-<name>` on `PATH` runs as `scrap <name>` and is listed in `scrap --help`
 
