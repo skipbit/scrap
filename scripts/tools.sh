@@ -36,7 +36,7 @@ formatted_sources() {
 # stay clean from its first commit. Findings in any src/ header pulled in by
 # these TUs (see HeaderFilterRegex) also fail the check.
 linted_sources() {
-  find src/build src/command src/compile src/digest src/fetch src/file src/format src/install src/json src/process src/project src/registry src/tar src/tool src/toolchain src/xz -type f -name '*.cpp' -print0
+  find src/build src/check src/command src/compile src/digest src/fetch src/file src/format src/install src/json src/process src/project src/registry src/tar src/tool src/toolchain src/xz -type f -name '*.cpp' -print0
 }
 
 # The linted sources as one regular expression over the paths in the
