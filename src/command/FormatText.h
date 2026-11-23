@@ -46,7 +46,8 @@ namespace scrap::Command {
 /**
  * @brief Describe why checking @p file failed.
  *
- * A clang-format that failed is described as for renderFormatFailure().
+ * A clang-format that failed is described as for renderFormatFailure(),
+ * under a heading that names a check.
  *
  * @param tool The clang-format run.
  * @param file The file, relative to the project root.

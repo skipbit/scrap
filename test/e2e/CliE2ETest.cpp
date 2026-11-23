@@ -5581,7 +5581,7 @@ TEST_F(CliE2ETest, FormatCheckReportsWhatAFailingClangFormatWroteAndGoesOn)
 
     ASSERT_TRUE(result.exitedNormally);
     EXPECT_EQ(result.exitCode, 1);
-    EXPECT_NE(result.stderrText.find("\nerror: failed to format 'src/bad.cpp'\nInvalid value for -style\nwarning: 'src/main.cpp' is not formatted\n"), std::string::npos)
+    EXPECT_NE(result.stderrText.find("\nerror: failed to check 'src/bad.cpp'\nInvalid value for -style\nwarning: 'src/main.cpp' is not formatted\n"), std::string::npos)
         << result.stderrText;
     EXPECT_EQ(readFile("src/bad.cpp"), UnformattedSource);
     EXPECT_EQ(readFile("src/main.cpp"), UnformattedSource);

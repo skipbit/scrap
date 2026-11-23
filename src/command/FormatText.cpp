@@ -65,6 +65,12 @@ std::string failedToFormat(const std::filesystem::path& file)
     return "error: failed to format '" + printablePath(file) + "'";
 }
 
+/// The heading of a file clang-format failed on during a check.
+std::string failedToCheck(const std::filesystem::path& file)
+{
+    return "error: failed to check '" + printablePath(file) + "'";
+}
+
 }  // anonymous namespace
 
 std::string renderClangFormatInUse(const Format::ClangFormat& tool)
@@ -94,7 +100,7 @@ std::string renderCheckFailure(const Format::ClangFormat& tool, const std::files
         if constexpr (std::is_same_v<std::remove_cvref_t<decltype(alternative)>, Format::FileUnreadable>) {
             return "error: cannot read '" + printablePath(file) + "' to compare it with what clang-format wrote\n";
         } else {
-            return render(tool.program, ToolName, alternative, failedToFormat(file));
+            return render(tool.program, ToolName, alternative, failedToCheck(file));
         }
     }, failure);
 }
