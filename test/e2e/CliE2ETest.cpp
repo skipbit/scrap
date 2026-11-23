@@ -5913,3 +5913,32 @@ TEST_F(CliE2ETest, CheckWithARealClangTidyAnalyzesWithTheCommandsOfTheProfile)
     ASSERT_EQ(release.exitCode, 0) << release.stderrText;
     EXPECT_NE(release.stderrText.find("src/main.cpp:2:17: warning: use nullptr [modernize-use-nullptr]"), std::string::npos) << release.stderrText;
 }
+
+/**
+ * A source two targets compile is analyzed once, with the command of each.
+ */
+TEST_F(CliE2ETest, CheckWithARealClangTidyAnalyzesASharedSourceWithTheCommandOfEachTarget)
+{
+    const auto directory = toolDirectory("clang-tidy");
+    if (! directory.has_value()) {
+        GTEST_SKIP() << "no clang-tidy on PATH";
+    }
+    writeFile("scrap.toml",
+              "[package]\nname = \"app\"\nversion = \"0.1.0\"\n\n"
+              "[[bin]]\nname = \"app\"\nsrc = \"src/main.cpp\"\ndefines = [\"IN_APP\"]\n\n"
+              "[[bin]]\nname = \"tool\"\nsrc = \"src/tool.cpp\"\ndefines = [\"IN_TOOL\"]\n");
+    writeFile(".clang-tidy", NullptrCheckConfiguration);
+    writeFile("src/main.cpp", MainSource);
+    writeFile("src/tool.cpp", MainSource);
+    writeFile("src/shared.cpp", "#ifdef IN_APP\nint* inApp = 0;\n#endif\n#ifdef IN_TOOL\nint* inTool = 0;\n#endif\n");
+
+    auto result = runScrap({ "check", "src/shared.cpp" }, { "PATH=" + directory->string() + ":/usr/bin:/bin", realCompiler() }, _root);
+
+    ASSERT_EQ(result.exitCode, 0) << result.stderrText;
+    const std::string checking = "    Checking src/shared.cpp\n";
+    const auto first = result.stderrText.find(checking);
+    ASSERT_NE(first, std::string::npos) << result.stderrText;
+    EXPECT_EQ(result.stderrText.find(checking, first + 1), std::string::npos) << result.stderrText;
+    EXPECT_NE(result.stderrText.find("src/shared.cpp:2:14: warning: use nullptr [modernize-use-nullptr]"), std::string::npos) << result.stderrText;
+    EXPECT_NE(result.stderrText.find("src/shared.cpp:5:15: warning: use nullptr [modernize-use-nullptr]"), std::string::npos) << result.stderrText;
+}
