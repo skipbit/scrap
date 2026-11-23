@@ -15,6 +15,7 @@ namespace scrap::Tool {
  * @brief A program scrap runs to do its work, and the version it reports.
  */
 struct ExternalTool {
+    std::string name;               ///< The tool as the messages name it, such as "clang-format".
     std::filesystem::path program;  ///< Absolute path of the program.
     std::string version;            ///< As --version reports it, such as "18.1.3".
 };
@@ -50,14 +51,14 @@ using ToolFailure = std::variant<ToolNotRun, ToolFailed>;
 [[nodiscard]] std::optional<std::filesystem::path> findTool(std::string_view name, const std::vector<std::filesystem::path>& searchPaths);
 
 /**
- * @brief Ask @p program for its version.
+ * @brief Ask @p program, the tool named @p name, for its version.
  *
  * The version is the word after "version" on the first line --version writes
  * that has one, else the first line that is not empty, else "unknown". The
  * program is kept as an absolute path, since it may run from another
  * directory.
  */
-[[nodiscard]] std::expected<ExternalTool, ToolFailure> describeTool(const std::filesystem::path& program);
+[[nodiscard]] std::expected<ExternalTool, ToolFailure> describeTool(std::string_view name, const std::filesystem::path& program);
 
 /**
  * @brief Run @p arguments in @p directory and return everything it wrote,

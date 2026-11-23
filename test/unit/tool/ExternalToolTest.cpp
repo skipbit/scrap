@@ -41,10 +41,11 @@ TEST(ExternalToolTest, ReadsTheVersionAfterTheWordVersion)
     const auto ubuntu = temp.writeScript("ubuntu/clang-format", "[ \"$1\" = --version ] || exit 1\necho 'Ubuntu clang-format version 18.1.3 (1ubuntu1)'\necho 'second line'\n");
     const auto homebrew = temp.writeScript("homebrew/clang-format", "echo 'Homebrew clang-format version 22.1.8'\n");
 
-    const auto fromUbuntu = describeTool(ubuntu);
-    const auto fromHomebrew = describeTool(homebrew);
+    const auto fromUbuntu = describeTool("clang-format", ubuntu);
+    const auto fromHomebrew = describeTool("clang-format", homebrew);
 
     ASSERT_TRUE(fromUbuntu.has_value());
+    EXPECT_EQ(fromUbuntu->name, "clang-format");
     EXPECT_EQ(fromUbuntu->program, ubuntu);
     EXPECT_EQ(fromUbuntu->version, "18.1.3");
     ASSERT_TRUE(fromHomebrew.has_value());
@@ -60,7 +61,7 @@ TEST(ExternalToolTest, KeepsTheWholeFirstLineWithoutTheWordVersion)
     const TempDirectory temp;
     const auto program = temp.writeScript("tool/clang-format", "echo 'a formatter, release 2'\n");
 
-    const auto described = describeTool(program);
+    const auto described = describeTool("clang-format", program);
 
     ASSERT_TRUE(described.has_value());
     EXPECT_EQ(described->version, "a formatter, release 2");
@@ -78,9 +79,9 @@ TEST(ExternalToolTest, FindsTheVersionOnALaterLineOrShowsWhatItCan)
     const auto blankFirst = temp.writeScript("blank/clang-format", "echo ''\necho 'a formatter'\n");
     const auto silent = temp.writeScript("silent/clang-format", "exit 0\n");
 
-    EXPECT_EQ(describeTool(secondLine)->version, "3.8.0");
-    EXPECT_EQ(describeTool(blankFirst)->version, "a formatter");
-    EXPECT_EQ(describeTool(silent)->version, "unknown");
+    EXPECT_EQ(describeTool("clang-format", secondLine)->version, "3.8.0");
+    EXPECT_EQ(describeTool("clang-format", blankFirst)->version, "a formatter");
+    EXPECT_EQ(describeTool("clang-format", silent)->version, "unknown");
 }
 
 /**
@@ -94,7 +95,7 @@ TEST(ExternalToolTest, KeepsAProgramNamedByARelativePathAsAnAbsolutePath)
     const std::filesystem::path relative = program.lexically_relative(std::filesystem::current_path());
     ASSERT_TRUE(relative.is_relative());
 
-    const auto described = describeTool(relative);
+    const auto described = describeTool("clang-format", relative);
 
     ASSERT_TRUE(described.has_value());
     EXPECT_TRUE(described->program.is_absolute());
@@ -110,8 +111,8 @@ TEST(ExternalToolTest, ReportsAVersionItCannotLearn)
     const TempDirectory temp;
     const auto failing = temp.writeScript("tool/clang-format", "exit 3\n");
 
-    const auto notStarted = describeTool(temp.path() / "missing" / "clang-format");
-    const auto failed = describeTool(failing);
+    const auto notStarted = describeTool("clang-format", temp.path() / "missing" / "clang-format");
+    const auto failed = describeTool("clang-format", failing);
 
     ASSERT_FALSE(notStarted.has_value());
     EXPECT_TRUE(std::holds_alternative<ToolNotRun>(notStarted.error()));
@@ -128,7 +129,7 @@ TEST(ExternalToolTest, ReportsWhyAVersionFailed)
     const TempDirectory temp;
     const auto failing = temp.writeScript("tool/clang-format", "echo 'no version for you' >&2\nexit 2\n");
 
-    const auto described = describeTool(failing);
+    const auto described = describeTool("clang-format", failing);
 
     ASSERT_FALSE(described.has_value());
     ASSERT_TRUE(std::holds_alternative<ToolFailed>(described.error()));

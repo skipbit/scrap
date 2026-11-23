@@ -15,9 +15,9 @@ using scrap::Tool::ToolNotRun;
 
 TEST(ToolTextTest, NamesTheToolInUseWithItsVersion)
 {
-    EXPECT_EQ(renderToolInUse("clang-format", ExternalTool{ .program = "/usr/bin/clang-format", .version = "18.1.3" }),
+    EXPECT_EQ(renderToolInUse(ExternalTool{ .name = "clang-format", .program = "/usr/bin/clang-format", .version = "18.1.3" }),
               "Using clang-format '/usr/bin/clang-format' (version 18.1.3)\n");
-    EXPECT_EQ(renderToolInUse("clang-tidy", ExternalTool{ .program = "/opt/ct", .version = "unknown" }), "Using clang-tidy '/opt/ct' (version unknown)\n");
+    EXPECT_EQ(renderToolInUse(ExternalTool{ .name = "clang-tidy", .program = "/opt/ct", .version = "unknown" }), "Using clang-tidy '/opt/ct' (version unknown)\n");
 }
 
 TEST(ToolTextTest, SaysNoToolWasFound)
@@ -48,8 +48,9 @@ TEST(ToolTextTest, RendersAToolThatFailedUnderTheHeading)
     const ToolFailed stopped{ .exitCode = std::nullopt, .signal = 9, .output = "" };
     const ToolFailed silent{ .exitCode = 3, .signal = std::nullopt, .output = "" };
     const ToolFailed talking{ .exitCode = 1, .signal = std::nullopt, .output = "no such check" };
+    const ExternalTool tidy{ .name = "clang-tidy", .program = "/usr/bin/clang-tidy", .version = "18.1.3" };
 
-    EXPECT_EQ(renderToolFailure("clang-tidy", "/usr/bin/clang-tidy", "error: failed", stopped), "error: failed: clang-tidy was stopped by signal 9\n");
-    EXPECT_EQ(renderToolFailure("clang-tidy", "/usr/bin/clang-tidy", "error: failed", silent), "error: failed: clang-tidy exited with status 3\n");
-    EXPECT_EQ(renderToolFailure("clang-tidy", "/usr/bin/clang-tidy", "error: failed", talking), "error: failed\nno such check\n");
+    EXPECT_EQ(renderToolFailure(tidy, "error: failed", stopped), "error: failed: clang-tidy was stopped by signal 9\n");
+    EXPECT_EQ(renderToolFailure(tidy, "error: failed", silent), "error: failed: clang-tidy exited with status 3\n");
+    EXPECT_EQ(renderToolFailure(tidy, "error: failed", talking), "error: failed\nno such check\n");
 }

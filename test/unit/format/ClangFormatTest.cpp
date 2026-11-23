@@ -27,7 +27,7 @@ namespace {
 ExternalTool recordingTool(const TempDirectory& temp, const std::string& rest = "", const std::string& directory = "tool")
 {
     const auto program = temp.writeScript(directory + "/clang-format", "printf '%s\\n' \"$@\" > arguments\n" + rest);
-    return ExternalTool{ .program = program, .version = "18.1.3" };
+    return ExternalTool{ .name = "clang-format", .program = program, .version = "18.1.3" };
 }
 
 /// The lines of @p file, without their newlines.

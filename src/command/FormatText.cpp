@@ -30,7 +30,7 @@ std::string failedToCheck(const std::filesystem::path& file)
 
 std::string renderFormatFailure(const Tool::ExternalTool& tool, const std::filesystem::path& file, const Tool::ToolFailure& failure)
 {
-    return renderToolFailure(Format::ClangFormatName, tool.program, failedToFormat(file), failure);
+    return renderToolFailure(tool, failedToFormat(file), failure);
 }
 
 std::string renderCheckFailure(const Tool::ExternalTool& tool, const std::filesystem::path& file, const Format::CheckFailure& failure)
@@ -39,7 +39,7 @@ std::string renderCheckFailure(const Tool::ExternalTool& tool, const std::filesy
         if constexpr (std::is_same_v<std::remove_cvref_t<decltype(alternative)>, Format::FileUnreadable>) {
             return "error: cannot read '" + printablePath(file) + "' to compare it with what clang-format wrote\n";
         } else {
-            return renderToolFailure(Format::ClangFormatName, tool.program, failedToCheck(file), Tool::ToolFailure{ alternative });
+            return renderToolFailure(tool, failedToCheck(file), Tool::ToolFailure{ alternative });
         }
     }, failure);
 }

@@ -16,7 +16,7 @@ using scrap::Tool::ToolNotRun;
 
 namespace {
 
-const ExternalTool Tool{ .program = "/usr/bin/clang-format", .version = "18.1.3" };
+const ExternalTool Tool{ .name = "clang-format", .program = "/usr/bin/clang-format", .version = "18.1.3" };
 
 }  // namespace
 

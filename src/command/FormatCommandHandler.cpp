@@ -6,7 +6,7 @@
 #include "command/ProjectDiagnostic.h"
 #include "command/ProjectPaths.h"
 #include "command/ProjectPathsText.h"
-#include "command/ToolText.h"
+#include "command/ToolLookup.h"
 #include "format/ClangFormat.h"
 #include "project/FileSelection.h"
 #include "project/FormattedFiles.h"
@@ -111,17 +111,10 @@ int FormatCommandHandler::execute(const InvocationContext& ctx)
         return 0;
     }
 
-    const auto program = Tool::findTool(Format::ClangFormatName, ctx.env->systemSearchPaths);
-    if (! program.has_value()) {
-        std::cerr << renderToolNotFound(Format::ClangFormatName);
-        return 1;
-    }
-    const auto tool = Tool::describeTool(*program);
+    const auto tool = lookUpTool(Format::ClangFormatName, ctx.env->systemSearchPaths);
     if (! tool.has_value()) {
-        std::cerr << renderVersionFailure(Format::ClangFormatName, *program, tool.error());
-        return 1;
+        return tool.error();
     }
-    std::cerr << renderToolInUse(Format::ClangFormatName, *tool);
 
     if (isGiven(ctx.options, CheckOption)) {
         return checkFiles(*tool, project, selection.selected);

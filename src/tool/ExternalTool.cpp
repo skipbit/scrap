@@ -87,13 +87,13 @@ std::optional<std::filesystem::path> findTool(const std::string_view name, const
     return Toolchain::absoluteProgramPath(*found);
 }
 
-std::expected<ExternalTool, ToolFailure> describeTool(const std::filesystem::path& program)
+std::expected<ExternalTool, ToolFailure> describeTool(const std::string_view name, const std::filesystem::path& program)
 {
     const auto output = standardOutputOf({ program.string(), "--version" }, {});
     if (! output.has_value()) {
         return std::unexpected(output.error());
     }
-    return ExternalTool{ .program = Toolchain::absoluteProgramPath(program), .version = versionIn(*output) };
+    return ExternalTool{ .name = std::string{ name }, .program = Toolchain::absoluteProgramPath(program), .version = versionIn(*output) };
 }
 
 std::expected<std::string, ToolFailure> runTool(const std::vector<std::string>& arguments, const std::filesystem::path& directory)

@@ -45,11 +45,19 @@ std::string render(const std::string_view name, const std::filesystem::path& /*p
     return text;
 }
 
+/// @p failure of the program @p program, the tool named @p name, under @p heading.
+std::string renderFailureOf(const std::string_view name, const std::filesystem::path& program, const std::string& heading, const Tool::ToolFailure& failure)
+{
+    return std::visit([name, &program, &heading](const auto& alternative) -> std::string {
+        return render(name, program, heading, alternative);
+    }, failure);
+}
+
 }  // anonymous namespace
 
-std::string renderToolInUse(const std::string_view name, const Tool::ExternalTool& tool)
+std::string renderToolInUse(const Tool::ExternalTool& tool)
 {
-    return "Using " + std::string{ name } + " '" + printablePath(tool.program) + "' (version " + printableText(tool.version) + ")\n";
+    return "Using " + tool.name + " '" + printablePath(tool.program) + "' (version " + printableText(tool.version) + ")\n";
 }
 
 std::string renderToolNotFound(const std::string_view name)
@@ -64,17 +72,12 @@ std::string renderToolNotFound(const std::string_view name)
 
 std::string renderVersionFailure(const std::string_view name, const std::filesystem::path& program, const Tool::ToolFailure& failure)
 {
-    return renderToolFailure(name, program, "error: cannot learn the version of '" + printablePath(program) + "'", failure);
+    return renderFailureOf(name, program, "error: cannot learn the version of '" + printablePath(program) + "'", failure);
 }
 
-std::string renderToolFailure(const std::string_view name,
-                              const std::filesystem::path& program,
-                              const std::string& heading,
-                              const Tool::ToolFailure& failure)
+std::string renderToolFailure(const Tool::ExternalTool& tool, const std::string& heading, const Tool::ToolFailure& failure)
 {
-    return std::visit([name, &program, &heading](const auto& alternative) -> std::string {
-        return render(name, program, heading, alternative);
-    }, failure);
+    return renderFailureOf(tool.name, tool.program, heading, failure);
 }
 
 }  // namespace scrap::Command
