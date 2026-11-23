@@ -47,9 +47,9 @@ private:
  * @brief Name the files whose analysis failed, and what to do next.
  *
  * What the tool wrote for each file was written as the file ended, so only
- * the file is named, with the signal that stopped the tool when one did. A
- * tool that could not be started is named once, however many files it
- * failed.
+ * the file is named, with the signal that stopped the tool when one did, or
+ * its exit status when it wrote nothing. A tool that could not be started is
+ * named once, however many files it failed.
  *
  * @param tool The tool run.
  * @param failures The files whose analysis failed; not empty.

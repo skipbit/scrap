@@ -93,6 +93,21 @@ TEST(CheckTextTest, NamesTheFilesThatFailedAndHintsOnce)
 }
 
 /**
+ * A file the tool failed on without writing anything is named with the
+ * status, as nothing above says why.
+ */
+TEST(CheckTextTest, NamesTheStatusOfAFileTheToolFailedOnSilently)
+{
+    const std::vector<FailedAnalysis> failures{
+        FailedAnalysis{ .file = "src/a.cpp", .failure = ToolFailed{ .exitCode = 1, .signal = std::nullopt, .output = "" } },
+    };
+
+    EXPECT_EQ(renderAnalysisFailures(Tool, failures),
+              "error: failed to check 'src/a.cpp': clang-tidy exited with status 1\n"
+              "hint: fix the errors reported above and run the command again\n");
+}
+
+/**
  * A tool that could not be started is named once, though files analyzed at
  * the same time may each have failed to start it.
  */
