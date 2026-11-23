@@ -7,6 +7,7 @@
 #include <expected>  // IWYU pragma: keep
 #include <filesystem>
 #include <string>
+#include <string_view>
 #include <variant>
 #include <vector>
 
@@ -59,5 +60,23 @@ struct ProjectWithPaths {
  */
 [[nodiscard]] std::expected<ProjectWithPaths, ProjectPathsError> loadProjectWithPaths(const std::filesystem::path& workingDirectory,
                                                                                       const std::vector<std::string>& paths);
+
+/**
+ * @brief Narrow @p covered to the paths a command line names, and report
+ *        what is left out on standard error.
+ *
+ * A requested file that @p covered does not hold, and a requested directory
+ * with no covered file below it, are each reported under the name of
+ * @p command.
+ *
+ * @param covered The files the command works on without paths given.
+ * @param requested The paths the command line names, relative to the project
+ *        root.
+ * @param command The command as the messages name it.
+ * @return The files to work on, empty when there are none.
+ */
+[[nodiscard]] std::vector<std::filesystem::path> selectRequestedFiles(const std::vector<std::filesystem::path>& covered,
+                                                                      const std::vector<Project::RequestedPath>& requested,
+                                                                      std::string_view command);
 
 }  // namespace scrap::Command

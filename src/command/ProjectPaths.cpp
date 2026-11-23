@@ -1,6 +1,7 @@
 #include "command/ProjectPaths.h"
 
 #include "command/ProjectArgument.h"
+#include "command/ProjectPathsText.h"
 #include "project/FileSelection.h"
 #include "project/ProjectLoader.h"
 #include "project/ProjectLocator.h"
@@ -8,7 +9,9 @@
 #include <cstddef>
 #include <expected>  // IWYU pragma: keep
 #include <filesystem>
+#include <iostream>
 #include <string>
+#include <string_view>
 #include <system_error>
 #include <utility>
 #include <vector>
@@ -95,6 +98,20 @@ std::expected<ProjectWithPaths, ProjectPathsError> loadProjectWithPaths(const st
         loaded.requested.push_back(Project::RequestedPath{ .path = path.real.lexically_relative(loaded.project.root), .isDirectory = path.isDirectory });
     }
     return loaded;
+}
+
+std::vector<std::filesystem::path> selectRequestedFiles(const std::vector<std::filesystem::path>& covered,
+                                                        const std::vector<Project::RequestedPath>& requested,
+                                                        const std::string_view command)
+{
+    Project::FileSelection selection = Project::selectFiles(covered, requested);
+    for (const std::filesystem::path& file : selection.leftOut) {
+        std::cerr << renderNotCovered(file, command);
+    }
+    for (const std::filesystem::path& directory : selection.emptyDirectories) {
+        std::cerr << renderNothingCoveredBelow(directory, command);
+    }
+    return std::move(selection.selected);
 }
 
 }  // namespace scrap::Command

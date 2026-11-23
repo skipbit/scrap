@@ -13,7 +13,6 @@
 #include "command/ToolLookup.h"
 #include "command/ToolOutput.h"
 #include "compile/BuildProfile.h"
-#include "project/FileSelection.h"
 #include "project/Manifest.h"
 #include "project/ProjectLoader.h"
 #include "project/SourceCollector.h"
@@ -105,14 +104,8 @@ int CheckCommandHandler::execute(const InvocationContext& ctx)
     if (! sources.has_value()) {
         return sources.error();
     }
-    const Project::FileSelection selection = Project::selectFiles(*sources, loaded->requested);
-    for (const std::filesystem::path& file : selection.leftOut) {
-        std::cerr << renderNotCovered(file, CommandName);
-    }
-    for (const std::filesystem::path& directory : selection.emptyDirectories) {
-        std::cerr << renderNothingCoveredBelow(directory, CommandName);
-    }
-    if (selection.selected.empty()) {
+    const std::vector<std::filesystem::path> files = selectRequestedFiles(*sources, loaded->requested, CommandName);
+    if (files.empty()) {
         return 0;
     }
 
@@ -120,7 +113,7 @@ int CheckCommandHandler::execute(const InvocationContext& ctx)
     if (! tool.has_value()) {
         return tool.error();
     }
-    return checkFiles(*tool, project, profile, selection.selected, requestedJobs(ctx.options).value_or(Build::availableParallelism()));
+    return checkFiles(*tool, project, profile, files, requestedJobs(ctx.options).value_or(Build::availableParallelism()));
 }
 
 }  // namespace scrap::Command
