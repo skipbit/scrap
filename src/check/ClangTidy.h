@@ -23,11 +23,14 @@ inline constexpr std::string_view ClangTidyName = "clang-tidy";
  * @param tool The clang-tidy to run.
  * @param projectRoot Directory clang-tidy runs in.
  * @param databaseDirectory Directory holding compile_commands.json, relative
- *        to @p projectRoot.
+ *        to @p projectRoot; not empty, since clang-tidy given none analyzes
+ *        without the commands.
  * @param file File to analyze, relative to @p projectRoot.
  * @param checks The checks to enable in place of those of .clang-tidy, in
  *        clang-tidy's notation; nothing leaves .clang-tidy to choose them.
- *        The other settings of .clang-tidy stay in effect either way.
+ *        A list given is not empty, since an empty one enables no check and
+ *        clang-tidy refuses to run. The other settings of .clang-tidy stay in
+ *        effect either way.
  * @return What clang-tidy wrote, both streams together, when it exited with
  *         0. Otherwise the failure, which holds what it wrote; an exit
  *         status other than 0 also comes from a diagnostic clang-tidy judged
