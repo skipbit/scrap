@@ -126,12 +126,20 @@ add_library(scrap_process STATIC
 target_include_directories(scrap_process PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 scrap_apply_compile_settings(scrap_process WARNINGS_AS_ERRORS)
 
+# Finding the programs scrap runs to do its work, and running them
+add_library(scrap_tool STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/tool/ExternalTool.cpp
+)
+target_include_directories(scrap_tool PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(scrap_tool PRIVATE scrap_process scrap_toolchain)
+scrap_apply_compile_settings(scrap_tool WARNINGS_AS_ERRORS)
+
 # Running clang-format on the files of a project
 add_library(scrap_format STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/format/ClangFormat.cpp
 )
 target_include_directories(scrap_format PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(scrap_format PRIVATE scrap_file scrap_process scrap_toolchain)
+target_link_libraries(scrap_format PUBLIC scrap_tool PRIVATE scrap_file scrap_toolchain)
 scrap_apply_compile_settings(scrap_format WARNINGS_AS_ERRORS)
 
 # Toolchains: detecting the system's, reading specifiers and the index,
@@ -274,6 +282,8 @@ add_library(scrap_command STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ScrapHome.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ScriptsReader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/StubScriptsReader.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolLookup.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolText.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainDiagnostic.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainIndexDiagnostic.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainIndexLocation.cpp
@@ -292,7 +302,7 @@ target_include_directories(scrap_command PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 # only headers used within the command library may name them.
 target_link_libraries(scrap_command
     PUBLIC scrap_project scrap_compile scrap_build
-    PRIVATE scrap_toolchain scrap_process scrap_install scrap_fetch scrap_format CLI11::CLI11
+    PRIVATE scrap_toolchain scrap_process scrap_install scrap_fetch scrap_format scrap_tool CLI11::CLI11
 )
 add_dependencies(scrap_command scrap_version_source)
 scrap_apply_compile_settings(scrap_command WARNINGS_AS_ERRORS)

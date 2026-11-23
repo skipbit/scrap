@@ -6,12 +6,14 @@
 #include "command/ProjectDiagnostic.h"
 #include "command/ProjectPaths.h"
 #include "command/ProjectPathsText.h"
+#include "command/ToolLookup.h"
 #include "format/ClangFormat.h"
 #include "project/FileSelection.h"
 #include "project/FormattedFiles.h"
 #include "project/Manifest.h"
 #include "project/ProjectLoader.h"
 #include "project/TargetResolver.h"
+#include "tool/ExternalTool.h"
 
 #include <filesystem>
 #include <iostream>
@@ -30,7 +32,7 @@ constexpr std::string_view CommandName = "format";
  * Format @p files of @p project in place with @p tool, and return the exit
  * code.
  */
-int formatFiles(const Format::ClangFormat& tool, const Project::LoadedProject& project, const std::vector<std::filesystem::path>& files)
+int formatFiles(const Tool::ExternalTool& tool, const Project::LoadedProject& project, const std::vector<std::filesystem::path>& files)
 {
     int result = 0;
     for (const std::filesystem::path& file : files) {
@@ -40,7 +42,7 @@ int formatFiles(const Format::ClangFormat& tool, const Project::LoadedProject& p
         }
         std::cerr << renderFormatFailure(tool, file, formatted.error());
         // A clang-format that cannot be started fails every file the same way.
-        if (std::holds_alternative<Format::ToolNotRun>(formatted.error())) {
+        if (std::holds_alternative<Tool::ToolNotRun>(formatted.error())) {
             return 1;
         }
         result = 1;
@@ -52,7 +54,7 @@ int formatFiles(const Format::ClangFormat& tool, const Project::LoadedProject& p
  * Report which of @p files of @p project formatting with @p tool would
  * change, leaving them as they are, and return the exit code.
  */
-int checkFiles(const Format::ClangFormat& tool, const Project::LoadedProject& project, const std::vector<std::filesystem::path>& files)
+int checkFiles(const Tool::ExternalTool& tool, const Project::LoadedProject& project, const std::vector<std::filesystem::path>& files)
 {
     int result = 0;
     bool unformatted = false;
@@ -68,7 +70,7 @@ int checkFiles(const Format::ClangFormat& tool, const Project::LoadedProject& pr
         }
         std::cerr << renderCheckFailure(tool, file, checked.error());
         // A clang-format that cannot be started fails every file the same way.
-        if (std::holds_alternative<Format::ToolNotRun>(checked.error())) {
+        if (std::holds_alternative<Tool::ToolNotRun>(checked.error())) {
             return 1;
         }
         result = 1;
@@ -109,17 +111,10 @@ int FormatCommandHandler::execute(const InvocationContext& ctx)
         return 0;
     }
 
-    const auto program = Format::findClangFormat(ctx.env->systemSearchPaths);
-    if (! program.has_value()) {
-        std::cerr << renderClangFormatNotFound();
-        return 1;
-    }
-    const auto tool = Format::describeClangFormat(*program);
+    const auto tool = lookUpTool(Format::ClangFormatName, ctx.env->systemSearchPaths);
     if (! tool.has_value()) {
-        std::cerr << renderVersionFailure(*program, tool.error());
-        return 1;
+        return tool.error();
     }
-    std::cerr << renderClangFormatInUse(*tool);
 
     if (isGiven(ctx.options, CheckOption)) {
         return checkFiles(*tool, project, selection.selected);

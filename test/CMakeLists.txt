@@ -75,6 +75,7 @@ scrap_add_unit_test(command SOURCES
     unit/command/RemoteListingTextTest.cpp
     unit/command/StatusWarningTextTest.cpp
     unit/command/TextColumnsTest.cpp
+    unit/command/ToolTextTest.cpp
     unit/command/ToolchainUninstallTextTest.cpp
     unit/command/ToolchainDetailsTest.cpp
     unit/command/ToolchainDetailsTextTest.cpp
@@ -179,6 +180,10 @@ scrap_add_unit_test(project SOURCES
     unit/project/ProjectLocatorTest.cpp
     unit/project/SourceCollectorTest.cpp
     unit/project/TargetResolverTest.cpp
+)
+
+scrap_add_unit_test(tool SOURCES
+    unit/tool/ExternalToolTest.cpp
 )
 
 scrap_add_unit_test(format SOURCES

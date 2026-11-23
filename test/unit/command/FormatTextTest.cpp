@@ -1,34 +1,24 @@
 #include "command/FormatText.h"
 
 #include "format/ClangFormat.h"
+#include "tool/ExternalTool.h"
 
 #include <gtest/gtest.h>
 
+#include <optional>
+#include <string>
 #include <system_error>
 
 using namespace scrap::Command;
-using scrap::Format::ClangFormat;
-using scrap::Format::ToolFailed;
-using scrap::Format::ToolNotRun;
+using scrap::Tool::ExternalTool;
+using scrap::Tool::ToolFailed;
+using scrap::Tool::ToolNotRun;
 
 namespace {
 
-const ClangFormat Tool{ .program = "/usr/bin/clang-format", .version = "18.1.3" };
+const ExternalTool Tool{ .name = "clang-format", .program = "/usr/bin/clang-format", .version = "18.1.3" };
 
 }  // namespace
-
-TEST(FormatTextTest, NamesTheClangFormatInUseWithItsVersion)
-{
-    EXPECT_EQ(renderClangFormatInUse(Tool), "Using clang-format '/usr/bin/clang-format' (version 18.1.3)\n");
-    EXPECT_EQ(renderClangFormatInUse(ClangFormat{ .program = "/opt/cf", .version = "unknown" }), "Using clang-format '/opt/cf' (version unknown)\n");
-}
-
-TEST(FormatTextTest, SaysNoClangFormatWasFound)
-{
-    EXPECT_EQ(renderClangFormatNotFound(),
-              "error: clang-format not found in PATH\n"
-              "hint: install clang-format and make sure it is on PATH\n");
-}
 
 /**
  * The file comes first, and what clang-format wrote below it, ending in a
@@ -51,17 +41,8 @@ TEST(FormatTextTest, RendersAFormatASignalStopped)
 TEST(FormatTextTest, RendersAClangFormatThatCouldNotBeStarted)
 {
     const ToolNotRun notRun{ .code = std::make_error_code(std::errc::permission_denied) };
-    const std::string expected = "error: cannot run '/usr/bin/clang-format': " + notRun.code.message() + "\n";
 
-    EXPECT_EQ(renderFormatFailure(Tool, "src/a.cpp", notRun), expected);
-    EXPECT_EQ(renderVersionFailure("/usr/bin/clang-format", notRun), expected);
-}
-
-TEST(FormatTextTest, RendersAVersionThatCouldNotBeLearned)
-{
-    const ToolFailed failed{ .exitCode = 2, .signal = std::nullopt, .output = "bad option\n" };
-
-    EXPECT_EQ(renderVersionFailure("/usr/bin/clang-format", failed), "error: cannot learn the version of '/usr/bin/clang-format'\nbad option\n");
+    EXPECT_EQ(renderFormatFailure(Tool, "src/a.cpp", notRun), "error: cannot run '/usr/bin/clang-format': " + notRun.code.message() + "\n");
 }
 
 /**
