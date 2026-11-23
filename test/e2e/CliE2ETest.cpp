@@ -5295,10 +5295,10 @@ std::string stubClangFormat(const std::filesystem::path& root)
 constexpr std::string_view UnformattedSource = "int main(){int a=1;int b=2;return a+b;}\n";
 
 /**
- * The directory of the clang-format on the PATH this test runs with, or
+ * The directory of the program @p name on the PATH this test runs with, or
  * nothing when there is none.
  */
-std::optional<std::filesystem::path> clangFormatDirectory()
+std::optional<std::filesystem::path> toolDirectory(const std::string_view name)
 {
     const char* const path = std::getenv("PATH");
     if (path == nullptr) {
@@ -5308,7 +5308,7 @@ std::optional<std::filesystem::path> clangFormatDirectory()
     while (! rest.empty()) {
         const std::size_t end = rest.find(':');
         const std::filesystem::path directory{ rest.substr(0, end) };
-        if ((! directory.empty()) && (::access((directory / "clang-format").c_str(), X_OK) == 0)) {
+        if ((! directory.empty()) && (::access((directory / name).c_str(), X_OK) == 0)) {
             return directory;
         }
         rest = (end == std::string_view::npos) ? std::string_view{} : rest.substr(end + 1);
@@ -5463,7 +5463,7 @@ TEST_F(CliE2ETest, FormatReportsWhatAFailingClangFormatWroteAndGoesOn)
  */
 TEST_F(CliE2ETest, FormatWithARealClangFormatFollowsItsConfigurationFile)
 {
-    const auto directory = clangFormatDirectory();
+    const auto directory = toolDirectory("clang-format");
     if (! directory.has_value()) {
         GTEST_SKIP() << "no clang-format on PATH";
     }
@@ -5482,7 +5482,7 @@ TEST_F(CliE2ETest, FormatWithARealClangFormatFollowsItsConfigurationFile)
  */
 TEST_F(CliE2ETest, FormatWithARealClangFormatFollowsTheStyleOfTheManifest)
 {
-    const auto directory = clangFormatDirectory();
+    const auto directory = toolDirectory("clang-format");
     if (! directory.has_value()) {
         GTEST_SKIP() << "no clang-format on PATH";
     }
@@ -5498,7 +5498,7 @@ TEST_F(CliE2ETest, FormatWithARealClangFormatFollowsTheStyleOfTheManifest)
 
 TEST_F(CliE2ETest, FormatWithARealClangFormatReportsAStyleItRejects)
 {
-    const auto directory = clangFormatDirectory();
+    const auto directory = toolDirectory("clang-format");
     if (! directory.has_value()) {
         GTEST_SKIP() << "no clang-format on PATH";
     }
@@ -5593,7 +5593,7 @@ TEST_F(CliE2ETest, FormatCheckReportsWhatAFailingClangFormatWroteAndGoesOn)
  */
 TEST_F(CliE2ETest, FormatCheckWithARealClangFormatPassesOnceFormatted)
 {
-    const auto directory = clangFormatDirectory();
+    const auto directory = toolDirectory("clang-format");
     if (! directory.has_value()) {
         GTEST_SKIP() << "no clang-format on PATH";
     }
@@ -5627,4 +5627,318 @@ TEST_F(CliE2ETest, FormatCheckStopsAtAClangFormatThatCannotBeStarted)
     const auto first = result.stderrText.find(cannotRun);
     ASSERT_NE(first, std::string::npos) << result.stderrText;
     EXPECT_EQ(result.stderrText.find(cannotRun, first + 1), std::string::npos) << result.stderrText;
+}
+
+namespace {
+
+/**
+ * A clang-tidy that answers --version as 18.1.3, records each command line
+ * in "check-calls" next to bin/, and writes a warning for the file it is
+ * given last. A file whose name holds "bad" makes it write an error and
+ * exit with 1, as a diagnostic it judges an error does.
+ */
+std::string stubClangTidy(const std::filesystem::path& root)
+{
+    return "case \"$1\" in --version) echo 'LLVM version 18.1.3'; exit 0;; esac\n"
+           "printf '%s\\n' \"$*\" >> '"
+           + (root / "check-calls").string()
+           + "'\n"
+             "for file; do :; done\n"
+             "case \"$file\" in *bad*) echo \"$file:1:1: error: bad [stub]\"; exit 1;; esac\n"
+             "echo \"$file:1:1: warning: checked [stub]\"\n";
+}
+
+/// A source that uses 0 as a null pointer.
+constexpr std::string_view NullAsZeroSource = "int main() { int* p = 0; return p == nullptr ? 0 : 1; }\n";
+
+/// The configuration that enables modernize-use-nullptr alone.
+constexpr std::string_view NullptrCheckConfiguration = "Checks: '-*,modernize-use-nullptr'\n";
+
+}  // namespace
+
+/**
+ * Each source of the project is analyzed with the commands a build would
+ * compile it with, written to the database first, and nothing is compiled.
+ */
+TEST_F(CliE2ETest, CheckAnalyzesTheSourcesOfTheProject)
+{
+    makeDummy("clang-tidy", stubClangTidy(_root));
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp", MainSource);
+    writeFile("src/util.cpp", MainSource);
+    writeFile("include/app.h", MainSource);
+
+    auto result = runScrap({ "check", "-j", "1" }, { "PATH=" + (_root / "bin").string() + ":/usr/bin:/bin", realCompiler() }, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_TRUE(result.stdoutText.empty()) << result.stdoutText;
+    const std::string program = (_root / "bin" / "clang-tidy").string();
+    EXPECT_EQ(result.stderrText,
+              std::string{ "Using the system compiler '" } + SCRAP_TEST_CXX + "' (from CXX)\n"
+                  + "Using clang-tidy '" + program + "' (version 18.1.3)\n"
+                  + "    Checking src/main.cpp\n"
+                    "src/main.cpp:1:1: warning: checked [stub]\n"
+                    "    Checking src/util.cpp\n"
+                    "src/util.cpp:1:1: warning: checked [stub]\n"
+                    "    Finished debug check\n");
+    EXPECT_EQ(readFile("check-calls"), "--quiet -p=build/debug src/main.cpp\n--quiet -p=build/debug src/util.cpp\n");
+    EXPECT_NE(readFile("build/debug/compile_commands.json").find("\"file\": \"src/util.cpp\""), std::string::npos);
+    EXPECT_FALSE(std::filesystem::exists(_root / "build" / "debug" / "obj"));
+}
+
+/**
+ * A named source is analyzed alone, and a named header is left out with a
+ * warning, before clang-tidy is looked for.
+ */
+TEST_F(CliE2ETest, CheckAnalyzesOnlyTheNamedSources)
+{
+    makeDummy("clang-tidy", stubClangTidy(_root));
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp", MainSource);
+    writeFile("src/util.cpp", MainSource);
+    writeFile("include/a.hpp", MainSource);
+    const std::vector<std::string> environment{ "PATH=" + (_root / "bin").string() + ":/usr/bin:/bin", realCompiler() };
+
+    auto source = runScrap({ "check", "src/main.cpp" }, environment, _root);
+    ASSERT_EQ(source.exitCode, 0) << source.stderrText;
+    EXPECT_NE(source.stderrText.find("src/main.cpp:1:1: warning: checked [stub]\n"), std::string::npos) << source.stderrText;
+    EXPECT_EQ(source.stderrText.find("src/util.cpp"), std::string::npos) << source.stderrText;
+
+    auto header = runScrap({ "check", "include/a.hpp" }, environment, _root);
+    ASSERT_TRUE(header.exitedNormally);
+    EXPECT_EQ(header.exitCode, 0);
+    EXPECT_EQ(header.stderrText,
+              std::string{ "Using the system compiler '" } + SCRAP_TEST_CXX + "' (from CXX)\n"
+                  + "warning: leaving out 'include/a.hpp', which scrap check does not cover\n");
+    EXPECT_EQ(readFile("check-calls"), "--quiet -p=build/debug src/main.cpp\n");
+}
+
+/**
+ * The checks of the manifest take the place of those of .clang-tidy.
+ */
+TEST_F(CliE2ETest, CheckPassesTheChecksOfTheManifest)
+{
+    makeDummy("clang-tidy", stubClangTidy(_root));
+    writeFile("scrap.toml", std::string{ ValidManifest } + "\n[check]\nchecks = \"readability-braces-around-statements\"\n");
+    writeFile("src/main.cpp", MainSource);
+
+    auto result = runScrap({ "check" }, { "PATH=" + (_root / "bin").string() + ":/usr/bin:/bin", realCompiler() }, _root);
+
+    ASSERT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_EQ(readFile("check-calls"), "--quiet -p=build/debug --checks=-*,readability-braces-around-statements src/main.cpp\n");
+}
+
+/**
+ * With --release, the commands of the release profile are written and
+ * analyzed with.
+ */
+TEST_F(CliE2ETest, CheckUsesTheCommandsOfTheReleaseProfile)
+{
+    makeDummy("clang-tidy", stubClangTidy(_root));
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp", MainSource);
+
+    auto result = runScrap({ "check", "--release" }, { "PATH=" + (_root / "bin").string() + ":/usr/bin:/bin", realCompiler() }, _root);
+
+    ASSERT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_TRUE(result.stderrText.ends_with("    Finished release check\n")) << result.stderrText;
+    EXPECT_EQ(readFile("check-calls"), "--quiet -p=build/release src/main.cpp\n");
+    EXPECT_TRUE(std::filesystem::exists(_root / "build" / "release" / "compile_commands.json"));
+}
+
+TEST_F(CliE2ETest, CheckReportsAMissingClangTidy)
+{
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/main.cpp", MainSource);
+    std::filesystem::create_directories(_root / "empty");
+
+    auto result = runScrap({ "check" }, { "PATH=" + (_root / "empty").string(), realCompiler() }, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_EQ(result.stderrText,
+              std::string{ "Using the system compiler '" } + SCRAP_TEST_CXX + "' (from CXX)\n"
+                  + "error: clang-tidy not found in PATH\n"
+                    "hint: install clang-tidy and make sure it is on PATH\n");
+}
+
+/**
+ * The files clang-tidy failed on are named after what it wrote, every file
+ * is still analyzed, and the check fails.
+ */
+TEST_F(CliE2ETest, CheckReportsTheFilesClangTidyFailedOn)
+{
+    makeDummy("clang-tidy", stubClangTidy(_root));
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/bad.cpp", MainSource);
+    writeFile("src/main.cpp", MainSource);
+
+    auto result = runScrap({ "check", "-j", "1" }, { "PATH=" + (_root / "bin").string() + ":/usr/bin:/bin", realCompiler() }, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_TRUE(result.stderrText.ends_with("    Checking src/bad.cpp\n"
+                                            "src/bad.cpp:1:1: error: bad [stub]\n"
+                                            "    Checking src/main.cpp\n"
+                                            "src/main.cpp:1:1: warning: checked [stub]\n"
+                                            "error: failed to check 'src/bad.cpp'\n"
+                                            "hint: fix the errors reported above and run the command again\n"))
+        << result.stderrText;
+}
+
+/**
+ * A clang-tidy that cannot be started would fail every file the same way,
+ * so the check stops at the first.
+ */
+TEST_F(CliE2ETest, CheckStopsAtAClangTidyThatCannotBeStarted)
+{
+    makeDummy("clang-tidy", "rm -f \"$0\"\necho 'LLVM version 18.1.3'\n");
+    writeFile("scrap.toml", ValidManifest);
+    writeFile("src/a.cpp", MainSource);
+    writeFile("src/main.cpp", MainSource);
+
+    auto result = runScrap({ "check", "-j", "1" }, { "PATH=" + (_root / "bin").string() + ":/usr/bin:/bin", realCompiler() }, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_TRUE(result.stderrText.ends_with("    Checking src/a.cpp\n"
+                                            "error: cannot run '"
+                                            + (_root / "bin" / "clang-tidy").string() + "': " + std::make_error_code(std::errc::no_such_file_or_directory).message() + "\n"))
+        << result.stderrText;
+}
+
+/**
+ * A project that states it builds nothing has nothing to analyze: its
+ * database is emptied, as a build empties it, and neither a compiler nor
+ * clang-tidy is looked for.
+ */
+TEST_F(CliE2ETest, CheckEmptiesTheDatabaseOfAProjectThatBuildsNothing)
+{
+    writeFile("scrap.toml", ManifestWithoutTargets);
+    writeFile("build/debug/compile_commands.json", "stale");
+    std::filesystem::create_directories(_root / "empty");
+
+    auto result = runScrap({ "check" }, { "PATH=" + (_root / "empty").string() }, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_TRUE(result.stderrText.empty()) << result.stderrText;
+    EXPECT_EQ(readFile("build/debug/compile_commands.json").find("stale"), std::string::npos);
+}
+
+/**
+ * A real clang-tidy analyzes the project without a build, following its
+ * .clang-tidy, and a warning alone does not fail the check.
+ */
+TEST_F(CliE2ETest, CheckWithARealClangTidyFollowsItsConfigurationFile)
+{
+    const auto directory = toolDirectory("clang-tidy");
+    if (! directory.has_value()) {
+        GTEST_SKIP() << "no clang-tidy on PATH";
+    }
+    writeFile("scrap.toml", ValidManifest);
+    writeFile(".clang-tidy", NullptrCheckConfiguration);
+    writeFile("src/main.cpp", NullAsZeroSource);
+
+    auto result = runScrap({ "check" }, { "PATH=" + directory->string() + ":/usr/bin:/bin", realCompiler() }, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_NE(result.stderrText.find("Using clang-tidy '" + (*directory / "clang-tidy").string() + "' (version "), std::string::npos) << result.stderrText;
+    EXPECT_NE(result.stderrText.find("src/main.cpp:1:23: warning: use nullptr [modernize-use-nullptr]"), std::string::npos) << result.stderrText;
+    EXPECT_FALSE(std::filesystem::exists(_root / "build" / "debug" / "obj"));
+}
+
+/**
+ * A warning .clang-tidy makes an error fails the check.
+ */
+TEST_F(CliE2ETest, CheckWithARealClangTidyFailsOnAWarningMadeAnError)
+{
+    const auto directory = toolDirectory("clang-tidy");
+    if (! directory.has_value()) {
+        GTEST_SKIP() << "no clang-tidy on PATH";
+    }
+    writeFile("scrap.toml", ValidManifest);
+    writeFile(".clang-tidy", std::string{ NullptrCheckConfiguration } + "WarningsAsErrors: 'modernize-use-nullptr'\n");
+    writeFile("src/main.cpp", NullAsZeroSource);
+
+    auto result = runScrap({ "check" }, { "PATH=" + directory->string() + ":/usr/bin:/bin", realCompiler() }, _root);
+
+    ASSERT_TRUE(result.exitedNormally);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_NE(result.stderrText.find("\nerror: failed to check 'src/main.cpp'\n"), std::string::npos) << result.stderrText;
+}
+
+/**
+ * The checks of the manifest take the place of those of .clang-tidy.
+ */
+TEST_F(CliE2ETest, CheckWithARealClangTidyFollowsTheChecksOfTheManifest)
+{
+    const auto directory = toolDirectory("clang-tidy");
+    if (! directory.has_value()) {
+        GTEST_SKIP() << "no clang-tidy on PATH";
+    }
+    writeFile("scrap.toml", std::string{ ValidManifest } + "\n[check]\nchecks = \"readability-braces-around-statements\"\n");
+    writeFile(".clang-tidy", NullptrCheckConfiguration);
+    writeFile("src/main.cpp", "int main() { int* p = 0; if (p) return 1; return 0; }\n");
+
+    auto result = runScrap({ "check" }, { "PATH=" + directory->string() + ":/usr/bin:/bin", realCompiler() }, _root);
+
+    ASSERT_EQ(result.exitCode, 0) << result.stderrText;
+    EXPECT_NE(result.stderrText.find("[readability-braces-around-statements]"), std::string::npos) << result.stderrText;
+    EXPECT_EQ(result.stderrText.find("[modernize-use-nullptr]"), std::string::npos) << result.stderrText;
+}
+
+/**
+ * The commands of the release profile define NDEBUG, so what only they
+ * compile is analyzed with --release alone.
+ */
+TEST_F(CliE2ETest, CheckWithARealClangTidyAnalyzesWithTheCommandsOfTheProfile)
+{
+    const auto directory = toolDirectory("clang-tidy");
+    if (! directory.has_value()) {
+        GTEST_SKIP() << "no clang-tidy on PATH";
+    }
+    writeFile("scrap.toml", ValidManifest);
+    writeFile(".clang-tidy", NullptrCheckConfiguration);
+    writeFile("src/main.cpp", "#ifdef NDEBUG\nint* released = 0;\n#endif\nint main() { return 0; }\n");
+    const std::vector<std::string> environment{ "PATH=" + directory->string() + ":/usr/bin:/bin", realCompiler() };
+
+    auto debug = runScrap({ "check" }, environment, _root);
+    ASSERT_EQ(debug.exitCode, 0) << debug.stderrText;
+    EXPECT_EQ(debug.stderrText.find("[modernize-use-nullptr]"), std::string::npos) << debug.stderrText;
+
+    auto release = runScrap({ "check", "--release", "-j", "1" }, environment, _root);
+    ASSERT_EQ(release.exitCode, 0) << release.stderrText;
+    EXPECT_NE(release.stderrText.find("src/main.cpp:2:17: warning: use nullptr [modernize-use-nullptr]"), std::string::npos) << release.stderrText;
+}
+
+/**
+ * A source two targets compile is analyzed once, with the command of each.
+ */
+TEST_F(CliE2ETest, CheckWithARealClangTidyAnalyzesASharedSourceWithTheCommandOfEachTarget)
+{
+    const auto directory = toolDirectory("clang-tidy");
+    if (! directory.has_value()) {
+        GTEST_SKIP() << "no clang-tidy on PATH";
+    }
+    writeFile("scrap.toml",
+              "[package]\nname = \"app\"\nversion = \"0.1.0\"\n\n"
+              "[[bin]]\nname = \"app\"\nsrc = \"src/main.cpp\"\ndefines = [\"IN_APP\"]\n\n"
+              "[[bin]]\nname = \"tool\"\nsrc = \"src/tool.cpp\"\ndefines = [\"IN_TOOL\"]\n");
+    writeFile(".clang-tidy", NullptrCheckConfiguration);
+    writeFile("src/main.cpp", MainSource);
+    writeFile("src/tool.cpp", MainSource);
+    writeFile("src/shared.cpp", "#ifdef IN_APP\nint* inApp = 0;\n#endif\n#ifdef IN_TOOL\nint* inTool = 0;\n#endif\n");
+
+    auto result = runScrap({ "check", "src/shared.cpp" }, { "PATH=" + directory->string() + ":/usr/bin:/bin", realCompiler() }, _root);
+
+    ASSERT_EQ(result.exitCode, 0) << result.stderrText;
+    const std::string checking = "    Checking src/shared.cpp\n";
+    const auto first = result.stderrText.find(checking);
+    ASSERT_NE(first, std::string::npos) << result.stderrText;
+    EXPECT_EQ(result.stderrText.find(checking, first + 1), std::string::npos) << result.stderrText;
+    EXPECT_NE(result.stderrText.find("src/shared.cpp:2:14: warning: use nullptr [modernize-use-nullptr]"), std::string::npos) << result.stderrText;
+    EXPECT_NE(result.stderrText.find("src/shared.cpp:5:15: warning: use nullptr [modernize-use-nullptr]"), std::string::npos) << result.stderrText;
 }

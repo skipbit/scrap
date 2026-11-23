@@ -2,6 +2,7 @@
 
 #include "build/BuildOutput.h"
 #include "build/BuildStep.h"
+#include "command/FixErrorsHint.h"
 #include "command/PermissionHint.h"
 #include "command/PrintableText.h"
 #include "command/ProjectArgument.h"
@@ -41,9 +42,6 @@ constexpr std::string_view PathHint = "hint: pass a directory inside a project, 
 
 /// Next step for a path taken by something else.
 constexpr std::string_view ExistingPathHint = "hint: check what is already at that path\n";
-
-/// Next step after a compiler diagnostic, which already says what is wrong.
-constexpr std::string_view FixErrorsHint = "hint: fix the errors reported above and run the command again\n";
 
 /// The library the linker of LLVM 17 to 22 cannot start without.
 constexpr std::string_view LinkerLibxml2Library = "libxml2.so.2";

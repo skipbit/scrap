@@ -19,10 +19,10 @@ std::string render(std::string_view /*name*/, const std::filesystem::path& progr
 }
 
 /**
- * @p heading, the signal that stopped @p name when one did, or its exit
- * status when it wrote nothing, and then what it wrote.
+ * @p heading, with the signal that stopped @p name when one did, or its exit
+ * status when it wrote nothing.
  */
-std::string render(const std::string_view name, const std::filesystem::path& /*program*/, const std::string& heading, const Tool::ToolFailed& failed)
+std::string headingFor(const std::string_view name, const std::string& heading, const Tool::ToolFailed& failed)
 {
     std::string text = heading;
     if (failed.signal.has_value()) {
@@ -38,6 +38,13 @@ std::string render(const std::string_view name, const std::filesystem::path& /*p
         text += std::to_string(*failed.exitCode);
     }
     text += '\n';
+    return text;
+}
+
+/// The heading for @p name, and then what it wrote.
+std::string render(const std::string_view name, const std::filesystem::path& /*program*/, const std::string& heading, const Tool::ToolFailed& failed)
+{
+    std::string text = headingFor(name, heading, failed);
     text += printableLines(failed.output);
     if ((! failed.output.empty()) && (! text.ends_with('\n'))) {
         text += '\n';
@@ -73,6 +80,11 @@ std::string renderToolNotFound(const std::string_view name)
 std::string renderVersionFailure(const std::string_view name, const std::filesystem::path& program, const Tool::ToolFailure& failure)
 {
     return renderFailureOf(name, program, "error: cannot learn the version of '" + printablePath(program) + "'", failure);
+}
+
+std::string renderToolFailureHeading(const Tool::ExternalTool& tool, const std::string& heading, const Tool::ToolFailed& failed)
+{
+    return headingFor(tool.name, heading, failed);
 }
 
 std::string renderToolFailure(const Tool::ExternalTool& tool, const std::string& heading, const Tool::ToolFailure& failure)

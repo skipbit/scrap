@@ -54,3 +54,19 @@ TEST(ToolTextTest, RendersAToolThatFailedUnderTheHeading)
     EXPECT_EQ(renderToolFailure(tidy, "error: failed", silent), "error: failed: clang-tidy exited with status 3\n");
     EXPECT_EQ(renderToolFailure(tidy, "error: failed", talking), "error: failed\nno such check\n");
 }
+
+/**
+ * The heading line carries the signal, or the exit status of a tool that
+ * wrote nothing; what a tool wrote is not part of it.
+ */
+TEST(ToolTextTest, RendersOnlyTheHeadingOfAToolThatFailed)
+{
+    const ToolFailed stopped{ .exitCode = std::nullopt, .signal = 11, .output = "" };
+    const ToolFailed silent{ .exitCode = 3, .signal = std::nullopt, .output = "" };
+    const ToolFailed talking{ .exitCode = 1, .signal = std::nullopt, .output = "no such check" };
+    const ExternalTool tidy{ .name = "clang-tidy", .program = "/usr/bin/clang-tidy", .version = "18.1.3" };
+
+    EXPECT_EQ(renderToolFailureHeading(tidy, "error: failed", stopped), "error: failed: clang-tidy was stopped by signal 11\n");
+    EXPECT_EQ(renderToolFailureHeading(tidy, "error: failed", silent), "error: failed: clang-tidy exited with status 3\n");
+    EXPECT_EQ(renderToolFailureHeading(tidy, "error: failed", talking), "error: failed\n");
+}

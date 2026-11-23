@@ -8,7 +8,6 @@
 #include "command/ProjectPathsText.h"
 #include "command/ToolLookup.h"
 #include "format/ClangFormat.h"
-#include "project/FileSelection.h"
 #include "project/FormattedFiles.h"
 #include "project/Manifest.h"
 #include "project/ProjectLoader.h"
@@ -100,14 +99,8 @@ int FormatCommandHandler::execute(const InvocationContext& ctx)
         std::cerr << renderSourceScanFailure(covered.error());
         return 1;
     }
-    const Project::FileSelection selection = Project::selectFiles(*covered, loaded->requested);
-    for (const std::filesystem::path& file : selection.leftOut) {
-        std::cerr << renderNotCovered(file, CommandName);
-    }
-    for (const std::filesystem::path& directory : selection.emptyDirectories) {
-        std::cerr << renderNothingCoveredBelow(directory, CommandName);
-    }
-    if (selection.selected.empty()) {
+    const std::vector<std::filesystem::path> files = selectRequestedFiles(*covered, loaded->requested, CommandName);
+    if (files.empty()) {
         return 0;
     }
 
@@ -117,9 +110,9 @@ int FormatCommandHandler::execute(const InvocationContext& ctx)
     }
 
     if (isGiven(ctx.options, CheckOption)) {
-        return checkFiles(*tool, project, selection.selected);
+        return checkFiles(*tool, project, files);
     }
-    return formatFiles(*tool, project, selection.selected);
+    return formatFiles(*tool, project, files);
 }
 
 }  // namespace scrap::Command

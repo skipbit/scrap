@@ -240,6 +240,8 @@ add_library(scrap_command STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/command/BuildCommandHandler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/BuildProgress.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/BuiltinCommandResolver.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/CheckCommandHandler.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/CheckText.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/CleanCommandHandler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/CommandCatalog.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/CommandHandler.cpp
@@ -279,6 +281,7 @@ add_library(scrap_command STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ParsedOptions.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ParserAdapter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/PrintableText.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/ProgressLine.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ProjectArgument.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ProjectBuild.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ProjectCommandResolver.cpp
@@ -292,6 +295,7 @@ add_library(scrap_command STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ScriptsReader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/StubScriptsReader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolLookup.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolOutput.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolText.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainDiagnostic.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainIndexDiagnostic.cpp
@@ -311,7 +315,7 @@ target_include_directories(scrap_command PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 # only headers used within the command library may name them.
 target_link_libraries(scrap_command
     PUBLIC scrap_project scrap_compile scrap_build
-    PRIVATE scrap_toolchain scrap_process scrap_install scrap_fetch scrap_format scrap_tool CLI11::CLI11
+    PRIVATE scrap_toolchain scrap_process scrap_install scrap_fetch scrap_format scrap_check scrap_tool CLI11::CLI11
 )
 add_dependencies(scrap_command scrap_version_source)
 scrap_apply_compile_settings(scrap_command WARNINGS_AS_ERRORS)

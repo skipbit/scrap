@@ -57,6 +57,7 @@ scrap_add_unit_test(command SOURCES
     unit/command/FormatTextTest.cpp
     unit/command/BuildProgressTest.cpp
     unit/command/BuiltinCommandResolverTest.cpp
+    unit/command/CheckTextTest.cpp
     unit/command/ExternalCommandResolverTest.cpp
     unit/command/MetadataProtocolProviderTest.cpp
     unit/command/PrintableTextTest.cpp
@@ -76,6 +77,7 @@ scrap_add_unit_test(command SOURCES
     unit/command/RemoteListingTextTest.cpp
     unit/command/StatusWarningTextTest.cpp
     unit/command/TextColumnsTest.cpp
+    unit/command/ToolOutputTest.cpp
     unit/command/ToolTextTest.cpp
     unit/command/ToolchainUninstallTextTest.cpp
     unit/command/ToolchainDetailsTest.cpp
