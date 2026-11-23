@@ -191,9 +191,13 @@ scrap_add_unit_test(format SOURCES
     unit/format/ClangFormatTest.cpp
 )
 
+# A test that analyzes files at once waits on events alone, so an analysis
+# that runs them one at a time would leave it waiting; the limit ends such a
+# wait.
 scrap_add_unit_test(check SOURCES
     unit/check/ClangTidyTest.cpp
     unit/check/ParallelAnalysisTest.cpp
+    PROPERTIES TIMEOUT 60
 )
 
 scrap_add_unit_test(compile SOURCES
