@@ -39,9 +39,9 @@ std::string_view outputOf(const FileResult& result)
  */
 class FileQueue {
 public:
-    FileQueue(const std::vector<std::filesystem::path>& files, const FileAnalyzer& analyze, AnalysisReporter& reporter)
+    FileQueue(const std::vector<std::filesystem::path>& files, const FileAnalyzer& analyzer, AnalysisReporter& reporter)
         : _files(&files)
-        , _analyze(&analyze)
+        , _analyzer(&analyzer)
         , _reporter(&reporter)
     {
     }
@@ -86,7 +86,7 @@ private:
     {
         _reporter->started(file);
         lock.unlock();
-        FileResult result = (*_analyze)(file);
+        FileResult result = (*_analyzer)(file);
         lock.lock();
         _reporter->finished(file, outputOf(result));
         if (! result.has_value()) {
@@ -108,7 +108,7 @@ private:
     }
 
     const std::vector<std::filesystem::path>* _files;
-    const FileAnalyzer* _analyze;
+    const FileAnalyzer* _analyzer;
     AnalysisReporter* _reporter;
     std::mutex _mutex;
     std::size_t _next = 0;
