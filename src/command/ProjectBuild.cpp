@@ -9,6 +9,7 @@
 #include "command/ProjectCompiles.h"
 #include "command/ProjectDiagnostic.h"
 #include "command/RuntimeEnvironment.h"
+#include "command/ToolOutput.h"
 #include "compile/ArchiveCommand.h"
 #include "compile/BuildProfile.h"
 #include "compile/CompileCommand.h"

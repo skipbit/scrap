@@ -56,20 +56,4 @@ private:
  */
 [[nodiscard]] std::string renderRunning(std::string_view target, const std::filesystem::path& executable);
 
-/**
- * @brief @p text as it can be written to a terminal.
- *
- * The sequences a compiler colours its diagnostics with are kept when
- * @p keepColor says to, and removed when it does not. Everything else is
- * escaped as printableLines() escapes, every other escape sequence included:
- * a diagnostic quotes the source it read, so a project being built decides
- * what it holds, and a terminal is not asked to act on it.
- */
-[[nodiscard]] std::string printableOutput(std::string_view text, bool keepColor);
-
-/**
- * @brief Whether standard error goes to a terminal.
- */
-[[nodiscard]] bool standardErrorIsTerminal();
-
 }  // namespace scrap::Command

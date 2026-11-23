@@ -1,9 +1,9 @@
 #include "command/CheckText.h"
 
 #include "check/ParallelAnalysis.h"
-#include "command/BuildProgress.h"
 #include "command/PrintableText.h"
 #include "command/ProgressLine.h"
+#include "command/ToolOutput.h"
 #include "command/ToolText.h"
 #include "compile/BuildProfile.h"
 #include "tool/ExternalTool.h"
@@ -54,14 +54,7 @@ void StreamAnalysisReporter::started(const std::filesystem::path& file)
 
 void StreamAnalysisReporter::finished(const std::filesystem::path& /*file*/, const std::string_view output)
 {
-    if (output.empty()) {
-        return;
-    }
-    const std::string text = printableOutput(output, _keepColor);
-    *_out << text;
-    if (! text.ends_with('\n')) {
-        *_out << '\n';
-    }
+    writeToolOutput(*_out, output, _keepColor);
 }
 
 std::string renderCheckFinished(const Compile::BuildProfile profile)

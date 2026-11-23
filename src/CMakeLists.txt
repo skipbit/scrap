@@ -295,6 +295,7 @@ add_library(scrap_command STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ScriptsReader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/StubScriptsReader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolLookup.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolOutput.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolText.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainDiagnostic.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainIndexDiagnostic.cpp

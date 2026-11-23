@@ -77,6 +77,7 @@ scrap_add_unit_test(command SOURCES
     unit/command/RemoteListingTextTest.cpp
     unit/command/StatusWarningTextTest.cpp
     unit/command/TextColumnsTest.cpp
+    unit/command/ToolOutputTest.cpp
     unit/command/ToolTextTest.cpp
     unit/command/ToolchainUninstallTextTest.cpp
     unit/command/ToolchainDetailsTest.cpp
