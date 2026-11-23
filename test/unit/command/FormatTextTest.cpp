@@ -88,3 +88,25 @@ TEST(FormatTextTest, RendersTheExitStatusOfAFormatThatFailedWithoutAWord)
 
     EXPECT_EQ(renderFormatFailure(Tool, "src/a.cpp", failed), "error: failed to format 'src/a.cpp': clang-format exited with status 3\n");
 }
+
+TEST(FormatTextTest, RendersAFileACheckFoundUnformatted)
+{
+    EXPECT_EQ(renderNotFormatted("src/a.cpp"), "warning: 'src/a.cpp' is not formatted\n");
+    EXPECT_EQ(renderFormatHint(), "hint: run the same command without --check to format the files\n");
+}
+
+/**
+ * A check that clang-format failed reads as a format that did, and one that
+ * could not read the file back says so.
+ */
+TEST(FormatTextTest, RendersACheckThatFailed)
+{
+    const ToolFailed failed{ .exitCode = 1, .signal = std::nullopt, .output = "Invalid value for -style\n" };
+
+    const ToolNotRun notRun{ .code = std::make_error_code(std::errc::permission_denied) };
+
+    EXPECT_EQ(renderCheckFailure(Tool, "src/a.cpp", failed), "error: failed to check 'src/a.cpp'\nInvalid value for -style\n");
+    EXPECT_EQ(renderCheckFailure(Tool, "src/a.cpp", notRun), renderFormatFailure(Tool, "src/a.cpp", notRun));
+    EXPECT_EQ(renderCheckFailure(Tool, "src/a.cpp", scrap::Format::FileUnreadable{}),
+              "error: cannot read 'src/a.cpp' to compare it with what clang-format wrote\n");
+}
