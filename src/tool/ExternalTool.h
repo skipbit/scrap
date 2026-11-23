@@ -70,8 +70,9 @@ using ToolFailure = std::variant<ToolNotRun, ToolFailed>;
  * @brief Run @p arguments in @p directory and return what it wrote to
  *        standard output when it succeeded.
  *
- * Standard output and standard error cannot be read apart, so when it does
- * not succeed a second run reads both, standard error holding why.
+ * Process::runProgram cannot read standard output and standard error
+ * apart, so when it does not succeed a second run reads both, standard error
+ * holding why.
  */
 [[nodiscard]] std::expected<std::string, ToolFailure> standardOutputOf(const std::vector<std::string>& arguments, const std::filesystem::path& directory);
 

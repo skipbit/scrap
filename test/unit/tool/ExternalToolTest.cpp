@@ -137,3 +137,66 @@ TEST(ExternalToolTest, ReportsWhyAVersionFailed)
     EXPECT_EQ(failure.exitCode, std::optional<int>{ 2 });
     EXPECT_EQ(failure.output, "no version for you\n");
 }
+
+/**
+ * A run in a directory returns what the program wrote to both streams, and
+ * one that fails returns how it ended with what it wrote.
+ */
+TEST(ExternalToolTest, RunsAToolAndReturnsBothStreams)
+{
+    const TempDirectory temp;
+    const std::filesystem::path directory = temp.makeDirectory("work");
+    const auto writing = temp.writeScript("tool/writing", "echo out\necho err >&2\ntouch here\n");
+    const auto failing = temp.writeScript("tool/failing", "echo 'no such check' >&2\nexit 4\n");
+
+    const auto output = runTool({ writing.string() }, directory);
+    const auto failed = runTool({ failing.string() }, directory);
+
+    ASSERT_TRUE(output.has_value());
+    EXPECT_EQ(*output, "out\nerr\n");
+    EXPECT_TRUE(std::filesystem::exists(directory / "here"));
+    ASSERT_FALSE(failed.has_value());
+    ASSERT_TRUE(std::holds_alternative<ToolFailed>(failed.error()));
+    EXPECT_EQ(std::get<ToolFailed>(failed.error()).exitCode, std::optional<int>{ 4 });
+    EXPECT_EQ(std::get<ToolFailed>(failed.error()).output, "no such check\n");
+}
+
+/**
+ * Standard output alone comes back from a run that succeeds; one that fails
+ * runs again to report standard error as well.
+ */
+TEST(ExternalToolTest, ReadsStandardOutputAndRunsAgainToSayWhyItFailed)
+{
+    const TempDirectory temp;
+    const std::filesystem::path directory = temp.makeDirectory("work");
+    const auto succeeding = temp.writeScript("tool/succeeding", "echo out\necho noise >&2\n");
+    const auto failing = temp.writeScript("tool/failing", "echo out\necho why >&2\nexit 2\n");
+
+    const auto output = standardOutputOf({ succeeding.string() }, directory);
+    const auto failed = standardOutputOf({ failing.string() }, directory);
+
+    ASSERT_TRUE(output.has_value());
+    EXPECT_EQ(*output, "out\n");
+    ASSERT_FALSE(failed.has_value());
+    ASSERT_TRUE(std::holds_alternative<ToolFailed>(failed.error()));
+    EXPECT_EQ(std::get<ToolFailed>(failed.error()).exitCode, std::optional<int>{ 2 });
+    EXPECT_EQ(std::get<ToolFailed>(failed.error()).output, "out\nwhy\n");
+}
+
+/**
+ * A second run that does not fail the same way leaves the first run's
+ * failure, with what it wrote to standard output.
+ */
+TEST(ExternalToolTest, KeepsTheFirstFailureWhenTheSecondRunDoesNotFail)
+{
+    const TempDirectory temp;
+    const std::filesystem::path directory = temp.makeDirectory("work");
+    const auto once = temp.writeScript("tool/once", "if [ -e ran ]; then exit 0; fi\ntouch ran\necho first\necho why >&2\nexit 5\n");
+
+    const auto failed = standardOutputOf({ once.string() }, directory);
+
+    ASSERT_FALSE(failed.has_value());
+    ASSERT_TRUE(std::holds_alternative<ToolFailed>(failed.error()));
+    EXPECT_EQ(std::get<ToolFailed>(failed.error()).exitCode, std::optional<int>{ 5 });
+    EXPECT_EQ(std::get<ToolFailed>(failed.error()).output, "first\n");
+}

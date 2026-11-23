@@ -261,8 +261,6 @@ add_library(scrap_command STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/command/FetchFailureHint.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/FormatCommandHandler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/FormatText.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolLookup.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolText.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/HelpRenderer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/HelpRequest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/IndexUpdateReport.cpp
@@ -284,6 +282,8 @@ add_library(scrap_command STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ScrapHome.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ScriptsReader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/StubScriptsReader.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolLookup.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolText.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainDiagnostic.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainIndexDiagnostic.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command/ToolchainIndexLocation.cpp
