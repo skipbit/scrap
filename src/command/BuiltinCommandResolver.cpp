@@ -1,6 +1,7 @@
 #include "command/BuiltinCommandResolver.h"
 
 #include "command/BuildCommandHandler.h"
+#include "command/CheckCommandHandler.h"
 #include "command/CleanCommandHandler.h"
 #include "command/CommandEntry.h"
 #include "command/CommandHandler.h"
@@ -201,16 +202,17 @@ OptionDef releaseFlag(std::string description)
 }
 
 /**
- * The option that sets how many steps of a build run at once.
+ * The option that sets how many steps of a build, or files of a check, run at
+ * once, described as @p description.
  */
-OptionDef jobsOption()
+OptionDef jobsOption(std::string description)
 {
     return OptionDef{
         .longName = std::string{ JobsOption },
         .shortName = 'j',
         .type = OptionValueType::PositiveInt64,
         .required = false,
-        .description = "Run this many build steps at once",
+        .description = std::move(description),
         .defaultValue = std::nullopt,
         .choices = {}
     };
@@ -245,7 +247,7 @@ CommandEntry makeBuildEntry()
     });
     entry.spec.options.named.push_back(releaseFlag("Build with the release profile"));
     entry.spec.options.named.push_back(targetNameOption(TargetOption, "Build only this target"));
-    entry.spec.options.named.push_back(jobsOption());
+    entry.spec.options.named.push_back(jobsOption("Run this many build steps at once"));
     return entry;
 }
 
@@ -278,6 +280,25 @@ CommandEntry makeFormatEntry()
 }
 
 /**
+ * Create the entry for "check", which takes the files and directories to
+ * analyze, whether to analyze them with the commands of the release profile,
+ * and how many files are analyzed at once.
+ */
+CommandEntry makeCheckEntry()
+{
+    auto entry = makeProjectEntry(
+        "check",
+        "Analyze the sources of the project",
+        PositionalDef{ .name = "path", .description = "File or directory to analyze (default: the whole project)", .required = false, .repeats = true },
+        [](const ParsedOptions&) -> std::unique_ptr<CommandHandler> {
+        return std::make_unique<CheckCommandHandler>();
+    });
+    entry.spec.options.named.push_back(releaseFlag("Analyze with the commands of the release profile"));
+    entry.spec.options.named.push_back(jobsOption("Analyze this many files at once"));
+    return entry;
+}
+
+/**
  * Create the entry for "run", which takes an optional path into the project,
  * whether to build for release, the executable to run, how many steps of the
  * build run at once, and the program's arguments after "--".
@@ -290,7 +311,7 @@ CommandEntry makeRunEntry()
     });
     entry.spec.options.named.push_back(releaseFlag("Build and run with the release profile"));
     entry.spec.options.named.push_back(targetNameOption(BinOption, "Run this executable"));
-    entry.spec.options.named.push_back(jobsOption());
+    entry.spec.options.named.push_back(jobsOption("Run this many build steps at once"));
     entry.spec.options.trailing = TrailingDef{ .name = "args", .description = "Arguments passed to the program" };
     return entry;
 }
@@ -474,6 +495,7 @@ std::vector<CommandEntry> BuiltinCommandResolver::resolve([[maybe_unused]] const
     entries.push_back(makeRunEntry());
     entries.push_back(makeCleanEntry());
     entries.push_back(makeFormatEntry());
+    entries.push_back(makeCheckEntry());
 
     // Toolchain commands
     {
