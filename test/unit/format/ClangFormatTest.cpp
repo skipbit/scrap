@@ -1,6 +1,6 @@
 #include "format/ClangFormat.h"
 
-#include "file/WholeFile.h"
+#include "support/RecordingScript.h"
 #include "support/TempDirectory.h"
 #include "tool/ExternalTool.h"
 
@@ -14,7 +14,9 @@
 #include <vector>
 
 using namespace scrap::Format;
+using scrap::TestSupport::linesOf;
 using scrap::TestSupport::TempDirectory;
+using scrap::TestSupport::writeRecordingScript;
 using scrap::Tool::ExternalTool;
 using scrap::Tool::ToolFailed;
 
@@ -26,26 +28,8 @@ namespace {
  */
 ExternalTool recordingTool(const TempDirectory& temp, const std::string& rest = "", const std::string& directory = "tool")
 {
-    const auto program = temp.writeScript(directory + "/clang-format", "printf '%s\\n' \"$@\" > arguments\n" + rest);
+    const auto program = writeRecordingScript(temp, directory + "/clang-format", rest);
     return ExternalTool{ .name = "clang-format", .program = program, .version = "18.1.3" };
-}
-
-/// The lines of @p file, without their newlines.
-std::vector<std::string> linesOf(const std::filesystem::path& file)
-{
-    const auto text = scrap::File::readWholeFile(file);
-    if (! text.has_value()) {
-        ADD_FAILURE() << "cannot read " << file;
-        return {};
-    }
-    std::vector<std::string> lines;
-    std::string::size_type start = 0;
-    while (start < text->size()) {
-        const auto end = text->find('\n', start);
-        lines.push_back(text->substr(start, end - start));
-        start = (end == std::string::npos) ? text->size() : (end + 1);
-    }
-    return lines;
 }
 
 }  // namespace

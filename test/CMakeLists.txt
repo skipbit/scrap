@@ -9,6 +9,7 @@ add_library(scrap_test_support STATIC
     support/FakeOciRegistry.cpp
     support/Fifo.cpp
     support/HttpTestServer.cpp
+    support/RecordingScript.cpp
     support/StoredXz.cpp
     support/TarArchiveBuilder.cpp
     support/TempDirectory.cpp
