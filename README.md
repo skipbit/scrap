@@ -166,7 +166,7 @@ scrap format src/main.cpp src/net
 scrap format --check
 ```
 
-With `--check`, no file is changed: each file formatting would change is reported with a warning, and the command exits with 1 when there is any, and with 0 when there is none.
+With `--check`, no file is changed: each file formatting would change is reported with a warning. The command exits with 1 when there is any, or when a file cannot be checked, and with 0 otherwise, also when the paths given leave no file to check.
 
 Without a style, clang-format follows the `.clang-format` it finds in the directory of each file or above it. A style in `scrap.toml` is passed to the `--style` of clang-format as written, and takes the place of any `.clang-format`:
 
