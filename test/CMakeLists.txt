@@ -9,6 +9,7 @@ add_library(scrap_test_support STATIC
     support/FakeOciRegistry.cpp
     support/Fifo.cpp
     support/HttpTestServer.cpp
+    support/RecordingScript.cpp
     support/StoredXz.cpp
     support/TarArchiveBuilder.cpp
     support/TempDirectory.cpp
@@ -188,6 +189,10 @@ scrap_add_unit_test(tool SOURCES
 
 scrap_add_unit_test(format SOURCES
     unit/format/ClangFormatTest.cpp
+)
+
+scrap_add_unit_test(check SOURCES
+    unit/check/ClangTidyTest.cpp
 )
 
 scrap_add_unit_test(compile SOURCES
