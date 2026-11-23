@@ -2,6 +2,7 @@
 
 #include "file/WholeFile.h"
 #include "support/TempDirectory.h"
+#include "tool/ExternalTool.h"
 
 #include <gtest/gtest.h>
 
@@ -9,12 +10,13 @@
 #include <filesystem>
 #include <optional>
 #include <string>
-#include <system_error>
 #include <variant>
 #include <vector>
 
 using namespace scrap::Format;
 using scrap::TestSupport::TempDirectory;
+using scrap::Tool::ExternalTool;
+using scrap::Tool::ToolFailed;
 
 namespace {
 
@@ -22,10 +24,10 @@ namespace {
  * A clang-format that writes the arguments it was given, one to a line, to
  * the file "arguments" in the directory it runs in, and then runs @p rest.
  */
-ClangFormat recordingTool(const TempDirectory& temp, const std::string& rest = "", const std::string& directory = "tool")
+ExternalTool recordingTool(const TempDirectory& temp, const std::string& rest = "", const std::string& directory = "tool")
 {
     const auto program = temp.writeScript(directory + "/clang-format", "printf '%s\\n' \"$@\" > arguments\n" + rest);
-    return ClangFormat{ .program = program, .version = "18.1.3" };
+    return ExternalTool{ .program = program, .version = "18.1.3" };
 }
 
 /// The lines of @p file, without their newlines.
@@ -49,137 +51,13 @@ std::vector<std::string> linesOf(const std::filesystem::path& file)
 }  // namespace
 
 /**
- * clang-format is looked for on the search paths in order, and the first
- * that can be run is returned; nothing comes back when none holds it.
- */
-TEST(ClangFormatTest, FindsTheFirstClangFormatOnTheSearchPaths)
-{
-    const TempDirectory temp;
-    temp.makeDirectory("empty");
-    temp.writeScript("first/clang-format", "exit 0\n");
-    temp.writeScript("second/clang-format", "exit 0\n");
-
-    const auto found = findClangFormat({ temp.path() / "empty", temp.path() / "first", temp.path() / "second" });
-
-    ASSERT_TRUE(found.has_value());
-    EXPECT_EQ(*found, temp.path() / "first" / "clang-format");
-    EXPECT_FALSE(findClangFormat({ temp.path() / "empty" }).has_value());
-}
-
-/**
- * The version is the word after "version" in the first line --version
- * writes, whoever packaged the program.
- */
-TEST(ClangFormatTest, ReadsTheVersionAfterTheWordVersion)
-{
-    const TempDirectory temp;
-    const auto ubuntu = temp.writeScript("ubuntu/clang-format", "[ \"$1\" = --version ] || exit 1\necho 'Ubuntu clang-format version 18.1.3 (1ubuntu1)'\necho 'second line'\n");
-    const auto homebrew = temp.writeScript("homebrew/clang-format", "echo 'Homebrew clang-format version 22.1.8'\n");
-
-    const auto fromUbuntu = describeClangFormat(ubuntu);
-    const auto fromHomebrew = describeClangFormat(homebrew);
-
-    ASSERT_TRUE(fromUbuntu.has_value());
-    EXPECT_EQ(fromUbuntu->program, ubuntu);
-    EXPECT_EQ(fromUbuntu->version, "18.1.3");
-    ASSERT_TRUE(fromHomebrew.has_value());
-    EXPECT_EQ(fromHomebrew->version, "22.1.8");
-}
-
-/**
- * A first line without the word "version" is kept whole, so something is
- * still shown of what the program says it is.
- */
-TEST(ClangFormatTest, KeepsTheWholeFirstLineWithoutTheWordVersion)
-{
-    const TempDirectory temp;
-    const auto program = temp.writeScript("tool/clang-format", "echo 'a formatter, release 2'\n");
-
-    const auto described = describeClangFormat(program);
-
-    ASSERT_TRUE(described.has_value());
-    EXPECT_EQ(described->version, "a formatter, release 2");
-}
-
-/**
- * The word "version" is looked for on every line, and without it the first
- * line that is not empty is kept; a program that writes nothing to show has
- * an unknown version.
- */
-TEST(ClangFormatTest, FindsTheVersionOnALaterLineOrShowsWhatItCan)
-{
-    const TempDirectory temp;
-    const auto secondLine = temp.writeScript("second/clang-format", "echo 'LLVM (http://llvm.org/):'\necho '  LLVM version 3.8.0'\n");
-    const auto blankFirst = temp.writeScript("blank/clang-format", "echo ''\necho 'a formatter'\n");
-    const auto silent = temp.writeScript("silent/clang-format", "exit 0\n");
-
-    EXPECT_EQ(describeClangFormat(secondLine)->version, "3.8.0");
-    EXPECT_EQ(describeClangFormat(blankFirst)->version, "a formatter");
-    EXPECT_EQ(describeClangFormat(silent)->version, "unknown");
-}
-
-/**
- * A program named by a relative path is kept as an absolute one, so a format
- * that runs it from the project root still reaches it.
- */
-TEST(ClangFormatTest, KeepsAProgramNamedByARelativePathAsAnAbsolutePath)
-{
-    const TempDirectory temp;
-    const auto program = temp.writeScript("tool/clang-format", "echo 'clang-format version 18.1.3'\n");
-    const std::filesystem::path relative = program.lexically_relative(std::filesystem::current_path());
-    ASSERT_TRUE(relative.is_relative());
-
-    const auto described = describeClangFormat(relative);
-
-    ASSERT_TRUE(described.has_value());
-    EXPECT_TRUE(described->program.is_absolute());
-    EXPECT_TRUE(std::filesystem::equivalent(described->program, program));
-}
-
-/**
- * A program that cannot be started, or that fails to report its version, is
- * reported as such.
- */
-TEST(ClangFormatTest, ReportsAVersionItCannotLearn)
-{
-    const TempDirectory temp;
-    const auto failing = temp.writeScript("tool/clang-format", "exit 3\n");
-
-    const auto notStarted = describeClangFormat(temp.path() / "missing" / "clang-format");
-    const auto failed = describeClangFormat(failing);
-
-    ASSERT_FALSE(notStarted.has_value());
-    EXPECT_TRUE(std::holds_alternative<ToolNotRun>(notStarted.error()));
-    ASSERT_FALSE(failed.has_value());
-    ASSERT_TRUE(std::holds_alternative<ToolFailed>(failed.error()));
-    EXPECT_EQ(std::get<ToolFailed>(failed.error()).exitCode, std::optional<int>{ 3 });
-}
-
-/**
- * A --version that fails reports what it wrote to standard error as well.
- */
-TEST(ClangFormatTest, ReportsWhyAVersionFailed)
-{
-    const TempDirectory temp;
-    const auto failing = temp.writeScript("tool/clang-format", "echo 'no version for you' >&2\nexit 2\n");
-
-    const auto described = describeClangFormat(failing);
-
-    ASSERT_FALSE(described.has_value());
-    ASSERT_TRUE(std::holds_alternative<ToolFailed>(described.error()));
-    const auto& failure = std::get<ToolFailed>(described.error());
-    EXPECT_EQ(failure.exitCode, std::optional<int>{ 2 });
-    EXPECT_EQ(failure.output, "no version for you\n");
-}
-
-/**
  * A format runs clang-format in the project root with -i, the style when one
  * is given, and the file's path relative to the root.
  */
 TEST(ClangFormatTest, FormatsAFileInPlaceFromTheProjectRoot)
 {
     const TempDirectory temp;
-    const ClangFormat tool = recordingTool(temp);
+    const ExternalTool tool = recordingTool(temp);
     const std::filesystem::path root = temp.makeDirectory("project");
 
     ASSERT_TRUE(formatFile(tool, root, "src/a.cpp", std::nullopt).has_value());
@@ -196,7 +74,7 @@ TEST(ClangFormatTest, FormatsAFileInPlaceFromTheProjectRoot)
 TEST(ClangFormatTest, PassesAFileThatLooksLikeAnOptionAsAFile)
 {
     const TempDirectory temp;
-    const ClangFormat tool = recordingTool(temp);
+    const ExternalTool tool = recordingTool(temp);
     const std::filesystem::path root = temp.makeDirectory("project");
 
     ASSERT_TRUE(formatFile(tool, root, "-x.cpp", std::nullopt).has_value());
@@ -213,7 +91,7 @@ TEST(ClangFormatTest, PassesAFileThatLooksLikeAnOptionAsAFile)
 TEST(ClangFormatTest, ReportsWhatAFailedFormatWrote)
 {
     const TempDirectory temp;
-    const ClangFormat failing = recordingTool(temp, "echo 'Invalid value for style' >&2\nexit 1\n");
+    const ExternalTool failing = recordingTool(temp, "echo 'Invalid value for style' >&2\nexit 1\n");
     const std::filesystem::path root = temp.makeDirectory("project");
 
     const auto formatted = formatFile(failing, root, "src/a.cpp", "nonsense");
@@ -232,7 +110,7 @@ TEST(ClangFormatTest, ReportsWhatAFailedFormatWrote)
 TEST(ClangFormatTest, ReportsAFormatStoppedByASignal)
 {
     const TempDirectory temp;
-    const ClangFormat killed = recordingTool(temp, "kill -KILL $$\n");
+    const ExternalTool killed = recordingTool(temp, "kill -KILL $$\n");
     const std::filesystem::path root = temp.makeDirectory("project");
 
     const auto formatted = formatFile(killed, root, "src/a.cpp", std::nullopt);
@@ -252,8 +130,8 @@ TEST(ClangFormatTest, ChecksAFileWithoutChangingIt)
     const TempDirectory temp;
     const std::filesystem::path root = temp.makeDirectory("project");
     temp.writeFile("project/src/a.cpp", "int a;\n");
-    const ClangFormat echoing = recordingTool(temp, "for last; do :; done\ncat \"$last\"\n", "echoing");
-    const ClangFormat changing = recordingTool(temp, "echo 'int  a;'\n", "changing");
+    const ExternalTool echoing = recordingTool(temp, "for last; do :; done\ncat \"$last\"\n", "echoing");
+    const ExternalTool changing = recordingTool(temp, "echo 'int  a;'\n", "changing");
 
     const auto formatted = checkFile(echoing, root, "src/a.cpp", "llvm");
     ASSERT_TRUE(formatted.has_value());
@@ -275,7 +153,7 @@ TEST(ClangFormatTest, ReportsWhyACheckFailed)
 {
     const TempDirectory temp;
     const std::filesystem::path root = temp.makeDirectory("project");
-    const ClangFormat failing = recordingTool(temp, "echo 'cannot parse the style' >&2\nexit 1\n");
+    const ExternalTool failing = recordingTool(temp, "echo 'cannot parse the style' >&2\nexit 1\n");
 
     const auto checked = checkFile(failing, root, "src/a.cpp", "nonsense");
 
@@ -293,7 +171,7 @@ TEST(ClangFormatTest, ReportsAFileACheckCannotReadBack)
 {
     const TempDirectory temp;
     const std::filesystem::path root = temp.makeDirectory("project");
-    const ClangFormat succeeding = recordingTool(temp, "echo 'int a;'\n");
+    const ExternalTool succeeding = recordingTool(temp, "echo 'int a;'\n");
 
     const auto checked = checkFile(succeeding, root, "src/missing.cpp", std::nullopt);
 
