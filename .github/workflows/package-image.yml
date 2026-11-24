@@ -1,0 +1,67 @@
+# Builds the image the Linux job of package.yml runs in and pushes it to
+# ghcr.io/skipbit/scrap/package-linux, tagged with the commit it was built
+# from. A pull request that changes the image builds it without pushing, so
+# a Dockerfile that cannot be built does not reach main.
+#
+# package.yml names the image by digest, so a new image reaches the job only
+# through a change that moves the digest, and a failed build here leaves the
+# job on the image it has.
+
+name: Package Image
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - docker/package-linux/**
+      - .github/workflows/package-image.yml
+  push:
+    branches: [main]
+    paths:
+      - docker/package-linux/**
+      - .github/workflows/package-image.yml
+
+permissions:
+  contents: read
+  packages: write
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      IMAGE: ghcr.io/${{ github.repository }}/package-linux
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Log in to ghcr.io
+        if: github.event_name != 'pull_request'
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+          GHCR_USER: ${{ github.actor }}
+        run: echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+
+      - name: Build
+        if: github.event_name == 'pull_request'
+        run: docker buildx build docker/package-linux
+
+      - name: Build and push
+        if: github.event_name != 'pull_request'
+        run: |
+          docker buildx build \
+            --label "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}" \
+            --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
+            --tag "${IMAGE}:${GITHUB_SHA}" \
+            --metadata-file "${RUNNER_TEMP}/metadata.json" \
+            --push \
+            docker/package-linux
+          digest=$(jq -er '."containerimage.digest"' "${RUNNER_TEMP}/metadata.json")
+          case "$digest" in
+            sha256:*) ;;
+            *) echo "::error::no digest in the build metadata: $digest"; exit 1 ;;
+          esac
+          echo "${IMAGE}@${digest}" | tee -a "$GITHUB_STEP_SUMMARY"
