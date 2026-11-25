@@ -3,7 +3,20 @@
 # The image the Linux release binary is built in, so that a build fetches
 # nothing from the package archives: the job pulls this image by digest, and
 # the archives are reached only when the image is built again.
-#
+
+# The CMake of 20.04 is older than the 3.20 the project requires. The archive
+# is fetched in a stage of its own and mounted only while it is unpacked, so
+# the image does not carry it.
+ARG CMAKE_VERSION=3.31.12
+ARG CMAKE_SHA256=0dc2e9a6860f06bf10bd8fadc03e35d9eeb4df46e33763a7e480e987758f385c
+
+FROM scratch AS cmake-archive
+ARG CMAKE_VERSION
+ARG CMAKE_SHA256
+ADD --checksum=sha256:${CMAKE_SHA256} \
+    "https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-linux-x86_64.tar.gz" \
+    /cmake.tar.gz
+
 # ubuntu:20.04 sets the oldest glibc the binary runs on (2.31). The GCC that
 # scrap-toolchain distributes was built on ubuntu:20.04 as well, and its own
 # programs link the isl, mpc, mpfr and gmp of that release.
@@ -69,13 +82,7 @@ RUN echo 'deb [signed-by=/usr/share/keyrings/git-core-ppa.asc] https://ppa.launc
     esac \
     && rm -rf /var/lib/apt/lists/*
 
-# The CMake of 20.04 is older than the 3.20 the project requires.
-ARG CMAKE_VERSION=3.31.12
-ARG CMAKE_SHA256=0dc2e9a6860f06bf10bd8fadc03e35d9eeb4df46e33763a7e480e987758f385c
-ADD --checksum=sha256:${CMAKE_SHA256} \
-    "https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-linux-x86_64.tar.gz" \
-    /tmp/cmake.tar.gz
-RUN mkdir -p /opt/cmake \
-    && tar -xzf /tmp/cmake.tar.gz -C /opt/cmake --strip-components=1 \
-    && rm /tmp/cmake.tar.gz
+RUN --mount=type=bind,from=cmake-archive,source=/cmake.tar.gz,target=/tmp/cmake.tar.gz \
+    mkdir -p /opt/cmake \
+    && tar -xzf /tmp/cmake.tar.gz -C /opt/cmake --strip-components=1
 ENV PATH=/opt/cmake/bin:$PATH
