@@ -26,6 +26,11 @@ jobs:
 
   coverage:
     runs-on: ubuntu-24.04
+    # id-token lets the upload authenticate to Codecov with a token GitHub
+    # issues for the run, in place of a stored secret.
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -59,9 +64,14 @@ jobs:
             --gcov-ignore-errors=source_not_found \
             --gcov-ignore-errors=no_working_dir_found
 
+      # Only the report gcovr wrote: the uploader would otherwise search the
+      # tree and run gcov itself, adding the tests, the dependencies and the
+      # system headers gcovr leaves out.
       - name: Upload to Codecov
         uses: codecov/codecov-action@v7
         with:
           files: coverage.xml
-          token: ${{ secrets.CODECOV_TOKEN }}
-        continue-on-error: true
+          disable_search: true
+          plugins: noop
+          use_oidc: true
+          fail_ci_if_error: true
