@@ -64,7 +64,7 @@ bool leadsTo(const Toolchain::ToolchainIndex& index, const Toolchain::Installing
         return false;
     }
     const auto found = Toolchain::lookUpInIndex(index, *specifier, host);
-    return found.has_value() && ((found->toolchain.family + "@" + found->toolchain.version.text()) == name);
+    return found.has_value() && (found->toolchain.text() == name);
 }
 
 int tellSystem(const RuntimeEnvironment& env, const std::filesystem::path& scrapHome)
@@ -139,7 +139,7 @@ int tellIndexed(const RuntimeEnvironment& env,
         std::cerr << facts.error();
         return 1;
     }
-    const std::string name = found->toolchain.family + "@" + found->toolchain.version.text();
+    const std::string name = found->toolchain.text();
     const Toolchain::ToolchainIndex& index = copy->index;
     const ToolchainSelection selection = selectionOfNotInstalled(listToolchains(*facts), [&index, &host, &name](std::string_view written) {
         return leadsTo(index, host, written, name);

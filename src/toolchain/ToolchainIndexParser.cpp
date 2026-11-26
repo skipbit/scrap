@@ -433,7 +433,7 @@ std::expected<ToolchainIndex, ToolchainIndexError> parseToolchainIndex(std::stri
             return (earlier.family == toolchain->family) && (earlier.version == toolchain->version);
         });
         if (repeated) {
-            return std::unexpected(faultAt(*(*tables)[i], key, "repeats " + toolchain->family + "@" + toolchain->version.text()));
+            return std::unexpected(faultAt(*(*tables)[i], key, "repeats " + toolchain->text()));
         }
         index.toolchains.push_back(std::move(*toolchain));
     }
