@@ -61,7 +61,7 @@ UnusableInstalled namedPathFault(const std::filesystem::path& recordFile,
                                  const std::filesystem::file_status& status,
                                  const std::error_code& ec)
 {
-    std::string reason = "'" + recordFile.string() + "' names the " + std::string{ what } + " '" + named.string() + "', which ";
+    const std::string reason = "'" + recordFile.string() + "' names the " + std::string{ what } + " '" + named.string() + "', which ";
     if (! std::filesystem::status_known(status)) {
         return UnusableInstalled{ .reason = reason + "cannot be checked: " + ec.message(), .inaccessible = true };
     }
