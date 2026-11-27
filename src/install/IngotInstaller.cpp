@@ -11,6 +11,7 @@
 #include "registry/RegistryFetch.h"
 #include "toolchain/IngotSelection.h"
 #include "toolchain/InstallRecord.h"
+#include "toolchain/InstalledToolchain.h"
 #include "toolchain/ScrapHomeLayout.h"
 #include "toolchain/ToolchainIndex.h"
 
@@ -210,7 +211,7 @@ std::expected<std::filesystem::path, IngotInstallFailure> installIngot(const Ing
         return std::unexpected(IngotNotPlaced{ .path = std::move(work.error().path), .code = work.error().code });
     }
 
-    const std::string name = selected.family + "@" + selected.version.text();
+    const std::string name = Toolchain::InstalledName{ .family = selected.family, .version = selected.version }.text();
     const std::filesystem::path ingot = work->path() / "ingot";
     request.announce("Downloading '" + name + "'");
     const IngotTransfer transfer{ .ingot = ingot, .certificateBundle = request.certificateBundle };

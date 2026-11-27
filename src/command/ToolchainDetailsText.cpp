@@ -120,7 +120,7 @@ std::vector<DetailLine> linesOf(const IndexedDetails& details)
 {
     const Toolchain::IndexedToolchain& toolchain = details.lookup.toolchain;
     std::vector<DetailLine> lines{
-        line("name", printableText(toolchain.family + "@" + toolchain.version.text())),
+        line("name", printableText(toolchain.text())),
         line("installed", "no"),
     };
     const std::optional<Toolchain::IngotSelectionFault>& barrier = details.lookup.barrier;
