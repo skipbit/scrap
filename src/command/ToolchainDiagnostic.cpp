@@ -69,7 +69,7 @@ std::string render(std::string_view, const ToolchainNamedIn namedIn, const Toolc
 
 std::string render(const std::string_view specifier, ToolchainNamedIn, const Toolchain::UnusableInstalled& fault)
 {
-    return renderUnusableInstalled(specifier, fault.reason);
+    return renderUnusableInstalled(specifier, fault);
 }
 
 std::string render(const std::string_view specifier, ToolchainNamedIn, const Toolchain::NotInstalled&)
@@ -150,9 +150,12 @@ std::string renderNotInstalled(std::string_view specifier)
     return rendered;
 }
 
-std::string renderUnusableInstalled(std::string_view specifier, std::string_view reason)
+std::string renderUnusableInstalled(std::string_view specifier, const Toolchain::UnusableInstalled& fault)
 {
-    std::string rendered = "error: cannot use the installed toolchain: " + printableText(reason);
+    std::string rendered = "error: cannot use the installed toolchain: " + printableText(fault.reason);
+    if (fault.inaccessible) {
+        return rendered + "\n" + std::string{ PermissionHint };
+    }
     rendered += "\nhint: run 'scrap toolchain install --force ";
     rendered += printableText(specifier);
     rendered += "'\n";

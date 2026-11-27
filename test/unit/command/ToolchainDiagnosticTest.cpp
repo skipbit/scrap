@@ -73,9 +73,11 @@ TEST(ToolchainDiagnosticTest, RendersAConfigFileThatCannotBeWritten)
 TEST(ToolchainDiagnosticTest, RendersWhyNoInstalledToolchainCanBeUsed)
 {
     EXPECT_EQ(renderInstalledToolchainFault("gcc@15", ToolchainNamedIn::Variable, NoToolchainForHost{}), renderNoToolchainForHost(ToolchainNamedIn::Variable));
-    EXPECT_EQ(renderInstalledToolchainFault("gcc@15", ToolchainNamedIn::CommandLine, UnusableInstalled{ .reason = "its record is broken" }),
+    EXPECT_EQ(renderInstalledToolchainFault("gcc@15", ToolchainNamedIn::CommandLine, UnusableInstalled{ .reason = "its record is broken", .inaccessible = false }),
               "error: cannot use the installed toolchain: its record is broken\n"
               "hint: run 'scrap toolchain install --force gcc@15'\n");
+    EXPECT_EQ(renderInstalledToolchainFault("gcc@15", ToolchainNamedIn::CommandLine, UnusableInstalled{ .reason = "its compiler cannot be checked", .inaccessible = true }),
+              "error: cannot use the installed toolchain: its compiler cannot be checked\n" + PermissionLine);
     EXPECT_EQ(renderInstalledToolchainFault("gcc@15", ToolchainNamedIn::CommandLine, NotInstalled{}),
               "error: toolchain 'gcc@15' is not installed\n"
               "hint: run 'scrap toolchain install gcc@15'\n");

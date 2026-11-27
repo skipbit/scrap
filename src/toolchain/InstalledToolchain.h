@@ -37,8 +37,9 @@ struct InstalledToolchain {
  * @brief Why an installed toolchain cannot build C.
  */
 struct UnusableCCompiler {
-    bool named;          ///< Whether the record names a C compiler, which is then not there.
+    bool named;          ///< Whether the record names a C compiler, which is then not there or cannot be checked.
     std::string reason;  ///< What is wrong, naming the record.
+    bool inaccessible;   ///< Whether the C compiler cannot be checked, rather than not being there.
 };
 
 /**
@@ -62,7 +63,8 @@ struct NoToolchainForHost { };
  * @brief The installed toolchain that was found cannot be used.
  */
 struct UnusableInstalled {
-    std::string reason;
+    std::string reason;  ///< What is wrong, naming the record.
+    bool inaccessible;   ///< Whether a path it needs cannot be looked at, rather than being wrong.
 };
 
 /**
@@ -169,6 +171,6 @@ struct InstalledName {
  * @return The record, nothing when @p directory holds none, or why the
  *         toolchain there cannot be used.
  */
-[[nodiscard]] std::expected<std::optional<InstallRecord>, std::string> usableInstallRecord(const std::filesystem::path& directory);
+[[nodiscard]] std::expected<std::optional<InstallRecord>, UnusableInstalled> usableInstallRecord(const std::filesystem::path& directory);
 
 }  // namespace scrap::Toolchain

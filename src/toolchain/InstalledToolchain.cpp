@@ -16,6 +16,7 @@
 #include <optional>
 #include <ranges>
 #include <string>
+#include <string_view>
 #include <system_error>
 #include <utility>
 #include <vector>
@@ -36,37 +37,54 @@ bool isInstalled(const std::filesystem::path& directory)
 /**
  * The install record that @p directory holds.
  */
-std::expected<InstallRecord, std::string> readRecordFile(const std::filesystem::path& directory)
+std::expected<InstallRecord, UnusableInstalled> readRecordFile(const std::filesystem::path& directory)
 {
     const std::filesystem::path recordFile = directory / InstallRecordName;
     const auto text = File::readWholeFile(recordFile);
     if (! text.has_value()) {
-        return std::unexpected("cannot read '" + recordFile.string() + "'");
+        return std::unexpected(UnusableInstalled{ .reason = "cannot read '" + recordFile.string() + "'", .inaccessible = (text.error() == File::ReadFailure::CannotOpen) });
     }
     auto record = parseInstallRecord(*text);
     if (! record.has_value()) {
-        return std::unexpected("'" + recordFile.string() + "': " + record.error());
+        return std::unexpected(UnusableInstalled{ .reason = "'" + recordFile.string() + "': " + record.error(), .inaccessible = false });
     }
-    return record;
+    return std::move(*record);
+}
+
+/**
+ * Why @p named, which @p recordFile names as the @p what, cannot be used,
+ * given the @p status that looking at it gave and the error @p ec it set.
+ */
+UnusableInstalled namedPathFault(const std::filesystem::path& recordFile,
+                                 std::string_view what,
+                                 const std::filesystem::path& named,
+                                 const std::filesystem::file_status& status,
+                                 const std::error_code& ec)
+{
+    std::string reason = "'" + recordFile.string() + "' names the " + std::string{ what } + " '" + named.string() + "', which ";
+    if (! std::filesystem::status_known(status)) {
+        return UnusableInstalled{ .reason = reason + "cannot be checked: " + ec.message(), .inaccessible = true };
+    }
+    return UnusableInstalled{ .reason = reason + "is not there", .inaccessible = false };
 }
 
 /**
  * Whether what @p record names is there in @p directory.
  *
- * @return Nothing when it is, or what is missing.
+ * @return Nothing when it is, or what is missing or cannot be checked.
  */
-std::expected<void, std::string> checkRecordedPaths(const std::filesystem::path& directory, const InstallRecord& record)
+std::expected<void, UnusableInstalled> checkRecordedPaths(const std::filesystem::path& directory, const InstallRecord& record)
 {
     const std::filesystem::path recordFile = directory / InstallRecordName;
     const std::filesystem::path compiler = directory / record.compiler;
     std::error_code ec;
-    if (! std::filesystem::exists(compiler, ec)) {
-        return std::unexpected("'" + recordFile.string() + "' names the compiler '" + compiler.string() + "', which is not there");
+    if (const auto status = std::filesystem::status(compiler, ec); ! std::filesystem::exists(status)) {
+        return std::unexpected(namedPathFault(recordFile, "compiler", compiler, status, ec));
     }
     for (const std::filesystem::path& recorded : record.runtimeLibraryDirectories) {
         const std::filesystem::path runtimeLibraryDirectory = directory / recorded;
-        if (! std::filesystem::is_directory(runtimeLibraryDirectory, ec)) {
-            return std::unexpected("'" + recordFile.string() + "' names the runtime library directory '" + runtimeLibraryDirectory.string() + "', which is not there");
+        if (const auto status = std::filesystem::status(runtimeLibraryDirectory, ec); ! std::filesystem::is_directory(status)) {
+            return std::unexpected(namedPathFault(recordFile, "runtime library directory", runtimeLibraryDirectory, status, ec));
         }
     }
     return {};
@@ -77,7 +95,7 @@ std::expected<void, std::string> checkRecordedPaths(const std::filesystem::path&
  * earlier scrap names a runtime library directory that holds libc++, and
  * says nothing of what the compiler needs to build with it.
  */
-std::expected<void, std::string> checkRecordedArguments(const std::filesystem::path& directory, const InstallRecord& record)
+std::expected<void, UnusableInstalled> checkRecordedArguments(const std::filesystem::path& directory, const InstallRecord& record)
 {
     if ((! record.arguments.compile.empty()) || (! record.arguments.link.empty())) {
         return {};
@@ -87,8 +105,10 @@ std::expected<void, std::string> checkRecordedArguments(const std::filesystem::p
         std::error_code ec;
         for (std::filesystem::directory_iterator it(runtimeLibraryDirectory, ec), end; (! ec) && (it != end); it.increment(ec)) {
             if (isLibcxxName(it->path().filename().string())) {
-                return std::unexpected("'" + (directory / InstallRecordName).string() + "' was written by an earlier scrap, which did not record how to build with the libc++ in '"
-                                       + runtimeLibraryDirectory.string() + "'");
+                return std::unexpected(UnusableInstalled{ .reason = "'" + (directory / InstallRecordName).string()
+                                                                    + "' was written by an earlier scrap, which did not record how to build with the libc++ in '"
+                                                                    + runtimeLibraryDirectory.string() + "'",
+                                                          .inaccessible = false });
             }
         }
     }
@@ -99,7 +119,7 @@ std::expected<void, std::string> checkRecordedArguments(const std::filesystem::p
  * The record in @p directory, when what it names is there and says how to
  * build with it.
  */
-std::expected<InstallRecord, std::string> readUsableRecord(const std::filesystem::path& directory)
+std::expected<InstallRecord, UnusableInstalled> readUsableRecord(const std::filesystem::path& directory)
 {
     auto record = readRecordFile(directory);
     if (! record.has_value()) {
@@ -117,7 +137,7 @@ std::expected<InstallRecord, std::string> readUsableRecord(const std::filesystem
 /**
  * The installed toolchain in @p directory, read from its install record.
  */
-std::expected<InstalledToolchain, std::string> readInstalled(const std::string& family, const ToolchainVersion& version, const std::filesystem::path& directory)
+std::expected<InstalledToolchain, UnusableInstalled> readInstalled(const std::string& family, const ToolchainVersion& version, const std::filesystem::path& directory)
 {
     const auto record = readUsableRecord(directory);
     if (! record.has_value()) {
@@ -227,7 +247,7 @@ const std::ranges::range_value_t<Range>* newestMatching(const Range& installed, 
 
 }  // anonymous namespace
 
-std::expected<std::optional<InstallRecord>, std::string> usableInstallRecord(const std::filesystem::path& directory)
+std::expected<std::optional<InstallRecord>, UnusableInstalled> usableInstallRecord(const std::filesystem::path& directory)
 {
     if (! isInstalled(directory)) {
         return std::nullopt;
@@ -248,11 +268,12 @@ std::expected<std::filesystem::path, UnusableCCompiler> usableCCompiler(const In
 {
     const std::filesystem::path recordFile = toolchain.directory / InstallRecordName;
     if (! toolchain.cCompiler.has_value()) {
-        return std::unexpected(UnusableCCompiler{ .named = false, .reason = "'" + recordFile.string() + "' names no C compiler" });
+        return std::unexpected(UnusableCCompiler{ .named = false, .reason = "'" + recordFile.string() + "' names no C compiler", .inaccessible = false });
     }
     std::error_code ec;
-    if (! std::filesystem::exists(*toolchain.cCompiler, ec)) {
-        return std::unexpected(UnusableCCompiler{ .named = true, .reason = "'" + recordFile.string() + "' names the C compiler '" + toolchain.cCompiler->string() + "', which is not there" });
+    if (const auto status = std::filesystem::status(*toolchain.cCompiler, ec); ! std::filesystem::exists(status)) {
+        UnusableInstalled fault = namedPathFault(recordFile, "C compiler", *toolchain.cCompiler, status, ec);
+        return std::unexpected(UnusableCCompiler{ .named = true, .reason = std::move(fault.reason), .inaccessible = fault.inaccessible });
     }
     return *toolchain.cCompiler;
 }
@@ -273,7 +294,7 @@ std::expected<std::optional<InstalledToolchain>, InstalledToolchainFault> findIn
     }
     auto installed = readInstalled(specifier.family, newest->version, newest->directory);
     if (! installed.has_value()) {
-        return std::unexpected(UnusableInstalled{ .reason = std::move(installed.error()) });
+        return std::unexpected(std::move(installed.error()));
     }
     return std::move(*installed);
 }
