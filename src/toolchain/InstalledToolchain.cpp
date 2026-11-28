@@ -42,7 +42,10 @@ std::expected<InstallRecord, UnusableInstalled> readRecordFile(const std::filesy
     const std::filesystem::path recordFile = directory / InstallRecordName;
     const auto text = File::readWholeFile(recordFile);
     if (! text.has_value()) {
-        return std::unexpected(UnusableInstalled{ .reason = "cannot read '" + recordFile.string() + "'", .inaccessible = (text.error() == File::ReadFailure::CannotOpen) });
+        // A regular file that cannot be opened is taken as one refused to this user.
+        std::error_code ec;
+        const bool refused = (text.error() == File::ReadFailure::CannotOpen) && std::filesystem::is_regular_file(recordFile, ec);
+        return std::unexpected(UnusableInstalled{ .reason = "cannot read '" + recordFile.string() + "'", .inaccessible = refused });
     }
     auto record = parseInstallRecord(*text);
     if (! record.has_value()) {

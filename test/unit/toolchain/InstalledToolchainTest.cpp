@@ -751,3 +751,20 @@ TEST(InstalledToolchainTest, ReportsAnInstallRecordThatCannotBeOpened)
     EXPECT_TRUE(read.error().inaccessible);
     EXPECT_EQ(read.error().reason, "cannot read '" + record.string() + "'");
 }
+
+/**
+ * A record that is not a regular file cannot be opened either, but is not
+ * taken for a matter of permissions.
+ */
+TEST(InstalledToolchainTest, ReportsAnInstallRecordThatIsNotARegularFile)
+{
+    const TempDirectory directory;
+    directory.writeFile("bin/g++", "");
+    directory.makeDirectory(InstallRecordName);
+
+    const auto read = usableInstallRecord(directory.path());
+
+    ASSERT_FALSE(read.has_value());
+    EXPECT_FALSE(read.error().inaccessible);
+    EXPECT_EQ(read.error().reason, "cannot read '" + (directory.path() / InstallRecordName).string() + "'");
+}
