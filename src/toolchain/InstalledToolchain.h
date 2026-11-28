@@ -39,7 +39,7 @@ struct InstalledToolchain {
 struct UnusableCCompiler {
     bool named;          ///< Whether the record names a C compiler, which is then not there or cannot be checked.
     std::string reason;  ///< What is wrong, naming the record.
-    bool inaccessible;   ///< Whether the C compiler cannot be checked, rather than not being there.
+    bool inaccessible;   ///< Whether looking at the C compiler was refused.
 };
 
 /**
@@ -64,7 +64,7 @@ struct NoToolchainForHost { };
  */
 struct UnusableInstalled {
     std::string reason;  ///< What is wrong, naming the record.
-    bool inaccessible;   ///< Whether a path it needs cannot be looked at, rather than being wrong.
+    bool inaccessible;   ///< Whether looking at a path it needs was refused.
 };
 
 /**

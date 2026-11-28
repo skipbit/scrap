@@ -36,8 +36,8 @@ namespace scrap::Command {
 /**
  * @brief Report that the installed toolchain @p specifier names cannot be
  *        used, for the reason @p fault gives, with the command that installs
- *        it again, or a hint to check permissions when a path it needs cannot
- *        be looked at.
+ *        it again, or a hint to check permissions when looking at a path it
+ *        needs was refused.
  */
 [[nodiscard]] std::string renderUnusableInstalled(std::string_view specifier, const Toolchain::UnusableInstalled& fault);
 

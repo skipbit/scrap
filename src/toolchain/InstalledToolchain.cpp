@@ -63,7 +63,8 @@ UnusableInstalled namedPathFault(const std::filesystem::path& recordFile,
 {
     const std::string reason = "'" + recordFile.string() + "' names the " + std::string{ what } + " '" + named.string() + "', which ";
     if (! std::filesystem::status_known(status)) {
-        return UnusableInstalled{ .reason = reason + "cannot be checked: " + ec.message(), .inaccessible = true };
+        const bool refused = (ec == std::errc::permission_denied) || (ec == std::errc::operation_not_permitted);
+        return UnusableInstalled{ .reason = reason + "cannot be checked: " + ec.message(), .inaccessible = refused };
     }
     return UnusableInstalled{ .reason = reason + "is not there", .inaccessible = false };
 }

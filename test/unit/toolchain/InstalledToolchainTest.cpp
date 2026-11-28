@@ -656,6 +656,29 @@ TEST(InstalledToolchainTest, ReportsARecordedCompilerThatCannotBeChecked)
               "'" + (directory / InstallRecordName).string() + "' names the compiler '" + (directory / "bin/g++").string() + "', which cannot be checked: " + Denied);
 }
 
+/**
+ * A recorded compiler that cannot be checked for a reason other than a
+ * refusal is reported with why, and is not taken for a matter of
+ * permissions.
+ */
+TEST(InstalledToolchainTest, ReportsARecordedCompilerThatCannotBeCheckedForAnotherReason)
+{
+    const TempDirectory home;
+    install(home, "gcc", "15.2.0");
+    const std::filesystem::path directory = home.path() / "toolchains/gcc/15.2.0/linux-x86_64";
+    std::filesystem::remove(directory / "bin/g++");
+    // A link to itself fails to resolve even for a user every permission lets in.
+    std::filesystem::create_symlink("g++", directory / "bin/g++");
+
+    const auto read = usableInstallRecord(directory);
+
+    ASSERT_FALSE(read.has_value());
+    EXPECT_FALSE(read.error().inaccessible);
+    EXPECT_EQ(read.error().reason,
+              "'" + (directory / InstallRecordName).string() + "' names the compiler '" + (directory / "bin/g++").string()
+                  + "', which cannot be checked: " + std::make_error_code(std::errc::too_many_symbolic_link_levels).message());
+}
+
 TEST(InstalledToolchainTest, ReportsARecordedRuntimeLibraryDirectoryThatCannotBeChecked)
 {
     const TempDirectory home;
