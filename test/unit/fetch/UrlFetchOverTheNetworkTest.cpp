@@ -6,14 +6,17 @@
 
 #include <gtest/gtest.h>
 
-#include <chrono>
 #include <cstdlib>
 #include <filesystem>
 #include <optional>
 #include <string>
 #include <string_view>
-#include <thread>
 #include <variant>
+
+#if defined(__APPLE__)
+#include <chrono>
+#include <thread>
+#endif
 
 using namespace scrap::Fetch;
 using scrap::File::readWholeFile;
@@ -128,7 +131,7 @@ TEST(UrlFetchOverTheNetworkTest, RefusesARealHostItsCertificatesDoNotVouchFor)
     const auto fetched = fetchToFile({ .url = std::string{ RealUrl }, .destination = temp.path() / "index.toml", .certificateBundle = unrelated, .sizeLimit = std::nullopt, .headers = {} });
 
     ASSERT_FALSE(fetched.has_value());
-    EXPECT_TRUE(std::holds_alternative<CertificateFailure>(fetched.error()));
+    EXPECT_TRUE(std::holds_alternative<CertificateFailure>(fetched.error())) << describeFetchError(fetched.error());
     EXPECT_FALSE(std::filesystem::exists(temp.path() / "index.toml"));
 }
 #endif
