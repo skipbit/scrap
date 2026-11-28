@@ -188,6 +188,7 @@ OptionDef flagOption(const std::string_view name, std::string description)
         .type = OptionValueType::Bool,
         .required = false,
         .description = std::move(description),
+        .valueName = {},
         .defaultValue = std::nullopt,
         .choices = {}
     };
@@ -213,6 +214,7 @@ OptionDef jobsOption(std::string description)
         .type = OptionValueType::PositiveInt64,
         .required = false,
         .description = std::move(description),
+        .valueName = "n",
         .defaultValue = std::nullopt,
         .choices = {}
     };
@@ -230,6 +232,7 @@ OptionDef targetNameOption(const std::string_view name, std::string description)
         .type = OptionValueType::String,
         .required = false,
         .description = std::move(description),
+        .valueName = "name",
         .defaultValue = std::nullopt,
         .choices = {}
     };

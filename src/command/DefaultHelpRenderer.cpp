@@ -219,6 +219,9 @@ std::string DefaultHelpRenderer::renderCommand(std::string_view path, const Comm
                 optName << '-' << opt.shortName.value() << ", ";
             }
             optName << "--" << opt.longName;
+            if (! opt.valueName.empty()) {
+                optName << " <" << opt.valueName << '>';
+            }
             lines.push_back(listingLine(optName.str(), opt.description));
         }
         appendListing(out, lines, columnWidth(lines));

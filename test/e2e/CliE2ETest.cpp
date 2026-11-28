@@ -877,6 +877,23 @@ TEST_F(CliE2ETest, HelpForACommandShowsItsUsage)
     EXPECT_NE(result.stdoutText.find("Build with the release profile\n"), std::string::npos) << result.stdoutText;
 }
 
+TEST_F(CliE2ETest, HelpNamesTheValueAnOptionTakes)
+{
+    auto build = runScrap({ "build", "--help" }, {}, _root);
+    auto run = runScrap({ "run", "--help" }, {}, _root);
+
+    ASSERT_TRUE(build.exitedNormally);
+    EXPECT_EQ(build.exitCode, 0);
+    EXPECT_NE(build.stdoutText.find("\n    --release          Build with the release profile\n"
+                                    "    --target <name>    Build only this target\n"
+                                    "    -j, --jobs <n>     Run this many build steps at once\n"),
+              std::string::npos)
+        << build.stdoutText;
+    ASSERT_TRUE(run.exitedNormally);
+    EXPECT_EQ(run.exitCode, 0);
+    EXPECT_NE(run.stdoutText.find("\n    --bin <name>      Run this executable\n"), std::string::npos) << run.stdoutText;
+}
+
 TEST_F(CliE2ETest, HelpForAnUnknownCommandFails)
 {
     auto result = runScrap({ "help", "nosuch" }, {}, _root);
