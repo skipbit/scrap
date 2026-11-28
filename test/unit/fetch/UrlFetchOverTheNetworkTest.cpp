@@ -87,8 +87,8 @@ TEST(UrlFetchOverTheNetworkTest, VerifiesARealHostWithTheCertificatesOfThisMachi
 #if defined(__APPLE__)
 /**
  * The libcurl of the OS adds a given file to what the OS trusts, so a host is
- * refused by being one the OS does not trust. The host now and then drops the
- * connection, so a failed transfer is tried again.
+ * refused by being one the OS does not trust. The transfer now and then fails
+ * with another kind of error, so a failed transfer is tried again.
  */
 TEST(UrlFetchOverTheNetworkTest, RefusesARealHostTheCertificatesOfThisMachineDoNotVouchFor)
 {
