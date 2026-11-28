@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <vector>
 
 using namespace scrap::Command;
 
@@ -160,6 +161,37 @@ TEST(BuiltinCommandResolverTest, AllEntriesAreBuiltinSource)
 
     for (const auto& entry : entries) {
         EXPECT_EQ(entry.source, CommandSource::Builtin);
+    }
+}
+
+/**
+ * Verify that every built-in option that takes a value names it for help, and
+ * no flag does.
+ */
+TEST(BuiltinCommandResolverTest, OptionsNameTheValueTheyTake)
+{
+    MockHelpRenderer helpRenderer;
+    MockVersionRenderer versionRenderer;
+    BuiltinCommandResolver resolver(helpRenderer, versionRenderer, diskFileSystem());
+
+    RuntimeEnvironment env;
+    auto entries = resolver.resolve(env);
+
+    std::vector<const CommandEntry*> pending;
+    pending.reserve(entries.size());
+    for (const auto& entry : entries) {
+        pending.push_back(&entry);
+    }
+    while (! pending.empty()) {
+        const CommandEntry& entry = *pending.back();
+        pending.pop_back();
+        for (const auto& option : entry.spec.options.named) {
+            SCOPED_TRACE(entry.spec.name + " --" + option.longName);
+            EXPECT_EQ(option.valueName.empty(), option.type == OptionValueType::Bool);
+        }
+        for (const auto& sub : entry.subcommands) {
+            pending.push_back(&sub);
+        }
     }
 }
 
