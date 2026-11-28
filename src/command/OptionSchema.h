@@ -24,7 +24,7 @@ struct OptionDef {
     OptionValueType type;
     bool required = false;
     std::string description;
-    std::string valueName;  ///< What help calls the value; empty for a flag.
+    std::string valueName;  ///< What help calls the value; help shows none when it is empty.
     std::optional<OptionValue> defaultValue;
     std::vector<std::string> choices;
 };
