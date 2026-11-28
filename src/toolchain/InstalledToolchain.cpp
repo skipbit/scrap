@@ -55,6 +55,25 @@ std::expected<InstallRecord, UnusableInstalled> readRecordFile(const std::filesy
 }
 
 /**
+ * How a reason names @p named, which @p recordFile names as the @p what,
+ * up to what is wrong with it.
+ */
+std::string namingOf(const std::filesystem::path& recordFile, std::string_view what, const std::filesystem::path& named)
+{
+    return "'" + recordFile.string() + "' names the " + std::string{ what } + " '" + named.string() + "', which ";
+}
+
+/**
+ * Why @p named, which @p recordFile names as the @p what, cannot be used
+ * when looking at it failed with @p ec.
+ */
+UnusableInstalled uncheckedPathFault(const std::filesystem::path& recordFile, std::string_view what, const std::filesystem::path& named, const std::error_code& ec)
+{
+    const bool refused = (ec == std::errc::permission_denied) || (ec == std::errc::operation_not_permitted);
+    return UnusableInstalled{ .reason = namingOf(recordFile, what, named) + "cannot be checked: " + ec.message(), .inaccessible = refused };
+}
+
+/**
  * Why @p named, which @p recordFile names as the @p what, cannot be used,
  * given the @p status that looking at it gave and the error @p ec it set.
  */
@@ -64,12 +83,10 @@ UnusableInstalled namedPathFault(const std::filesystem::path& recordFile,
                                  const std::filesystem::file_status& status,
                                  const std::error_code& ec)
 {
-    const std::string reason = "'" + recordFile.string() + "' names the " + std::string{ what } + " '" + named.string() + "', which ";
     if (! std::filesystem::status_known(status)) {
-        const bool refused = (ec == std::errc::permission_denied) || (ec == std::errc::operation_not_permitted);
-        return UnusableInstalled{ .reason = reason + "cannot be checked: " + ec.message(), .inaccessible = refused };
+        return uncheckedPathFault(recordFile, what, named, ec);
     }
-    return UnusableInstalled{ .reason = reason + "is not there", .inaccessible = false };
+    return UnusableInstalled{ .reason = namingOf(recordFile, what, named) + "is not there", .inaccessible = false };
 }
 
 /**
@@ -114,6 +131,9 @@ std::expected<void, UnusableInstalled> checkRecordedArguments(const std::filesys
                                                                     + runtimeLibraryDirectory.string() + "'",
                                                           .inaccessible = false });
             }
+        }
+        if (ec) {
+            return std::unexpected(uncheckedPathFault(directory / InstallRecordName, "runtime library directory", runtimeLibraryDirectory, ec));
         }
     }
     return {};

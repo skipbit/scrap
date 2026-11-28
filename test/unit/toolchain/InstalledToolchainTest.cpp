@@ -768,3 +768,28 @@ TEST(InstalledToolchainTest, ReportsAnInstallRecordThatIsNotARegularFile)
     EXPECT_FALSE(read.error().inaccessible);
     EXPECT_EQ(read.error().reason, "cannot read '" + (directory.path() / InstallRecordName).string() + "'");
 }
+
+/**
+ * A runtime library directory that an earlier scrap's record names, and
+ * that cannot be listed to look for libc++, is reported rather than taken
+ * as holding none.
+ */
+TEST(InstalledToolchainTest, ReportsARecordedRuntimeLibraryDirectoryThatCannotBeListed)
+{
+    const TempDirectory directory;
+    directory.writeFile("bin/g++", "");
+    directory.writeFile("lib64/libc++.so.1", "");
+    directory.writeFile(InstallRecordName, "compiler = \"bin/g++\"\nruntime-library-dirs = [\"lib64\"]\n");
+    const PermissionsTaken taken(directory.path() / "lib64");
+    if (seenAnyway(directory.path() / "lib64/libc++.so.1")) {
+        GTEST_SKIP() << "this user reads a directory with no permissions";
+    }
+
+    const auto read = usableInstallRecord(directory.path());
+
+    ASSERT_FALSE(read.has_value());
+    EXPECT_TRUE(read.error().inaccessible);
+    EXPECT_EQ(read.error().reason,
+              "'" + (directory.path() / InstallRecordName).string() + "' names the runtime library directory '" + (directory.path() / "lib64").string()
+                  + "', which cannot be checked: " + Denied);
+}
