@@ -1,15 +1,18 @@
 #include "fetch/CertificateBundle.h"
+#include "fetch/FetchErrorText.h"
 #include "fetch/UrlFetch.h"
 #include "file/WholeFile.h"
 #include "support/TempDirectory.h"
 
 #include <gtest/gtest.h>
 
+#include <chrono>
 #include <cstdlib>
 #include <filesystem>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <variant>
 
 using namespace scrap::Fetch;
@@ -23,6 +26,12 @@ constexpr std::string_view RealUrl = "https://raw.githubusercontent.com/skipbit/
 #if defined(__APPLE__)
 /// A host whose certificate leads to no root the OS trusts.
 constexpr std::string_view UntrustedUrl = "https://self-signed.badssl.com/";
+
+/// How many times the host is reached while the transfer fails.
+constexpr int UntrustedTries = 3;
+
+/// How long to wait before reaching the host again.
+constexpr std::chrono::seconds UntrustedRetryWait{ 1 };
 #else
 /// A self-signed root no public host's certificate leads to.
 constexpr std::string_view UnrelatedRoot = "-----BEGIN CERTIFICATE-----\n"
@@ -78,7 +87,8 @@ TEST(UrlFetchOverTheNetworkTest, VerifiesARealHostWithTheCertificatesOfThisMachi
 #if defined(__APPLE__)
 /**
  * The libcurl of the OS adds a given file to what the OS trusts, so a host is
- * refused by being one the OS does not trust.
+ * refused by being one the OS does not trust. The host now and then drops the
+ * connection, so a failed transfer is tried again.
  */
 TEST(UrlFetchOverTheNetworkTest, RefusesARealHostTheCertificatesOfThisMachineDoNotVouchFor)
 {
@@ -89,10 +99,16 @@ TEST(UrlFetchOverTheNetworkTest, RefusesARealHostTheCertificatesOfThisMachineDoN
     const std::optional<std::filesystem::path> bundle = findCertificateBundle("", knownCertificateBundles());
     ASSERT_TRUE(bundle.has_value());
 
-    const auto fetched = fetchToFile({ .url = std::string{ UntrustedUrl }, .destination = temp.path() / "out", .certificateBundle = bundle, .sizeLimit = std::nullopt, .headers = {} });
+    const FetchRequest request{ .url = std::string{ UntrustedUrl }, .destination = temp.path() / "out", .certificateBundle = bundle, .sizeLimit = std::nullopt, .headers = {} };
+
+    auto fetched = fetchToFile(request);
+    for (int tried = 1; (tried < UntrustedTries) && ! fetched.has_value() && std::holds_alternative<TransferFailure>(fetched.error()); ++tried) {
+        std::this_thread::sleep_for(UntrustedRetryWait);
+        fetched = fetchToFile(request);
+    }
 
     ASSERT_FALSE(fetched.has_value());
-    EXPECT_TRUE(std::holds_alternative<CertificateFailure>(fetched.error()));
+    EXPECT_TRUE(std::holds_alternative<CertificateFailure>(fetched.error())) << describeFetchError(fetched.error());
     EXPECT_FALSE(std::filesystem::exists(temp.path() / "out"));
 }
 #else
