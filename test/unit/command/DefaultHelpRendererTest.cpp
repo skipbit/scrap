@@ -236,6 +236,36 @@ TEST(DefaultHelpRendererTest, RenderCommand_LinesUpOnTheNamesAsShown)
 }
 
 /**
+ * An option that takes a value names it after the option, and the column
+ * widens to fit; a flag shows no value.
+ */
+TEST(DefaultHelpRendererTest, RenderCommand_NamesTheValueAnOptionTakes)
+{
+    DefaultHelpRenderer renderer;
+    CommandSpec spec;
+    spec.name = "x";
+
+    OptionDef flag;
+    flag.longName = "release";
+    flag.description = "Flag";
+    OptionDef valued;
+    valued.longName = "jobs";
+    valued.shortName = 'j';
+    valued.type = OptionValueType::PositiveInt64;
+    valued.description = "Valued";
+    valued.valueName = "n";
+    spec.options.named = { flag, valued };
+
+    auto result = renderer.renderCommand("x", spec);
+
+    EXPECT_EQ(result,
+              "USAGE: scrap x [OPTIONS]\n"
+              "\nOPTIONS:\n"
+              "    --release         Flag\n"
+              "    -j, --jobs <n>    Valued\n");
+}
+
+/**
  * renderCommand should list subcommands.
  */
 TEST(DefaultHelpRendererTest, RenderCommand_WithSubcommands)

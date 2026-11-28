@@ -137,6 +137,7 @@ TEST(CommandCatalogTest, Specs_PreservesOptions)
                                                   .type = OptionValueType::Bool,
                                                   .required = false,
                                                   .description = "Build in release mode",
+                                                  .valueName = "",
                                                   .defaultValue = std::nullopt,
                                                   .choices = {} });
 

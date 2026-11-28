@@ -121,6 +121,7 @@ TEST(CLI11ParserAdapterTest, Parse_NestedCommandOption)
         .type = OptionValueType::Bool,
         .required = false,
         .description = "",
+        .valueName = "",
         .defaultValue = std::nullopt,
         .choices = {},
     });
@@ -150,6 +151,7 @@ TEST(CLI11ParserAdapterTest, Parse_NameWithADotKeepsItsOptions)
         .type = OptionValueType::Bool,
         .required = false,
         .description = "",
+        .valueName = "",
         .defaultValue = std::nullopt,
         .choices = {},
     });
@@ -180,6 +182,7 @@ TEST(CLI11ParserAdapterTest, Parse_BoolFlag)
         .type = OptionValueType::Bool,
         .required = false,
         .description = "",
+        .valueName = "",
         .defaultValue = std::nullopt,
         .choices = {},
     });
@@ -207,6 +210,7 @@ TEST(CLI11ParserAdapterTest, Parse_BoolFlag_ShortForm)
         .type = OptionValueType::Bool,
         .required = false,
         .description = "",
+        .valueName = "",
         .defaultValue = std::nullopt,
         .choices = {},
     });
@@ -233,6 +237,7 @@ TEST(CLI11ParserAdapterTest, Parse_StringOption)
         .type = OptionValueType::String,
         .required = false,
         .description = "",
+        .valueName = "",
         .defaultValue = std::nullopt,
         .choices = {},
     });
@@ -263,6 +268,7 @@ TEST(CLI11ParserAdapterTest, Parse_ExplicitEmptyStringOptionIsKept)
         .type = OptionValueType::String,
         .required = false,
         .description = "",
+        .valueName = "",
         .defaultValue = std::nullopt,
         .choices = {},
     });
@@ -295,6 +301,7 @@ TEST(CLI11ParserAdapterTest, Parse_Int64Option)
         .type = OptionValueType::Int64,
         .required = false,
         .description = "",
+        .valueName = "",
         .defaultValue = std::nullopt,
         .choices = {},
     });
@@ -321,6 +328,7 @@ TEST(CLI11ParserAdapterTest, Parse_BoolFlag_OmittedIsAbsent)
         .type = OptionValueType::Bool,
         .required = false,
         .description = "",
+        .valueName = "",
         .defaultValue = std::nullopt,
         .choices = {},
     });
@@ -345,6 +353,7 @@ TEST(CLI11ParserAdapterTest, Parse_Int64Option_ZeroGivenAndOmitted)
         .type = OptionValueType::Int64,
         .required = false,
         .description = "",
+        .valueName = "",
         .defaultValue = std::nullopt,
         .choices = {},
     });
@@ -377,6 +386,7 @@ TEST(CLI11ParserAdapterTest, Parse_Int64Option_OmittedCarriesItsDefault)
         .type = OptionValueType::Int64,
         .required = false,
         .description = "",
+        .valueName = "",
         .defaultValue = OptionValue{ std::int64_t{ 4 } },
         .choices = {},
     });
@@ -403,6 +413,7 @@ TEST(CLI11ParserAdapterTest, Parse_BoolFlag_OmittedCarriesItsDefault)
         .type = OptionValueType::Bool,
         .required = false,
         .description = "",
+        .valueName = "",
         .defaultValue = OptionValue{ true },
         .choices = {},
     });
@@ -429,6 +440,7 @@ TEST(CLI11ParserAdapterTest, Parse_StringOption_EmptyDefaultIsKept)
         .type = OptionValueType::String,
         .required = false,
         .description = "",
+        .valueName = "",
         .defaultValue = OptionValue{ std::string{} },
         .choices = {},
     });
@@ -455,6 +467,7 @@ TEST(CLI11ParserAdapterTest, Parse_StringListOption_GivenInOrder)
         .type = OptionValueType::StringList,
         .required = false,
         .description = "",
+        .valueName = "",
         .defaultValue = std::nullopt,
         .choices = {},
     });
@@ -481,6 +494,7 @@ TEST(CLI11ParserAdapterTest, Parse_StringListOption_OmittedIsAbsent)
         .type = OptionValueType::StringList,
         .required = false,
         .description = "",
+        .valueName = "",
         .defaultValue = std::nullopt,
         .choices = {},
     });
@@ -505,6 +519,7 @@ TEST(CLI11ParserAdapterTest, Parse_StringListOption_OmittedCarriesItsDefault)
         .type = OptionValueType::StringList,
         .required = false,
         .description = "",
+        .valueName = "",
         .defaultValue = OptionValue{ std::vector<std::string>{ "a", "b" } },
         .choices = {},
     });
@@ -709,6 +724,7 @@ TEST(CLI11ParserAdapterTest, Parse_MisconfiguredOptionIsAFault)
         .type = OptionValueType::Int64,
         .required = false,
         .description = "",
+        .valueName = "",
         .defaultValue = OptionValue{ std::string{ "four" } },
         .choices = {},
     });
@@ -732,6 +748,7 @@ TEST(CLI11ParserAdapterTest, Parse_MisconfiguredFlagIsAFault)
         .type = OptionValueType::Bool,
         .required = false,
         .description = "",
+        .valueName = "",
         .defaultValue = OptionValue{ std::string{ "yes" } },
         .choices = {},
     });
@@ -898,6 +915,7 @@ CLI11ParserAdapter adapterWithPositiveJobs()
         .type = OptionValueType::PositiveInt64,
         .required = false,
         .description = "",
+        .valueName = "",
         .defaultValue = std::nullopt,
         .choices = {},
     });
@@ -969,6 +987,7 @@ TEST(CLI11ParserAdapterTest, Parse_DottedOptionIsNotAnOptionOfTheCommand)
         .type = OptionValueType::Bool,
         .required = false,
         .description = "",
+        .valueName = "",
         .defaultValue = std::nullopt,
         .choices = {},
     });
@@ -1045,6 +1064,7 @@ TEST(CLI11ParserAdapterTest, Parse_ChoiceValidation)
         .type = OptionValueType::String,
         .required = false,
         .description = "Build profile",
+        .valueName = "",
         .defaultValue = std::nullopt,
         .choices = { "debug", "release" },
     });
@@ -1073,6 +1093,7 @@ TEST(CLI11ParserAdapterTest, Parse_DefaultValue)
         .type = OptionValueType::String,
         .required = false,
         .description = "Build profile",
+        .valueName = "",
         .defaultValue = OptionValue{ std::string{ "debug" } },
         .choices = {},
     });
