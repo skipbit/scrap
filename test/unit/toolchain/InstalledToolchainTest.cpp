@@ -9,9 +9,12 @@
 #include <gtest/gtest.h>
 
 #include <filesystem>
+#include <fstream>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <system_error>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -308,7 +311,7 @@ TEST(InstalledToolchainTest, ReadsNoInstallRecordWhereThereIsNone)
 
     const auto read = usableInstallRecord(directory.path());
 
-    ASSERT_TRUE(read.has_value()) << read.error();
+    ASSERT_TRUE(read.has_value()) << read.error().reason;
     EXPECT_FALSE(read->has_value());
 }
 
@@ -320,7 +323,7 @@ TEST(InstalledToolchainTest, ReadsTheInstallRecordWithItsIngotIntegrity)
 
     const auto read = usableInstallRecord(directory.path());
 
-    ASSERT_TRUE(read.has_value()) << read.error();
+    ASSERT_TRUE(read.has_value()) << read.error().reason;
     ASSERT_TRUE(read->has_value());
     EXPECT_EQ((*read)->ingotIntegrity, "sha256:abc");
 }
@@ -333,7 +336,8 @@ TEST(InstalledToolchainTest, ReportsAnInstallRecordThatCannotBeParsedWithItsFile
     const auto read = usableInstallRecord(directory.path());
 
     ASSERT_FALSE(read.has_value());
-    EXPECT_TRUE(read.error().starts_with("'" + (directory.path() / InstallRecordName).string() + "': ")) << read.error();
+    EXPECT_TRUE(read.error().reason.starts_with("'" + (directory.path() / InstallRecordName).string() + "': ")) << read.error().reason;
+    EXPECT_FALSE(read.error().inaccessible);
 }
 
 /**
@@ -347,7 +351,8 @@ TEST(InstalledToolchainTest, RefusesAnInstallRecordWhoseCompilerIsMissing)
     const auto read = usableInstallRecord(directory.path());
 
     ASSERT_FALSE(read.has_value());
-    EXPECT_NE(read.error().find("names the compiler"), std::string::npos) << read.error();
+    EXPECT_NE(read.error().reason.find("names the compiler"), std::string::npos) << read.error().reason;
+    EXPECT_FALSE(read.error().inaccessible);
 }
 
 TEST(InstalledToolchainTest, RefusesAnInstallRecordWhoseRuntimeLibraryDirectoryIsMissing)
@@ -359,7 +364,7 @@ TEST(InstalledToolchainTest, RefusesAnInstallRecordWhoseRuntimeLibraryDirectoryI
     const auto read = usableInstallRecord(directory.path());
 
     ASSERT_FALSE(read.has_value());
-    EXPECT_NE(read.error().find("names the runtime library directory"), std::string::npos) << read.error();
+    EXPECT_NE(read.error().reason.find("names the runtime library directory"), std::string::npos) << read.error().reason;
 }
 
 namespace {
@@ -579,6 +584,212 @@ TEST(InstalledToolchainTest, RefusesToBuildCWhenTheRecordedCCompilerIsMissing)
     const auto compiler = usableCCompiler(**found);
     ASSERT_FALSE(compiler.has_value());
     EXPECT_TRUE(compiler.error().named);
+    EXPECT_FALSE(compiler.error().inaccessible);
     EXPECT_EQ(compiler.error().reason,
               "'" + record.string() + "' names the C compiler '" + (home.path() / directory / "bin/gcc").string() + "', which is not there");
+}
+
+namespace {
+
+const std::string Denied = std::make_error_code(std::errc::permission_denied).message();
+
+/**
+ * Takes every permission from a path while it lives, and gives the owner's
+ * back after so that the temporary directory can be removed.
+ */
+class PermissionsTaken {
+public:
+    explicit PermissionsTaken(std::filesystem::path path)
+        : _path(std::move(path))
+    {
+        std::filesystem::permissions(_path, std::filesystem::perms::none);
+    }
+
+    ~PermissionsTaken()
+    {
+        std::error_code ec;
+        std::filesystem::permissions(_path, std::filesystem::perms::owner_all, ec);
+    }
+
+    PermissionsTaken(const PermissionsTaken&) = delete;
+    PermissionsTaken(PermissionsTaken&&) = delete;
+    PermissionsTaken& operator=(const PermissionsTaken&) = delete;
+    PermissionsTaken& operator=(PermissionsTaken&&) = delete;
+
+private:
+    std::filesystem::path _path;
+};
+
+/**
+ * Whether this user, root among them, still sees @p inside, a path in a
+ * directory with no permissions.
+ */
+bool seenAnyway(const std::filesystem::path& inside)
+{
+    std::error_code ec;
+    return std::filesystem::exists(inside, ec) && (! ec);
+}
+
+}  // namespace
+
+/**
+ * A recorded compiler that cannot be checked is reported as such, with why,
+ * rather than as one that is not there.
+ */
+TEST(InstalledToolchainTest, ReportsARecordedCompilerThatCannotBeChecked)
+{
+    const TempDirectory home;
+    install(home, "gcc", "15.2.0");
+    const std::filesystem::path directory = home.path() / "toolchains/gcc/15.2.0/linux-x86_64";
+    const PermissionsTaken taken(directory / "bin");
+    if (seenAnyway(directory / "bin/g++")) {
+        GTEST_SKIP() << "this user reads a directory with no permissions";
+    }
+
+    const auto found = findInstalledToolchain(home.path(), Host, parseToolchainSpecifier("gcc").value());
+
+    ASSERT_FALSE(found.has_value());
+    const auto* unusable = std::get_if<UnusableInstalled>(&found.error());
+    ASSERT_NE(unusable, nullptr);
+    EXPECT_TRUE(unusable->inaccessible);
+    EXPECT_EQ(unusable->reason,
+              "'" + (directory / InstallRecordName).string() + "' names the compiler '" + (directory / "bin/g++").string() + "', which cannot be checked: " + Denied);
+}
+
+/**
+ * A recorded compiler that cannot be checked for a reason other than a
+ * refusal is reported with why, and is not taken for a matter of
+ * permissions.
+ */
+TEST(InstalledToolchainTest, ReportsARecordedCompilerThatCannotBeCheckedForAnotherReason)
+{
+    const TempDirectory home;
+    install(home, "gcc", "15.2.0");
+    const std::filesystem::path directory = home.path() / "toolchains/gcc/15.2.0/linux-x86_64";
+    std::filesystem::remove(directory / "bin/g++");
+    // A link to itself fails to resolve even for a user every permission lets in.
+    std::filesystem::create_symlink("g++", directory / "bin/g++");
+
+    const auto read = usableInstallRecord(directory);
+
+    ASSERT_FALSE(read.has_value());
+    EXPECT_FALSE(read.error().inaccessible);
+    EXPECT_EQ(read.error().reason,
+              "'" + (directory / InstallRecordName).string() + "' names the compiler '" + (directory / "bin/g++").string()
+                  + "', which cannot be checked: " + std::make_error_code(std::errc::too_many_symbolic_link_levels).message());
+}
+
+TEST(InstalledToolchainTest, ReportsARecordedRuntimeLibraryDirectoryThatCannotBeChecked)
+{
+    const TempDirectory home;
+    install(home, "gcc", "15.2.0");
+    const std::string relative = "toolchains/gcc/15.2.0/linux-x86_64";
+    home.makeDirectory(relative + "/locked/lib64");
+    home.writeFile(relative + "/" + std::string{ InstallRecordName }, "compiler = \"bin/g++\"\nruntime-library-dirs = [\"locked/lib64\"]\n");
+    const std::filesystem::path directory = home.path() / relative;
+    const PermissionsTaken taken(directory / "locked");
+    if (seenAnyway(directory / "locked/lib64")) {
+        GTEST_SKIP() << "this user reads a directory with no permissions";
+    }
+
+    const auto read = usableInstallRecord(directory);
+
+    ASSERT_FALSE(read.has_value());
+    EXPECT_TRUE(read.error().inaccessible);
+    EXPECT_EQ(read.error().reason,
+              "'" + (directory / InstallRecordName).string() + "' names the runtime library directory '" + (directory / "locked/lib64").string()
+                  + "', which cannot be checked: " + Denied);
+}
+
+/**
+ * A recorded C compiler that cannot be checked is reported as such. The
+ * toolchain still builds C++.
+ */
+TEST(InstalledToolchainTest, ReportsARecordedCCompilerThatCannotBeChecked)
+{
+    const TempDirectory home;
+    install(home, "gcc", "15.2.0");
+    const std::string relative = "toolchains/gcc/15.2.0/linux-x86_64";
+    home.writeFile(relative + "/locked/gcc", "");
+    home.writeFile(relative + "/" + std::string{ InstallRecordName }, "compiler = 'bin/g++'\nc-compiler = 'locked/gcc'\n");
+    const std::filesystem::path directory = home.path() / relative;
+    const PermissionsTaken taken(directory / "locked");
+    if (seenAnyway(directory / "locked/gcc")) {
+        GTEST_SKIP() << "this user reads a directory with no permissions";
+    }
+
+    const auto found = findInstalledToolchain(home.path(), Host, parseToolchainSpecifier("gcc").value());
+    ASSERT_TRUE(found.has_value()) << reasonOf(found.error());
+    ASSERT_TRUE(found->has_value());
+    const auto compiler = usableCCompiler(**found);
+
+    ASSERT_FALSE(compiler.has_value());
+    EXPECT_TRUE(compiler.error().named);
+    EXPECT_TRUE(compiler.error().inaccessible);
+    EXPECT_EQ(compiler.error().reason,
+              "'" + (directory / InstallRecordName).string() + "' names the C compiler '" + (directory / "locked/gcc").string() + "', which cannot be checked: " + Denied);
+}
+
+/**
+ * A record that cannot be opened is reported as one that cannot be looked
+ * at, so that installing again is not what is suggested.
+ */
+TEST(InstalledToolchainTest, ReportsAnInstallRecordThatCannotBeOpened)
+{
+    const TempDirectory directory;
+    directory.writeFile("bin/g++", "");
+    directory.writeFile(InstallRecordName, "compiler = \"bin/g++\"\n");
+    const std::filesystem::path record = directory.path() / InstallRecordName;
+    const PermissionsTaken taken(record);
+    if (std::ifstream(record).is_open()) {
+        GTEST_SKIP() << "this user reads a file with no permissions";
+    }
+
+    const auto read = usableInstallRecord(directory.path());
+
+    ASSERT_FALSE(read.has_value());
+    EXPECT_TRUE(read.error().inaccessible);
+    EXPECT_EQ(read.error().reason, "cannot read '" + record.string() + "'");
+}
+
+/**
+ * A record that is not a regular file cannot be opened either, but is not
+ * taken for a matter of permissions.
+ */
+TEST(InstalledToolchainTest, ReportsAnInstallRecordThatIsNotARegularFile)
+{
+    const TempDirectory directory;
+    directory.writeFile("bin/g++", "");
+    directory.makeDirectory(InstallRecordName);
+
+    const auto read = usableInstallRecord(directory.path());
+
+    ASSERT_FALSE(read.has_value());
+    EXPECT_FALSE(read.error().inaccessible);
+    EXPECT_EQ(read.error().reason, "cannot read '" + (directory.path() / InstallRecordName).string() + "'");
+}
+
+/**
+ * A runtime library directory that an earlier scrap's record names, and
+ * that cannot be listed to look for libc++, is reported rather than taken
+ * as holding none.
+ */
+TEST(InstalledToolchainTest, ReportsARecordedRuntimeLibraryDirectoryThatCannotBeListed)
+{
+    const TempDirectory directory;
+    directory.writeFile("bin/g++", "");
+    directory.writeFile("lib64/libc++.so.1", "");
+    directory.writeFile(InstallRecordName, "compiler = \"bin/g++\"\nruntime-library-dirs = [\"lib64\"]\n");
+    const PermissionsTaken taken(directory.path() / "lib64");
+    if (seenAnyway(directory.path() / "lib64/libc++.so.1")) {
+        GTEST_SKIP() << "this user reads a directory with no permissions";
+    }
+
+    const auto read = usableInstallRecord(directory.path());
+
+    ASSERT_FALSE(read.has_value());
+    EXPECT_TRUE(read.error().inaccessible);
+    EXPECT_EQ(read.error().reason,
+              "'" + (directory.path() / InstallRecordName).string() + "' names the runtime library directory '" + (directory.path() / "lib64").string()
+                  + "', which cannot be checked: " + Denied);
 }
